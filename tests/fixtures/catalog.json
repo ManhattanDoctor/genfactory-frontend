@@ -1,0 +1,1263 @@
+[
+  {
+    "reference": {
+      "provider": "OPEN_AI_IMAGE_GPT",
+      "model": "gpt-image-2"
+    },
+    "name": "gpt-image-2",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_AI_IMAGE_GPT"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32000
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "maxItems": 16
+            },
+            "maskFileId": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["gpt-image-2"],
+              "default": "gpt-image-2"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(auto|[1-9][0-9]*x[1-9][0-9]*)$",
+              "description": "auto or WIDTHxHEIGHT; custom sizes are supported by gpt-image-2",
+              "default": "1024x1024"
+            },
+            "quality": {
+              "type": "string",
+              "enum": ["auto", "low", "medium", "high"],
+              "default": "medium"
+            },
+            "background": {
+              "type": "string",
+              "enum": ["auto", "transparent", "opaque"],
+              "default": "opaque"
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp"]
+            },
+            "compression": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "moderation": {
+              "type": "string",
+              "enum": ["auto", "low"]
+            },
+            "stream": {
+              "type": "boolean"
+            },
+            "partialImages": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3,
+              "description": "Requires stream=true; only final images are saved"
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["partialImages"]
+              },
+              "then": {
+                "required": ["stream"],
+                "properties": {
+                  "stream": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "task": {
+                "required": ["maskFileId"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "required": ["fileIds"],
+                "properties": {
+                  "fileIds": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "capabilities": ["TEXT_INPUT", "IMAGE_INPUT", "IMAGE_OUTPUT", "IMAGE_EDIT"]
+  },
+  {
+    "reference": {
+      "provider": "OPEN_AI_IMAGE_GPT",
+      "model": "gpt-image-1.5"
+    },
+    "name": "gpt-image-1.5",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_AI_IMAGE_GPT"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32000
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "maxItems": 16
+            },
+            "maskFileId": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["gpt-image-1.5"],
+              "default": "gpt-image-1.5"
+            },
+            "size": {
+              "type": "string",
+              "enum": ["auto", "1024x1024", "1536x1024", "1024x1536"],
+              "default": "1024x1024"
+            },
+            "quality": {
+              "type": "string",
+              "enum": ["auto", "low", "medium", "high"],
+              "default": "medium"
+            },
+            "background": {
+              "type": "string",
+              "enum": ["auto", "transparent", "opaque"],
+              "default": "opaque"
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp"]
+            },
+            "compression": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "moderation": {
+              "type": "string",
+              "enum": ["auto", "low"]
+            },
+            "inputFidelity": {
+              "type": "string",
+              "enum": ["low", "high"],
+              "description": "Editing only: high/low for gpt-image-1.5; low for mini; omit for gpt-image-2"
+            },
+            "stream": {
+              "type": "boolean"
+            },
+            "partialImages": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3,
+              "description": "Requires stream=true; only final images are saved"
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["partialImages"]
+              },
+              "then": {
+                "required": ["stream"],
+                "properties": {
+                  "stream": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "allOf": [
+        {
+          "if": {
+            "required": ["options"],
+            "properties": {
+              "options": {
+                "required": ["inputFidelity"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "required": ["fileIds"],
+                "properties": {
+                  "fileIds": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "task": {
+                "required": ["maskFileId"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "required": ["fileIds"],
+                "properties": {
+                  "fileIds": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "capabilities": ["TEXT_INPUT", "IMAGE_INPUT", "IMAGE_OUTPUT", "IMAGE_EDIT"]
+  },
+  {
+    "reference": {
+      "provider": "OPEN_AI_IMAGE_GPT",
+      "model": "gpt-image-1-mini"
+    },
+    "name": "gpt-image-1-mini",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_AI_IMAGE_GPT"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32000
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "maxItems": 16
+            },
+            "maskFileId": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["gpt-image-1-mini"],
+              "default": "gpt-image-1-mini"
+            },
+            "size": {
+              "type": "string",
+              "enum": ["auto", "1024x1024", "1536x1024", "1024x1536"],
+              "default": "1024x1024"
+            },
+            "quality": {
+              "type": "string",
+              "enum": ["auto", "low", "medium", "high"],
+              "default": "medium"
+            },
+            "background": {
+              "type": "string",
+              "enum": ["auto", "transparent", "opaque"],
+              "default": "opaque"
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp"]
+            },
+            "compression": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "moderation": {
+              "type": "string",
+              "enum": ["auto", "low"]
+            },
+            "inputFidelity": {
+              "type": "string",
+              "enum": ["low"],
+              "description": "Editing only: high/low for gpt-image-1.5; low for mini; omit for gpt-image-2"
+            },
+            "stream": {
+              "type": "boolean"
+            },
+            "partialImages": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3,
+              "description": "Requires stream=true; only final images are saved"
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["partialImages"]
+              },
+              "then": {
+                "required": ["stream"],
+                "properties": {
+                  "stream": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "allOf": [
+        {
+          "if": {
+            "required": ["options"],
+            "properties": {
+              "options": {
+                "required": ["inputFidelity"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "required": ["fileIds"],
+                "properties": {
+                  "fileIds": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "task": {
+                "required": ["maskFileId"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "required": ["fileIds"],
+                "properties": {
+                  "fileIds": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "capabilities": ["TEXT_INPUT", "IMAGE_INPUT", "IMAGE_OUTPUT", "IMAGE_EDIT"]
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "sourceful/riverflow-v2.6-pro"
+    },
+    "name": "Sourceful: Riverflow V2.6 Pro",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 10
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["sourceful/riverflow-v2.6-pro"],
+              "default": "sourceful/riverflow-v2.6-pro"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["1K", "2K", "4K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": ["1:1", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "16:9", "9:16", "21:9", "auto"]
+            },
+            "background": {
+              "type": "string",
+              "enum": ["auto", "transparent", "opaque"]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp"]
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "qwen/qwen-image-2.1-turbo"
+    },
+    "name": "Qwen: Qwen Image 2.1 Turbo",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 4
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["qwen/qwen-image-2.1-turbo"],
+              "default": "qwen/qwen-image-2.1-turbo"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["1K", "2K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": [
+                "1:1",
+                "1:2",
+                "1:4",
+                "2:1",
+                "2:3",
+                "3:2",
+                "3:4",
+                "4:1",
+                "4:3",
+                "4:5",
+                "5:4",
+                "9:16",
+                "16:9"
+              ]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "qwen/qwen-image-2.1-pro"
+    },
+    "name": "Qwen: Qwen Image 2.1 Pro",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 4
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["qwen/qwen-image-2.1-pro"],
+              "default": "qwen/qwen-image-2.1-pro"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["1K", "2K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": [
+                "1:1",
+                "1:2",
+                "1:4",
+                "2:1",
+                "2:3",
+                "3:2",
+                "3:4",
+                "4:1",
+                "4:3",
+                "4:5",
+                "5:4",
+                "9:16",
+                "16:9"
+              ]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_VIDEO",
+      "model": "x-ai/grok-imagine-video-1.5-lite"
+    },
+    "name": "x-ai/grok-imagine-video-1.5-lite",
+    "capabilities": ["TEXT_INPUT", "VIDEO_OUTPUT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "const": "OPEN_ROUTER_VIDEO"
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["x-ai/grok-imagine-video-1.5-lite"],
+              "default": "x-ai/grok-imagine-video-1.5-lite"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            },
+            "resolution": {
+              "type": "string"
+            },
+            "aspectRatio": {
+              "type": "string"
+            },
+            "size": {
+              "type": "string"
+            },
+            "generateAudio": {
+              "type": "boolean"
+            },
+            "seed": {
+              "type": "number"
+            },
+            "frameImages": {
+              "maxItems": 2,
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "enum": ["first_frame", "last_frame"],
+                    "type": "string"
+                  }
+                },
+                "required": ["url", "type"]
+              }
+            }
+          },
+          "required": ["model"]
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["prompt"]
+        }
+      },
+      "required": ["model", "options", "task"]
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_VIDEO",
+      "model": "alibaba/wan-3.0"
+    },
+    "name": "alibaba/wan-3.0",
+    "capabilities": ["TEXT_INPUT", "VIDEO_OUTPUT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "const": "OPEN_ROUTER_VIDEO"
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["alibaba/wan-3.0"],
+              "default": "alibaba/wan-3.0"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            },
+            "resolution": {
+              "type": "string"
+            },
+            "aspectRatio": {
+              "type": "string"
+            },
+            "size": {
+              "type": "string"
+            },
+            "generateAudio": {
+              "type": "boolean"
+            },
+            "seed": {
+              "type": "number"
+            },
+            "frameImages": {
+              "maxItems": 2,
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "enum": ["first_frame", "last_frame"],
+                    "type": "string"
+                  }
+                },
+                "required": ["url", "type"]
+              }
+            }
+          },
+          "required": ["model"]
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["prompt"]
+        }
+      },
+      "required": ["model", "options", "task"]
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_VIDEO",
+      "model": "bytedance/seedance-2.5"
+    },
+    "name": "bytedance/seedance-2.5",
+    "capabilities": ["TEXT_INPUT", "VIDEO_OUTPUT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "const": "OPEN_ROUTER_VIDEO"
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["bytedance/seedance-2.5"],
+              "default": "bytedance/seedance-2.5"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            },
+            "resolution": {
+              "type": "string"
+            },
+            "aspectRatio": {
+              "type": "string"
+            },
+            "size": {
+              "type": "string"
+            },
+            "generateAudio": {
+              "type": "boolean"
+            },
+            "seed": {
+              "type": "number"
+            },
+            "frameImages": {
+              "maxItems": 2,
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "enum": ["first_frame", "last_frame"],
+                    "type": "string"
+                  }
+                },
+                "required": ["url", "type"]
+              }
+            }
+          },
+          "required": ["model"]
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["prompt"]
+        }
+      },
+      "required": ["model", "options", "task"]
+    }
+  }
+]
