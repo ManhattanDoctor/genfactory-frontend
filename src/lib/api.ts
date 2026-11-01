@@ -3,9 +3,10 @@ import type {
   InitResponse,
   ModelDescription,
   Pagination,
-  TaskCost,
-  TaskRequest,
-  TaskResponse,
+  Conversation,
+  ConversationCreate,
+  ConversationMessage,
+  MessageCreate,
 } from './types';
 export const SESSION_KEY = 'genfactory.session';
 const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
@@ -62,9 +63,37 @@ export const api = {
     request<ModelDescription[]>(`/aimodels?provider=${encodeURIComponent(provider)}`, { signal }),
   details: (provider: string, model: string) =>
     request<ModelDescription>(`/aimodels/details?${new URLSearchParams({ provider, model })}`),
-  generate: (body: TaskRequest, sid: string) =>
-    request<TaskResponse>('/task', { method: 'POST', body: JSON.stringify(body) }, sid),
-  cost: (id: string) => request<TaskCost>(`/task/cost/${encodeURIComponent(id)}`),
+  conversations: (userId: number, page: number, signal?: AbortSignal) =>
+    request<Pagination<Conversation>>(
+      `/conversation?${new URLSearchParams({
+        pageSize: '24',
+        pageIndex: String(page),
+        sort: JSON.stringify({ createdDate: false, id: false }),
+        conditions: JSON.stringify({ userId }),
+      })}`,
+      { signal },
+    ),
+  conversation: (id: number, signal?: AbortSignal, sid?: string) =>
+    request<Conversation>(`/conversation/${id}`, { signal }, sid),
+  createConversation: (body: ConversationCreate, sid: string) =>
+    request<Conversation>('/conversation', { method: 'POST', body: JSON.stringify(body) }, sid),
+  messages: (id: number, page: number, signal?: AbortSignal, sid?: string) =>
+    request<Pagination<ConversationMessage>>(
+      `/conversation/${id}/message?${new URLSearchParams({
+        pageSize: '20',
+        pageIndex: String(page),
+        conditions: JSON.stringify({ conversationId: id }),
+        sort: JSON.stringify({ createdDate: false, id: false }),
+      })}`,
+      { signal },
+      sid,
+    ),
+  sendMessage: (id: number, body: MessageCreate, sid: string) =>
+    request<ConversationMessage>(
+      `/conversation/${id}/message`,
+      { method: 'POST', body: JSON.stringify(body) },
+      sid,
+    ),
   files: (page: number, type?: string) =>
     request<Pagination<GnosisFile>>(
       `/file?${new URLSearchParams({ pageSize: '24', pageIndex: String(page), sort: JSON.stringify({ createdDate: false }), ...(type ? { conditions: JSON.stringify({ type }) } : {}) })}`,
@@ -75,19 +104,6 @@ export const api = {
     data.append('file', file);
     return request<GnosisFile>('/file', { method: 'POST', body: data }, sid);
   },
-  saveImage: (source: string, mime: string, name: string, session: string, sid: string) =>
-    request<GnosisFile>(
-      '/fileBuffer',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          input: { source: source.replace(/^data:[^,]*,/, ''), mime },
-          tags: ['genfactory', `session:${session}`],
-        }),
-      },
-      sid,
-    ),
 };
 export function safeMediaUrl(value?: string): string | undefined {
   if (!value) return undefined;

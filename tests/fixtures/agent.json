@@ -1,0 +1,111 @@
+{
+  "reference": {
+    "provider": "OPEN_AI_CONVERSATION",
+    "model": "gpt-5.6-terra"
+  },
+  "name": "gpt-5.6-terra",
+  "capabilities": ["TEXT_INPUT", "TEXT_OUTPUT", "IMAGE_INPUT", "TOOLS", "STRUCTURED_OUTPUT"],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "model": {
+        "const": "OPEN_AI_CONVERSATION"
+      },
+      "options": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "enum": ["gpt-5.6-terra"],
+            "default": "gpt-5.6-terra"
+          },
+          "temperature": {
+            "type": "number",
+            "maximum": 2,
+            "minimum": 0
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "uid": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "settings": {
+                  "type": "object",
+                  "properties": {
+                    "model": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "enum": [
+                            "OPEN_AI_TEXT",
+                            "ANTHROPIC_TEXT",
+                            "NOSTRA_TEXT",
+                            "OPEN_ROUTER_TEXT",
+                            "OPEN_AI_CONVERSATION",
+                            "ANTHROPIC_CONVERSATION",
+                            "NOSTRA_CONVERSATION",
+                            "OPEN_ROUTER_CONVERSATION",
+                            "OPEN_AI_IMAGE_GPT",
+                            "OPEN_ROUTER_IMAGE",
+                            "OPEN_ROUTER_VIDEO",
+                            "OPEN_AI_STT",
+                            "OPEN_ROUTER_STT",
+                            "OPEN_AI_TTS",
+                            "OPEN_ROUTER_TTS"
+                          ],
+                          "type": "string"
+                        },
+                        "model": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": ["provider", "model"]
+                    },
+                    "options": {
+                      "type": "object"
+                    }
+                  },
+                  "required": ["model"]
+                }
+              },
+              "required": ["uid"]
+            }
+          },
+          "maxTokens": {
+            "type": "number",
+            "maximum": 1000000000,
+            "minimum": 0
+          },
+          "presencePenalty": {
+            "type": "number",
+            "maximum": 2,
+            "minimum": -2
+          },
+          "frequencyPenalty": {
+            "type": "number",
+            "maximum": 2,
+            "minimum": -2
+          },
+          "responseSchema": {
+            "type": "object",
+            "description": "Strict JSON Schema: object root, all properties required, additionalProperties false. Supports object, array, string, number, integer, boolean, enum and description."
+          },
+          "outputFormat": {
+            "enum": ["PLAIN_EXTENDED", "PLAIN", "HTML"],
+            "type": "string"
+          }
+        },
+        "required": ["model"]
+      },
+      "task": {
+        "type": "object"
+      }
+    },
+    "required": ["model", "options", "task"]
+  }
+}

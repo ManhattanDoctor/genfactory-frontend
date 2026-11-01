@@ -1,8 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import type { ModelDescription } from '../../src/lib/types';
+import type { Conversation, ConversationMessage, ModelDescription } from '../../src/lib/types';
 const catalog: ModelDescription[] = JSON.parse(
   readFileSync(new URL('../fixtures/catalog.json', import.meta.url), 'utf8'),
+);
+const agent: ModelDescription = JSON.parse(
+  readFileSync(new URL('../fixtures/agent.json', import.meta.url), 'utf8'),
 );
 const file = {
   id: 12,
@@ -14,14 +17,40 @@ const file = {
   mime: 'image/png',
   createdDate: '2026-11-01T10:00:00Z',
 };
-const image = {
-  mime: 'image/png',
-  source:
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jGZwAAAAASUVORK5CYII=',
-  width: 1,
-  height: 1,
-};
+const pagination = <T>(items: T[], pageSize = 24) => ({
+  items,
+  total: items.length,
+  pages: 1,
+  pageSize,
+  pageIndex: 0,
+});
+function savedConversation(id = 101): Conversation {
+  return {
+    id,
+    userId: 7,
+    name: 'Saved creative work',
+    status: 'LOADED',
+    model: agent.reference.provider,
+    options: {
+      model: agent.reference.model,
+      tools: [
+        { uid: 'IMAGE', settings: { model: catalog[0].reference, options: { quality: 'high' } } },
+        { uid: 'VIDEO' },
+      ],
+    },
+    tags: ['genfactory'],
+    createdDate: file.createdDate,
+  };
+}
 async function mockApi(page: Page, signedIn = true) {
+  const state = {
+    conversations: [] as Conversation[],
+    messages: new Map<number, ConversationMessage[]>(),
+    creates: [] as any[],
+    sends: [] as any[],
+    forbidden: [] as string[],
+    abortAfterAccept: false,
+  };
   if (signedIn) await page.addInitScript(() => sessionStorage.setItem('genfactory.session', 'test-session'));
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
@@ -29,113 +58,227 @@ async function mockApi(page: Page, signedIn = true) {
     const method = route.request().method();
     let body: unknown;
     let status = 200;
+    const messageMatch = path.match(/^\/api\/conversation\/(\d+)\/message$/);
+    const conversationMatch = path.match(/^\/api\/conversation\/(\d+)$/);
     if (path === '/api/init')
       body = {
         user: { id: 7, preferences: { name: 'Anna', email: 'anna@example.test' } },
         balances: { RUB: '1250.50' },
       };
     else if (path === '/api/aimodels')
-      body = catalog.filter((m) => m.reference.provider === url.searchParams.get('provider'));
-    else if (path === '/api/file' && method === 'GET')
-      body = { items: [file], total: 1, pages: 1, pageSize: 24, pageIndex: 0 };
-    else if (path === '/api/file/12') body = file;
-    else if (path === '/api/fileBuffer') {
-      body = file;
-      status = 201;
-    } else if (path === '/api/task' && method === 'POST') {
+      body =
+        url.searchParams.get('provider') === 'OPEN_AI_CONVERSATION'
+          ? [agent]
+          : catalog.filter((m) => m.reference.provider === url.searchParams.get('provider'));
+    else if (path === '/api/conversation' && method === 'POST') {
       const data = route.request().postDataJSON();
-      body = {
-        result: data.model === 'OPEN_ROUTER_VIDEO' ? { externalId: 'video-1', fileId: 12 } : [image],
-        cost: { status: 'FINAL', amounts: [{ coinId: 'USD', amount: '0.01' }] },
-      };
+      state.creates.push(data);
+      const conversation = { ...savedConversation(101 + state.conversations.length), ...data };
+      state.conversations.push(conversation);
+      body = conversation;
       status = 201;
-    } else if (path === '/api/logout') body = {};
+    } else if (path === '/api/conversation') {
+      expect(JSON.parse(url.searchParams.get('conditions')!).userId).toBe(7);
+      body = pagination(state.conversations);
+    } else if (messageMatch) {
+      const id = Number(messageMatch[1]);
+      if (method === 'GET') {
+        expect(JSON.parse(url.searchParams.get('conditions')!).conversationId).toBe(id);
+        body = pagination([...(state.messages.get(id) || [])].reverse(), 20);
+      } else {
+        const data = route.request().postDataJSON();
+        state.sends.push({ id, ...data });
+        const messages = state.messages.get(id) || [];
+        messages.push({
+          id: messages.length + 1,
+          role: 'USER',
+          text: data.text,
+          files: data.files.length ? [file] : [],
+          createdDate: file.createdDate,
+        });
+        const result = {
+          ...file,
+          ...(data.settings.tools[0].uid === 'VIDEO'
+            ? { type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' }
+            : {}),
+        };
+        body = {
+          id: messages.length + 1,
+          role: 'ASSISTANT',
+          text: 'Готово: результат сохранён.',
+          files: [result],
+          createdDate: file.createdDate,
+        };
+        messages.push(body as ConversationMessage);
+        state.messages.set(id, messages);
+        const conversation = state.conversations.find((c) => c.id === id);
+        if (conversation) conversation.status = 'LOADED';
+        if (state.abortAfterAccept) {
+          await route.abort('failed');
+          return;
+        }
+      }
+    } else if (conversationMatch) {
+      body = state.conversations.find((c) => c.id === Number(conversationMatch[1]));
+      if (!body) {
+        status = 404;
+        body = { message: 'Conversation not found' };
+      }
+    } else if (path === '/api/file' && method === 'GET') body = pagination([file]);
+    else if (path === '/api/file' || path === '/api/file/12') body = file;
+    else if (path === '/api/logout') body = {};
     else {
+      state.forbidden.push(path);
       status = 404;
-      body = { message: 'Unmocked endpoint' };
+      body = { message: 'Unexpected endpoint' };
     }
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   });
+  return state;
 }
-test('guest can explore and open a studio; no fabricated models or paid requests', async ({ page }) => {
+async function submit(page: Page, prompt = 'A calm cinematic forest', kind = 'image') {
+  await page.getByLabel('Ваша идея', { exact: true }).fill(prompt);
+  await page
+    .getByRole('button', { name: kind === 'image' ? 'Создать изображение' : 'Создать видео', exact: true })
+    .click();
+}
+test('guest can explore and open a studio without fabricated models', async ({ page }) => {
   await mockApi(page, false);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Большие идеи/ })).toBeVisible();
-  await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true, animations: 'disabled' });
+  await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
   await page.getByRole('link', { name: 'Изображения', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Войти и создать' })).toBeVisible();
   await page.getByRole('button', { name: 'Войти и создать' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
 });
-test('image request uses catalog provider and options, saves output, opens library', async ({ page }) => {
-  await mockApi(page);
+test('image studio creates a configured conversation and sends tool preferences, never task or fileBuffer', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
   await page.goto('/image');
-  await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
-  await page.getByLabel('Ваша идея', { exact: true }).fill('A calm cinematic forest');
-  const request = page.waitForRequest((r) => r.url().endsWith('/api/task') && r.method() === 'POST');
-  await page.getByRole('button', { name: 'Создать изображение', exact: true }).click();
-  const body = (await request).postDataJSON();
-  expect(body.model).toBe('OPEN_AI_IMAGE_GPT');
-  expect(body.options.model).toBe('gpt-image-2');
-  expect(body.task.session).toBeTruthy();
-  await expect(page.getByText('Готово', { exact: true })).toBeVisible();
-  await expect(page.getByText('0.01 USD', { exact: true })).toBeVisible();
-  await page.screenshot({ path: 'test-results/studio-desktop.png', fullPage: true, animations: 'disabled' });
+  await submit(page);
+  await expect(page.getByText('Готово: результат сохранён.', { exact: true })).toBeVisible();
+  expect(state.creates[0].model).toBe('OPEN_AI_CONVERSATION');
+  expect(state.creates[0].options.tools.map((t: any) => t.uid)).toEqual(['IMAGE', 'VIDEO']);
+  expect(state.sends[0].settings.tools[0].settings.model).toEqual(catalog[0].reference);
+  expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('model');
+  expect(state.forbidden).toEqual([]);
+  await expect(page).toHaveURL(/conversation=101/);
+  await page.screenshot({ path: 'test-results/studio-desktop.png', fullPage: true });
   await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
   await expect(page.getByRole('button', { name: /Test result/ })).toBeVisible();
 });
-test('invalid model parameters never submit a paid task', async ({ page }) => {
-  await mockApi(page);
-  let calls = 0;
-  page.on('request', (r) => {
-    if (r.url().endsWith('/api/task')) calls++;
-  });
+test('invalid parameters do not create or execute a conversation', async ({ page }) => {
+  const state = await mockApi(page);
   await page.goto('/image');
   await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
-  await page.getByLabel('Ваша идея', { exact: true }).fill('Test image');
   await page.getByLabel('Размер', { exact: true }).fill('invalid');
-  await page.getByRole('button', { name: 'Создать изображение', exact: true }).click();
+  await submit(page);
   await expect(page.getByRole('alert')).toContainText('pattern');
-  expect(calls).toBe(0);
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
 });
-test('video request waits for a file result and uses video provider', async ({ page }) => {
-  await mockApi(page);
+test('video settings use VIDEO and server message attachments', async ({ page }) => {
+  const state = await mockApi(page);
   await page.goto('/video');
-  await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
-  await page.getByLabel('Ваша идея', { exact: true }).fill('Slow camera move across a city');
-  const sent = page.waitForRequest((r) => r.url().endsWith('/api/task') && r.method() === 'POST');
-  await page.getByRole('button', { name: 'Создать видео', exact: true }).click();
-  expect((await sent).postDataJSON().model).toBe('OPEN_ROUTER_VIDEO');
-  await expect(page.getByText('Готово', { exact: true })).toBeVisible();
+  await submit(page, 'City camera movement', 'video');
+  await expect(page.getByText('Готово: результат сохранён.', { exact: true })).toBeVisible();
+  expect(state.sends[0].settings.tools[0].uid).toBe('VIDEO');
+  expect(state.sends[0].settings.tools[0].settings.model.provider).toBe('OPEN_ROUTER_VIDEO');
+  await expect(page.locator('.result-grid video')).toHaveCount(1);
+  expect(state.forbidden).toEqual([]);
 });
-test('lost response is unknown and refresh does not resubmit generation', async ({ page }) => {
-  await mockApi(page);
-  let calls = 0;
-  await page.route('**/api/task', async (route) => {
-    calls++;
-    await route.abort('failed');
-  });
+test('accepted message with lost response recovers from server after reload without a second POST', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.abortAfterAccept = true;
   await page.goto('/image');
-  await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
-  await page.getByLabel('Ваша идея', { exact: true }).fill('Test uncertain result');
-  await page.getByRole('button', { name: 'Создать изображение', exact: true }).click();
-  await expect(page.getByText('Нужно проверить результат', { exact: true })).toBeVisible();
+  await submit(page);
+  await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
   await page.reload();
-  await expect(page.getByText('Нужно проверить результат', { exact: true })).toBeVisible();
-  expect(calls).toBe(1);
+  await expect(page.getByText('Готово: результат сохранён.', { exact: true })).toBeVisible();
+  expect(state.sends).toHaveLength(1);
+  expect(state.creates).toHaveLength(1);
+  expect(
+    await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('genfactory.jobs'))),
+  ).toBe(false);
 });
-test('library reference is carried into image editor', async ({ page }) => {
-  await mockApi(page);
+test('history opens server conversation on a fresh visit and continues it', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  state.messages.set(101, [
+    {
+      id: 1,
+      role: 'ASSISTANT',
+      text: 'Existing server result',
+      files: [file],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/history');
+  await page.getByRole('link', { name: 'Открыть изображения' }).click();
+  await expect(page.getByText('Existing server result')).toBeVisible();
+  await expect(page.getByLabel('Качество', { exact: true })).toHaveValue('"high"');
+  await submit(page, 'Another landscape');
+  await expect(page.getByText('Готово: результат сохранён.', { exact: true })).toBeVisible();
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends[0].id).toBe(101);
+});
+test('image to video keeps the same conversation and sends the chosen file ID', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/image');
+  await submit(page);
+  await page.getByRole('button', { name: 'Создать видео из изображения' }).click();
+  await expect(page).toHaveURL(/video\?conversation=101/);
+  await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
+  await submit(page, 'Animate this image', 'video');
+  await expect.poll(() => state.sends.length).toBe(2);
+  expect(state.sends[1].id).toBe(101);
+  expect(state.sends[1].files).toEqual([12]);
+  expect(state.sends[1].settings.tools[0].uid).toBe('VIDEO');
+  expect(state.creates).toHaveLength(1);
+});
+test('library reference is attached to a conversation message', async ({ page }) => {
+  const state = await mockApi(page);
   await page.goto('/library');
   await page.getByRole('button', { name: /Test result/ }).click();
   await page.getByRole('button', { name: 'Использовать как референс' }).click();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
-  await page.getByLabel('Ваша идея', { exact: true }).fill('Reimagine this scene');
-  const sent = page.waitForRequest((r) => r.url().endsWith('/api/task'));
-  await page.getByRole('button', { name: 'Создать изображение', exact: true }).click();
-  expect((await sent).postDataJSON().task.fileIds).toEqual([12]);
+  await submit(page, 'Change lighting');
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].files).toEqual([12]);
+});
+test('running conversation survives page load and blocks a second send until server completion', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), status: 'LOADING' });
+  await page.goto('/image?conversation=101');
+  await expect(page.getByText('Ассистент работает. Результат появится в этой беседе.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Создаём вашу идею' })).toBeDisabled();
+  state.conversations[0].status = 'LOADED';
+  state.messages.set(101, [
+    { id: 1, role: 'ASSISTANT', text: 'Recovered result', files: [file], createdDate: file.createdDate },
+  ]);
+  await expect(page.getByText('Recovered result')).toBeVisible({ timeout: 10000 });
+  expect(state.sends).toHaveLength(0);
+});
+test('new work creates a new conversation while subsequent prompts reuse the current one', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/image');
+  await submit(page, 'First landscape');
+  await expect(page.getByText('Готово: результат сохранён.', { exact: true })).toHaveCount(1);
+  await submit(page, 'Second landscape');
+  await expect(page.getByText('Готово: результат сохранён.', { exact: true })).toHaveCount(2);
+  expect(state.creates).toHaveLength(1);
+  await page.getByRole('button', { name: 'Новая работа', exact: true }).click();
+  await submit(page, 'Separate work');
+  await expect(page).toHaveURL(/conversation=102/);
+  expect(state.creates).toHaveLength(2);
 });
 test('mobile navigation and layout remain usable', async ({ page }) => {
   await mockApi(page, false);
@@ -195,16 +338,70 @@ test('OAuth callback rejects a mismatched state without exchanging the code', as
   expect(new URL(page.url()).search).toBe('');
 });
 
-test('multiple successful generations re-enable the submit button', async ({ page }) => {
-  await mockApi(page);
+test('foreign conversation response is not displayed even to an administrator session', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), userId: 8, name: 'Private foreign work' });
+  state.messages.set(101, [
+    {
+      id: 1,
+      role: 'ASSISTANT',
+      text: 'Private foreign result',
+      files: [file],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/image?conversation=101');
+  await expect(page.getByRole('alert')).toContainText('другому аккаунту');
+  await expect(page.getByText('Private foreign result')).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'Создать изображение', exact: true })).toBeDisabled();
+  expect(state.sends).toHaveLength(0);
+});
+
+test('conversation without a media tool remains read-only instead of changing its configuration', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), options: { model: agent.reference.model, tools: [] } });
+  await page.goto('/image?conversation=101');
+  await expect(page.getByText(/В этой беседе не подключён инструмент изображений/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Создать изображение', exact: true })).toBeDisabled();
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('leaving during conversation creation never starts a paid message in the background', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  let accept!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    accept = resolve;
+  });
+  await page.route('**/api/conversation', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    await waiting;
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify(savedConversation()),
+    });
+  });
   await page.goto('/image');
-  await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
-  await page.getByLabel('Ваша идея', { exact: true }).fill('First landscape');
-  const button = page.getByRole('button', { name: 'Создать изображение', exact: true });
-  await button.click();
-  await expect(page.getByText('Готово', { exact: true })).toBeVisible();
-  await expect(button).toBeEnabled();
-  await page.getByLabel('Ваша идея', { exact: true }).fill('Second landscape');
-  await button.click();
-  await expect(page.getByText('Готово', { exact: true })).toHaveCount(2);
+  const started = page.waitForRequest(
+    (r) => new URL(r.url()).pathname === '/api/conversation' && r.method() === 'POST',
+  );
+  await submit(page);
+  await started;
+  await page.getByRole('navigation').getByRole('link', { name: 'Библиотека', exact: true }).click();
+  const completed = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === '/api/conversation' && r.request().method() === 'POST',
+  );
+  accept();
+  await completed;
+  await expect(page.getByRole('heading', { name: 'Библиотека', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/library$/);
+  expect(state.sends).toHaveLength(0);
 });

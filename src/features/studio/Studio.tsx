@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient, useMutation, useIsMutating } from '@tanstack/react-query';
 import {
   ArrowUp,
   ImagePlus,
@@ -12,7 +12,7 @@ import {
   ChevronDown,
   WandSparkles,
 } from 'lucide-react';
-import { api, safeMediaUrl } from '../../lib/api';
+import { api, getSession, safeMediaUrl } from '../../lib/api';
 import type { GnosisFile, MediaKind, ModelDescription, Schema, TaskRequest } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import {
@@ -23,8 +23,8 @@ import {
   supportsReferences,
   validateRequest,
 } from '../catalog/schema';
-import { activeForUser, generate, useGenerations } from './generations';
-import { GenerationCard } from './GenerationCard';
+import { connection, createConversationBody, createMessageBody, toolSettings } from './conversations';
+import { ConversationResults } from './ConversationResults';
 import { LoginDialog } from '../../components/LoginDialog';
 const providers = { image: ['OPEN_AI_IMAGE_GPT', 'OPEN_ROUTER_IMAGE'], video: ['OPEN_ROUTER_VIDEO'] };
 const suggestions = {
@@ -64,6 +64,7 @@ function Field({
       <span>{label}</span>
       {schema.enum ? (
         <select
+          aria-label={label}
           value={value === undefined ? '' : JSON.stringify(value)}
           onChange={(e) => onChange(e.target.value === '' ? undefined : JSON.parse(e.target.value))}
         >
@@ -100,6 +101,67 @@ function Field({
 export function Studio({ kind }: { kind: MediaKind }) {
   const auth = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [search] = useSearchParams();
+  const client = useQueryClient();
+  const idParam = search.get('conversation');
+  const conversationId =
+    idParam && /^[1-9]\d*$/.test(idParam) && Number.isSafeInteger(Number(idParam))
+      ? Number(idParam)
+      : undefined;
+  const scope = `${auth.user?.id}:${location.pathname}:${location.search}`;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const submitting = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const [creating, setCreating] = useState(false);
+  const [agentKey, setAgentKey] = useState('');
+  const conversationQuery = useQuery({
+    queryKey: ['conversation', auth.user?.id, conversationId],
+    enabled: !!auth.user && !!conversationId,
+    queryFn: async ({ signal }) => {
+      const result = await api.conversation(conversationId!, signal);
+      if (result.userId !== auth.user!.id) throw new Error('Эта беседа принадлежит другому аккаунту.');
+      return result;
+    },
+    refetchInterval: 3000,
+    retry: false,
+  });
+  const conversation = conversationQuery.data;
+  const agents = useQuery({
+    queryKey: ['conversation-models', auth.user?.id],
+    enabled: !!auth.user && !conversationId,
+    queryFn: async ({ signal }) =>
+      (await api.catalog('OPEN_AI_CONVERSATION', signal)).filter((m) => m.capabilities?.includes('TOOLS')),
+    staleTime: 300000,
+  });
+  const agent = agents.data?.find((m) => m.reference.model === agentKey) || agents.data?.[0];
+  const send = useMutation({
+    mutationKey: ['send-message', auth.user?.id],
+    mutationFn: ({
+      id,
+      body,
+      sid,
+    }: {
+      id: number;
+      body: ReturnType<typeof createMessageBody>;
+      sid: string;
+    }) => api.sendMessage(id, body, sid),
+    retry: false,
+    onSettled: (_data, _error, variables) => {
+      void client.invalidateQueries({ queryKey: ['conversation', auth.user?.id, variables.id] });
+      void client.invalidateQueries({ queryKey: ['messages', auth.user?.id, variables.id] });
+      void client.invalidateQueries({ queryKey: ['conversations', auth.user?.id] });
+      window.dispatchEvent(new Event('genfactory:generation-finished'));
+    },
+  });
+  const pendingSends = useIsMutating({ mutationKey: ['send-message', auth.user?.id] });
   const [login, setLogin] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [selected, setSelected] = useState('');
@@ -114,8 +176,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   const previousUser = useRef<number | undefined>(undefined);
   const uploadScope = useRef('');
   const repeatRequest = useRef<TaskRequest | null>(null);
-  const jobs = useGenerations(auth.user?.id);
-  const busy = auth.user ? activeForUser(auth.user.id) : false;
+  const busy = creating || pendingSends > 0 || conversation?.status === 'LOADING';
   const catalog = useQuery({
     queryKey: ['models', auth.user?.id, kind],
     enabled: !!auth.user,
@@ -153,7 +214,17 @@ export function Studio({ kind }: { kind: MediaKind }) {
     setError('');
     if (previousUser.current !== undefined) setPrompt('');
     previousUser.current = auth.user?.id;
+    setAgentKey('');
   }, [kind, auth.user?.id]);
+  const previousConversation = useRef(conversationId);
+  useEffect(() => {
+    if (previousConversation.current !== undefined && previousConversation.current !== conversationId) {
+      setPrompt('');
+      setReferences([]);
+      setError('');
+    }
+    previousConversation.current = conversationId;
+  }, [conversationId]);
   useEffect(() => {
     if (initialPromptKey.current !== location.key) {
       const state = location.state as { prompt?: string; reference?: GnosisFile; userId?: number } | null;
@@ -163,7 +234,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     }
   }, [location.key, location.state, model, auth.user?.id]);
   useEffect(() => {
-    const state = location.state as { reference?: GnosisFile; request?: TaskRequest; userId?: number } | null;
+    const state = location.state as { reference?: GnosisFile; userId?: number } | null;
     if (
       state?.reference &&
       model &&
@@ -174,25 +245,38 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setReferences([state.reference]);
       referenceKey.current = location.key;
     }
-    if (
-      state?.request &&
-      state.userId === auth.user?.id &&
-      auth.user &&
-      models.length &&
-      referenceKey.current !== location.key
-    ) {
+  }, [models, currentKey, location.key, location.state, auth.user?.id]);
+  const restored = useRef('');
+  useEffect(() => {
+    const key = `${auth.user?.id}:${conversationId}:${kind}`;
+    if (!conversationId) {
+      restored.current = '';
+      return;
+    }
+    if (!conversation || !models.length || restored.current === key) return;
+    const saved = connection(conversation, kind)?.settings;
+    if (saved) {
       const found = models.find(
-        (m) =>
-          m.reference.provider === state.request?.model && m.reference.model === state.request?.options.model,
+        (m) => m.reference.provider === saved.model.provider && m.reference.model === saved.model.model,
       );
       if (found) {
-        if (modelKey(found) !== currentKey) repeatRequest.current = state.request;
-        else setOptions(state.request.options);
+        const values = {
+          ...defaults(found.schema.properties?.options),
+          ...saved.options,
+          model: found.reference.model,
+        };
+        if (modelKey(found) !== currentKey)
+          repeatRequest.current = {
+            model: found.reference.provider,
+            options: values,
+            task: { session: '', prompt: '' },
+          };
+        else setOptions(values);
         setSelected(modelKey(found));
-        referenceKey.current = location.key;
       }
     }
-  }, [models, currentKey, location.key, location.state, auth.user?.id]);
+    restored.current = key;
+  }, [conversation, conversationId, kind, models, currentKey, auth.user?.id]);
   const maxRefs = Math.min(4, referenceLimit(model));
   const upload = async (files: FileList | null) => {
     if (!auth.user) {
@@ -228,7 +312,19 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setLogin(true);
       return;
     }
-    if (!model || busy || uploading) return;
+    if (!model || busy || uploading || submitting.current) return;
+    if (idParam && !conversation) {
+      setError('Дождитесь загрузки беседы или откройте новую работу.');
+      return;
+    }
+    if (conversation && !connection(conversation, kind)) {
+      setError('В этой беседе не подключён нужный инструмент. Создайте новую работу.');
+      return;
+    }
+    if (!conversationId && !agent) {
+      setError('Не удалось выбрать модель ассистента. Обновите каталог.');
+      return;
+    }
     const visibleOptions = new Set(optionFields(model).map(([name]) => name));
     const cleanOptions = Object.fromEntries(
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
@@ -255,10 +351,57 @@ export function Studio({ kind }: { kind: MediaKind }) {
       return;
     }
     setError('');
+    submitting.current = true;
+    let activeScope = scopeRef.current;
+    let messageSent = false;
+    const sid = auth.session;
+    const userId = auth.user.id;
     try {
-      await generate(auth.user.id, auth.session, kind, model, body);
+      const tool = toolSettings(kind, model, cleanOptions);
+      let id = conversationId;
+      if (!id) {
+        setCreating(true);
+        const created = await api.createConversation(createConversationBody(prompt, kind, agent!, tool), sid);
+        void client.invalidateQueries({ queryKey: ['conversations', userId] });
+        if (
+          !mounted.current ||
+          getSession() !== sid ||
+          window.location.pathname !== location.pathname ||
+          window.location.search !== location.search
+        )
+          return;
+        id = created.id;
+        client.setQueryData(['conversation', userId, id], created);
+        activeScope = `${userId}:/${kind}:?conversation=${id}`;
+        scopeRef.current = activeScope;
+        navigate(`/${kind}?conversation=${id}`, { replace: true });
+      }
+      messageSent = true;
+      await send.mutateAsync({
+        id,
+        body: createMessageBody(
+          prompt,
+          kind,
+          tool,
+          references.map((f) => f.id),
+        ),
+        sid,
+      });
+      if (
+        mounted.current &&
+        getSession() === sid &&
+        window.location.pathname === `/${kind}` &&
+        new URLSearchParams(window.location.search).get('conversation') === String(id)
+      )
+        setPrompt('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось начать генерацию.');
+      if (mounted.current && !messageSent && scopeRef.current === activeScope)
+        setError(
+          `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
+        );
+    } finally {
+      submitting.current = false;
+      if (mounted.current) setCreating(false);
     }
   };
   return (
@@ -273,6 +416,36 @@ export function Studio({ kind }: { kind: MediaKind }) {
           {kind === 'image' ? 'От мысли к кадру' : 'Каждый кадр — начало истории'}
         </span>
       </header>
+      <div className="conversation-toolbar">
+        <span className="small muted">
+          {conversation ? `Работа: ${conversation.name}` : 'Новая рабочая беседа'}
+        </span>
+        <button
+          className="button"
+          disabled={creating}
+          onClick={() => {
+            navigate(`/${kind}`);
+            setPrompt('');
+            setReferences([]);
+            setError('');
+          }}
+        >
+          Новая работа
+        </button>
+      </div>
+      {idParam && !conversationId && (
+        <p className="error" role="alert">
+          Некорректный адрес беседы. Откройте новую работу или выберите её в истории.
+        </p>
+      )}
+      {conversationQuery.error && (
+        <p className="error" role="alert">
+          {conversationQuery.error.message}{' '}
+          <button className="text-button" onClick={() => void conversationQuery.refetch()}>
+            Обновить
+          </button>
+        </p>
+      )}
       <div className="studio-layout">
         <section className="composer">
           <div className="composer-title">
@@ -285,6 +458,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           <textarea
             id="prompt"
             value={prompt}
+            disabled={busy}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={
               kind === 'image'
@@ -412,6 +586,46 @@ export function Studio({ kind }: { kind: MediaKind }) {
               )}
             </>
           )}
+          {!conversationId && auth.user && (
+            <label className="setting-field">
+              <span>Ассистент</span>
+              <select
+                aria-label="Ассистент"
+                value={agent?.reference.model || ''}
+                disabled={busy || !agents.data?.length}
+                onChange={(e) => setAgentKey(e.target.value)}
+              >
+                {!agents.data?.length && (
+                  <option>{agents.isPending ? 'Загружаем…' : 'Нет доступных ассистентов'}</option>
+                )}
+                {agents.data?.map((m) => (
+                  <option key={m.reference.model} value={m.reference.model}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {agents.error && !conversationId && (
+            <p className="error">
+              Не удалось загрузить ассистентов.{' '}
+              <button className="text-button" onClick={() => void agents.refetch()}>
+                Обновить
+              </button>
+            </p>
+          )}
+          {conversation && !connection(conversation, kind) && (
+            <p className="inline-error">
+              В этой беседе не подключён инструмент {kind === 'image' ? 'изображений' : 'видео'}. Историю
+              можно просматривать; для создания начните новую работу.
+            </p>
+          )}
+          {send.error && send.variables?.id === conversationId && send.variables.sid === auth.session && (
+            <p className="error form-error" role="alert">
+              {send.error.message} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть
+              выполнен. Автоматического повтора нет.
+            </p>
+          )}
           {error && (
             <p className="error form-error" role="alert">
               {error}
@@ -419,7 +633,15 @@ export function Studio({ kind }: { kind: MediaKind }) {
           )}
           <button
             className="button primary generate-button"
-            disabled={busy || uploading || (!!auth.user && (!model || !prompt.trim()))}
+            disabled={
+              busy ||
+              uploading ||
+              (!!auth.user &&
+                (!model ||
+                  !prompt.trim() ||
+                  (!!idParam && (!conversation || !connection(conversation, kind))) ||
+                  (!idParam && !agent)))
+            }
             onClick={() => void submit()}
           >
             {busy ? (
@@ -434,39 +656,27 @@ export function Studio({ kind }: { kind: MediaKind }) {
             )}
           </button>
           <p className="billing-note">
-            Оплата с баланса gnosis. Фактическая стоимость появится после генерации.
+            Ассистент использует выбранный инструмент. Работа ассистента и генерация оплачиваются с баланса
+            gnosis.
           </p>
         </section>
         <section className="studio-output" aria-label="Результаты генерации">
-          {jobs.filter((j) => j.kind === kind).length ? (
-            <>
-              <div className="output-heading">
-                <h2>Ваши результаты</h2>
-                <span className="small muted">В этой студии</span>
-              </div>
-              {jobs
-                .filter((j) => j.kind === kind)
-                .slice(0, 8)
-                .map((job) => (
-                  <GenerationCard
-                    key={job.id}
-                    job={job}
-                    onRepeat={() => {
-                      const available = models.find(
-                        (m) =>
-                          m.reference.provider === job.request.model &&
-                          m.reference.model === job.request.options.model,
-                      );
-                      setPrompt(job.request.task.prompt);
-                      if (available) {
-                        if (modelKey(available) !== currentKey) repeatRequest.current = job.request;
-                        setSelected(modelKey(available));
-                        if (modelKey(available) === currentKey) setOptions(job.request.options);
-                      }
-                    }}
-                  />
-                ))}
-            </>
+          {conversation && auth.user ? (
+            <ConversationResults
+              key={`${auth.user.id}:${conversation.id}`}
+              conversation={conversation}
+              onUse={(file, targetKind) => {
+                if (targetKind === kind) {
+                  setReferences([file]);
+                  setPrompt('');
+                } else
+                  navigate(`/${targetKind}?conversation=${conversation.id}`, {
+                    state: { reference: file, userId: auth.user!.id },
+                  });
+              }}
+            />
+          ) : idParam && auth.user ? (
+            <p className="muted">Загружаем рабочую беседу…</p>
           ) : (
             <div className="studio-empty">
               <span className="empty-art">

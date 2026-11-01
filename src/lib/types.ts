@@ -49,36 +49,46 @@ export interface Pagination<T> {
   pageSize: number;
   pages: number;
 }
-export interface TaskCost {
-  status: 'FINAL' | 'PENDING' | 'UNAVAILABLE';
-  amounts: { coinId: string; amount: string }[];
-  pending?: { operationId: string }[];
-}
-export interface ImageResult {
-  mime: string;
-  source: string;
-  width: number;
-  height: number;
-}
-export interface TaskResponse {
-  result: ImageResult[] | { externalId: string; fileId: number };
-  cost: TaskCost;
-}
+// Used only to validate model inputs against the catalog, never submitted to /task.
 export interface TaskRequest {
   model: string;
   task: { session: string; prompt: string; fileIds?: number[] };
   options: Record<string, unknown>;
 }
-export type JobStatus = 'running' | 'saving' | 'completed' | 'failed' | 'unknown' | 'save_failed';
-export interface Generation {
-  id: string;
+export interface ToolConnection {
+  uid: string;
+  settings?: { model: ModelDescription['reference']; options?: Record<string, unknown> };
+}
+export interface Conversation {
+  id: number;
   userId: number;
-  kind: MediaKind;
-  modelName: string;
-  request: TaskRequest;
-  createdAt: string;
-  status: JobStatus;
-  files: GnosisFile[];
-  cost?: TaskCost;
-  error?: string;
+  name: string;
+  status: 'LOADED' | 'LOADING' | 'ERROR';
+  model: string;
+  options: { model: string; tools?: (ToolConnection | string)[]; [key: string]: unknown };
+  tags?: string[];
+  createdDate: string;
+  lastMessageDate?: string;
+}
+export interface ConversationMessage {
+  id: number;
+  role: 'USER' | 'ASSISTANT' | 'COMMAND';
+  text?: string;
+  files?: GnosisFile[];
+  createdDate: string;
+}
+export interface ConversationCreate {
+  name: string;
+  model: string;
+  options: Conversation['options'];
+  tags: string[];
+  system: string;
+  history: number;
+  isConsiderHistory: boolean;
+}
+export interface MessageCreate {
+  role: 'USER';
+  text: string;
+  files: number[];
+  settings: { tools: ToolConnection[] };
 }
