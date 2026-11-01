@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import type { Conversation, ConversationMessage, ModelDescription } from '../../src/lib/types';
 const catalog: ModelDescription[] = JSON.parse(
@@ -50,7 +50,36 @@ async function mockApi(page: Page, signedIn = true) {
     sends: [] as any[],
     forbidden: [] as string[],
     abortAfterAccept: false,
+    progress: null as unknown,
+    socket: undefined as WebSocketRoute | undefined,
+    joinedRooms: [] as string[],
   };
+  await page.routeWebSocket('**/socket.io/**', (socket) => {
+    state.socket = socket;
+    socket.send(
+      '0' +
+        JSON.stringify({
+          sid: 'mock-engine',
+          upgrades: [],
+          pingInterval: 25000,
+          pingTimeout: 20000,
+          maxPayload: 1000000,
+        }),
+    );
+    socket.onMessage((message) => {
+      const text = String(message);
+      if (text.startsWith('40/gnosisai,')) {
+        socket.send('40/gnosisai,' + JSON.stringify({ sid: 'mock-namespace' }));
+        socket.send('42/gnosisai,' + JSON.stringify(['transportSocketConnected']));
+      } else if (text.startsWith('42/gnosisai,')) {
+        const [name, command] = JSON.parse(text.slice(text.indexOf('[')));
+        if (name === 'transportSocketCommandRequest' && command.request.action === 'ADD')
+          state.joinedRooms.push(command.request.name);
+      } else if (text === '3') {
+        /* pong */
+      }
+    });
+  });
   if (signedIn) await page.addInitScript(() => sessionStorage.setItem('genfactory.session', 'test-session'));
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
@@ -65,6 +94,7 @@ async function mockApi(page: Page, signedIn = true) {
         user: { id: 7, preferences: { name: 'Anna', email: 'anna@example.test' } },
         balances: { RUB: '1250.50' },
       };
+    else if (path.startsWith('/api/task/conversation')) body = state.progress;
     else if (path === '/api/aimodels')
       body =
         url.searchParams.get('provider') === 'OPEN_AI_CONVERSATION'
@@ -404,4 +434,95 @@ test('leaving during conversation creation never starts a paid message in the ba
   await expect(page.getByRole('heading', { name: 'Библиотека', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/library$/);
   expect(state.sends).toHaveLength(0);
+});
+
+test('login persists in a new tab and logout clears both tabs immediately', async ({ page, context }) => {
+  await mockApi(page);
+  await page.goto('/account');
+  await expect(page.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBe('test-session');
+  const second = await context.newPage();
+  await mockApi(second, false);
+  await second.goto('/account');
+  await expect(second.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
+  await second.getByRole('button', { name: 'Выйти из студии' }).click();
+  await expect(page.getByRole('button', { name: 'Выйти из студии' })).not.toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBeNull();
+  await second.close();
+});
+
+test('socket tool progress is scoped to the conversation and errors remain visible', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), status: 'LOADING' });
+  await page.goto('/image?conversation=101');
+  await expect.poll(() => state.joinedRooms.includes('conversation101')).toBe(true);
+  const emit = (session: string, tools: unknown[]) =>
+    state.socket!.send(
+      '42/gnosisai,' +
+        JSON.stringify([
+          'transportSocketEvent',
+          { name: 'TaskProgressedEvent', data: { session, data: { tools } } },
+        ]),
+    );
+  emit('conversation999', [{ uid: 'VIDEO' }]);
+  await expect(page.getByText('Ожидаем готовое видео', { exact: true })).not.toBeVisible();
+  emit('conversation101', [{ uid: 'IMAGE', args: 'hidden internal arguments' }]);
+  await expect(page.getByText('Создаём изображение', { exact: true })).toBeVisible();
+  await expect(page.getByText('hidden internal arguments')).not.toBeVisible();
+  emit('conversation101', [{ uid: 'IMAGE', status: 'ERRORED' }]);
+  await expect(page.getByText('Создаём изображение: ошибка инструмента')).toBeVisible();
+});
+
+test('HTTP progress restores video activity after reload without resubmitting', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), status: 'LOADING' });
+  state.progress = { data: { tools: [{ uid: 'VIDEO' }] } };
+  await page.goto('/video?conversation=101');
+  await expect(page.getByText('Ожидаем готовое видео', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Ожидаем готовое видео', { exact: true })).toBeVisible();
+  expect(state.sends).toHaveLength(0);
+});
+
+test('select arrows stay inside controls at desktop and mobile widths with long model names', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto('/image');
+  await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Дополнительные настройки' }).click();
+  await page.evaluate(() => {
+    const select = document.querySelector<HTMLSelectElement>('#model')!;
+    select.selectedOptions[0].text = 'Очень длинное название модели с дополнительным описанием возможностей';
+  });
+  for (const width of [1440, 900, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const aligned = await page.locator('.select-control').evaluateAll((controls) =>
+      controls.every((control) => {
+        const box = control.getBoundingClientRect();
+        const icon = control.querySelector('.select-chevron')!.getBoundingClientRect();
+        return (
+          icon.right <= box.right - 8 &&
+          icon.left >= box.left &&
+          Math.abs(icon.top + icon.height / 2 - (box.top + box.height / 2)) < 1
+        );
+      }),
+    );
+    expect(aligned).toBe(true);
+    const overflow = await page.evaluate(() => ({
+      width: innerWidth,
+      document: document.documentElement.scrollWidth,
+      elements: [...document.querySelectorAll('main *')]
+        .filter((el) => el.getBoundingClientRect().right > innerWidth)
+        .slice(0, 10)
+        .map((el) => ({ tag: el.tagName, class: el.className, right: el.getBoundingClientRect().right })),
+    }));
+    expect(overflow.document <= width, JSON.stringify(overflow)).toBe(true);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: 'test-results/studio-controls-mobile.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
 });

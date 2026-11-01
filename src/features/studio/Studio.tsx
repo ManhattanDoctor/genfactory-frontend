@@ -25,6 +25,7 @@ import {
 } from '../catalog/schema';
 import { connection, createConversationBody, createMessageBody, toolSettings } from './conversations';
 import { ConversationResults } from './ConversationResults';
+import { SelectControl } from '../../components/SelectControl';
 import { LoginDialog } from '../../components/LoginDialog';
 const providers = { image: ['OPEN_AI_IMAGE_GPT', 'OPEN_ROUTER_IMAGE'], video: ['OPEN_ROUTER_VIDEO'] };
 const suggestions = {
@@ -63,7 +64,7 @@ function Field({
     <label className="setting-field">
       <span>{label}</span>
       {schema.enum ? (
-        <select
+        <SelectControl
           aria-label={label}
           value={value === undefined ? '' : JSON.stringify(value)}
           onChange={(e) => onChange(e.target.value === '' ? undefined : JSON.parse(e.target.value))}
@@ -74,7 +75,7 @@ function Field({
               {String(item)}
             </option>
           ))}
-        </select>
+        </SelectControl>
       ) : (
         <input
           value={value === undefined ? '' : String(value)}
@@ -507,33 +508,28 @@ export function Studio({ kind }: { kind: MediaKind }) {
           />
           <div className="model-selection">
             <label htmlFor="model">Модель</label>
-            <div className="model-select-wrap">
-              <span className="model-symbol">
-                <WandSparkles size={17} />
-              </span>
-              <select
-                id="model"
-                value={currentKey}
-                onChange={(e) => setSelected(e.target.value)}
-                disabled={!models.length || busy || uploading}
-              >
-                {!models.length && (
-                  <option>
-                    {auth.user
-                      ? catalog.isPending
-                        ? 'Загружаем модели…'
-                        : 'Нет доступных моделей'
-                      : 'Войдите, чтобы выбрать модель'}
-                  </option>
-                )}
-                {models.map((m) => (
-                  <option key={modelKey(m)} value={modelKey(m)}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={15} />
-            </div>
+            <SelectControl
+              leading={<WandSparkles size={17} />}
+              id="model"
+              value={currentKey}
+              onChange={(e) => setSelected(e.target.value)}
+              disabled={!models.length || busy || uploading}
+            >
+              {!models.length && (
+                <option>
+                  {auth.user
+                    ? catalog.isPending
+                      ? 'Загружаем модели…'
+                      : 'Нет доступных моделей'
+                    : 'Войдите, чтобы выбрать модель'}
+                </option>
+              )}
+              {models.map((m) => (
+                <option key={modelKey(m)} value={modelKey(m)}>
+                  {m.name}
+                </option>
+              ))}
+            </SelectControl>
           </div>
           {catalog.error && (
             <div className="inline-error">
@@ -565,7 +561,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
                 onClick={() => setAdvanced(!advanced)}
                 aria-expanded={advanced}
               >
-                <SlidersHorizontal size={16} /> Дополнительные настройки <ChevronDown size={15} />
+                <SlidersHorizontal size={16} />
+                <span>Дополнительные настройки</span>
+                <ChevronDown size={16} />
               </button>
               {advanced && (
                 <div className="settings-grid advanced-fields">
@@ -589,7 +587,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           {!conversationId && auth.user && (
             <label className="setting-field">
               <span>Ассистент</span>
-              <select
+              <SelectControl
                 aria-label="Ассистент"
                 value={agent?.reference.model || ''}
                 disabled={busy || !agents.data?.length}
@@ -603,7 +601,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
                     {m.name}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </label>
           )}
           {agents.error && !conversationId && (
@@ -646,11 +644,14 @@ export function Studio({ kind }: { kind: MediaKind }) {
           >
             {busy ? (
               <>
-                <span className="spinner" /> Создаём вашу идею
+                <span>Создаём вашу идею</span>
+                <span className="spinner" />
               </>
             ) : (
               <>
-                {auth.user ? 'Создать ' + (kind === 'image' ? 'изображение' : 'видео') : 'Войти и создать'}
+                <span>
+                  {auth.user ? 'Создать ' + (kind === 'image' ? 'изображение' : 'видео') : 'Войти и создать'}
+                </span>
                 <ArrowUp size={19} />
               </>
             )}

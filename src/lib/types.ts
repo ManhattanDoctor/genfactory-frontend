@@ -40,6 +40,7 @@ export interface GnosisFile {
 }
 export interface InitResponse {
   user: { id: number; preferences?: { name?: string; email?: string; picture?: string } };
+  /** Minor units (kopecks/cents), including fractional minor units. */
   balances: Record<string, string>;
 }
 export interface Pagination<T> {
@@ -91,4 +92,13 @@ export interface MessageCreate {
   text: string;
   files: number[];
   settings: { tools: ToolConnection[] };
+}
+
+export interface ToolProgress {
+  uid: string;
+  name?: string;
+  status?: 'STARTED' | 'FINISHED' | 'ERRORED';
+}
+export interface ConversationProgress {
+  data?: { tools?: ToolProgress[]; value?: string };
 }

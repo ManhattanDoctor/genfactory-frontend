@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { Conversation, GnosisFile, MediaKind } from '../../lib/types';
+import { useConversationProgress } from './useConversationProgress';
+import { toolLabel } from './progress';
 import { displayMessageText } from './conversations';
+import { MessageContent } from '../../components/MessageContent';
 import { Media, MediaPreview } from '../../components/MediaPreview';
 export function ConversationResults({
   conversation,
@@ -11,6 +14,7 @@ export function ConversationResults({
   conversation: Conversation;
   onUse: (file: GnosisFile, kind: MediaKind) => void;
 }) {
+  const progress = useConversationProgress(conversation);
   const [page, setPage] = useState(0);
   const [preview, setPreview] = useState<GnosisFile>();
   const messages = useQuery({
@@ -20,14 +24,26 @@ export function ConversationResults({
   });
   return (
     <>
-      <div className="output-heading">
-        <h2>{conversation.name}</h2>
-        <span className="small muted">Беседа #{conversation.id}</span>
-      </div>
       {conversation.status === 'LOADING' && (
-        <p className="conversation-status" role="status">
-          <span className="spinner" /> Ассистент работает. Результат появится в этой беседе.
-        </p>
+        <div className="conversation-progress" role="status" aria-live="polite">
+          <p className="conversation-status">
+            <span className="spinner" /> Ассистент работает. Результат появится в этой беседе.
+          </p>
+          {!!progress.tools.length && (
+            <ul>
+              {progress.tools.map((tool, index) => (
+                <li key={`${tool.uid}:${index}`} className={tool.status === 'ERRORED' ? 'error' : undefined}>
+                  {toolLabel(tool)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {progress.unavailable && (
+            <p className="small muted">
+              Ход работы временно недоступен. Сообщения продолжают обновляться; повторять запрос не нужно.
+            </p>
+          )}
+        </div>
       )}
       {conversation.status === 'ERROR' && (
         <p className="inline-error" role="status">
@@ -56,11 +72,12 @@ export function ConversationResults({
             </strong>
             <time className="small muted">{new Date(message.createdDate).toLocaleString('ru-RU')}</time>
           </header>
-          {message.text && (
-            <p className="conversation-text">
-              {message.role === 'USER' ? displayMessageText(message.text) : message.text}
-            </p>
-          )}
+          {message.text &&
+            (message.role === 'USER' ? (
+              <p className="conversation-text">{displayMessageText(message.text)}</p>
+            ) : (
+              <MessageContent text={message.text} files={message.files} />
+            ))}
           {!!message.files?.length && (
             <div className="result-grid">
               {message.files.map((file) => (

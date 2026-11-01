@@ -12,7 +12,18 @@ export function Media({ file, controls = false }: { file: GnosisFile; controls?:
       </div>
     );
   return file.type === 'VIDEO' || file.mime?.startsWith('video/') ? (
-    <video src={src} controls={controls} muted={!controls} preload="metadata" playsInline />
+    <video
+      src={src}
+      controls={controls}
+      muted={!controls}
+      preload="metadata"
+      playsInline
+      onLoadedMetadata={(event) => {
+        const video = event.currentTarget;
+        if (!controls && video.currentTime === 0 && Number.isFinite(video.duration) && video.duration > 0)
+          video.currentTime = Math.min(0.1, video.duration / 2);
+      }}
+    />
   ) : (
     <img src={src} alt={file.name} loading="lazy" />
   );

@@ -8,6 +8,11 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       proxy: {
+        '/socket.io': {
+          target: env.GNOSIS_API_TARGET || 'http://127.0.0.1:3015',
+          ws: true,
+          changeOrigin: true,
+        },
         '/api': {
           target: env.GNOSIS_API_TARGET || 'http://127.0.0.1:3015',
           changeOrigin: true,

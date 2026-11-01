@@ -1,3 +1,4 @@
+import { formatBalance } from '../../lib/money';
 import { useState } from 'react';
 import { Wallet, UserRound, RefreshCw, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
@@ -38,9 +39,7 @@ export function Account() {
             {Object.entries(auth.balances).length ? (
               Object.entries(auth.balances).map(([currency, amount]) => (
                 <div className="balance-row" key={currency}>
-                  <strong>
-                    {new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 6 }).format(Number(amount))}
-                  </strong>
+                  <strong>{formatBalance(amount, currency)}</strong>
                   <span>{currency}</span>
                 </div>
               ))

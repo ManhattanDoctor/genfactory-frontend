@@ -16,6 +16,14 @@
 
 В текущем живом API фильтр `tags INCLUDES_ALL` вернул 500. Frontend его не использует: список загружает собственные беседы всех клиентов. Новые работы помечаются `genfactory` для атрибуции, но функциональность не зависит от фильтра по тегам.
 
+## Прогресс и баланс
+
+GET `/api/task/conversation{id}` возвращает `{data: {tools: [{uid, name?, status?}], value?}}`. Отсутствие status у инструмента означает активный вызов; ERRORED — ошибка. 404 после завершения нормален, постоянная история находится в беседе. UI использует только названия/статусы, без args.
+
+Socket.IO `/gnosisai`, путь `/socket.io`, auth `{token: sid}`. После `transportSocketConnected` клиент отправляет `transportSocketCommandRequest` с `{id, name: "TransportSocketRoomCommand", request: {action: "ADD", name: "conversation{id}"}, isNeedReply: false}`. `transportSocketEvent` содержит `name` и `data`; события задачи фильтруются по `data.session`, события беседы — по `data.id`. Соединение закрывается при смене аккаунта/беседы; восстановление подписки происходит при reconnect.
+
+Баланс `/init` и amount финансовой проводки выражены в minor units: RUB/копейки, USD/центы. Стоимость провайдера в `cost.amounts`/details.amounts выражена в major units. Эти величины нельзя форматировать одной функцией без указания единиц.
+
 ## Настройки инструментов
 
 ```json

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, getSession, setSession } from '../../lib/api';
+import { api, getSession, setSession, SESSION_KEY } from '../../lib/api';
 import type { InitResponse } from '../../lib/types';
 interface Auth {
   session: string | null;
@@ -35,8 +35,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changeSession(null);
       client.clear();
     };
+    const synchronize = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage || (event.key !== SESSION_KEY && event.key !== null)) return;
+      sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem('genfactory.idToken');
+      changeSession(localStorage.getItem(SESSION_KEY));
+      client.clear();
+    };
     window.addEventListener('genfactory:unauthorized', expired);
-    return () => window.removeEventListener('genfactory:unauthorized', expired);
+    window.addEventListener('storage', synchronize);
+    return () => {
+      window.removeEventListener('genfactory:unauthorized', expired);
+      window.removeEventListener('storage', synchronize);
+    };
   }, [client]);
   const signIn = async () => {
     const { keycloak } = await api.config();
@@ -56,14 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     location.assign(url.href);
   };
   const signOut = async () => {
-    try {
-      await api.logout();
-    } finally {
-      setSession(null);
-      changeSession(null);
-      sessionStorage.removeItem('genfactory.idToken');
-      client.clear();
-    }
+    const sid = session;
+    setSession(null);
+    changeSession(null);
+    sessionStorage.removeItem('genfactory.idToken');
+    client.clear();
+    await api.logout(sid);
   };
   return (
     <Context.Provider

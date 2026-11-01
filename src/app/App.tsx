@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   UserRound,
 } from 'lucide-react';
+import { formatBalance } from '../lib/money';
 import { Home } from './Home';
 const Studio = lazy(() => import('../features/studio/Studio').then((m) => ({ default: m.Studio })));
 const Library = lazy(() => import('../features/library/Library').then((m) => ({ default: m.Library })));
@@ -82,10 +83,7 @@ export function App() {
             <>
               <Link to="/account" className="balance-pill">
                 <span className="live-dot" />
-                {new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(
-                  Number(auth.balances.RUB || 0),
-                )}{' '}
-                ₽
+                {formatBalance(auth.balances.RUB, 'RUB')} ₽
               </Link>
               <Link to="/account" className="avatar" aria-label="Открыть аккаунт">
                 {auth.user.preferences?.name?.slice(0, 1).toUpperCase() || <UserRound size={18} />}

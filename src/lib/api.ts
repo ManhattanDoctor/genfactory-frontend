@@ -7,6 +7,7 @@ import type {
   ConversationCreate,
   ConversationMessage,
   MessageCreate,
+  ConversationProgress,
 } from './types';
 export const SESSION_KEY = 'genfactory.session';
 const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
@@ -20,11 +21,22 @@ export class ApiError extends Error {
   }
 }
 export function getSession(): string | null {
-  return sessionStorage.getItem(SESSION_KEY);
+  const persistent = localStorage.getItem(SESSION_KEY);
+  const legacy = sessionStorage.getItem(SESSION_KEY);
+  if (persistent) {
+    sessionStorage.removeItem(SESSION_KEY);
+    return persistent;
+  }
+  if (legacy) {
+    localStorage.setItem(SESSION_KEY, legacy);
+    sessionStorage.removeItem(SESSION_KEY);
+  }
+  return legacy;
 }
 export function setSession(sid: string | null) {
-  if (sid) sessionStorage.setItem(SESSION_KEY, sid);
-  else sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  if (sid) localStorage.setItem(SESSION_KEY, sid);
+  else localStorage.removeItem(SESSION_KEY);
 }
 export async function request<T>(
   path: string,
@@ -58,11 +70,19 @@ export const api = {
       },
       null,
     ),
-  logout: () => request<void>('/logout', { method: 'POST' }),
+  logout: (sid: string | null) => request<void>('/logout', { method: 'POST' }, sid),
   catalog: (provider: string, signal?: AbortSignal) =>
     request<ModelDescription[]>(`/aimodels?provider=${encodeURIComponent(provider)}`, { signal }),
   details: (provider: string, model: string) =>
     request<ModelDescription>(`/aimodels/details?${new URLSearchParams({ provider, model })}`),
+  progress: async (session: string, signal?: AbortSignal) => {
+    try {
+      return await request<ConversationProgress | null>(`/task/${encodeURIComponent(session)}`, { signal });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
+  },
   conversations: (userId: number, page: number, signal?: AbortSignal) =>
     request<Pagination<Conversation>>(
       `/conversation?${new URLSearchParams({
