@@ -71,3 +71,5 @@ bash scripts/container-smoke.sh genfactory-check
 Smoke поднимает изолированный тестовый API, проверяет SPA fallback, OAuth route, проксирование API и Upgrade header, 404 отсутствующего asset, cache policy, отсутствие query в access log и отказ при некорректном API_URL. Реальный backend и платные инструменты не вызываются. Unit-тесты deploy-скрипта проверяют замену контейнера, откат при ошибке старта и отклонение неприкреплённого к digest образа.
 
 Production Genfactory: `https://genfactory.gnosisai.ru`, сервер `178.208.65.196`, внешний nginx — файл `gnosis-frontend/nginx/gnosisai.ru`. SSH secrets и variables для первого выпуска настроены в репозитории. Для CI используется текущий SSH-ключ пользователя, сохранённый в GitHub secret `SSH_KEY`. Отдельный ключ не используется.
+
+Runner зафиксирован на Ubuntu 24.04: Playwright 1.58 не поддерживает Ubuntu 26.04, на которую перешёл `ubuntu-latest`. Обновление ОС runner и Playwright следует проверять вместе.
