@@ -27,7 +27,20 @@ docker run -d --name "$frontend" --network "$network" -p 127.0.0.1::8080 \
     -e "API_URL=http://$upstream:8080" "$image" >/dev/null
 port=$(docker inspect --format '{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}' "$frontend")
 base="http://127.0.0.1:$port"
-curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 "$base/healthz" | grep -q '^ok$'
+ready=false
+for ((attempt=0; attempt<30; attempt++)); do
+    if [[ $(docker inspect --format '{{.State.Health.Status}}' "$frontend") == healthy ]]; then
+        ready=true
+        break
+    fi
+    sleep 1
+done
+if [[ "$ready" != true ]]; then
+    echo 'Smoke frontend did not become healthy' >&2
+    docker logs "$frontend" >&2
+    exit 1
+fi
+curl --fail --silent --show-error "$base/healthz" | grep -q '^ok$'
 curl -fsS "$base/image?conversation=49" > "$fixture_dir/index.html"
 grep -qi '<!doctype html>' "$fixture_dir/index.html"
 curl -fsSI "$base/auth/callback?code=smoke-secret-marker" | grep -qi 'cache-control: no-cache'
