@@ -68,11 +68,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   const signOut = async () => {
     const sid = session;
+    const idToken = sessionStorage.getItem('genfactory.idToken');
     setSession(null);
     changeSession(null);
     sessionStorage.removeItem('genfactory.idToken');
+    sessionStorage.removeItem('genfactory.oauth');
     client.clear();
-    await api.logout(sid);
+    // Finish both sessions: a failed API logout must not leave browser SSO active.
+    const [config] = await Promise.all([api.config(), api.logout(sid).catch(() => undefined)]);
+    const { keycloak } = config;
+    const url = new URL(
+      `${keycloak.url.replace(/\/$/, '')}/realms/${encodeURIComponent(keycloak.realm)}/protocol/openid-connect/logout`,
+    );
+    url.search = new URLSearchParams({
+      client_id: keycloak.clientId,
+      post_logout_redirect_uri: `${location.origin}/account`,
+      ...(idToken ? { id_token_hint: idToken } : {}),
+    }).toString();
+    location.assign(url.href);
   };
   return (
     <Context.Provider

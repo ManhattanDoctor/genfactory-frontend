@@ -86,7 +86,12 @@ export const api = {
     );
   },
   init: () => request<InitResponse>('/init'),
-  config: () => request<{ keycloak: { url: string; realm: string; clientId: string } }>('/config', {}, null),
+  config: () =>
+    request<{ keycloak: { url: string; realm: string; clientId: string } }>(
+      '/config',
+      { signal: AbortSignal.timeout(10_000) },
+      null,
+    ),
   login: (code: string, redirectUri: string) =>
     request<{ sid: string; idToken?: string }>(
       '/login',
@@ -96,7 +101,8 @@ export const api = {
       },
       null,
     ),
-  logout: (sid: string | null) => request<void>('/logout', { method: 'POST' }, sid),
+  logout: (sid: string | null) =>
+    request<void>('/logout', { method: 'POST', signal: AbortSignal.timeout(10_000) }, sid),
   catalog: (provider: string, signal?: AbortSignal) =>
     request<ModelDescription[]>(`/aimodels?provider=${encodeURIComponent(provider)}`, { signal }),
   details: (provider: string, signal?: AbortSignal) =>

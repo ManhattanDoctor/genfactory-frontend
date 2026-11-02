@@ -89,6 +89,9 @@ async function mockApi(page: Page, signedIn = true) {
     });
   });
   if (signedIn) await page.addInitScript(() => sessionStorage.setItem('genfactory.session', 'test-session'));
+  await page.route('https://sso.example.test/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<h1>SSO logout</h1>' }),
+  );
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -102,6 +105,8 @@ async function mockApi(page: Page, signedIn = true) {
         user: { id: 7, preferences: { name: 'Anna', email: 'anna@example.test' } },
         balances: { RUB: '1250.50' },
       };
+    else if (path === '/api/config')
+      body = { keycloak: { url: 'https://sso.example.test', realm: 'gnosis', clientId: 'gnosis' } };
     else if (path.startsWith('/api/task/conversation')) body = state.progress;
     else if (path === '/api/aimodel/OPEN_AI_CONVERSATION')
       body = {
@@ -856,8 +861,13 @@ test('account balance refresh uses minor units and logout succeeds locally when 
     route.fulfill({ status: 503, json: { message: 'Unavailable' } }),
   );
   await page.getByRole('button', { name: 'Выйти из студии' }).click();
-  await expect(page.getByRole('heading', { name: 'Один аккаунт для всех идей' })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBeNull();
+  await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/logout/);
+  const state = await page.context().storageState();
+  expect(
+    state.origins
+      .find((o) => o.origin === 'http://127.0.0.1:5173')
+      ?.localStorage.some((item) => item.name === 'genfactory.session'),
+  ).toBeFalsy();
 });
 
 test('valid OAuth callback exchanges the code once and removes it from the URL', async ({ page }) => {
@@ -1763,3 +1773,27 @@ test('history cards keep readable spacing and fit mobile during rename', async (
     await page.screenshot({ path: `test-results/history-release-${width}.png`, fullPage: true });
   }
 });
+
+for (const withIdToken of [true, false]) {
+  test(`logout ends Keycloak SSO ${withIdToken ? 'with ID token' : 'for a legacy session without ID token'}`, async ({
+    page,
+  }) => {
+    await mockApi(page);
+    await page.goto('/account');
+    if (withIdToken) await page.evaluate(() => sessionStorage.setItem('genfactory.idToken', 'test-id-token'));
+    const logout = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/logout');
+    await page.getByRole('button', { name: 'Выйти из студии' }).click();
+    expect((await logout).headers()['authorization']).toBe('Bearer test-session');
+    await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/logout/);
+    const url = new URL(page.url());
+    expect(url.searchParams.get('client_id')).toBe('gnosis');
+    expect(url.searchParams.get('post_logout_redirect_uri')).toBe('http://127.0.0.1:5173/account');
+    expect(url.searchParams.get('id_token_hint')).toBe(withIdToken ? 'test-id-token' : null);
+    const state = await page.context().storageState();
+    expect(
+      state.origins
+        .find((o) => o.origin === 'http://127.0.0.1:5173')
+        ?.localStorage.some((item) => item.name === 'genfactory.session'),
+    ).toBeFalsy();
+  });
+}
