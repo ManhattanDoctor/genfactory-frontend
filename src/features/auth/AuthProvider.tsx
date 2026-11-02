@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession, setSession, SESSION_KEY } from '../../lib/api';
-import type { InitResponse } from '../../lib/types';
-interface Auth {
+import type { IInitResponse } from '../../lib/types';
+interface IAuth {
   session: string | null;
-  user?: InitResponse['user'];
+  user?: IInitResponse['user'];
   balances: Record<string, string>;
   loading: boolean;
   error: Error | null;
@@ -13,7 +13,7 @@ interface Auth {
   signOut: () => Promise<void>;
   refresh: () => void;
 }
-const Context = createContext<Auth | null>(null);
+const Context = createContext<IAuth | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, changeSession] = useState(getSession);
   const client = useQueryClient();
@@ -22,7 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: api.init,
     enabled: !!session,
     retry: false,
-    refetchInterval: session ? 60_000 : false,
   });
   const acceptSession = (sid: string) => {
     client.clear();

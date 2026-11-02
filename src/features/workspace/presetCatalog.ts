@@ -1,5 +1,5 @@
-import type { Preset } from './preferences';
-export const templates: Preset[] = [
+import type { IPreset } from './preferences';
+export const templates: IPreset[] = [
   {
     id: 'product',
     name: 'Предметная съёмка',

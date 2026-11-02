@@ -2,9 +2,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it } from 'vitest';
 import { MessageContent } from '../src/components/MessageContent';
-import type { GnosisFile } from '../src/lib/types';
+import type { IGnosisFile } from '../src/lib/types';
 it('renders readable markdown without duplicating attached generated images', () => {
-  const file = { path: 'https://media.example.test/image.png' } as GnosisFile;
+  const file = { path: 'https://media.example.test/image.png' } as IGnosisFile;
   const html = renderToStaticMarkup(
     createElement(MessageContent, {
       text: '**Готово**\n\n![Результат](https://media.example.test/image.png)',

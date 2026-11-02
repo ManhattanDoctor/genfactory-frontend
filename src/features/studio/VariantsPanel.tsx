@@ -3,7 +3,7 @@ import { getSession } from '../../lib/api';
 import { restoreDraftFiles } from '../workspace/drafts';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Conversation, ConversationMessage, GnosisFile } from '../../lib/types';
+import type { IConversation, IConversationMessage, IGnosisFile } from '../../lib/types';
 import { Media } from '../../components/MediaPreview';
 import { displayMessageText } from './conversations';
 import { readRecipes, subscribeRecipes, variantGroups, fallbackRecipe } from './variants';
@@ -12,9 +12,9 @@ export function VariantsPanel({
   messages,
   onPreview,
 }: {
-  conversation: Conversation;
-  messages: ConversationMessage[];
-  onPreview: (file: GnosisFile) => void;
+  conversation: IConversation;
+  messages: IConversationMessage[];
+  onPreview: (file: IGnosisFile) => void;
 }) {
   const navigate = useNavigate();
   const auth = useAuth();

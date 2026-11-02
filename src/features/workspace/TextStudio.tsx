@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
-import type { GnosisFile, MediaKind, MessageCreate } from '../../lib/types';
+import type { IGnosisFile, MediaKind, IMessageCreate } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { ConversationResults } from '../studio/ConversationResults';
 import { connection } from '../studio/conversations';
@@ -36,12 +36,12 @@ function TextEditor({ mode }: { mode: TextMode }) {
   const incoming = location.state as {
     userId?: number;
     prompt?: string;
-    reference?: GnosisFile;
-    references?: GnosisFile[];
+    reference?: IGnosisFile;
+    references?: IGnosisFile[];
   } | null;
   const ownsIncoming = incoming?.userId === undefined || incoming.userId === auth.user?.id;
   const [prompt, setPrompt] = useState(ownsIncoming ? incoming?.prompt || '' : '');
-  const [files, setFiles] = useState<GnosisFile[]>(
+  const [files, setFiles] = useState<IGnosisFile[]>(
     ownsIncoming
       ? (incoming?.references || (incoming?.reference ? [incoming.reference] : []))
           .filter((f) => f.userId === auth.user?.id)
@@ -80,7 +80,6 @@ function TextEditor({ mode }: { mode: TextMode }) {
     queryKey: ['conversation', auth.user?.id, id],
     enabled: !!auth.user && !!id,
     retry: false,
-    refetchInterval: 3000,
     queryFn: async ({ signal }) => {
       const c = await api.conversation(id!, signal);
       if (c.userId !== auth.user!.id) throw new Error('Эта беседа принадлежит другому аккаунту.');
@@ -106,7 +105,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
   const send = useMutation({
     mutationKey: ['send-message', auth.user?.id],
     retry: false,
-    mutationFn: ({ id, body, sid }: { id: number; body: MessageCreate; sid: string }) =>
+    mutationFn: ({ id, body, sid }: { id: number; body: IMessageCreate; sid: string }) =>
       api.sendMessage(id, body, sid),
     onSettled: (_data, failure, v) => {
       client.setQueryData(['send-error', auth.user?.id, v.id], failure?.message || null);
@@ -286,7 +285,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
     setError('');
     const sid = auth.session;
     const userId = auth.user.id;
-    const body: MessageCreate = {
+    const body: IMessageCreate = {
       role: 'USER',
       text: textInstruction(mode, prompt, {
         language,
@@ -333,7 +332,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
       submitting.current = false;
     }
   };
-  const handoff = (text: string, kind: MediaKind, refs: GnosisFile[] = files) =>
+  const handoff = (text: string, kind: MediaKind, refs: IGnosisFile[] = files) =>
     navigate(
       `/${kind}${conversation && connection(conversation, kind) ? `?conversation=${conversation.id}` : ''}`,
       {

@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, ImageOff } from 'lucide-react';
-import { safeMediaUrl } from '../lib/api';
-import type { GnosisFile } from '../lib/types';
+import { api, safeMediaUrl } from '../lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
-export function Media({ file, controls = false }: { file: GnosisFile; controls?: boolean }) {
-  const src = safeMediaUrl(file.path);
-  const [failedSource, setFailedSource] = useState<string>();
-  if (!src || failedSource === src)
+export function Media({ file, controls = false }: { file: IGnosisFile; controls?: boolean }) {
+  const original = safeMediaUrl(file.path);
+  const [failedSources, setFailedSources] = useState<string[]>([]);
+  const failSource = (source: string) =>
+    setFailedSources((items) => (items.includes(source) ? items : [...items, source]));
+  const isVideo = file.type === 'VIDEO' || file.mime?.startsWith('video/');
+  const poster = file.preview?.image?.status === 'READY' ? safeMediaUrl(file.preview.image.url) : undefined;
+  const clip = file.preview?.video?.status === 'READY' ? safeMediaUrl(file.preview.video.url) : undefined;
+  const thumbnail = !controls ? (isVideo ? clip || poster : poster) : undefined;
+  const src = thumbnail && !failedSources.includes(thumbnail) ? thumbnail : original;
+  if (!src || failedSources.includes(src))
     return (
       <div className="media-missing">
         <ImageOff />
@@ -20,7 +28,7 @@ export function Media({ file, controls = false }: { file: GnosisFile; controls?:
     !file.mime?.startsWith('video/')
   )
     return file.mime?.startsWith('audio/') && controls ? (
-      <audio src={src} controls onError={() => setFailedSource(src)} />
+      <audio src={src} controls onError={() => failSource(src)} />
     ) : (
       <div className="media-missing">
         <ExternalLink />
@@ -28,14 +36,24 @@ export function Media({ file, controls = false }: { file: GnosisFile; controls?:
         <span>{file.mime?.startsWith('audio/') ? 'Аудиозапись' : 'Документ'}</span>
       </div>
     );
-  return file.type === 'VIDEO' || file.mime?.startsWith('video/') ? (
+  if (isVideo && !controls && src === poster && !clip)
+    return <img src={src} alt={file.name} loading="lazy" onError={() => failSource(src)} />;
+  return isVideo ? (
     <video
       src={src}
-      onError={() => setFailedSource(src)}
+      poster={poster}
+      onError={() => failSource(src)}
       controls={controls}
       muted={!controls}
       preload="metadata"
       playsInline
+      loop={!controls}
+      onMouseEnter={(event) => {
+        if (!controls && clip) void event.currentTarget.play().catch(() => {});
+      }}
+      onMouseLeave={(event) => {
+        if (!controls) event.currentTarget.pause();
+      }}
       onLoadedMetadata={(event) => {
         const video = event.currentTarget;
         if (!controls && video.currentTime === 0 && Number.isFinite(video.duration) && video.duration > 0)
@@ -43,7 +61,7 @@ export function Media({ file, controls = false }: { file: GnosisFile; controls?:
       }}
     />
   ) : (
-    <img src={src} alt={file.name} loading="lazy" onError={() => setFailedSource(src)} />
+    <img src={src} alt={file.name} loading="lazy" onError={() => failSource(src)} />
   );
 }
 export function MediaPreview({
@@ -54,17 +72,44 @@ export function MediaPreview({
   onAnalyze,
   onAnimate,
 }: {
-  file: GnosisFile;
-  files?: GnosisFile[];
+  file: IGnosisFile;
+  files?: IGnosisFile[];
   onClose: () => void;
-  onUse?: (file: GnosisFile) => void;
-  onAnalyze?: (file: GnosisFile) => void;
-  onAnimate?: (file: GnosisFile) => void;
+  onUse?: (file: IGnosisFile) => void;
+  onAnalyze?: (file: IGnosisFile) => void;
+  onAnimate?: (file: IGnosisFile) => void;
 }) {
   const [current, setCurrent] = useState(file);
   const [compare, setCompare] = useState('');
   const [notice, setNotice] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [creatingPreview, setCreatingPreview] = useState(false);
+  const client = useQueryClient();
+  const detail = useQuery({
+    queryKey: ['file-preview', file.userId, current.id],
+    queryFn: () => api.file(current.id),
+
+    retry: 1,
+  });
+  const mediaPreview = detail.data?.preview || current.preview;
+  const statuses = [mediaPreview?.image, mediaPreview?.video].filter(Boolean);
+  const pendingPreview = statuses.some(
+    (media) => media?.status === 'PENDING' || media?.status === 'PROCESSING',
+  );
+  const failedPreview = statuses.some((media) => media?.status === 'FAILED');
+  const createPreview = async () => {
+    setCreatingPreview(true);
+    setNotice('');
+    try {
+      const preview = await api.createPreview(current.id);
+      client.setQueryData(['file-preview', file.userId, current.id], { ...current, preview });
+      await client.invalidateQueries({ queryKey: ['files'] });
+    } catch {
+      setNotice('Не удалось запустить создание превью. Попробуйте ещё раз.');
+    } finally {
+      setCreatingPreview(false);
+    }
+  };
   const collection = [
     ...new Map([...files, file].filter((f) => f.userId === file.userId).map((f) => [f.id, f])).values(),
   ];
@@ -161,7 +206,7 @@ export function MediaPreview({
           </figure>
         )}
         <figure>
-          <Media key={current.id} file={current} controls />
+          <Media key={current.id} file={{ ...current, preview: mediaPreview }} controls />
           {other && <figcaption>{current.name}</figcaption>}
         </figure>
       </div>
@@ -198,6 +243,28 @@ export function MediaPreview({
           </>
         )}
       </div>
+      {(current.type === 'IMAGE' || current.type === 'VIDEO') && (
+        <div className="preview-status">
+          <span className="muted small" role="status">
+            {pendingPreview
+              ? 'Превью создаётся…'
+              : failedPreview
+                ? 'Не удалось создать превью полностью. Оригинал доступен.'
+                : statuses.length
+                  ? 'Превью готово'
+                  : 'Для этого файла превью ещё не создано'}
+          </span>
+          {(!statuses.length || failedPreview) && !pendingPreview && (
+            <button className="button" disabled={creatingPreview} onClick={() => void createPreview()}>
+              {creatingPreview
+                ? 'Запускаем…'
+                : failedPreview
+                  ? 'Повторить создание превью'
+                  : 'Создать превью'}
+            </button>
+          )}
+        </div>
+      )}
       {notice && <p role="status">{notice}</p>}
     </Modal>
   );

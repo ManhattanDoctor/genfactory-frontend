@@ -18,7 +18,7 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { api, getSession } from '../../lib/api';
-import type { GnosisFile, MediaKind, ModelDescription, Schema, TaskRequest } from '../../lib/types';
+import type { IGnosisFile, MediaKind, IModelDescription, ISchema, ITaskRequest } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import {
   defaults,
@@ -40,7 +40,7 @@ import { ConversationResults } from './ConversationResults';
 import { SelectControl } from '../../components/SelectControl';
 import { LibraryPicker } from '../../components/LibraryPicker';
 import { WorkspaceNav } from '../workspace/WorkspaceNav';
-import { usePreferences, type Preset } from '../workspace/preferences';
+import { usePreferences, type IPreset } from '../workspace/preferences';
 import { creativePrompt } from '../workspace/prompt';
 import { LoginDialog } from '../../components/LoginDialog';
 const providers = { image: ['OPEN_AI_IMAGE_GPT', 'OPEN_ROUTER_IMAGE'], video: ['OPEN_ROUTER_VIDEO'] };
@@ -63,7 +63,7 @@ function Field({
   onChange,
 }: {
   name: string;
-  schema: Schema;
+  schema: ISchema;
   value: unknown;
   onChange: (value: unknown) => void;
 }) {
@@ -157,7 +157,6 @@ export function Studio({ kind }: { kind: MediaKind }) {
       if (result.userId !== auth.user!.id) throw new Error('Эта беседа принадлежит другому аккаунту.');
       return result;
     },
-    refetchInterval: 3000,
     retry: false,
   });
   const conversation = conversationQuery.data;
@@ -197,7 +196,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   const [prompt, setPrompt] = useState('');
   const [selected, setSelected] = useState('');
   const [options, setOptions] = useState<Record<string, unknown>>({});
-  const [references, setReferences] = useState<GnosisFile[]>([]);
+  const [references, setReferences] = useState<IGnosisFile[]>([]);
   const fromScratch = freshScope === sourceScope;
   useEffect(() => {
     if (references.length) setFreshScope(undefined);
@@ -217,13 +216,24 @@ export function Studio({ kind }: { kind: MediaKind }) {
   const [modelBrowser, setModelBrowser] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const promptInput = useRef<HTMLTextAreaElement>(null);
+  const [focusPrompt, setFocusPrompt] = useState(0);
+
   const initialPromptKey = useRef('');
   const referenceKey = useRef('');
   const previousUser = useRef(auth.user?.id);
   const previousKind = useRef(kind);
   const uploadScope = useRef('');
-  const repeatRequest = useRef<TaskRequest | null>(null);
+  const repeatRequest = useRef<ITaskRequest | null>(null);
   const busy = creating || pendingSends > 0 || conversation?.status === 'LOADING';
+  useEffect(() => {
+    if (!focusPrompt || busy) return;
+    const frame = requestAnimationFrame(() => {
+      promptInput.current?.focus({ preventScroll: true });
+      promptInput.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusPrompt, busy]);
   const catalog = useQuery({
     queryKey: ['models', auth.user?.id, kind],
     enabled: !!auth.user,
@@ -247,7 +257,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
         ? /seedance/i.test(m.reference.model)
         : true,
   );
-  const modelKey = (m: ModelDescription) => `${m.reference.provider}:${m.reference.model}`;
+  const modelKey = (m: IModelDescription) => `${m.reference.provider}:${m.reference.model}`;
   const model = models.find((m) => modelKey(m) === selected) || models[0];
   const currentKey = model ? modelKey(model) : '';
   uploadScope.current = `${auth.session}:${kind}:${currentKey}:${location.key}`;
@@ -299,7 +309,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     if (initialPromptKey.current !== location.key) {
       const state = location.state as {
         prompt?: string;
-        reference?: GnosisFile;
+        reference?: IGnosisFile;
         userId?: number;
         repeat?: boolean;
         notice?: string;
@@ -316,7 +326,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   }, [location.key, location.state, model, auth.user?.id]);
   const appliedPreset = useRef('');
   useEffect(() => {
-    const state = location.state as { preset?: Preset; userId?: number } | null;
+    const state = location.state as { preset?: IPreset; userId?: number } | null;
     if (
       !state?.preset ||
       !models.length ||
@@ -397,9 +407,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
   }, [referenceScope, conversationId]);
   useEffect(() => {
     const state = location.state as {
-      reference?: GnosisFile;
-      references?: GnosisFile[];
-      preset?: Preset;
+      reference?: IGnosisFile;
+      references?: IGnosisFile[];
+      preset?: IPreset;
       userId?: number;
     } | null;
     const incoming = (state?.references || (state?.reference ? [state.reference] : [])).filter(
@@ -439,6 +449,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     setReferences(incoming.slice(0, limit));
     if (incoming.length > limit) setNotice(`Для этой модели оставлены первые ${limit} референса.`);
     referenceKey.current = location.key;
+    setFocusPrompt((value) => value + 1);
   }, [models, currentKey, location.key, location.state, auth.user?.id, conversation, conversationId, kind]);
   const maxRefs = Math.min(4, referenceLimit(model));
   const minRefs = referenceMinimum(model);
@@ -449,7 +460,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   );
   const pendingDraft = useRef<{
     value: NonNullable<typeof draft.available>['value'];
-    files: GnosisFile[];
+    files: IGnosisFile[];
     key: string;
   } | null>(null);
   useEffect(() => {
@@ -570,7 +581,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
     );
     const preparedPrompt = creativePrompt(prompt, useBrand ? prefs.value.brand : '', shot);
-    const body: TaskRequest = {
+    const body: ITaskRequest = {
       model: model.reference.provider,
       task: { prompt: preparedPrompt, session: crypto.randomUUID() },
       options: { ...cleanOptions, model: model.reference.model },
@@ -815,6 +826,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
             </label>
             <textarea
               id="prompt"
+              ref={promptInput}
               value={prompt}
               disabled={busy}
               onChange={(e) => setPrompt(e.target.value)}
@@ -845,18 +857,6 @@ export function Studio({ kind }: { kind: MediaKind }) {
                 Эта модель работает с исходными изображениями. Минимум референсов: {minRefs}.
               </p>
             )}
-            <button
-              className="button"
-              disabled={
-                !auth.user || busy || uploading || !supportsReferences(model) || references.length >= maxRefs
-              }
-              onClick={() => {
-                setReplaceReference(false);
-                setPicker(true);
-              }}
-            >
-              Из библиотеки
-            </button>
             <input
               type="file"
               hidden
@@ -865,13 +865,31 @@ export function Studio({ kind }: { kind: MediaKind }) {
               multiple={kind === 'image'}
               onChange={(e) => void upload(e.target.files)}
             />
-            <button
-              className="button"
-              disabled={!models.length || busy || uploading}
-              onClick={() => setModelBrowser(true)}
-            >
-              Поиск и избранные модели
-            </button>
+            <div className="composer-shortcuts">
+              <button
+                className="button"
+                disabled={
+                  !auth.user ||
+                  busy ||
+                  uploading ||
+                  !supportsReferences(model) ||
+                  references.length >= maxRefs
+                }
+                onClick={() => {
+                  setReplaceReference(false);
+                  setPicker(true);
+                }}
+              >
+                Из библиотеки
+              </button>
+              <button
+                className="button"
+                disabled={!models.length || busy || uploading}
+                onClick={() => setModelBrowser(true)}
+              >
+                Поиск и избранные модели
+              </button>
+            </div>
             <div className="model-selection">
               <label htmlFor="model">Модель</label>
               <SelectControl
@@ -1132,6 +1150,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
               onUseText={(text, targetKind, files) => {
                 if (targetKind === kind) {
                   setPrompt(text);
+                  setFocusPrompt((value) => value + 1);
                   setReferences(files.filter((f) => f.userId === auth.user?.id).slice(0, maxRefs));
                 } else
                   navigate(
@@ -1143,6 +1162,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
                 if (targetKind === kind) {
                   setReferences([file]);
                   setPrompt('');
+                  setFocusPrompt((value) => value + 1);
                 } else
                   navigate(`/${targetKind}?conversation=${conversation.id}`, {
                     state: { reference: file, userId: auth.user!.id },

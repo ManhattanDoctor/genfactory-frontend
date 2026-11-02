@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal } from '../../components/Modal';
-import type { ModelDescription } from '../../lib/types';
+import type { IModelDescription } from '../../lib/types';
 import { referenceLimit, referenceMinimum, supportsReferences } from './schema';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { useAuth } from '../auth/AuthProvider';
@@ -10,16 +10,16 @@ export function ModelBrowser({
   onSelect,
   onClose,
 }: {
-  models: ModelDescription[];
+  models: IModelDescription[];
   value: string;
-  onSelect: (model: ModelDescription) => void;
+  onSelect: (model: IModelDescription) => void;
   onClose: () => void;
 }) {
   const prefs = usePreferences();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const key = (m: ModelDescription) => `${m.reference.provider}:${m.reference.model}`;
+  const key = (m: IModelDescription) => `${m.reference.provider}:${m.reference.model}`;
   const matches = models.filter(
     (m) =>
       `${m.name} ${m.reference.model} ${m.reference.provider}`.toLowerCase().includes(search.toLowerCase()) &&

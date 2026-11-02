@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { getSession, api } from '../../lib/api';
 import { useAuth } from '../auth/AuthProvider';
-import type { GnosisFile } from '../../lib/types';
-export interface DraftRecord<T> {
+import type { IGnosisFile } from '../../lib/types';
+export interface IDraftRecord<T> {
   version: 1;
   at: string;
   value: T;
 }
-function read<T>(key: string): DraftRecord<T> | undefined {
+function read<T>(key: string): IDraftRecord<T> | undefined {
   try {
     const data = JSON.parse(localStorage.getItem(key) || 'null');
     if (data?.version === 1 && typeof data.at === 'string' && data.value && typeof data.value === 'object')
@@ -93,7 +93,7 @@ export function DraftBar<T>({
   onRestore,
   busy = false,
 }: {
-  draft: { available?: DraftRecord<T>; status: string; clear: () => void };
+  draft: { available?: IDraftRecord<T>; status: string; clear: () => void };
   onRestore: (value: T) => void;
   busy?: boolean;
 }) {
@@ -116,7 +116,7 @@ export function DraftBar<T>({
   );
 }
 export async function restoreDraftFiles(values: unknown, userId: number, sid: string) {
-  if (!Array.isArray(values)) return { files: [] as GnosisFile[], missing: 0 };
+  if (!Array.isArray(values)) return { files: [] as IGnosisFile[], missing: 0 };
   const ids = [
     ...new Set(
       values

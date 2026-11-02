@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { GnosisFile } from '../lib/types';
+import type { IGnosisFile } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { Modal } from './Modal';
 import { Media } from './MediaPreview';
@@ -11,7 +11,7 @@ export function LibraryPicker({
   selected = [],
   imagesOnly = true,
 }: {
-  onPick: (file: GnosisFile) => void;
+  onPick: (file: IGnosisFile) => void;
   onClose: () => void;
   selected?: number[];
   imagesOnly?: boolean;

@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { variantGroups, requestKind } from '../src/features/studio/variants';
-import type { ConversationMessage, GnosisFile } from '../src/lib/types';
-const file = { id: 12, userId: 7, type: 'IMAGE' } as GnosisFile;
+import type { IConversationMessage, IGnosisFile } from '../src/lib/types';
+const file = { id: 12, userId: 7, type: 'IMAGE' } as IGnosisFile;
 const message = (
   id: number,
-  role: ConversationMessage['role'],
+  role: IConversationMessage['role'],
   text = '',
-  files: GnosisFile[] = [],
-): ConversationMessage => ({ id, role, text, files, createdDate: '2026-11-01' });
+  files: IGnosisFile[] = [],
+): IConversationMessage => ({ id, role, text, files, createdDate: '2026-11-01' });
 describe('variant provenance', () => {
   it('does not attribute an orphaned response to a later request', () => {
     const groups = variantGroups(

@@ -1,10 +1,10 @@
 import type {
-  Conversation,
-  ConversationCreate,
+  IConversation,
+  IConversationCreate,
   MediaKind,
-  MessageCreate,
-  ModelDescription,
-  ToolConnection,
+  IMessageCreate,
+  IModelDescription,
+  IToolConnection,
 } from '../../lib/types';
 
 const referencePolicy =
@@ -13,15 +13,15 @@ const legacyReferencePolicy =
   'Если референсы не указаны, создавай с нуля: IMAGE isDrawNew=true, VIDEO fileIds=[]. ';
 
 export const toolFor = (kind: MediaKind) => (kind === 'image' ? 'IMAGE' : 'VIDEO');
-export function connection(conversation: Conversation, kind: MediaKind): ToolConnection | undefined {
+export function connection(conversation: IConversation, kind: MediaKind): IToolConnection | undefined {
   const item = conversation.options.tools?.find((t) => (typeof t === 'string' ? t : t.uid) === toolFor(kind));
   return typeof item === 'string' ? { uid: item } : item;
 }
 export function toolSettings(
   kind: MediaKind,
-  model: ModelDescription,
+  model: IModelDescription,
   options: Record<string, unknown>,
-): ToolConnection {
+): IToolConnection {
   const values = Object.fromEntries(
     Object.entries(options).filter(
       ([key, value]) =>
@@ -35,9 +35,9 @@ export function toolSettings(
 export function createConversationBody(
   prompt: string,
   kind: MediaKind,
-  agent: ModelDescription,
-  tool: ToolConnection,
-): ConversationCreate {
+  agent: IModelDescription,
+  tool: IToolConnection,
+): IConversationCreate {
   return {
     name: prompt.trim().length < 2 ? `Идея ${prompt.trim()}` : prompt.trim().slice(0, 64),
     model: agent.reference.provider,
@@ -57,10 +57,10 @@ export function createConversationBody(
 export function createMessageBody(
   prompt: string,
   kind: MediaKind,
-  tool: ToolConnection,
+  tool: IToolConnection,
   fileIds: number[],
   fromScratch = false,
-): MessageCreate {
+): IMessageCreate {
   const instruction =
     kind === 'image' ? 'Создай изображение с помощью IMAGE.' : 'Создай видео с помощью VIDEO.';
   const references = fileIds.length
@@ -86,7 +86,7 @@ export function displayMessageText(text: string): string {
 }
 
 // Upgrade only the obsolete Genfactory instruction, preserving custom system text.
-export function migratedReferenceSystem(conversation: Conversation): string | undefined {
+export function migratedReferenceSystem(conversation: IConversation): string | undefined {
   if (!conversation.tags?.includes('genfactory') || !conversation.system?.includes(legacyReferencePolicy))
     return;
   return conversation.system.replace(legacyReferencePolicy, referencePolicy);

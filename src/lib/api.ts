@@ -1,15 +1,16 @@
 import type {
-  GnosisFile,
-  PaymentTransaction,
-  InitResponse,
-  ModelDescription,
-  Pagination,
-  Conversation,
-  ConversationCreate,
-  ConversationMessage,
-  MessageCreate,
-  ConversationProgress,
-  ToolDescription,
+  IGnosisFile,
+  IPreview,
+  IPaymentTransaction,
+  IInitResponse,
+  IModelDescription,
+  IPagination,
+  IConversation,
+  IConversationCreate,
+  IConversationMessage,
+  IMessageCreate,
+  IConversationProgress,
+  IToolDescription,
 } from './types';
 export const SESSION_KEY = 'genfactory.session';
 const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
@@ -80,12 +81,12 @@ export const api = {
         ? { createdDate: { condition: 'MORE_OR_EQUAL', value: Date.parse(filter.since), type: 'DATE' } }
         : {}),
     };
-    return request<Pagination<PaymentTransaction>>(
+    return request<IPagination<IPaymentTransaction>>(
       `/paymentTransaction?${new URLSearchParams({ pageIndex: String(page), pageSize: '20', sort: JSON.stringify({ createdDate: false, id: false }), conditions: JSON.stringify(conditions) })}`,
       { signal },
     );
   },
-  init: () => request<InitResponse>('/init'),
+  init: () => request<IInitResponse>('/init'),
   config: () =>
     request<{ keycloak: { url: string; realm: string; clientId: string } }>(
       '/config',
@@ -104,15 +105,15 @@ export const api = {
   logout: (sid: string | null) =>
     request<void>('/logout', { method: 'POST', signal: AbortSignal.timeout(10_000) }, sid),
   catalog: (provider: string, signal?: AbortSignal) =>
-    request<ModelDescription[]>(`/aimodels?provider=${encodeURIComponent(provider)}`, { signal }),
+    request<IModelDescription[]>(`/aimodels?provider=${encodeURIComponent(provider)}`, { signal }),
   details: (provider: string, signal?: AbortSignal) =>
-    request<{ tools?: ToolDescription[] }>(`/aimodel/${encodeURIComponent(provider)}`, { signal }),
+    request<{ tools?: IToolDescription[] }>(`/aimodel/${encodeURIComponent(provider)}`, { signal }),
   editConversation: (
-    conversation: Conversation,
-    changes: { name?: string; options?: Conversation['options']; system?: string },
+    conversation: IConversation,
+    changes: { name?: string; options?: IConversation['options']; system?: string },
     sid: string,
   ) =>
-    request<Conversation>(
+    request<IConversation>(
       `/conversation/${conversation.id}`,
       {
         method: 'PUT',
@@ -126,14 +127,14 @@ export const api = {
     ),
   progress: async (session: string, signal?: AbortSignal) => {
     try {
-      return await request<ConversationProgress | null>(`/task/${encodeURIComponent(session)}`, { signal });
+      return await request<IConversationProgress | null>(`/task/${encodeURIComponent(session)}`, { signal });
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) return null;
       throw error;
     }
   },
   conversations: (userId: number, page: number, signal?: AbortSignal, status?: string) =>
-    request<Pagination<Conversation>>(
+    request<IPagination<IConversation>>(
       `/conversation?${new URLSearchParams({
         pageSize: '24',
         pageIndex: String(page),
@@ -143,11 +144,11 @@ export const api = {
       { signal },
     ),
   conversation: (id: number, signal?: AbortSignal, sid?: string) =>
-    request<Conversation>(`/conversation/${id}`, { signal }, sid),
-  createConversation: (body: ConversationCreate, sid: string) =>
-    request<Conversation>('/conversation', { method: 'POST', body: JSON.stringify(body) }, sid),
+    request<IConversation>(`/conversation/${id}`, { signal }, sid),
+  createConversation: (body: IConversationCreate, sid: string) =>
+    request<IConversation>('/conversation', { method: 'POST', body: JSON.stringify(body) }, sid),
   messages: (id: number, page: number, signal?: AbortSignal, sid?: string) =>
-    request<Pagination<ConversationMessage>>(
+    request<IPagination<IConversationMessage>>(
       `/conversation/${id}/message?${new URLSearchParams({
         pageSize: '20',
         pageIndex: String(page),
@@ -157,21 +158,22 @@ export const api = {
       { signal },
       sid,
     ),
-  sendMessage: (id: number, body: MessageCreate, sid: string) =>
-    request<ConversationMessage>(
+  sendMessage: (id: number, body: IMessageCreate, sid: string) =>
+    request<IConversationMessage>(
       `/conversation/${id}/message`,
       { method: 'POST', body: JSON.stringify(body) },
       sid,
     ),
   files: (page: number, type?: string) =>
-    request<Pagination<GnosisFile>>(
+    request<IPagination<IGnosisFile>>(
       `/file?${new URLSearchParams({ pageSize: '24', pageIndex: String(page), sort: JSON.stringify({ createdDate: false }), ...(type ? { conditions: JSON.stringify({ type }) } : {}) })}`,
     ),
-  file: (id: number, sid?: string) => request<GnosisFile>(`/file/${id}`, {}, sid),
+  file: (id: number, sid?: string) => request<IGnosisFile>(`/file/${id}`, {}, sid),
+  createPreview: (id: number) => request<IPreview>(`/file/${id}/preview`, { method: 'POST' }),
   upload: (file: File, sid?: string) => {
     const data = new FormData();
     data.append('file', file);
-    return request<GnosisFile>('/file', { method: 'POST', body: data }, sid);
+    return request<IGnosisFile>('/file', { method: 'POST', body: data }, sid);
   },
 };
 export function safeMediaUrl(value?: string): string | undefined {

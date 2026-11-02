@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import catalog from './fixtures/catalog.json';
 import { defaults, optionFields, referenceLimit, validateRequest } from '../src/features/catalog/schema';
-import type { ModelDescription, TaskRequest } from '../src/lib/types';
-const model = catalog[0] as unknown as ModelDescription;
-const request = (): TaskRequest => ({
+import type { IModelDescription, ITaskRequest } from '../src/lib/types';
+const model = catalog[0] as unknown as IModelDescription;
+const request = (): ITaskRequest => ({
   model: model.reference.provider,
   task: { session: 'test', prompt: 'A cinematic landscape' },
   options: { ...defaults(model.schema.properties?.options), model: model.reference.model },

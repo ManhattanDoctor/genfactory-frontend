@@ -1,4 +1,4 @@
-import type { PaymentTransaction } from '../../lib/types';
+import type { IPaymentTransaction } from '../../lib/types';
 const scale = 10n ** 12n;
 function decimal(value: unknown): bigint | undefined {
   if (typeof value !== 'string' || !/^\d+(\.\d{1,12})?$/.test(value)) return;
@@ -28,7 +28,7 @@ export function transactionAmount(amount: string, currency: string, precise = fa
   }
   return `${formatted} ${currency === 'RUB' ? '₽' : '$'}`;
 }
-export function direction(t: PaymentTransaction) {
+export function direction(t: IPaymentTransaction) {
   return t.credit === 'PR-00' && t.debet !== 'PR-00'
     ? 'expense'
     : t.debet === 'PR-00' && t.credit !== 'PR-00'
@@ -46,7 +46,7 @@ const toolNames: Record<string, string> = {
 export function toolName(type: string) {
   return toolNames[type] || type;
 }
-export function transactionTitle(t: PaymentTransaction) {
+export function transactionTitle(t: IPaymentTransaction) {
   const types: Record<string, string> = {
     REFUND: 'Возврат',
     PURCHASE: 'Пополнение',
@@ -65,7 +65,7 @@ export function transactionTitle(t: PaymentTransaction) {
   if (provider.includes('VIDEO')) return 'Создание видео';
   return t.type === 'TASK_PURCHASE' ? 'Выполнение задачи' : t.type;
 }
-export function conversationLink(t: PaymentTransaction) {
+export function conversationLink(t: IPaymentTransaction) {
   const source = t.details?.source;
   if (
     source?.type !== 'CONVERSATION' ||
@@ -77,7 +77,7 @@ export function conversationLink(t: PaymentTransaction) {
   const types = t.details?.consumption?.tools?.map((t) => t.type) || [];
   return `/${types.includes('VIDEO') ? 'video' : types.includes('IMAGE') ? 'image' : 'chat'}?conversation=${source.id}`;
 }
-export function breakdown(t: PaymentTransaction): { label: string; amount: string }[] | undefined {
+export function breakdown(t: IPaymentTransaction): { label: string; amount: string }[] | undefined {
   const details = t.details;
   const tools = details?.consumption?.tools;
   if (

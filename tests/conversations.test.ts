@@ -7,13 +7,13 @@ import {
   createMessageBody,
   toolSettings,
 } from '../src/features/studio/conversations';
-import type { Conversation, ModelDescription } from '../src/lib/types';
-const model: ModelDescription = {
+import type { IConversation, IModelDescription } from '../src/lib/types';
+const model: IModelDescription = {
   reference: { provider: 'OPEN_ROUTER_VIDEO', model: 'video-model' },
   name: 'Video',
   schema: {},
 };
-const agent: ModelDescription = {
+const agent: IModelDescription = {
   reference: { provider: 'OPEN_AI_CONVERSATION', model: 'agent-model' },
   name: 'Agent',
   schema: {},
@@ -59,7 +59,7 @@ describe('Conversation tool contracts', () => {
     expect(body.files).toEqual([]);
   });
   it('recognizes universal string connections and does not silently add a missing tool', () => {
-    const conversation = { options: { tools: ['IMAGE'] } } as Conversation;
+    const conversation = { options: { tools: ['IMAGE'] } } as IConversation;
     expect(connection(conversation, 'image')).toEqual({ uid: 'IMAGE' });
     expect(connection(conversation, 'video')).toBeUndefined();
   });
@@ -75,7 +75,7 @@ it('migrates only the legacy instruction in Genfactory conversations', () => {
   const conversation = {
     tags: ['genfactory'],
     system: 'Custom prefix. ' + legacy + 'Custom suffix.',
-  } as Conversation;
+  } as IConversation;
   const system = migratedReferenceSystem(conversation)!;
   expect(system).toContain('Только при явном выборе');
   expect(system).toMatch(/^Custom prefix\. /);

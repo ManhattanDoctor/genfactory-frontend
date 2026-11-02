@@ -1,3 +1,4 @@
+import { ConversationCover } from './ConversationCover';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -7,7 +8,7 @@ import { api } from '../../lib/api';
 import { usePreferences, toggleItem } from '../workspace/preferences';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSession } from '../../lib/api';
-import type { Conversation } from '../../lib/types';
+import type { IConversation } from '../../lib/types';
 import { connection } from './conversations';
 export function History() {
   const auth = useAuth();
@@ -27,9 +28,8 @@ export function History() {
     enabled: !!auth.user,
     queryFn: ({ signal }) =>
       api.conversations(auth.user!.id, page, signal, filter === 'running' ? 'LOADING' : undefined),
-    refetchInterval: 10000,
   });
-  const rename = async (c: Conversation) => {
+  const rename = async (c: IConversation) => {
     if (!auth.session || saving) return;
     const sid = auth.session;
     const userId = auth.user!.id;
@@ -146,6 +146,7 @@ export function History() {
             {visible.map((c) => (
               <article className="generation-card history-card" key={c.id}>
                 <header>
+                  <ConversationCover conversation={c} />
                   {editing === c.id ? (
                     <form
                       className="rename-form"

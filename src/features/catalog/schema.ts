@@ -1,8 +1,8 @@
 import Ajv from 'ajv';
-import type { ModelDescription, Schema, TaskRequest } from '../../lib/types';
+import type { IModelDescription, ISchema, ITaskRequest } from '../../lib/types';
 const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
-const validators = new WeakMap<Schema, ReturnType<typeof ajv.compile>>();
-export function defaults(schema?: Schema): Record<string, unknown> {
+const validators = new WeakMap<ISchema, ReturnType<typeof ajv.compile>>();
+export function defaults(schema?: ISchema): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(schema?.properties || {})) {
     if (field.default !== undefined) values[key] = structuredClone(field.default);
@@ -24,14 +24,14 @@ export const fieldNames: Record<string, string> = {
   generateAudio: 'Генерировать звук',
   seed: 'Seed',
 };
-export function optionFields(model: ModelDescription): [string, Schema][] {
+export function optionFields(model: IModelDescription): [string, ISchema][] {
   return Object.entries(model.schema.properties?.options?.properties || {}).filter(
     ([key, field]) =>
       !['model', 'provider', 'stream', 'partialImages', 'frameImages', 'prompt'].includes(key) &&
       ['string', 'integer', 'number', 'boolean'].includes(field.type || ''),
   );
 }
-export function validateRequest(model: ModelDescription, request: TaskRequest): string[] {
+export function validateRequest(model: IModelDescription, request: ITaskRequest): string[] {
   let validate = validators.get(model.schema);
   if (!validate) {
     validate = ajv.compile(model.schema);
@@ -43,13 +43,13 @@ export function validateRequest(model: ModelDescription, request: TaskRequest): 
     .map((e) => `${e.instancePath || 'Запрос'}: ${e.message}`)
     .slice(0, 5);
 }
-export function supportsReferences(model?: ModelDescription): boolean {
+export function supportsReferences(model?: IModelDescription): boolean {
   return !!(
     model?.schema.properties?.task?.properties?.fileIds ||
     model?.schema.properties?.options?.properties?.frameImages
   );
 }
-export function referenceLimit(model?: ModelDescription): number {
+export function referenceLimit(model?: IModelDescription): number {
   return (
     model?.schema.properties?.task?.properties?.fileIds?.maxItems ??
     model?.schema.properties?.options?.properties?.frameImages?.maxItems ??
@@ -57,7 +57,7 @@ export function referenceLimit(model?: ModelDescription): number {
   );
 }
 
-export function referenceMinimum(model?: ModelDescription): number {
+export function referenceMinimum(model?: IModelDescription): number {
   const task = model?.schema.properties?.task;
   const options = model?.schema.properties?.options;
   if (task?.required?.includes('fileIds')) return Math.max(1, task.properties?.fileIds?.minItems ?? 1);

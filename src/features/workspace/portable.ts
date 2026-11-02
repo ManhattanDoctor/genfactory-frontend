@@ -1,13 +1,13 @@
-import type { Preferences, Preset } from './preferences';
-export interface PortableSettings {
+import type { IPreferences, IPreset } from './preferences';
+export interface IPortableSettings {
   format: 'genfactory-settings';
   version: 1;
-  presets: Preset[];
+  presets: IPreset[];
   brand: string;
   favoriteModels: string[];
   favoriteTemplates: string[];
 }
-export function exportSettings(p: Preferences): PortableSettings {
+export function exportSettings(p: IPreferences): IPortableSettings {
   return {
     format: 'genfactory-settings',
     version: 1,
@@ -17,7 +17,7 @@ export function exportSettings(p: Preferences): PortableSettings {
     favoriteTemplates: p.favoriteTemplates,
   };
 }
-export function parseSettings(raw: string): PortableSettings {
+export function parseSettings(raw: string): IPortableSettings {
   if (raw.length > 500_000) throw new Error('Файл должен быть меньше 500 КБ.');
   const d = JSON.parse(raw);
   const str = (v: unknown, max: number) => typeof v === 'string' && v.length <= max;
@@ -33,7 +33,7 @@ export function parseSettings(raw: string): PortableSettings {
     !strings(d.favoriteTemplates)
   )
     throw new Error('Неподдерживаемый или повреждённый файл настроек.');
-  const presets: Preset[] = d.presets.map((p: Preset) => {
+  const presets: IPreset[] = d.presets.map((p: IPreset) => {
     if (
       !p ||
       !str(p.id, 200) ||

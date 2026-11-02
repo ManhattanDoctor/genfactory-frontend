@@ -1,4 +1,4 @@
-import type { GnosisFile } from '../../lib/types';
+import type { IGnosisFile } from '../../lib/types';
 import { NavLink } from 'react-router-dom';
 export function WorkspaceNav({
   conversationId,
@@ -7,7 +7,7 @@ export function WorkspaceNav({
 }: {
   conversationId?: number;
   media?: boolean;
-  draft?: { prompt: string; references: GnosisFile[]; userId?: number };
+  draft?: { prompt: string; references: IGnosisFile[]; userId?: number };
 }) {
   return (
     <nav className="workspace-modes" aria-label="Режим работы">

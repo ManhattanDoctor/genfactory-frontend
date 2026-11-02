@@ -20,7 +20,7 @@
 
 GET `/api/task/conversation{id}` возвращает `{data: {tools: [{uid, name?, status?}], value?}}`. Отсутствие status у инструмента означает активный вызов; ERRORED — ошибка. 404 после завершения нормален, постоянная история находится в беседе. UI использует только названия/статусы, без args.
 
-Socket.IO `/gnosisai`, путь `/socket.io`, auth `{token: sid}`. После `transportSocketConnected` клиент отправляет `transportSocketCommandRequest` с `{id, name: "TransportSocketRoomCommand", request: {action: "ADD", name: "conversation{id}"}, isNeedReply: false}`. `transportSocketEvent` содержит `name` и `data`; события задачи фильтруются по `data.session`, события беседы — по `data.id`. Соединение закрывается при смене аккаунта/беседы; восстановление подписки происходит при reconnect.
+Socket.IO `/gnosisai`, путь `/socket.io`, auth `{token: sid}`. Подключение, команды комнат с подтверждением и восстановление подписок обслуживает `@ts-core/socket-client`, как в основном фронте. Одно соединение на аккаунт; подписки комнат `conversation{id}` живут до удаления последнего подписчика. События содержат `uid`, `name`, `data`; задачи фильтруются по `data.session`. При смене аккаунта соединение закрывается. `FilePreviewChangedEvent` обновляет файлы и обложки бесед.
 
 Баланс `/init` и amount финансовой проводки выражены в minor units: RUB/копейки, USD/центы. Стоимость провайдера в `cost.amounts`/details.amounts выражена в major units. Эти величины нельзя форматировать одной функцией без указания единиц.
 

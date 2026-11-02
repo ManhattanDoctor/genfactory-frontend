@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../lib/api';
-import type { Conversation } from '../lib/types';
+import type { IConversation } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { Modal } from './Modal';
 export function ActiveJobs() {
@@ -13,12 +13,11 @@ export function ActiveJobs() {
 }
 function Jobs({ userId, sid }: { userId: number; sid: string }) {
   const [open, setOpen] = useState(false);
-  const [notices, setNotices] = useState<Conversation[]>([]);
-  const tracked = useRef(new Map<number, Conversation>());
+  const [notices, setNotices] = useState<IConversation[]>([]);
+  const tracked = useRef(new Map<number, IConversation>());
   const query = useQuery({
     queryKey: ['active-jobs', userId],
     queryFn: ({ signal }) => api.conversations(userId, 0, signal, 'LOADING'),
-    refetchInterval: 5000,
     retry: 1,
   });
   useEffect(() => {

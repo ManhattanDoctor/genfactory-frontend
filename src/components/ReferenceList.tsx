@@ -1,4 +1,4 @@
-import type { GnosisFile } from '../lib/types';
+import type { IGnosisFile } from '../lib/types';
 import { Media } from './MediaPreview';
 export function ReferenceList({
   files,
@@ -6,8 +6,8 @@ export function ReferenceList({
   video = false,
   disabled = false,
 }: {
-  files: GnosisFile[];
-  onChange: (files: GnosisFile[]) => void;
+  files: IGnosisFile[];
+  onChange: (files: IGnosisFile[]) => void;
   video?: boolean;
   disabled?: boolean;
 }) {

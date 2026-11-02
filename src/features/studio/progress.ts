@@ -1,4 +1,4 @@
-import type { ToolProgress } from '../../lib/types';
+import type { IToolProgress } from '../../lib/types';
 export const toolLabels: Record<string, string> = {
   IMAGE: 'Создаём изображение',
   IMAGE_OPEN_AI: 'Создаём изображение',
@@ -11,11 +11,11 @@ export const toolLabels: Record<string, string> = {
   TTS: 'Создаём озвучку',
   STT: 'Распознаём речь',
 };
-export function readTools(value: unknown): ToolProgress[] {
+export function readTools(value: unknown): IToolProgress[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter(
-      (t): t is ToolProgress =>
+      (t): t is IToolProgress =>
         !!t &&
         typeof t.uid === 'string' &&
         (t.status === undefined || ['STARTED', 'FINISHED', 'ERRORED'].includes(t.status)),
@@ -27,7 +27,7 @@ export function readTools(value: unknown): ToolProgress[] {
       status: t.status,
     }));
 }
-export function toolLabel(tool: ToolProgress): string {
+export function toolLabel(tool: IToolProgress): string {
   const name = toolLabels[tool.uid] || tool.name || 'Выполняем инструмент';
   return tool.status === 'ERRORED'
     ? `${name}: ошибка инструмента`

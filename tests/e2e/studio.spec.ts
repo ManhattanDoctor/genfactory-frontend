@@ -1,10 +1,10 @@
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import type { Conversation, ConversationMessage, ModelDescription } from '../../src/lib/types';
-const catalog: ModelDescription[] = JSON.parse(
+import type { IConversation, IConversationMessage, IModelDescription } from '../../src/lib/types';
+const catalog: IModelDescription[] = JSON.parse(
   readFileSync(new URL('../fixtures/catalog.json', import.meta.url), 'utf8'),
 );
-const agent: ModelDescription = JSON.parse(
+const agent: IModelDescription = JSON.parse(
   readFileSync(new URL('../fixtures/agent.json', import.meta.url), 'utf8'),
 );
 const file = {
@@ -24,7 +24,7 @@ const pagination = <T>(items: T[], pageSize = 24) => ({
   pageSize,
   pageIndex: 0,
 });
-function savedConversation(id = 101): Conversation {
+function savedConversation(id = 101): IConversation {
   return {
     id,
     userId: 7,
@@ -50,8 +50,8 @@ async function mockApi(page: Page, signedIn = true) {
     }),
   );
   const state = {
-    conversations: [] as Conversation[],
-    messages: new Map<number, ConversationMessage[]>(),
+    conversations: [] as IConversation[],
+    messages: new Map<number, IConversationMessage[]>(),
     creates: [] as any[],
     sends: [] as any[],
     forbidden: [] as string[],
@@ -81,8 +81,17 @@ async function mockApi(page: Page, signedIn = true) {
         socket.send('42/gnosisai,' + JSON.stringify(['transportSocketConnected']));
       } else if (text.startsWith('42/gnosisai,')) {
         const [name, command] = JSON.parse(text.slice(text.indexOf('[')));
-        if (name === 'transportSocketCommandRequest' && command.request.action === 'ADD')
-          state.joinedRooms.push(command.request.name);
+        if (name === 'transportSocketCommandRequest') {
+          if (command.request.action === 'ADD') state.joinedRooms.push(command.request.name);
+          if (command.isNeedReply)
+            socket.send(
+              '42/gnosisai,' +
+                JSON.stringify([
+                  'transportSocketCommandResponse',
+                  { id: command.id, response: command.request.name },
+                ]),
+            );
+        }
       } else if (text === '3') {
         /* pong */
       }
@@ -171,7 +180,7 @@ async function mockApi(page: Page, signedIn = true) {
           files: data.text.startsWith('[Genfactory:') ? [] : [result],
           createdDate: file.createdDate,
         };
-        messages.push(body as ConversationMessage);
+        messages.push(body as IConversationMessage);
         state.messages.set(id, messages);
         const conversation = state.conversations.find((c) => c.id === id);
         if (conversation) conversation.status = 'LOADED';
@@ -305,6 +314,7 @@ test('image to video keeps the same conversation and sends the chosen file ID', 
   await submit(page);
   await page.getByRole('button', { name: 'Оживить', exact: true }).click();
   await expect(page).toHaveURL(/video\?conversation=101/);
+  await expect(page.getByLabel('Ваша идея')).toBeFocused();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Animate this image', 'video');
   await expect.poll(() => state.sends.length).toBe(2);
@@ -347,6 +357,18 @@ test('running conversation survives page load and blocks a second send until ser
   state.messages.set(101, [
     { id: 1, role: 'ASSISTANT', text: 'Recovered result', files: [file], createdDate: file.createdDate },
   ]);
+  await expect.poll(() => !!state.socket).toBeTruthy();
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          uid: crypto.randomUUID(),
+          name: 'ConversationChangedEvent',
+          data: { id: 101, item: { status: 'LOADED' } },
+        },
+      ]),
+  );
   await expect(page.getByText('Recovered result')).toBeVisible({ timeout: 10000 });
   expect(state.sends).toHaveLength(0);
 });
@@ -523,7 +545,7 @@ test('socket tool progress is scoped to the conversation and errors remain visib
       '42/gnosisai,' +
         JSON.stringify([
           'transportSocketEvent',
-          { name: 'TaskProgressedEvent', data: { session, data: { tools } } },
+          { uid: crypto.randomUUID(), name: 'TaskProgressedEvent', data: { session, data: { tools } } },
         ]),
     );
   emit('conversation999', [{ uid: 'VIDEO' }]);
@@ -1009,7 +1031,7 @@ test('workspace Generate Prompt transfers its answer and reference into image ge
   await expect(page.getByText('Точный промпт для генерации.', { exact: true })).toBeVisible();
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].text).toContain('English');
-  await page.getByRole('button', { name: 'В изображение', exact: true }).last().click();
+  await page.getByRole('button', { name: 'В задачу изображения', exact: true }).last().click();
   await expect(page.getByLabel('Ваша идея', { exact: true })).toHaveValue('Точный промпт для генерации.');
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   expect(state.sends).toHaveLength(1);
@@ -1360,6 +1382,7 @@ test('viewer compares images and transfers the currently displayed file', async 
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Second image' })).toBeVisible();
   await page.getByRole('button', { name: 'Использовать как референс', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Убрать Second image', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Ваша идея')).toBeFocused();
 });
 
 test('mobile workspace and model browser stay within the viewport', async ({ page }) => {
@@ -1797,3 +1820,194 @@ for (const withIdToken of [true, false]) {
     ).toBeFalsy();
   });
 }
+
+test('ready previews are thumbnails while the dialog and download keep the original', async ({ page }) => {
+  await mockApi(page);
+  const item = {
+    ...file,
+    preview: {
+      image: {
+        status: 'READY',
+        url: '/media/gallery-2.jpg',
+        mime: 'image/webp',
+        width: 768,
+        height: 512,
+        size: 100,
+      },
+    },
+  };
+  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([item]) }));
+  await page.route('**/api/file/' + file.id, (route) => route.fulfill({ json: item }));
+  await page.goto('/library');
+  const card = page.getByRole('button', { name: new RegExp(file.name) }).first();
+  await expect(card.locator('img')).toHaveAttribute('src', /gallery-2.jpg$/);
+  await card.click();
+  await expect(page.getByRole('dialog').getByText('Превью готово')).toBeVisible();
+  await expect(page.getByRole('dialog').locator('img')).toHaveAttribute('src', /gallery-1.jpg$/);
+  await expect(page.getByRole('link', { name: 'Открыть оригинал' })).toHaveAttribute(
+    'href',
+    /gallery-1.jpg$/,
+  );
+});
+
+test('an existing file can queue a preview and socket displays completion', async ({ page }) => {
+  const state = await mockApi(page);
+  let started = false;
+  const ready = { image: { status: 'READY', url: '/media/gallery-2.jpg' } };
+  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([file]) }));
+  await page.route('**/api/file/' + file.id, (route) =>
+    route.fulfill({ json: { ...file, ...(started ? { preview: ready } : {}) } }),
+  );
+  await page.route('**/api/file/' + file.id + '/preview', (route) => {
+    expect(route.request().method()).toBe('POST');
+    started = true;
+    return route.fulfill({ json: { image: { status: 'PENDING' } } });
+  });
+  await page.goto('/library');
+  await page
+    .getByRole('button', { name: new RegExp(file.name) })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Создать превью', exact: true }).click();
+  await expect(page.getByText('Превью создаётся…')).toBeVisible();
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        { uid: crypto.randomUUID(), name: 'FilePreviewChangedEvent', data: { id: file.id } },
+      ]),
+  );
+  await expect(page.getByRole('dialog').getByText('Превью готово')).toBeVisible({ timeout: 10000 });
+});
+
+test('an unavailable preview and original settle on a fallback without repeated requests', async ({
+  page,
+}) => {
+  await mockApi(page);
+  let previewRequests = 0;
+  let originalRequests = 0;
+  await page.route('**/broken-preview.webp', (route) => {
+    previewRequests++;
+    return route.abort();
+  });
+  await page.route('**/broken-original.png', (route) => {
+    originalRequests++;
+    return route.abort();
+  });
+  await page.route('**/api/file?*', (route) =>
+    route.fulfill({
+      json: pagination([
+        {
+          ...file,
+          path: '/broken-original.png',
+          preview: { image: { status: 'READY', url: '/broken-preview.webp' } },
+        },
+      ]),
+    }),
+  );
+  await page.goto('/library');
+  await expect(page.getByText('Предпросмотр недоступен')).toBeVisible();
+  expect(previewRequests).toBe(1);
+  expect(originalRequests).toBe(1);
+});
+
+test('idle connected pages do not poll and a user-room event refreshes active jobs', async ({ page }) => {
+  const state = await mockApi(page);
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'GET' && request.url().includes('/api/'))
+      requests.push(new URL(request.url()).pathname);
+  });
+  await page.goto('/library');
+  await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible();
+  await page.waitForTimeout(500); // initial load and connection reconciliation
+  await page.clock.install();
+  const before = requests.length;
+  await page.clock.runFor(12000);
+  expect(requests.length).toBe(before);
+  state.conversations.push({ ...savedConversation(), status: 'LOADING' });
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          uid: crypto.randomUUID(),
+          name: 'ConversationChangedEvent',
+          data: { id: 101, item: { status: 'LOADING' } },
+        },
+      ]),
+  );
+  await page.clock.runFor(200);
+  await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
+});
+
+test('edit action focuses the prompt without sending another generation', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  state.messages.set(101, [{ id: 1, role: 'ASSISTANT', files: [file], createdDate: file.createdDate }]);
+  await page.goto('/image?conversation=101');
+  await page.getByRole('button', { name: 'Изменить', exact: true }).click();
+  await expect(page.getByLabel('Ваша идея')).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
+  expect(state.sends).toHaveLength(0);
+});
+
+test('history displays ready covers and refreshes pending covers from socket', async ({ page }) => {
+  const state = await mockApi(page);
+  const conversation = savedConversation();
+  conversation.preview = { image: { status: 'PROCESSING' } };
+  state.conversations.push(conversation, { ...savedConversation(102), name: 'Old work' });
+  await page.goto('/history');
+  await expect(page.getByText('Создаётся…', { exact: true })).toBeVisible();
+  await expect(page.getByText('Без превью', { exact: true })).toBeVisible();
+  await expect.poll(() => !!state.socket).toBeTruthy();
+  conversation.preview = { image: { status: 'READY', url: '/media/gallery-1.jpg' } };
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          name: 'FilePreviewChangedEvent',
+          uid: crypto.randomUUID(),
+          data: { id: 12 },
+        },
+      ]),
+  );
+  await expect(page.getByAltText('Превью: Saved creative work')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Открыть работу Saved creative work' })).toHaveAttribute(
+    'href',
+    '/image?conversation=101',
+  );
+});
+
+test('socket reconnect restores the conversation room', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  await page.goto('/image?conversation=101');
+  await expect
+    .poll(() => state.joinedRooms.filter((room) => room === 'conversation101').length)
+    .toBeGreaterThan(0);
+  const joinsBeforeReconnect = state.joinedRooms.length;
+  const previous = state.socket!;
+  previous.close();
+  await expect.poll(() => state.socket !== previous, { timeout: 15000 }).toBeTruthy();
+  await expect
+    .poll(() => state.joinedRooms.filter((room) => room === 'conversation101').length, { timeout: 15000 })
+    .toBeGreaterThan(joinsBeforeReconnect);
+  await expect(page.getByRole('button', { name: 'Создать изображение', exact: true })).toBeVisible();
+});
+
+test('history video cover opens video and a broken poster falls back', async ({ page }) => {
+  const state = await mockApi(page);
+  const conversation = savedConversation();
+  conversation.preview = {
+    image: { status: 'READY', url: '/missing-history-poster.webp' },
+    video: { status: 'READY', url: '/test-video.mp4' },
+  };
+  state.conversations.push(conversation);
+  await page.route('**/missing-history-poster.webp', (route) => route.fulfill({ status: 404 }));
+  await page.goto('/history');
+  const cover = page.getByRole('link', { name: 'Открыть работу Saved creative work' });
+  await expect(cover).toHaveAttribute('href', '/video?conversation=101');
+  await expect(cover.getByText('Недоступно')).toBeVisible();
+});

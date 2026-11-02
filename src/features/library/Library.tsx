@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FolderOpen, RefreshCw, Search } from 'lucide-react';
 import { api } from '../../lib/api';
-import type { GnosisFile } from '../../lib/types';
+import type { IGnosisFile } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { Media, MediaPreview } from '../../components/MediaPreview';
 import { LoginDialog } from '../../components/LoginDialog';
@@ -13,7 +13,7 @@ export function Library() {
   const [type, setType] = useState('IMAGE');
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
-  const [preview, setPreview] = useState<GnosisFile>();
+  const [preview, setPreview] = useState<IGnosisFile>();
   const navigate = useNavigate();
   useEffect(() => {
     setPreview(undefined);

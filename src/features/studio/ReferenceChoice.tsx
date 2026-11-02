@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import type { Conversation, GnosisFile } from '../../lib/types';
+import type { IConversation, IGnosisFile } from '../../lib/types';
 import { Modal } from '../../components/Modal';
 import { Media } from '../../components/MediaPreview';
 
@@ -12,9 +12,9 @@ export function ReferenceChoice({
   onOther,
   onClose,
 }: {
-  conversation: Conversation;
+  conversation: IConversation;
   canUse: boolean;
-  onUse: (file: GnosisFile) => void;
+  onUse: (file: IGnosisFile) => void;
   onFresh: () => void;
   onOther: () => void;
   onClose: () => void;

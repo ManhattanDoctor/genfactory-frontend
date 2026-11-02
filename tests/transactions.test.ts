@@ -5,8 +5,8 @@ import {
   transactionAmount,
   conversationLink,
 } from '../src/features/account/transactions';
-import type { PaymentTransaction } from '../src/lib/types';
-const payment: PaymentTransaction = {
+import type { IPaymentTransaction } from '../src/lib/types';
+const payment: IPaymentTransaction = {
   id: 242,
   type: 'TASK_PURCHASE',
   userId: 7,

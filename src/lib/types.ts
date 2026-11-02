@@ -1,5 +1,5 @@
 export type MediaKind = 'image' | 'video';
-export interface Schema {
+export interface ISchema {
   type?: string;
   description?: string;
   enum?: unknown[];
@@ -13,21 +13,35 @@ export interface Schema {
   minItems?: number;
   maxItems?: number;
   pattern?: string;
-  properties?: Record<string, Schema>;
-  items?: Schema;
+  properties?: Record<string, ISchema>;
+  items?: ISchema;
   required?: string[];
-  additionalProperties?: boolean | Schema;
-  allOf?: Schema[];
-  anyOf?: Schema[];
+  additionalProperties?: boolean | ISchema;
+  allOf?: ISchema[];
+  anyOf?: ISchema[];
   [key: string]: unknown;
 }
-export interface ModelDescription {
+export interface IModelDescription {
   reference: { provider: string; model: string };
   name: string;
-  schema: Schema;
+  schema: ISchema;
   capabilities?: string[];
 }
-export interface GnosisFile {
+export interface IPreviewMedia {
+  status: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  url?: string;
+  mime?: string;
+  width?: number;
+  height?: number;
+  size?: number;
+  duration?: number;
+}
+export interface IPreview {
+  image?: IPreviewMedia;
+  video?: IPreviewMedia;
+}
+export interface IGnosisFile {
+  preview?: IPreview;
   id: number;
   uid: string;
   name: string;
@@ -38,12 +52,12 @@ export interface GnosisFile {
   createdDate: string;
   tags?: string[];
 }
-export interface InitResponse {
+export interface IInitResponse {
   user: { id: number; preferences?: { name?: string; email?: string; picture?: string } };
   /** Minor units (kopecks/cents), including fractional minor units. */
   balances: Record<string, string>;
 }
-export interface Pagination<T> {
+export interface IPagination<T> {
   items: T[];
   total: number;
   pageIndex: number;
@@ -51,67 +65,68 @@ export interface Pagination<T> {
   pages: number;
 }
 // Used only to validate model inputs against the catalog, never submitted to /task.
-export interface TaskRequest {
+export interface ITaskRequest {
   model: string;
   task: { session: string; prompt: string; fileIds?: number[] };
   options: Record<string, unknown>;
 }
-export interface ToolConnection {
+export interface IToolConnection {
   uid: string;
-  settings?: { model: ModelDescription['reference']; options?: Record<string, unknown> };
+  settings?: { model: IModelDescription['reference']; options?: Record<string, unknown> };
 }
-export interface ToolDescription {
+export interface IToolDescription {
   uid: string;
   name?: string;
   isDeprecated?: boolean;
   providers?: string[];
 }
-export interface Conversation {
+export interface IConversation {
+  preview?: IPreview;
   id: number;
   userId: number;
   name: string;
   status: 'LOADED' | 'LOADING' | 'ERROR';
   model: string;
-  options: { model: string; tools?: (ToolConnection | string)[]; [key: string]: unknown };
+  options: { model: string; tools?: (IToolConnection | string)[]; [key: string]: unknown };
   tags?: string[];
   createdDate: string;
   lastMessageDate?: string;
-  files?: GnosisFile[];
+  files?: IGnosisFile[];
   system?: string;
 }
-export interface ConversationMessage {
+export interface IConversationMessage {
   id: number;
   role: 'USER' | 'ASSISTANT' | 'COMMAND';
   text?: string;
-  files?: GnosisFile[];
+  files?: IGnosisFile[];
   createdDate: string;
 }
-export interface ConversationCreate {
+export interface IConversationCreate {
   name: string;
   model: string;
-  options: Conversation['options'];
+  options: IConversation['options'];
   tags: string[];
   system: string;
   history: number;
   isConsiderHistory: boolean;
 }
-export interface MessageCreate {
+export interface IMessageCreate {
   role: 'USER';
   text: string;
   files: number[];
-  settings: { tools: ToolConnection[] };
+  settings: { tools: IToolConnection[] };
 }
 
-export interface ToolProgress {
+export interface IToolProgress {
   uid: string;
   name?: string;
   status?: 'STARTED' | 'FINISHED' | 'ERRORED';
 }
-export interface ConversationProgress {
-  data?: { tools?: ToolProgress[]; value?: string };
+export interface IConversationProgress {
+  data?: { tools?: IToolProgress[]; value?: string };
 }
 
-export interface PaymentTransaction {
+export interface IPaymentTransaction {
   id: number;
   type: string;
   debet: string;

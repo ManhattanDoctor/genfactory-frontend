@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
 import { usePreferences } from './preferences';
-import { exportSettings, parseSettings, type PortableSettings } from './portable';
+import { exportSettings, parseSettings, type IPortableSettings } from './portable';
 import { useAuth } from '../auth/AuthProvider';
 import { getSession } from '../../lib/api';
 export function SettingsTransfer({ onImported }: { onImported: (brand: string) => void }) {
   const prefs = usePreferences();
   const auth = useAuth();
-  const [pending, setPending] = useState<PortableSettings>();
+  const [pending, setPending] = useState<IPortableSettings>();
   const [notice, setNotice] = useState('');
   const request = useRef(0);
   return (

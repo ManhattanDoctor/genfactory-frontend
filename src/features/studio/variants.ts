@@ -1,21 +1,21 @@
-import type { ConversationMessage, GnosisFile, MediaKind, ModelDescription } from '../../lib/types';
+import type { IConversationMessage, IGnosisFile, MediaKind, IModelDescription } from '../../lib/types';
 import { displayMessageText } from './conversations';
-export interface GenerationRecipe {
+export interface IGenerationRecipe {
   kind: MediaKind;
   prompt: string;
-  model: ModelDescription['reference'];
+  model: IModelDescription['reference'];
   options: Record<string, unknown>;
-  references: GnosisFile[];
+  references: IGnosisFile[];
 }
 const event = 'genfactory:recipes';
-interface StoredRecipe {
+interface IStoredRecipe {
   conversationId: number;
   messageId: number;
-  recipe: GenerationRecipe;
+  recipe: IGenerationRecipe;
 }
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
-function validRow(value: unknown): value is StoredRecipe {
+function validRow(value: unknown): value is IStoredRecipe {
   if (
     !record(value) ||
     !Number.isSafeInteger(value.conversationId) ||
@@ -34,7 +34,7 @@ function validRow(value: unknown): value is StoredRecipe {
     record(r.options)
   );
 }
-function readRows(userId: number): StoredRecipe[] {
+function readRows(userId: number): IStoredRecipe[] {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(`genfactory.recipes.v1.${userId}`) || '[]');
     return Array.isArray(value) ? value.filter(validRow) : [];
@@ -42,7 +42,7 @@ function readRows(userId: number): StoredRecipe[] {
     return [];
   }
 }
-export function readRecipes(userId: number, conversationId: number): Record<string, GenerationRecipe> {
+export function readRecipes(userId: number, conversationId: number): Record<string, IGenerationRecipe> {
   return Object.fromEntries(
     readRows(userId)
       .filter((r) => r.conversationId === conversationId)
@@ -53,7 +53,7 @@ export function saveRecipe(
   userId: number,
   conversationId: number,
   messageId: number,
-  recipe: GenerationRecipe,
+  recipe: IGenerationRecipe,
 ) {
   try {
     const rows = readRows(userId).filter(
@@ -84,12 +84,12 @@ export function requestKind(text?: string): MediaKind | undefined {
       ? 'video'
       : undefined;
 }
-export function variantGroups(chronological: ConversationMessage[], userId: number) {
+export function variantGroups(chronological: IConversationMessage[], userId: number) {
   const groups: {
-    request: ConversationMessage;
-    responses: ConversationMessage[];
-    inputs: GnosisFile[];
-    outputs: GnosisFile[];
+    request: IConversationMessage;
+    responses: IConversationMessage[];
+    inputs: IGnosisFile[];
+    outputs: IGnosisFile[];
     kind: MediaKind;
   }[] = [];
   let current: (typeof groups)[number] | undefined;
@@ -120,6 +120,6 @@ export function variantGroups(chronological: ConversationMessage[], userId: numb
   }
   return groups;
 }
-export function fallbackRecipe(request: ConversationMessage, kind: MediaKind) {
+export function fallbackRecipe(request: IConversationMessage, kind: MediaKind) {
   return { kind, prompt: displayMessageText(request.text || ''), references: request.files || [] };
 }

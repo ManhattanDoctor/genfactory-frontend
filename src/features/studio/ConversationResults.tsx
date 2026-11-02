@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import type { Conversation, GnosisFile, MediaKind } from '../../lib/types';
+import type { IConversation, IGnosisFile, MediaKind } from '../../lib/types';
 import { useConversationProgress } from './useConversationProgress';
 import { toolLabel } from './progress';
 import { displayMessageText } from './conversations';
@@ -15,10 +15,10 @@ export function ConversationResults({
   onUse,
   onUseText,
 }: {
-  conversation: Conversation;
+  conversation: IConversation;
   latestRequest: number;
-  onUse: (file: GnosisFile, kind: MediaKind) => void;
-  onUseText?: (text: string, kind: MediaKind, files: GnosisFile[]) => void;
+  onUse: (file: IGnosisFile, kind: MediaKind) => void;
+  onUseText?: (text: string, kind: MediaKind, files: IGnosisFile[]) => void;
 }) {
   const navigate = useNavigate();
   const progress = useConversationProgress(conversation);
@@ -27,11 +27,10 @@ export function ConversationResults({
     if (latestRequest) setPage(0);
   }, [latestRequest]);
   const [copyNotice, setCopyNotice] = useState('');
-  const [preview, setPreview] = useState<GnosisFile>();
+  const [preview, setPreview] = useState<IGnosisFile>();
   const messages = useQuery({
     queryKey: ['messages', conversation.userId, conversation.id, page],
     queryFn: ({ signal }) => api.messages(conversation.id, page, signal),
-    refetchInterval: 3000,
   });
   return (
     <>
@@ -133,7 +132,7 @@ export function ConversationResults({
                         )
                       }
                     >
-                      {kind === 'image' ? 'В изображение' : 'В видео'}
+                      {kind === 'image' ? 'В задачу изображения' : 'В задачу видео'}
                     </button>
                   ))}
                 </>

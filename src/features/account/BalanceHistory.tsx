@@ -24,7 +24,6 @@ function History({ userId }: { userId: number }) {
         throw new Error('Сервер вернул операции другого счёта. История не отображена.');
       return data;
     },
-    refetchInterval: 30000,
     retry: 1,
   });
   useEffect(() => {

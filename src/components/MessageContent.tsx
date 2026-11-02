@@ -1,7 +1,7 @@
 import Markdown from 'react-markdown';
-import type { GnosisFile } from '../lib/types';
+import type { IGnosisFile } from '../lib/types';
 import { safeMediaUrl } from '../lib/api';
-export function MessageContent({ text, files = [] }: { text: string; files?: GnosisFile[] }) {
+export function MessageContent({ text, files = [] }: { text: string; files?: IGnosisFile[] }) {
   const attached = new Set(files.map((file) => safeMediaUrl(file.path)));
   return (
     <div className="message-content">

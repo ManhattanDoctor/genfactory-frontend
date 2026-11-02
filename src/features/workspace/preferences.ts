@@ -1,26 +1,26 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import type { MediaKind, ModelDescription } from '../../lib/types';
-export interface Preset {
+import type { MediaKind, IModelDescription } from '../../lib/types';
+export interface IPreset {
   id: string;
   name: string;
   category: string;
   kind: MediaKind;
   prompt: string;
   modelMatch?: string;
-  model?: ModelDescription['reference'];
+  model?: IModelDescription['reference'];
   options?: Record<string, unknown>;
 }
-export interface Preferences {
+export interface IPreferences {
   favorites: number[];
   archive: number[];
   favoriteTemplates: string[];
   favoriteModels: string[];
-  presets: Preset[];
+  presets: IPreset[];
   brand: string;
   versions: { at: string; text: string }[];
 }
-const empty: Preferences = {
+const empty: IPreferences = {
   favorites: [],
   archive: [],
   favoriteTemplates: [],
@@ -38,7 +38,7 @@ function subscribe(listener: () => void) {
     window.removeEventListener(eventName, listener);
   };
 }
-function read(key: string): Preferences {
+function read(key: string): IPreferences {
   try {
     const data = JSON.parse(localStorage.getItem(key) || '{}');
     return {
@@ -53,7 +53,7 @@ function read(key: string): Preferences {
       presets: Array.isArray(data.presets)
         ? data.presets
             .filter(
-              (x: Preset) =>
+              (x: IPreset) =>
                 x &&
                 typeof x.id === 'string' &&
                 typeof x.name === 'string' &&
@@ -88,7 +88,7 @@ export function usePreferences() {
     }
   });
   const value = useMemo(() => (user ? read(key) : empty), [raw, key, user?.id]);
-  const update = (change: (current: Preferences) => Preferences) => {
+  const update = (change: (current: IPreferences) => IPreferences) => {
     if (!user) {
       setError('Войдите, чтобы сохранить настройки.');
       return false;
