@@ -448,7 +448,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
                 setFiles(files);
               }}
             />
-            <div className="workspace-actions">
+            <div className="workspace-actions material-actions">
               <button
                 className="button"
                 disabled={busy || uploading}

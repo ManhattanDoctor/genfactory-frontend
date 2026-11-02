@@ -73,3 +73,5 @@ Smoke поднимает изолированный тестовый API, про
 Production Genfactory: `https://genfactory.gnosisai.ru`, сервер `178.208.65.196`, внешний nginx — файл `gnosis-frontend/nginx/gnosisai.ru`. SSH secrets и variables для первого выпуска настроены в репозитории. Для CI используется текущий SSH-ключ пользователя, сохранённый в GitHub secret `SSH_KEY`. Отдельный ключ не используется.
 
 Runner зафиксирован на Ubuntu 24.04: Playwright 1.58 не поддерживает Ubuntu 26.04, на которую перешёл `ubuntu-latest`. Обновление ОС runner и Playwright следует проверять вместе.
+
+Сборка выпускает `/genfactory-sw.js` с идентификатором той же сборки, что и JavaScript приложения. Nginx отдаёт его с `Cache-Control: no-store`, HTML — с `no-cache`. `npm run test:sw` после build поднимает отдельный HTTPS-стенд с двумя версиями приложения и проверяет реальный жизненный цикл SW, сохранение черновика, запрет обновления при активной работе и отсутствие SW на localhost. Этот тест включён в CI. Первая выкладка с SW устанавливает механизм; уведомление появляется при следующем релизе.

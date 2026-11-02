@@ -41,6 +41,8 @@ if [[ "$ready" != true ]]; then
     exit 1
 fi
 curl --fail --silent --show-error "$base/healthz" | grep -q '^ok$'
+curl -fsSI "$base/genfactory-sw.js" | grep -qi 'cache-control: no-store'
+curl -fsS "$base/genfactory-sw.js" | grep -q 'GENFACTORY_VERSION'
 curl -fsS "$base/image?conversation=49" > "$fixture_dir/index.html"
 grep -qi '<!doctype html>' "$fixture_dir/index.html"
 curl -fsSI "$base/auth/callback?code=smoke-secret-marker" | grep -qi 'cache-control: no-cache'

@@ -41,25 +41,42 @@ export function setSession(sid: string | null) {
   if (sid) localStorage.setItem(SESSION_KEY, sid);
   else localStorage.removeItem(SESSION_KEY);
 }
+let pendingWrites = 0;
+export const hasPendingWrites = () => pendingWrites > 0;
+function notifyWrites() {
+  window.dispatchEvent(new Event('genfactory:pending-writes'));
+}
 export async function request<T>(
   path: string,
   init: RequestInit = {},
   sid: string | null = getSession(),
 ): Promise<T> {
-  const headers = new Headers(init.headers);
-  if (sid) headers.set('Authorization', `Bearer ${sid}`);
-  if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
-  const res = await fetch(`${base}${path}`, { ...init, headers });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 401 && sid === getSession())
-      window.dispatchEvent(new Event('genfactory:unauthorized'));
-    const message = typeof data.message === 'string' ? data.message : `Запрос не выполнен (${res.status})`;
-    throw new ApiError(message, res.status, data.details);
+  const writing = !['GET', 'HEAD'].includes((init.method || 'GET').toUpperCase());
+  if (writing) {
+    pendingWrites++;
+    notifyWrites();
   }
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  return text ? (JSON.parse(text) as T) : (undefined as T);
+  try {
+    const headers = new Headers(init.headers);
+    if (sid) headers.set('Authorization', `Bearer ${sid}`);
+    if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+    const res = await fetch(`${base}${path}`, { ...init, headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 && sid === getSession())
+        window.dispatchEvent(new Event('genfactory:unauthorized'));
+      const message = typeof data.message === 'string' ? data.message : `Запрос не выполнен (${res.status})`;
+      throw new ApiError(message, res.status, data.details);
+    }
+    if (res.status === 204) return undefined as T;
+    const text = await res.text();
+    return text ? (JSON.parse(text) as T) : (undefined as T);
+  } finally {
+    if (writing) {
+      pendingWrites--;
+      notifyWrites();
+    }
+  }
 }
 export const api = {
   transactions: (

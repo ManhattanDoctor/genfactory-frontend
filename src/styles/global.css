@@ -3349,3 +3349,26 @@ a svg,
 .workspace-actions > .button:only-child {
   width: 100%;
 }
+
+.material-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+.update-notice {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 120;
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+  box-shadow: 0 8px 32px #0006;
+}
+.update-notice p {
+  margin: 8px 0 12px;
+}
+.update-notice .button {
+  width: 100%;
+}

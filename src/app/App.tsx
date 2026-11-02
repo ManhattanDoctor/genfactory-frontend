@@ -1,3 +1,4 @@
+import { AppUpdateNotice } from '../components/AppUpdateNotice';
 import { ActiveJobs } from '../components/ActiveJobs';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, Route, Routes, Link, useLocation } from 'react-router-dom';
@@ -221,6 +222,7 @@ export function App() {
           </Routes>
         </Suspense>
       </main>
+      <AppUpdateNotice />
       {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );

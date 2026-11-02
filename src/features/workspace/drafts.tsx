@@ -36,7 +36,8 @@ export function useDraft<T extends object>(scope: string, value: T, meaningful: 
   }
   const serialize = JSON.stringify(value);
   const save = (ctx: typeof current) => {
-    if (!ctx.dirty || !ctx.userId || getSession() !== ctx.sid) return;
+    if (!ctx.dirty) return true;
+    if (!ctx.userId || getSession() !== ctx.sid) return !ctx.meaningful;
     try {
       if (ctx.meaningful)
         localStorage.setItem(
@@ -46,11 +47,13 @@ export function useDraft<T extends object>(scope: string, value: T, meaningful: 
       else localStorage.removeItem(ctx.key);
       if (context.current === ctx)
         setStatus(ctx.meaningful ? 'Черновик сохранён в этом браузере.' : 'Черновик очищен.');
+      return true;
     } catch {
       if (context.current === ctx)
         setStatus(
           'Не удалось сохранить черновик в браузере. Не закрывайте страницу, пока не скопируете текст.',
         );
+      return false;
     }
   };
   useEffect(() => {
@@ -60,9 +63,14 @@ export function useDraft<T extends object>(scope: string, value: T, meaningful: 
   }, [key, serialize, revision]);
   useEffect(() => {
     const flush = () => save(current);
+    const beforeUpdate = (event: Event) => {
+      if (!save(current)) event.preventDefault();
+    };
+    window.addEventListener('genfactory:before-update', beforeUpdate);
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', flush);
     return () => {
+      window.removeEventListener('genfactory:before-update', beforeUpdate);
       window.removeEventListener('pagehide', flush);
       window.removeEventListener('beforeunload', flush);
       save(current);

@@ -20,6 +20,7 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - run: npm run test:sw
       - name: Check deployment scripts
         run: bash -n scripts/deploy.sh scripts/container-smoke.sh && sh -n docker/genfactory/15-check-api.sh
       - name: Build runtime image
