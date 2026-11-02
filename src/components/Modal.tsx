@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useId, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 export function Modal({
   title,
@@ -11,6 +11,7 @@ export function Modal({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     ref.current?.showModal();
@@ -19,6 +20,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       className={`modal ${wide ? 'wide' : ''}`}
       onCancel={onClose}
       onClick={(e) => {
@@ -26,7 +28,7 @@ export function Modal({
       }}
     >
       <div className="modal-head">
-        <h2>{title}</h2>
+        <h2 id={titleId}>{title}</h2>
         <button className="icon-button" onClick={onClose} aria-label="Закрыть">
           <X size={20} />
         </button>

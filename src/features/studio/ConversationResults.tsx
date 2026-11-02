@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { VariantsPanel } from './VariantsPanel';
+import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { Conversation, GnosisFile, MediaKind } from '../../lib/types';
@@ -9,13 +11,22 @@ import { MessageContent } from '../../components/MessageContent';
 import { Media, MediaPreview } from '../../components/MediaPreview';
 export function ConversationResults({
   conversation,
+  latestRequest,
   onUse,
+  onUseText,
 }: {
   conversation: Conversation;
+  latestRequest: number;
   onUse: (file: GnosisFile, kind: MediaKind) => void;
+  onUseText?: (text: string, kind: MediaKind, files: GnosisFile[]) => void;
 }) {
+  const navigate = useNavigate();
   const progress = useConversationProgress(conversation);
   const [page, setPage] = useState(0);
+  useEffect(() => {
+    if (latestRequest) setPage(0);
+  }, [latestRequest]);
+  const [copyNotice, setCopyNotice] = useState('');
   const [preview, setPreview] = useState<GnosisFile>();
   const messages = useQuery({
     queryKey: ['messages', conversation.userId, conversation.id, page],
@@ -60,7 +71,17 @@ export function ConversationResults({
         </p>
       )}
       {messages.data && !messages.data.items.length && <p className="muted">В беседе пока нет сообщений.</p>}
-      {[...(messages.data?.items || [])].reverse().map((message) => (
+      {copyNotice && (
+        <p role="status" className="small muted">
+          {copyNotice}
+        </p>
+      )}
+      <VariantsPanel
+        conversation={conversation}
+        messages={[...(messages.data?.items || [])].reverse()}
+        onPreview={setPreview}
+      />
+      {[...(messages.data?.items || [])].reverse().map((message, index, chronological) => (
         <article className="generation-card" key={message.id}>
           <header>
             <strong>
@@ -78,6 +99,47 @@ export function ConversationResults({
             ) : (
               <MessageContent text={message.text} files={message.files} />
             ))}
+          {message.text && (
+            <div className="workspace-actions message-actions">
+              <button
+                className="text-button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(displayMessageText(message.text!));
+                    setCopyNotice('Текст скопирован.');
+                  } catch {
+                    setCopyNotice('Не удалось скопировать. Выделите текст сообщения вручную.');
+                  }
+                }}
+              >
+                Копировать текст
+              </button>
+              {onUseText && (
+                <>
+                  {(['image', 'video'] as const).map((kind) => (
+                    <button
+                      className="text-button"
+                      key={kind}
+                      onClick={() =>
+                        onUseText(
+                          displayMessageText(message.text!),
+                          kind,
+                          message.files?.filter((f) => f.type === 'IMAGE').length
+                            ? message.files.filter((f) => f.type === 'IMAGE')
+                            : [...chronological.slice(0, index)]
+                                .reverse()
+                                .find((m) => m.role === 'USER')
+                                ?.files?.filter((f) => f.type === 'IMAGE') || [],
+                        )
+                      }
+                    >
+                      {kind === 'image' ? 'В изображение' : 'В видео'}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
           {!!message.files?.length && (
             <div className="result-grid">
               {message.files.map((file) => (
@@ -92,10 +154,10 @@ export function ConversationResults({
                   {file.type === 'IMAGE' && (
                     <div className="conversation-file-actions">
                       <button className="text-button" onClick={() => onUse(file, 'image')}>
-                        Изменить изображение
+                        Изменить
                       </button>
                       <button className="text-button" onClick={() => onUse(file, 'video')}>
-                        Создать видео из изображения
+                        Оживить
                       </button>
                     </div>
                   )}
@@ -122,7 +184,22 @@ export function ConversationResults({
           </button>
         </div>
       )}
-      {preview && <MediaPreview file={preview} onClose={() => setPreview(undefined)} />}
+      {preview && (
+        <MediaPreview
+          file={preview}
+          files={messages.data?.items.flatMap((m) => m.files || [])}
+          onClose={() => setPreview(undefined)}
+          onUse={(f) => {
+            setPreview(undefined);
+            onUse(f, 'image');
+          }}
+          onAnimate={(f) => {
+            setPreview(undefined);
+            onUse(f, 'video');
+          }}
+          onAnalyze={(f) => navigate('/prompt', { state: { reference: f, userId: conversation.userId } })}
+        />
+      )}
     </>
   );
 }

@@ -2,6 +2,7 @@ name: Frontend checks
 on:
   push:
   pull_request:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -19,8 +20,16 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - name: Check deployment scripts
+        run: bash -n scripts/deploy.sh scripts/container-smoke.sh && sh -n docker/genfactory/15-check-api.sh
+      - name: Build runtime image
+        run: docker build -f docker/genfactory/Dockerfile -t genfactory-check .
+      - name: Check nginx configuration
+        run: docker run --rm genfactory-check nginx -t
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: browser-test-results
           path: test-results/
+      - name: Check runtime routes and proxy
+        run: bash scripts/container-smoke.sh genfactory-check

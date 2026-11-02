@@ -1,5 +1,6 @@
 import type {
   GnosisFile,
+  PaymentTransaction,
   InitResponse,
   ModelDescription,
   Pagination,
@@ -8,6 +9,7 @@ import type {
   ConversationMessage,
   MessageCreate,
   ConversationProgress,
+  ToolDescription,
 } from './types';
 export const SESSION_KEY = 'genfactory.session';
 const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
@@ -59,6 +61,30 @@ export async function request<T>(
   return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 export const api = {
+  transactions: (
+    userId: number,
+    page: number,
+    filter: { direction: string; currency: string; since: string },
+    signal?: AbortSignal,
+  ) => {
+    const personal = { condition: 'EQUAL', value: 'PR-00', union: 'OR' };
+    const conditions = {
+      userId,
+      ...(filter.direction === 'expense'
+        ? { credit: 'PR-00' }
+        : filter.direction === 'income'
+          ? { debet: 'PR-00' }
+          : { debet: personal, credit: personal }),
+      ...(filter.currency ? { coinId: filter.currency } : {}),
+      ...(filter.since
+        ? { createdDate: { condition: 'MORE_OR_EQUAL', value: Date.parse(filter.since), type: 'DATE' } }
+        : {}),
+    };
+    return request<Pagination<PaymentTransaction>>(
+      `/paymentTransaction?${new URLSearchParams({ pageIndex: String(page), pageSize: '20', sort: JSON.stringify({ createdDate: false, id: false }), conditions: JSON.stringify(conditions) })}`,
+      { signal },
+    );
+  },
   init: () => request<InitResponse>('/init'),
   config: () => request<{ keycloak: { url: string; realm: string; clientId: string } }>('/config', {}, null),
   login: (code: string, redirectUri: string) =>
@@ -73,8 +99,25 @@ export const api = {
   logout: (sid: string | null) => request<void>('/logout', { method: 'POST' }, sid),
   catalog: (provider: string, signal?: AbortSignal) =>
     request<ModelDescription[]>(`/aimodels?provider=${encodeURIComponent(provider)}`, { signal }),
-  details: (provider: string, model: string) =>
-    request<ModelDescription>(`/aimodels/details?${new URLSearchParams({ provider, model })}`),
+  details: (provider: string, signal?: AbortSignal) =>
+    request<{ tools?: ToolDescription[] }>(`/aimodel/${encodeURIComponent(provider)}`, { signal }),
+  editConversation: (
+    conversation: Conversation,
+    changes: { name?: string; options?: Conversation['options']; system?: string },
+    sid: string,
+  ) =>
+    request<Conversation>(
+      `/conversation/${conversation.id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...changes,
+          model: conversation.model,
+          files: (conversation.files || []).map((f) => f.id),
+        }),
+      },
+      sid,
+    ),
   progress: async (session: string, signal?: AbortSignal) => {
     try {
       return await request<ConversationProgress | null>(`/task/${encodeURIComponent(session)}`, { signal });
@@ -83,13 +126,13 @@ export const api = {
       throw error;
     }
   },
-  conversations: (userId: number, page: number, signal?: AbortSignal) =>
+  conversations: (userId: number, page: number, signal?: AbortSignal, status?: string) =>
     request<Pagination<Conversation>>(
       `/conversation?${new URLSearchParams({
         pageSize: '24',
         pageIndex: String(page),
         sort: JSON.stringify({ createdDate: false, id: false }),
-        conditions: JSON.stringify({ userId }),
+        conditions: JSON.stringify({ userId, ...(status ? { status } : {}) }),
       })}`,
       { signal },
     ),

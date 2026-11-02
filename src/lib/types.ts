@@ -60,6 +60,12 @@ export interface ToolConnection {
   uid: string;
   settings?: { model: ModelDescription['reference']; options?: Record<string, unknown> };
 }
+export interface ToolDescription {
+  uid: string;
+  name?: string;
+  isDeprecated?: boolean;
+  providers?: string[];
+}
 export interface Conversation {
   id: number;
   userId: number;
@@ -70,6 +76,8 @@ export interface Conversation {
   tags?: string[];
   createdDate: string;
   lastMessageDate?: string;
+  files?: GnosisFile[];
+  system?: string;
 }
 export interface ConversationMessage {
   id: number;
@@ -101,4 +109,33 @@ export interface ToolProgress {
 }
 export interface ConversationProgress {
   data?: { tools?: ToolProgress[]; value?: string };
+}
+
+export interface PaymentTransaction {
+  id: number;
+  type: string;
+  debet: string;
+  credit: string;
+  amount: string;
+  coinId: string;
+  userId: number;
+  groupId?: number | null;
+  createdDate: string;
+  activatedDate?: string | null;
+  details?: {
+    model?: string;
+    options?: { model?: string };
+    source?: { type: string; id: number | string };
+    amounts?: { amount: string; coinId: string }[];
+    rates?: { from: string; to: string; value: string }[];
+    consumption?: {
+      model?: { input?: number; output?: number };
+      tools?: {
+        type: string;
+        amounts?: { amount: string; coinId: string }[];
+        status?: string;
+        value?: string;
+      }[];
+    };
+  };
 }

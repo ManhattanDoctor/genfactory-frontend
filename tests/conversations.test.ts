@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   connection,
+  migratedReferenceSystem,
+  displayMessageText,
   createConversationBody,
   createMessageBody,
   toolSettings,
@@ -52,7 +54,7 @@ describe('Conversation tool contracts', () => {
     expect(JSON.stringify(body)).not.toContain('frameImages');
   });
   it('explicitly prevents reuse of old images for a fresh generation', () => {
-    const body = createMessageBody('Ocean', 'image', { uid: 'IMAGE' }, []);
+    const body = createMessageBody('Ocean', 'image', { uid: 'IMAGE' }, [], true);
     expect(body.text).toContain('без референсов');
     expect(body.files).toEqual([]);
   });
@@ -61,4 +63,23 @@ describe('Conversation tool contracts', () => {
     expect(connection(conversation, 'image')).toEqual({ uid: 'IMAGE' });
     expect(connection(conversation, 'video')).toBeUndefined();
   });
+});
+
+it('does not interpret missing attachments as a ban on conversation context', () => {
+  const body = createMessageBody('Оживи её', 'video', { uid: 'VIDEO' }, []);
+  expect(body.text).not.toContain('Создай с нуля');
+  expect(displayMessageText(body.text)).toBe('Оживи её');
+});
+it('migrates only the legacy instruction in Genfactory conversations', () => {
+  const legacy = 'Если референсы не указаны, создавай с нуля: IMAGE isDrawNew=true, VIDEO fileIds=[]. ';
+  const conversation = {
+    tags: ['genfactory'],
+    system: 'Custom prefix. ' + legacy + 'Custom suffix.',
+  } as Conversation;
+  const system = migratedReferenceSystem(conversation)!;
+  expect(system).toContain('Только при явном выборе');
+  expect(system).toMatch(/^Custom prefix\. /);
+  expect(system).toMatch(/Custom suffix\.$/);
+  expect(migratedReferenceSystem({ ...conversation, system })).toBeUndefined();
+  expect(migratedReferenceSystem({ ...conversation, tags: [] })).toBeUndefined();
 });

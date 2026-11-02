@@ -1,0 +1,16 @@
+name: GENFACTORY - RELEASE (build + deploy)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build:
+    uses: ./.github/workflows/genfactory-build.yml
+    secrets: inherit
+  deploy:
+    needs: build
+    uses: ./.github/workflows/genfactory-deploy.yml
+    with:
+      digest: ${{ needs.build.outputs.digest }}
+    secrets: inherit

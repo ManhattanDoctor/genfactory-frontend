@@ -1,0 +1,43 @@
+export type TextMode = 'chat' | 'prompt' | 'script';
+export const textModes = {
+  chat: {
+    title: 'Обсудить идею',
+    label: 'Обсудить',
+    placeholder: 'Задайте вопрос, опишите задачу или приложите материал…',
+  },
+  prompt: {
+    title: 'Подготовить промпт',
+    label: 'Промпт',
+    placeholder: 'Что нужно сохранить или изменить? Опишите желаемый результат…',
+  },
+  script: {
+    title: 'Написать сценарий',
+    label: 'Сценарий',
+    placeholder: 'Продукт, аудитория, цель ролика и длительность…',
+  },
+};
+export function textInstruction(
+  mode: TextMode,
+  prompt: string,
+  options: { language: string; target: string; aspects: string[]; brand: string },
+) {
+  const instruction =
+    mode === 'prompt'
+      ? `Подготовь готовый промпт для генерации ${options.target === 'video' ? 'видео' : 'изображения'} на языке ${options.language}. Используй приложенные изображения, если они есть. Сохрани: ${options.aspects.join(', ') || 'по описанию пользователя'}. Верни только готовый промпт. Не генерируй медиафайлы.`
+      : mode === 'script'
+        ? 'Ты — сценарист. Помоги собрать бриф, при недостатке данных задай короткие уточняющие вопросы. Когда данных достаточно, предложи сценарий по сценам: длительность, действие, камера и звук. Не запускай генерацию медиа: пользователь сначала утверждает сценарий.'
+        : 'Обсуди задачу пользователя. Не запускай создание изображения, видео или аудио, если пользователь явно не попросил это сделать.';
+  return `[Genfactory:${mode}]\n${instruction}${options.brand ? `\nПравила бренда:\n${options.brand}` : ''}\n\nЗапрос пользователя:\n${prompt.trim()}`;
+}
+export function creativePrompt(prompt: string, brand: string, shot: Record<string, string>) {
+  const lines = Object.entries(shot)
+    .filter(([, v]) => v.trim())
+    .map(([k, v]) => `${k}: ${v}`);
+  return [
+    prompt.trim(),
+    lines.length ? `Пожелания к съёмке:\n${lines.join('\n')}` : '',
+    brand ? `Правила бренда:\n${brand}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}

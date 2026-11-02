@@ -1,0 +1,6 @@
+*
+!dist/
+!dist/**
+!docker/
+!docker/genfactory/
+!docker/genfactory/**

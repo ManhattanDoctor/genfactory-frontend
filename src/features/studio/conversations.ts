@@ -7,6 +7,11 @@ import type {
   ToolConnection,
 } from '../../lib/types';
 
+const referencePolicy =
+  'Только при явном выборе «Создать с нуля» не используй предыдущие изображения: IMAGE isDrawNew=true, VIDEO fileIds=[]. В остальных случаях учитывай контекст беседы; если исходное изображение неоднозначно, уточни выбор до вызова платного инструмента. ';
+const legacyReferencePolicy =
+  'Если референсы не указаны, создавай с нуля: IMAGE isDrawNew=true, VIDEO fileIds=[]. ';
+
 export const toolFor = (kind: MediaKind) => (kind === 'image' ? 'IMAGE' : 'VIDEO');
 export function connection(conversation: Conversation, kind: MediaKind): ToolConnection | undefined {
   const item = conversation.options.tools?.find((t) => (typeof t === 'string' ? t : t.uid) === toolFor(kind));
@@ -45,7 +50,7 @@ export function createConversationBody(
       'Последнее сообщение задаёт вид результата и референсы. Сохраняй выбранную в настройках инструмента модель и параметры: ' +
       'не переопределяй их аргументами вызова, если пользователь явно не просит. По умолчанию создавай один результат. ' +
       'Не запускай повторную платную генерацию автоматически после ошибки. Не выдумывай готовые файлы. ' +
-      'Если референсы не указаны, создавай с нуля: IMAGE isDrawNew=true, VIDEO fileIds=[]. ' +
+      referencePolicy +
       'Если указаны референсы, передай точные fileIds в их порядке. Отвечай кратко на языке пользователя.',
   };
 }
@@ -54,12 +59,15 @@ export function createMessageBody(
   kind: MediaKind,
   tool: ToolConnection,
   fileIds: number[],
+  fromScratch = false,
 ): MessageCreate {
   const instruction =
     kind === 'image' ? 'Создай изображение с помощью IMAGE.' : 'Создай видео с помощью VIDEO.';
   const references = fileIds.length
     ? `Референсы (fileIds, порядок важен): ${fileIds.join(', ')}.`
-    : 'Создай с нуля, без референсов из предыдущих сообщений.';
+    : fromScratch
+      ? 'Создай с нуля, без референсов из предыдущих сообщений.'
+      : 'Продолжи беседу с учётом контекста. Если исходное изображение неоднозначно, уточни выбор до генерации.';
   return {
     role: 'USER',
     text: `${instruction}\n${references}\n\n${prompt.trim()}`,
@@ -71,6 +79,15 @@ export function createMessageBody(
 // Only our exact envelope is hidden; messages from other clients remain untouched.
 export function displayMessageText(text: string): string {
   const prefix =
-    /^(Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.)\n\n/;
-  return text.replace(prefix, '');
+    /^(Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.|Продолжи беседу с учётом контекста\. Если исходное изображение неоднозначно, уточни выбор до генерации\.)\n\n/;
+  return text
+    .replace(prefix, '')
+    .replace(/^\[Genfactory:(chat|prompt|script)\]\n[\s\S]*?\n\nЗапрос пользователя:\n/, '');
+}
+
+// Upgrade only the obsolete Genfactory instruction, preserving custom system text.
+export function migratedReferenceSystem(conversation: Conversation): string | undefined {
+  if (!conversation.tags?.includes('genfactory') || !conversation.system?.includes(legacyReferencePolicy))
+    return;
+  return conversation.system.replace(legacyReferencePolicy, referencePolicy);
 }

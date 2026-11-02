@@ -1,0 +1,64 @@
+name: GENFACTORY - DEPLOY (PRODUCTION)
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: Image digest from BUILD (sha256:...)
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      digest:
+        required: true
+        type: string
+permissions:
+  contents: read
+  packages: read
+concurrency:
+  group: genfactory-production-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Docker container over SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.repository_owner }}
+          REPOSITORY: ${{ github.repository }}
+          DIGEST: ${{ inputs.digest }}
+          FRONTEND_PORT: ${{ vars.FRONTEND_PORT || '8081' }}
+          API_URL: ${{ vars.API_URL || 'https://api.gnosisai.ru' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${SSH_KEY:?SSH_KEY is required}" "${SSH_HOST:?SSH_HOST is required}" "${SSH_USERNAME:?SSH_USERNAME is required}" "${SSH_KNOWN_HOSTS:?SSH_KNOWN_HOSTS is required}"
+          [[ "$SSH_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]]
+          [[ "$SSH_USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$REGISTRY_USER" =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]]
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$FRONTEND_PORT" =~ ^[0-9]{2,5}$ ]] && ((10#$FRONTEND_PORT <= 65535))
+          [[ "$API_URL" =~ ^https?://[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{1,5})?$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/genfactory
+          chmod 600 ~/.ssh/genfactory
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          target="$SSH_USERNAME@$SSH_HOST"
+          remote_dir="/tmp/genfactory-deploy-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          ssh_opts=(-i ~/.ssh/genfactory -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          cleanup() {
+            ssh "${ssh_opts[@]}" "$target" "rm -rf '$remote_dir'" || true
+            rm -f ~/.ssh/genfactory
+          }
+          trap cleanup EXIT
+          ssh "${ssh_opts[@]}" "$target" "umask 077; mkdir -p '$remote_dir/auth'"
+          scp "${ssh_opts[@]}" scripts/deploy.sh "$target:$remote_dir/deploy.sh"
+          printf '%s' "$GHCR_TOKEN" | ssh "${ssh_opts[@]}" "$target" "docker --config '$remote_dir/auth' login ghcr.io -u '$REGISTRY_USER' --password-stdin"
+          image="ghcr.io/${REPOSITORY,,}/genfactory-frontend@$DIGEST"
+          ssh "${ssh_opts[@]}" "$target" "DOCKER_CONFIG='$remote_dir/auth' bash '$remote_dir/deploy.sh' '$image' '$FRONTEND_PORT' '$API_URL'"

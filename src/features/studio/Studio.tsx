@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { ReferenceChoice } from './ReferenceChoice';
+import { saveRecipe } from './variants';
+import { useDraft, DraftBar, restoreDraftFiles } from '../workspace/drafts';
+import { UploadSurface } from '../../components/UploadSurface';
+import { ReferenceList } from '../../components/ReferenceList';
+import { ModelBrowser } from '../catalog/ModelBrowser';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation, useIsMutating } from '@tanstack/react-query';
 import {
   ArrowUp,
@@ -7,12 +13,11 @@ import {
   Clapperboard,
   SlidersHorizontal,
   Sparkles,
-  X,
   Upload,
   ChevronDown,
   WandSparkles,
 } from 'lucide-react';
-import { api, getSession, safeMediaUrl } from '../../lib/api';
+import { api, getSession } from '../../lib/api';
 import type { GnosisFile, MediaKind, ModelDescription, Schema, TaskRequest } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import {
@@ -20,12 +25,23 @@ import {
   fieldNames,
   optionFields,
   referenceLimit,
+  referenceMinimum,
   supportsReferences,
   validateRequest,
 } from '../catalog/schema';
-import { connection, createConversationBody, createMessageBody, toolSettings } from './conversations';
+import {
+  connection,
+  createConversationBody,
+  createMessageBody,
+  migratedReferenceSystem,
+  toolSettings,
+} from './conversations';
 import { ConversationResults } from './ConversationResults';
 import { SelectControl } from '../../components/SelectControl';
+import { LibraryPicker } from '../../components/LibraryPicker';
+import { WorkspaceNav } from '../workspace/WorkspaceNav';
+import { usePreferences, type Preset } from '../workspace/preferences';
+import { creativePrompt } from '../workspace/prompt';
 import { LoginDialog } from '../../components/LoginDialog';
 const providers = { image: ['OPEN_AI_IMAGE_GPT', 'OPEN_ROUTER_IMAGE'], video: ['OPEN_ROUTER_VIDEO'] };
 const suggestions = {
@@ -101,6 +117,15 @@ function Field({
 }
 export function Studio({ kind }: { kind: MediaKind }) {
   const auth = useAuth();
+  const prefs = usePreferences();
+  const [picker, setPicker] = useState(false);
+  const [replaceReference, setReplaceReference] = useState(false);
+  const [referenceChoice, setReferenceChoice] = useState(false);
+  const [freshScope, setFreshScope] = useState<string>();
+  const [useBrand, setUseBrand] = useState(false);
+  const [shot, setShot] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState('');
+  const [presetName, setPresetName] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
   const [search] = useSearchParams();
@@ -111,6 +136,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       ? Number(idParam)
       : undefined;
   const scope = `${auth.user?.id}:${location.pathname}:${location.search}`;
+  const sourceScope = `${auth.user?.id}:${kind}:${conversationId || 'new'}`;
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const submitting = useRef(false);
@@ -162,19 +188,39 @@ export function Studio({ kind }: { kind: MediaKind }) {
       window.dispatchEvent(new Event('genfactory:generation-finished'));
     },
   });
-  const pendingSends = useIsMutating({ mutationKey: ['send-message', auth.user?.id] });
+  const pendingSends = useIsMutating({
+    mutationKey: ['send-message', auth.user?.id],
+    predicate: (mutation) =>
+      !!conversationId && (mutation.state.variables as { id?: number } | undefined)?.id === conversationId,
+  });
   const [login, setLogin] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [selected, setSelected] = useState('');
   const [options, setOptions] = useState<Record<string, unknown>>({});
   const [references, setReferences] = useState<GnosisFile[]>([]);
+  const fromScratch = freshScope === sourceScope;
+  useEffect(() => {
+    if (references.length) setFreshScope(undefined);
+  }, [references]);
+  const chooseFresh = () => {
+    setReferences([]);
+    setFreshScope(sourceScope);
+    setReferenceChoice(false);
+  };
+  useEffect(() => {
+    setReferenceChoice(false);
+    setPicker(false);
+    setFreshScope(undefined);
+  }, [sourceScope]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [modelBrowser, setModelBrowser] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const initialPromptKey = useRef('');
   const referenceKey = useRef('');
-  const previousUser = useRef<number | undefined>(undefined);
+  const previousUser = useRef(auth.user?.id);
+  const previousKind = useRef(kind);
   const uploadScope = useRef('');
   const repeatRequest = useRef<TaskRequest | null>(null);
   const busy = creating || pendingSends > 0 || conversation?.status === 'LOADING';
@@ -193,12 +239,26 @@ export function Studio({ kind }: { kind: MediaKind }) {
     staleTime: 5 * 60_000,
     retry: 1,
   });
-  const models = catalog.data || [];
+  const specialized = search.get('studio');
+  const models = (catalog.data || []).filter((m) =>
+    specialized === 'banana'
+      ? /gemini.*(image|banana)/i.test(m.reference.model)
+      : specialized === 'seedance'
+        ? /seedance/i.test(m.reference.model)
+        : true,
+  );
   const modelKey = (m: ModelDescription) => `${m.reference.provider}:${m.reference.model}`;
   const model = models.find((m) => modelKey(m) === selected) || models[0];
   const currentKey = model ? modelKey(model) : '';
-  uploadScope.current = `${auth.user?.id}:${currentKey}`;
+  uploadScope.current = `${auth.session}:${kind}:${currentKey}:${location.key}`;
   useEffect(() => {
+    setUploading(false);
+    if (input.current) input.current.value = '';
+  }, [auth.session, kind, currentKey, location.key]);
+  const initializedModel = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (initializedModel.current === currentKey) return;
+    initializedModel.current = currentKey;
     setOptions(
       repeatRequest.current?.options || {
         ...defaults(model?.schema.properties?.options),
@@ -206,47 +266,91 @@ export function Studio({ kind }: { kind: MediaKind }) {
       },
     );
     repeatRequest.current = null;
-    setReferences([]);
     setError('');
   }, [currentKey]);
   useEffect(() => {
+    if (previousUser.current === auth.user?.id && previousKind.current === kind) return;
     setSelected('');
-    setReferences([]);
     setError('');
-    if (previousUser.current !== undefined) setPrompt('');
+    if (
+      (previousUser.current !== undefined && previousUser.current !== auth.user?.id) ||
+      previousKind.current !== kind
+    )
+      setPrompt('');
+    if (previousUser.current !== auth.user?.id) {
+      setUseBrand(false);
+      setShot({});
+      setNotice('');
+      setPresetName('');
+    }
     previousUser.current = auth.user?.id;
+    previousKind.current = kind;
     setAgentKey('');
   }, [kind, auth.user?.id]);
   const previousConversation = useRef(conversationId);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (previousConversation.current !== undefined && previousConversation.current !== conversationId) {
       setPrompt('');
-      setReferences([]);
       setError('');
     }
     previousConversation.current = conversationId;
   }, [conversationId]);
   useEffect(() => {
     if (initialPromptKey.current !== location.key) {
-      const state = location.state as { prompt?: string; reference?: GnosisFile; userId?: number } | null;
+      const state = location.state as {
+        prompt?: string;
+        reference?: GnosisFile;
+        userId?: number;
+        repeat?: boolean;
+        notice?: string;
+      } | null;
       if (state?.userId !== undefined && state.userId !== auth.user?.id) return;
       initialPromptKey.current = location.key;
       if (state?.prompt) setPrompt(state.prompt);
+      if (state?.repeat) {
+        setUseBrand(false);
+        setShot({});
+        setNotice(state.notice || '');
+      }
     }
   }, [location.key, location.state, model, auth.user?.id]);
+  const appliedPreset = useRef('');
   useEffect(() => {
-    const state = location.state as { reference?: GnosisFile; userId?: number } | null;
+    const state = location.state as { preset?: Preset; userId?: number } | null;
     if (
-      state?.reference &&
-      model &&
-      supportsReferences(model) &&
-      state.reference.userId === auth.user?.id &&
-      referenceKey.current !== location.key
-    ) {
-      setReferences([state.reference]);
-      referenceKey.current = location.key;
-    }
-  }, [models, currentKey, location.key, location.state, auth.user?.id]);
+      !state?.preset ||
+      !models.length ||
+      conversationId ||
+      appliedPreset.current === location.key ||
+      (state.userId !== undefined && state.userId !== auth.user?.id)
+    )
+      return;
+    const preset = state.preset;
+    const found = models.find((m) =>
+      preset.model
+        ? modelKey(m) === `${preset.model.provider}:${preset.model.model}`
+        : preset.modelMatch
+          ? m.reference.model.includes(preset.modelMatch)
+          : false,
+    );
+    if (found) {
+      const values = {
+        ...defaults(found.schema.properties?.options),
+        ...preset.options,
+        model: found.reference.model,
+      };
+      if (modelKey(found) !== currentKey)
+        repeatRequest.current = {
+          model: found.reference.provider,
+          options: values,
+          task: { session: '', prompt: '' },
+        };
+      else setOptions(values);
+      setSelected(modelKey(found));
+    } else if (preset.model || preset.modelMatch)
+      setNotice('Модель шаблона сейчас недоступна. Выберите модель из каталога.');
+    appliedPreset.current = location.key;
+  }, [models, currentKey, location.key, location.state, conversationId, auth.user?.id]);
   const restored = useRef('');
   useEffect(() => {
     const key = `${auth.user?.id}:${conversationId}:${kind}`;
@@ -278,8 +382,122 @@ export function Studio({ kind }: { kind: MediaKind }) {
     }
     restored.current = key;
   }, [conversation, conversationId, kind, models, currentKey, auth.user?.id]);
+  const referenceScope = `${auth.user?.id}:${kind}:${currentKey}`;
+  const previousReference = useRef({ scope: referenceScope, conversationId });
+  useEffect(() => {
+    const previous = previousReference.current;
+    // Mount effect replay is not a change of editor. Creating the first
+    // conversation also keeps the draft's references.
+    if (
+      previous.scope !== referenceScope ||
+      (previous.conversationId !== undefined && previous.conversationId !== conversationId)
+    )
+      setReferences([]);
+    previousReference.current = { scope: referenceScope, conversationId };
+  }, [referenceScope, conversationId]);
+  useEffect(() => {
+    const state = location.state as {
+      reference?: GnosisFile;
+      references?: GnosisFile[];
+      preset?: Preset;
+      userId?: number;
+    } | null;
+    const incoming = (state?.references || (state?.reference ? [state.reference] : [])).filter(
+      (f) => f.type === 'IMAGE',
+    );
+    if (!incoming.length || !model || referenceKey.current === location.key) return;
+    if (
+      state?.userId !== auth.user?.id ||
+      incoming.some((f) => f.userId !== auth.user?.id || f.type !== 'IMAGE')
+    )
+      return;
+    if (state?.preset && !conversationId) {
+      const preferred = models.find((m) =>
+        state.preset?.model
+          ? modelKey(m) === `${state.preset.model.provider}:${state.preset.model.model}`
+          : state.preset?.modelMatch
+            ? m.reference.model.includes(state.preset.modelMatch)
+            : false,
+      );
+      if (preferred && modelKey(preferred) !== currentKey) return;
+    }
+    if (conversationId) {
+      if (!conversation) return;
+      const saved = connection(conversation, kind)?.settings?.model;
+      const savedModel = models.find(
+        (m) => m.reference.provider === saved?.provider && m.reference.model === saved?.model,
+      );
+      // Restoration changes the selected model on the next render. Apply the
+      // navigation reference only after that reset has finished.
+      if (savedModel && modelKey(savedModel) !== currentKey) return;
+    }
+    if (!supportsReferences(model)) {
+      setError('Выбранная модель не поддерживает референсы. Выберите другую модель.');
+      return;
+    }
+    const limit = Math.min(4, referenceLimit(model));
+    setReferences(incoming.slice(0, limit));
+    if (incoming.length > limit) setNotice(`Для этой модели оставлены первые ${limit} референса.`);
+    referenceKey.current = location.key;
+  }, [models, currentKey, location.key, location.state, auth.user?.id, conversation, conversationId, kind]);
   const maxRefs = Math.min(4, referenceLimit(model));
-  const upload = async (files: FileList | null) => {
+  const minRefs = referenceMinimum(model);
+  const draft = useDraft(
+    `${kind}:${conversationId || 'new'}:${specialized || 'all'}`,
+    { prompt, selected: currentKey, options, references, shot, useBrand, agentKey },
+    !!currentKey,
+  );
+  const pendingDraft = useRef<{
+    value: NonNullable<typeof draft.available>['value'];
+    files: GnosisFile[];
+    key: string;
+  } | null>(null);
+  useEffect(() => {
+    const pending = pendingDraft.current;
+    if (!pending || pending.key !== currentKey) return;
+    pendingDraft.current = null;
+    setPrompt(pending.value.prompt);
+    setOptions(pending.value.options);
+    setReferences(pending.files.slice(0, maxRefs));
+    setShot(pending.value.shot || {});
+    setUseBrand(!!pending.value.useBrand);
+    setAgentKey(pending.value.agentKey || '');
+    draft.changed();
+  }, [currentKey, notice]);
+  const restoreDraft = async (value: NonNullable<typeof draft.available>['value']) => {
+    if (!auth.user || !auth.session || busy || uploading) return;
+    if (
+      typeof value.prompt !== 'string' ||
+      !value.options ||
+      typeof value.options !== 'object' ||
+      !value.shot ||
+      typeof value.shot !== 'object' ||
+      Object.values(value.shot).some((v) => typeof v !== 'string')
+    ) {
+      setError('Черновик повреждён.');
+      return;
+    }
+    const chosen = models.find((m) => modelKey(m) === value.selected);
+    if (!chosen) {
+      setError('Модель черновика сейчас недоступна. Выберите другой черновик или модель.');
+      return;
+    }
+    const scope = uploadScope.current;
+    setUploading(true);
+    const restored = await restoreDraftFiles(value.references, auth.user.id, auth.session);
+    if (scope !== uploadScope.current || getSession() !== auth.session) return;
+    pendingDraft.current = {
+      value,
+      files: restored.files.filter((f) => f.type === 'IMAGE'),
+      key: value.selected,
+    };
+    setSelected(value.selected);
+    setNotice(
+      `Черновик восстановлен.${restored.missing ? ' Недоступные файлы пропущены.' : ''} ${new Date().toLocaleTimeString()}`,
+    );
+    setUploading(false);
+  };
+  const upload = async (files: FileList | File[] | null) => {
     if (!auth.user) {
       setLogin(true);
       return;
@@ -287,6 +505,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
     if (!files || !model || uploading) return;
     setError('');
     setUploading(true);
+    const scope = uploadScope.current;
+    const sid = auth.session!;
+    const isCurrent = () => mounted.current && scope === uploadScope.current && getSession() === sid;
     try {
       const picked = Array.from(files);
       if (picked.some((f) => !['image/png', 'image/jpeg', 'image/webp'].includes(f.type)))
@@ -295,17 +516,23 @@ export function Studio({ kind }: { kind: MediaKind }) {
         throw new Error('Для референсов используйте файлы до 20 МБ.');
       if (references.length + picked.length > maxRefs)
         throw new Error(`Для выбранной модели можно добавить до ${maxRefs} референсов.`);
-      const scope = uploadScope.current;
-      const sid = auth.session!;
       for (const file of picked) {
+        if (!isCurrent()) return;
         const saved = await api.upload(file, sid);
-        if (scope === uploadScope.current) setReferences((prev) => [...prev, saved]);
+        if (!isCurrent()) return;
+        if (saved.userId !== auth.user.id || saved.type !== 'IMAGE')
+          throw new Error('Сервер не вернул изображение вашего аккаунта.');
+        draft.changed();
+        setReferences((prev) => (prev.some((f) => f.id === saved.id) ? prev : [...prev, saved]));
+        void client.invalidateQueries({ queryKey: ['files', auth.user.id] });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось загрузить файл.');
+      if (isCurrent()) setError(e instanceof Error ? e.message : 'Не удалось загрузить файл.');
     } finally {
-      setUploading(false);
-      if (input.current) input.current.value = '';
+      if (isCurrent()) {
+        setUploading(false);
+        if (input.current) input.current.value = '';
+      }
     }
   };
   const submit = async () => {
@@ -326,13 +553,26 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setError('Не удалось выбрать модель ассистента. Обновите каталог.');
       return;
     }
+    if (conversation && !references.length && !fromScratch) {
+      setReferenceChoice(true);
+      return;
+    }
+    if (references.length && (!supportsReferences(model) || references.length > maxRefs)) {
+      setError('Выберите модель с поддержкой выбранных референсов или измените их количество.');
+      return;
+    }
+    if (references.length < minRefs) {
+      setError(`Добавьте референсы для выбранной модели (минимум: ${minRefs}).`);
+      return;
+    }
     const visibleOptions = new Set(optionFields(model).map(([name]) => name));
     const cleanOptions = Object.fromEntries(
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
     );
+    const preparedPrompt = creativePrompt(prompt, useBrand ? prefs.value.brand : '', shot);
     const body: TaskRequest = {
       model: model.reference.provider,
-      task: { prompt: prompt.trim(), session: crypto.randomUUID() },
+      task: { prompt: preparedPrompt, session: crypto.randomUUID() },
       options: { ...cleanOptions, model: model.reference.model },
     };
     if (references.length && kind === 'image') body.task.fileIds = references.map((f) => f.id);
@@ -358,6 +598,24 @@ export function Studio({ kind }: { kind: MediaKind }) {
     const sid = auth.session;
     const userId = auth.user.id;
     try {
+      setCreating(true);
+      if (conversation) {
+        // Read the latest version so polling or another editor cannot leave a stale system prompt.
+        const latest = await api.conversation(conversation.id, undefined, sid);
+        if (latest.userId !== userId || latest.status === 'LOADING')
+          throw new Error('Беседа недоступна или уже выполняет запрос.');
+        const system = migratedReferenceSystem(latest);
+        if (system !== undefined) {
+          const updated = await api.editConversation(latest, { system }, sid);
+          client.setQueryData(['conversation', userId, latest.id], updated);
+        }
+      }
+      for (const reference of references) {
+        const actual = await api.file(reference.id, sid);
+        if (actual.userId !== userId || actual.type !== 'IMAGE')
+          throw new Error('Исходное изображение недоступно. Выберите другой референс.');
+      }
+      if (!mounted.current || getSession() !== sid || scopeRef.current !== activeScope) return;
       const tool = toolSettings(kind, model, cleanOptions);
       let id = conversationId;
       if (!id) {
@@ -378,16 +636,29 @@ export function Studio({ kind }: { kind: MediaKind }) {
         navigate(`/${kind}?conversation=${id}`, { replace: true });
       }
       messageSent = true;
-      await send.mutateAsync({
+      const response = await send.mutateAsync({
         id,
         body: createMessageBody(
-          prompt,
+          preparedPrompt,
           kind,
           tool,
           references.map((f) => f.id),
+          fromScratch || !conversationId,
         ),
         sid,
       });
+      if (getSession() === sid) {
+        const saved = saveRecipe(userId, id, response.id, {
+          kind,
+          prompt: preparedPrompt,
+          model: model.reference,
+          options: cleanOptions,
+          references,
+        });
+        if (!saved && mounted.current)
+          setNotice('Ответ получен, но параметры запуска не удалось сохранить в браузере.');
+      }
+      draft.clear();
       if (
         mounted.current &&
         getSession() === sid &&
@@ -410,13 +681,35 @@ export function Studio({ kind }: { kind: MediaKind }) {
       <header className="studio-heading">
         <div>
           <span className="eyebrow">ВАША ТВОРЧЕСКАЯ СТУДИЯ</span>
-          <h1>{kind === 'image' ? 'Изображения' : 'Видео'}</h1>
+          <h1>
+            {specialized === 'banana'
+              ? 'Nano Banana Studio'
+              : specialized === 'seedance'
+                ? 'Seedance Studio'
+                : kind === 'image'
+                  ? 'Изображения'
+                  : 'Видео'}
+          </h1>
         </div>
         <span className="studio-kind">
           {kind === 'image' ? <ImagePlus size={17} /> : <Clapperboard size={17} />}{' '}
           {kind === 'image' ? 'От мысли к кадру' : 'Каждый кадр — начало истории'}
         </span>
       </header>
+      <WorkspaceNav conversationId={conversationId} draft={{ prompt, references, userId: auth.user?.id }} />
+      {!conversationId && (
+        <div className="workspace-actions">
+          <button className="text-button" onClick={() => navigate(`/${kind}`)}>
+            Все модели
+          </button>
+          <button
+            className="text-button"
+            onClick={() => navigate(kind === 'image' ? '/image?studio=banana' : '/video?studio=seedance')}
+          >
+            {kind === 'image' ? 'Nano Banana Studio' : 'Seedance Studio'}
+          </button>
+        </div>
+      )}
       <div className="conversation-toolbar">
         <span className="small muted">
           {conversation ? `Работа: ${conversation.name}` : 'Новая рабочая беседа'}
@@ -428,6 +721,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
             navigate(`/${kind}`);
             setPrompt('');
             setReferences([]);
+            setFreshScope(undefined);
             setError('');
           }}
         >
@@ -448,128 +742,180 @@ export function Studio({ kind }: { kind: MediaKind }) {
         </p>
       )}
       <div className="studio-layout">
-        <section className="composer">
-          <div className="composer-title">
-            <Sparkles size={18} />
-            <h2>Что создадим?</h2>
-          </div>
-          <label className="prompt-label" htmlFor="prompt">
-            Ваша идея
-          </label>
-          <textarea
-            id="prompt"
-            value={prompt}
-            disabled={busy}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={
-              kind === 'image'
-                ? 'Опишите сюжет, свет, настроение и детали…'
-                : 'Опишите сцену, движение камеры и атмосферу…'
-            }
-            maxLength={model?.schema.properties?.task?.properties?.prompt?.maxLength || 32_000}
-          />
-          <div className="prompt-footer">
-            <span>Чем точнее описание — тем ближе результат</span>
-            <span>{prompt.length}</span>
-          </div>
-          <div className="reference-row">
-            {references.map((file, i) => (
-              <div className="reference" key={file.id}>
-                <img src={safeMediaUrl(file.path)} alt={file.name} />
-                <span>{kind === 'video' ? (i === 0 ? 'Первый кадр' : 'Последний кадр') : 'Референс'}</span>
-                <button
-                  className="icon-button"
-                  aria-label={`Убрать ${file.name}`}
-                  onClick={() => setReferences((prev) => prev.filter((f) => f.id !== file.id))}
-                >
-                  <X size={13} />
+        <UploadSurface
+          disabled={busy || uploading || !supportsReferences(model)}
+          onFiles={(files) => void upload(files)}
+        >
+          <section className="composer" onChange={draft.changed}>
+            <DraftBar
+              draft={draft}
+              busy={busy || uploading || !models.length}
+              onRestore={(value) => void restoreDraft(value)}
+            />
+            <div className="composer-title">
+              <Sparkles size={18} />
+              <h2>Что создадим?</h2>
+            </div>
+            <div className="source-selection" aria-label="Исходное изображение">
+              <strong>
+                {references.length
+                  ? 'На основе изображения'
+                  : fromScratch || !conversationId
+                    ? 'Создание с нуля'
+                    : 'Исходное изображение не выбрано'}
+              </strong>
+              <p className="small muted">
+                {references.length
+                  ? references.length === 1
+                    ? 'Используем это изображение.'
+                    : 'Используем эти изображения в указанном порядке.'
+                  : fromScratch || !conversationId
+                    ? 'Предыдущие изображения не будут использованы как референсы.'
+                    : 'Перед генерацией выберите предыдущий результат, другой референс или создание с нуля.'}
+              </p>
+              <ReferenceList
+                files={references}
+                video={kind === 'video'}
+                disabled={busy || uploading}
+                onChange={(files) => {
+                  draft.changed();
+                  setReferences(files);
+                  setFreshScope(undefined);
+                }}
+              />
+              <div className="workspace-actions">
+                {references.length > 0 && (
+                  <button
+                    className="text-button"
+                    disabled={busy || uploading || !supportsReferences(model)}
+                    onClick={() => {
+                      setReplaceReference(true);
+                      setPicker(true);
+                    }}
+                  >
+                    Заменить изображение
+                  </button>
+                )}
+                {conversation && (
+                  <button
+                    className="text-button"
+                    disabled={busy || uploading}
+                    onClick={() => setReferenceChoice(true)}
+                  >
+                    Выбрать из беседы
+                  </button>
+                )}
+                <button className="text-button" disabled={busy || uploading} onClick={chooseFresh}>
+                  Создать с нуля
                 </button>
               </div>
-            ))}
-          </div>
-          {(!auth.user || supportsReferences(model)) && (
-            <button
-              className="upload-reference"
-              disabled={uploading || busy || (!!model && references.length >= maxRefs)}
-              onClick={() => (auth.user ? input.current?.click() : setLogin(true))}
-            >
-              <Upload size={17} />
-              {uploading ? 'Загружаем…' : 'Добавить референс'}
-              <span>{kind === 'video' ? 'Первый / последний кадр' : 'PNG, JPG, WebP'}</span>
-            </button>
-          )}
-          <input
-            type="file"
-            hidden
-            ref={input}
-            accept="image/png,image/jpeg,image/webp"
-            multiple={kind === 'image'}
-            onChange={(e) => void upload(e.target.files)}
-          />
-          <div className="model-selection">
-            <label htmlFor="model">Модель</label>
-            <SelectControl
-              leading={<WandSparkles size={17} />}
-              id="model"
-              value={currentKey}
-              onChange={(e) => setSelected(e.target.value)}
-              disabled={!models.length || busy || uploading}
-            >
-              {!models.length && (
-                <option>
-                  {auth.user
-                    ? catalog.isPending
-                      ? 'Загружаем модели…'
-                      : 'Нет доступных моделей'
-                    : 'Войдите, чтобы выбрать модель'}
-                </option>
-              )}
-              {models.map((m) => (
-                <option key={modelKey(m)} value={modelKey(m)}>
-                  {m.name}
-                </option>
-              ))}
-            </SelectControl>
-          </div>
-          {catalog.error && (
-            <div className="inline-error">
-              <p>{catalog.error.message}</p>
-              <button className="text-button" onClick={() => void catalog.refetch()}>
-                Загрузить снова
-              </button>
             </div>
-          )}
-          {model && (
-            <>
-              <div className="settings-grid">
-                {optionFields(model)
-                  .filter(([key]) =>
-                    ['size', 'aspectRatio', 'resolution', 'duration', 'quality'].includes(key),
-                  )
-                  .map(([key, schema]) => (
-                    <Field
-                      key={currentKey + key}
-                      name={key}
-                      schema={schema}
-                      value={options[key]}
-                      onChange={(v) => setOptions((prev) => ({ ...prev, [key]: v }))}
-                    />
-                  ))}
-              </div>
+            <label className="prompt-label" htmlFor="prompt">
+              Ваша идея
+            </label>
+            <textarea
+              id="prompt"
+              value={prompt}
+              disabled={busy}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={
+                kind === 'image'
+                  ? 'Опишите сюжет, свет, настроение и детали…'
+                  : 'Опишите сцену, движение камеры и атмосферу…'
+              }
+              maxLength={model?.schema.properties?.task?.properties?.prompt?.maxLength || 32_000}
+            />
+            <div className="prompt-footer">
+              <span>Чем точнее описание — тем ближе результат</span>
+              <span>{prompt.length}</span>
+            </div>
+            {(!auth.user || supportsReferences(model)) && (
               <button
-                className="advanced-button"
-                onClick={() => setAdvanced(!advanced)}
-                aria-expanded={advanced}
+                className="upload-reference"
+                disabled={uploading || busy || (!!model && references.length >= maxRefs)}
+                onClick={() => (auth.user ? input.current?.click() : setLogin(true))}
               >
-                <SlidersHorizontal size={16} />
-                <span>Дополнительные настройки</span>
-                <ChevronDown size={16} />
+                <Upload size={17} />
+                {uploading ? 'Загружаем…' : 'Добавить референс'}
+                <span>{kind === 'video' ? 'Первый / последний кадр' : 'PNG, JPG, WebP'}</span>
               </button>
-              {advanced && (
-                <div className="settings-grid advanced-fields">
+            )}
+            {minRefs > 0 && (
+              <p className="small muted">
+                Эта модель работает с исходными изображениями. Минимум референсов: {minRefs}.
+              </p>
+            )}
+            <button
+              className="button"
+              disabled={
+                !auth.user || busy || uploading || !supportsReferences(model) || references.length >= maxRefs
+              }
+              onClick={() => {
+                setReplaceReference(false);
+                setPicker(true);
+              }}
+            >
+              Из библиотеки
+            </button>
+            <input
+              type="file"
+              hidden
+              ref={input}
+              accept="image/png,image/jpeg,image/webp"
+              multiple={kind === 'image'}
+              onChange={(e) => void upload(e.target.files)}
+            />
+            <button
+              className="button"
+              disabled={!models.length || busy || uploading}
+              onClick={() => setModelBrowser(true)}
+            >
+              Поиск и избранные модели
+            </button>
+            <div className="model-selection">
+              <label htmlFor="model">Модель</label>
+              <SelectControl
+                leading={<WandSparkles size={17} />}
+                id="model"
+                value={currentKey}
+                onChange={(e) => setSelected(e.target.value)}
+                disabled={!models.length || busy || uploading}
+              >
+                {!models.length && (
+                  <option>
+                    {auth.user
+                      ? catalog.isPending
+                        ? 'Загружаем модели…'
+                        : 'Нет доступных моделей'
+                      : 'Войдите, чтобы выбрать модель'}
+                  </option>
+                )}
+                {models.map((m) => (
+                  <option key={modelKey(m)} value={modelKey(m)}>
+                    {m.name}
+                  </option>
+                ))}
+              </SelectControl>
+            </div>
+            {specialized && catalog.isSuccess && !models.length && (
+              <p className="inline-error">
+                Эта модель сейчас недоступна в каталоге. Вернитесь к списку всех моделей.
+              </p>
+            )}
+            {catalog.error && (
+              <div className="inline-error">
+                <p>{catalog.error.message}</p>
+                <button className="text-button" onClick={() => void catalog.refetch()}>
+                  Загрузить снова
+                </button>
+              </div>
+            )}
+            {model && (
+              <>
+                <div className="settings-grid">
                   {optionFields(model)
-                    .filter(
-                      ([key]) => !['size', 'aspectRatio', 'resolution', 'duration', 'quality'].includes(key),
+                    .filter(([key]) =>
+                      ['size', 'aspectRatio', 'resolution', 'duration', 'quality'].includes(key),
                     )
                     .map(([key, schema]) => (
                       <Field
@@ -581,91 +927,218 @@ export function Studio({ kind }: { kind: MediaKind }) {
                       />
                     ))}
                 </div>
-              )}
-            </>
-          )}
-          {!conversationId && auth.user && (
-            <label className="setting-field">
-              <span>Ассистент</span>
-              <SelectControl
-                aria-label="Ассистент"
-                value={agent?.reference.model || ''}
-                disabled={busy || !agents.data?.length}
-                onChange={(e) => setAgentKey(e.target.value)}
-              >
-                {!agents.data?.length && (
-                  <option>{agents.isPending ? 'Загружаем…' : 'Нет доступных ассистентов'}</option>
+                <button
+                  className="advanced-button"
+                  onClick={() => setAdvanced(!advanced)}
+                  aria-expanded={advanced}
+                >
+                  <SlidersHorizontal size={16} />
+                  <span>Дополнительные настройки</span>
+                  <ChevronDown size={16} />
+                </button>
+                {advanced && (
+                  <div className="settings-grid advanced-fields">
+                    {optionFields(model)
+                      .filter(
+                        ([key]) =>
+                          !['size', 'aspectRatio', 'resolution', 'duration', 'quality'].includes(key),
+                      )
+                      .map(([key, schema]) => (
+                        <Field
+                          key={currentKey + key}
+                          name={key}
+                          schema={schema}
+                          value={options[key]}
+                          onChange={(v) => setOptions((prev) => ({ ...prev, [key]: v }))}
+                        />
+                      ))}
+                  </div>
                 )}
-                {agents.data?.map((m) => (
-                  <option key={m.reference.model} value={m.reference.model}>
-                    {m.name}
-                  </option>
-                ))}
-              </SelectControl>
-            </label>
-          )}
-          {agents.error && !conversationId && (
-            <p className="error">
-              Не удалось загрузить ассистентов.{' '}
-              <button className="text-button" onClick={() => void agents.refetch()}>
-                Обновить
-              </button>
-            </p>
-          )}
-          {conversation && !connection(conversation, kind) && (
-            <p className="inline-error">
-              В этой беседе не подключён инструмент {kind === 'image' ? 'изображений' : 'видео'}. Историю
-              можно просматривать; для создания начните новую работу.
-            </p>
-          )}
-          {send.error && send.variables?.id === conversationId && send.variables.sid === auth.session && (
-            <p className="error form-error" role="alert">
-              {send.error.message} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть
-              выполнен. Автоматического повтора нет.
-            </p>
-          )}
-          {error && (
-            <p className="error form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button
-            className="button primary generate-button"
-            disabled={
-              busy ||
-              uploading ||
-              (!!auth.user &&
-                (!model ||
-                  !prompt.trim() ||
-                  (!!idParam && (!conversation || !connection(conversation, kind))) ||
-                  (!idParam && !agent)))
-            }
-            onClick={() => void submit()}
-          >
-            {busy ? (
-              <>
-                <span>Создаём вашу идею</span>
-                <span className="spinner" />
-              </>
-            ) : (
-              <>
-                <span>
-                  {auth.user ? 'Создать ' + (kind === 'image' ? 'изображение' : 'видео') : 'Войти и создать'}
-                </span>
-                <ArrowUp size={19} />
               </>
             )}
-          </button>
-          <p className="billing-note">
-            Ассистент использует выбранный инструмент. Работа ассистента и генерация оплачиваются с баланса
-            gnosis.
-          </p>
-        </section>
+            <details className="workspace-details">
+              <summary>Съёмка и стиль</summary>
+              <div className="details-content">
+                <p className="small muted">Пожелания добавятся к запросу. Их выполнение зависит от модели.</p>
+                <div className="settings-grid">
+                  {['Камера', 'Движение', 'Свет', 'Стиль'].map((label) => (
+                    <label className="setting-field" key={label}>
+                      <span>{label}</span>
+                      <input
+                        value={shot[label] || ''}
+                        maxLength={300}
+                        onChange={(e) => setShot((p) => ({ ...p, [label]: e.target.value }))}
+                      />
+                    </label>
+                  ))}
+                </div>
+                {kind === 'video' && (
+                  <label className="setting-field">
+                    <span>Построение ролика</span>
+                    <SelectControl
+                      value={shot['Сцены'] || ''}
+                      onChange={(e) => setShot((p) => ({ ...p, Сцены: e.target.value }))}
+                    >
+                      <option value="">По описанию</option>
+                      <option>Один непрерывный кадр</option>
+                      <option>Несколько последовательных сцен в одном ролике</option>
+                    </SelectControl>
+                  </label>
+                )}
+              </div>
+            </details>
+            <label className="option-check">
+              <input
+                type="checkbox"
+                checked={useBrand}
+                disabled={!prefs.value.brand}
+                onChange={(e) => setUseBrand(e.target.checked)}
+              />
+              Использовать правила бренда
+            </label>
+            <details className="workspace-details">
+              <summary>Сохранить как шаблон</summary>
+              <div className="details-content">
+                <label className="setting-field">
+                  <span>Название шаблона</span>
+                  <input value={presetName} maxLength={80} onChange={(e) => setPresetName(e.target.value)} />
+                </label>
+                <button
+                  className="button"
+                  disabled={!auth.user || !model || !prompt.trim() || !presetName.trim()}
+                  onClick={() => {
+                    if (prefs.value.presets.length >= 40) {
+                      setNotice('Можно сохранить до 40 шаблонов. Удалите ненужные в разделе «Шаблоны».');
+                      return;
+                    }
+                    if (
+                      prefs.update((p) => ({
+                        ...p,
+                        presets: [
+                          ...p.presets,
+                          {
+                            id: crypto.randomUUID(),
+                            name: presetName.trim(),
+                            category: 'Мои',
+                            kind,
+                            prompt: creativePrompt(prompt, '', shot),
+                            model: model!.reference,
+                            options,
+                          },
+                        ],
+                      }))
+                    )
+                      setNotice('Шаблон сохранён в этом браузере.');
+                  }}
+                >
+                  Сохранить шаблон
+                </button>
+              </div>
+            </details>
+            {(notice || prefs.error) && (
+              <p role="status" className="small muted">
+                {prefs.error || notice}
+              </p>
+            )}
+            {!conversationId && auth.user && (
+              <label className="setting-field">
+                <span>Ассистент</span>
+                <SelectControl
+                  aria-label="Ассистент"
+                  value={agent?.reference.model || ''}
+                  disabled={busy || !agents.data?.length}
+                  onChange={(e) => setAgentKey(e.target.value)}
+                >
+                  {!agents.data?.length && (
+                    <option>{agents.isPending ? 'Загружаем…' : 'Нет доступных ассистентов'}</option>
+                  )}
+                  {agents.data?.map((m) => (
+                    <option key={m.reference.model} value={m.reference.model}>
+                      {m.name}
+                    </option>
+                  ))}
+                </SelectControl>
+              </label>
+            )}
+            {agents.error && !conversationId && (
+              <p className="error">
+                Не удалось загрузить ассистентов.{' '}
+                <button className="text-button" onClick={() => void agents.refetch()}>
+                  Обновить
+                </button>
+              </p>
+            )}
+            {conversation && !connection(conversation, kind) && (
+              <p className="inline-error">
+                В этой беседе не подключён инструмент {kind === 'image' ? 'изображений' : 'видео'}. Историю
+                можно просматривать; для создания начните новую работу.
+              </p>
+            )}
+            {send.error && send.variables?.id === conversationId && send.variables.sid === auth.session && (
+              <p className="error form-error" role="alert">
+                {send.error.message} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть
+                выполнен. Автоматического повтора нет.
+              </p>
+            )}
+            {error && (
+              <p className="error form-error" role="alert">
+                {error}
+              </p>
+            )}
+            <button
+              className="button primary generate-button"
+              disabled={
+                busy ||
+                uploading ||
+                (!!auth.user &&
+                  (!model ||
+                    !prompt.trim() ||
+                    (!!idParam && (!conversation || !connection(conversation, kind))) ||
+                    (!idParam && !agent)))
+              }
+              onClick={() => void submit()}
+            >
+              {busy ? (
+                <>
+                  <span>Создаём вашу идею</span>
+                  <span className="spinner" />
+                </>
+              ) : (
+                <>
+                  <span>
+                    {auth.user
+                      ? 'Создать ' + (kind === 'image' ? 'изображение' : 'видео')
+                      : 'Войти и создать'}
+                  </span>
+                  <ArrowUp size={19} />
+                </>
+              )}
+            </button>
+            <p className="billing-note">
+              Ассистент использует выбранный инструмент. Работа ассистента и генерация оплачиваются с баланса
+              gnosis.{' '}
+              <Link className="text-button" to="/account#balance-history">
+                История списаний
+              </Link>
+            </p>
+          </section>
+        </UploadSurface>
         <section className="studio-output" aria-label="Результаты генерации">
           {conversation && auth.user ? (
             <ConversationResults
               key={`${auth.user.id}:${conversation.id}`}
               conversation={conversation}
+              latestRequest={send.variables?.id === conversation.id ? send.submittedAt : 0}
+              onUseText={(text, targetKind, files) => {
+                if (targetKind === kind) {
+                  setPrompt(text);
+                  setReferences(files.filter((f) => f.userId === auth.user?.id).slice(0, maxRefs));
+                } else
+                  navigate(
+                    `/${targetKind}${connection(conversation, targetKind) ? `?conversation=${conversation.id}` : ''}`,
+                    { state: { prompt: text, references: files, userId: auth.user?.id } },
+                  );
+              }}
               onUse={(file, targetKind) => {
                 if (targetKind === kind) {
                   setReferences([file]);
@@ -677,7 +1150,11 @@ export function Studio({ kind }: { kind: MediaKind }) {
               }}
             />
           ) : idParam && auth.user ? (
-            <p className="muted">Загружаем рабочую беседу…</p>
+            <p className="muted">
+              {conversationId && !conversationQuery.error
+                ? 'Загружаем рабочую беседу…'
+                : 'Выберите беседу в истории или начните новую работу.'}
+            </p>
           ) : (
             <div className="studio-empty">
               <span className="empty-art">
@@ -711,6 +1188,48 @@ export function Studio({ kind }: { kind: MediaKind }) {
           )}
         </section>
       </div>
+      {referenceChoice && conversation && (
+        <ReferenceChoice
+          key={sourceScope}
+          conversation={conversation}
+          canUse={supportsReferences(model) && maxRefs > 0}
+          onClose={() => setReferenceChoice(false)}
+          onFresh={chooseFresh}
+          onUse={(file) => {
+            draft.changed();
+            setReferences([file]);
+            setFreshScope(undefined);
+            setReferenceChoice(false);
+          }}
+          onOther={() => {
+            setReferenceChoice(false);
+            setReplaceReference(true);
+            setPicker(true);
+          }}
+        />
+      )}
+      {modelBrowser && (
+        <ModelBrowser
+          models={models}
+          value={currentKey}
+          onSelect={(m) => {
+            draft.changed();
+            setSelected(modelKey(m));
+          }}
+          onClose={() => setModelBrowser(false)}
+        />
+      )}
+      {picker && (
+        <LibraryPicker
+          selected={references.map((f) => f.id)}
+          onClose={() => setPicker(false)}
+          onPick={(f) => {
+            draft.changed();
+            setFreshScope(undefined);
+            setReferences((p) => (replaceReference ? [f] : [...p, f].slice(0, maxRefs)));
+          }}
+        />
+      )}
       {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );

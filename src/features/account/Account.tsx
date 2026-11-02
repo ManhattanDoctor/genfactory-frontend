@@ -1,3 +1,4 @@
+import { BalanceHistory } from './BalanceHistory';
 import { formatBalance } from '../../lib/money';
 import { useState } from 'react';
 import { Wallet, UserRound, RefreshCw, LogOut } from 'lucide-react';
@@ -64,6 +65,7 @@ export function Account() {
           </button>
         </div>
       )}
+      <BalanceHistory />
       {error && (
         <p role="alert" className="error">
           {error}

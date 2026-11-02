@@ -60,6 +60,23 @@ export function Library() {
           >
             Видео
           </button>
+          {(
+            [
+              ['DOCUMENT', 'Документы'],
+              ['AUDIO', 'Аудио'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              className={`chip ${type === id ? 'active' : ''}`}
+              key={id}
+              onClick={() => {
+                setType(id);
+                setPage(0);
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <label className="search-field">
           <Search size={16} />
@@ -111,6 +128,12 @@ export function Library() {
                 </button>
               ))}
           </div>
+          {!!files.data?.items.length &&
+            !files.data.items.some((f) => f.name.toLowerCase().includes(search.toLowerCase())) && (
+              <p className="empty-state" role="status">
+                На этой странице ничего не найдено.
+              </p>
+            )}
           {!files.data?.items.length && (
             <div className="empty-state">
               <FolderOpen size={36} />
@@ -118,9 +141,13 @@ export function Library() {
               <p>Первый результат появится после генерации.</p>
               <button
                 className="button primary"
-                onClick={() => navigate(type === 'IMAGE' ? '/image' : '/video')}
+                onClick={() => navigate(type === 'IMAGE' ? '/image' : type === 'VIDEO' ? '/video' : '/chat')}
               >
-                Создать {type === 'IMAGE' ? 'изображение' : 'видео'}
+                {type === 'IMAGE'
+                  ? 'Создать изображение'
+                  : type === 'VIDEO'
+                    ? 'Создать видео'
+                    : 'Открыть AI-студию'}
               </button>
             </div>
           )}
@@ -147,11 +174,10 @@ export function Library() {
         <MediaPreview
           file={preview}
           onClose={() => setPreview(undefined)}
-          onUse={
-            preview.type === 'IMAGE'
-              ? () => navigate('/image', { state: { reference: preview, userId: auth.user?.id } })
-              : undefined
-          }
+          files={files.data?.items.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()))}
+          onAnalyze={(file) => navigate('/prompt', { state: { reference: file, userId: auth.user?.id } })}
+          onUse={(file) => navigate('/image', { state: { reference: file, userId: auth.user?.id } })}
+          onAnimate={(file) => navigate('/video', { state: { reference: file, userId: auth.user?.id } })}
         />
       )}{' '}
       {login && <LoginDialog onClose={() => setLogin(false)} />}

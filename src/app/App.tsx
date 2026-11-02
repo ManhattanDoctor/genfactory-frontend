@@ -1,8 +1,13 @@
+import { ActiveJobs } from '../components/ActiveJobs';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Compass,
+  Wallet,
+  MessageSquare,
+  LayoutTemplate,
+  Palette,
   ImagePlus,
   Clapperboard,
   FolderOpen,
@@ -18,6 +23,13 @@ import {
 import { formatBalance } from '../lib/money';
 import { Home } from './Home';
 const Studio = lazy(() => import('../features/studio/Studio').then((m) => ({ default: m.Studio })));
+const TextStudio = lazy(() =>
+  import('../features/workspace/TextStudio').then((m) => ({ default: m.TextStudio })),
+);
+const Templates = lazy(() =>
+  import('../features/workspace/Templates').then((m) => ({ default: m.Templates })),
+);
+const Brand = lazy(() => import('../features/workspace/Brand').then((m) => ({ default: m.Brand })));
 const Library = lazy(() => import('../features/library/Library').then((m) => ({ default: m.Library })));
 const HistoryPage = lazy(() => import('../features/studio/History').then((m) => ({ default: m.History })));
 const Account = lazy(() => import('../features/account/Account').then((m) => ({ default: m.Account })));
@@ -28,10 +40,14 @@ const AuthCallback = lazy(() =>
 import { LoginDialog } from '../components/LoginDialog';
 const navigation = [
   { to: '/', label: 'Обзор', Icon: Compass },
+  { to: '/chat', label: 'AI-студия', Icon: MessageSquare },
+  { to: '/templates', label: 'Шаблоны', Icon: LayoutTemplate },
   { to: '/image', label: 'Изображения', Icon: ImagePlus },
   { to: '/video', label: 'Видео', Icon: Clapperboard },
   { to: '/library', label: 'Библиотека', Icon: FolderOpen },
   { to: '/history', label: 'История', Icon: History },
+  { to: '/account', label: 'Баланс', Icon: Wallet },
+  { to: '/brand', label: 'Правила бренда', Icon: Palette },
 ];
 export function App() {
   const auth = useAuth();
@@ -66,7 +82,7 @@ export function App() {
         >
           <Menu size={22} />
         </button>
-        <Link to="/" className="brand">
+        <Link to="/" className="brand" aria-label="Genfactory — главная">
           <img src="/favicon.svg" alt="" />
           <span>
             GENFACTORY<span className="brand-dot">®</span>
@@ -81,6 +97,7 @@ export function App() {
             <span className="small muted">Подключаем аккаунт…</span>
           ) : auth.user ? (
             <>
+              <ActiveJobs />
               <Link to="/account" className="balance-pill">
                 <span className="live-dot" />
                 {formatBalance(auth.balances.RUB, 'RUB')} ₽
@@ -178,6 +195,11 @@ export function App() {
         >
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/chat" element={<TextStudio mode="chat" />} />
+            <Route path="/prompt" element={<TextStudio mode="prompt" />} />
+            <Route path="/script" element={<TextStudio mode="script" />} />
+            <Route path="/templates" element={<Templates />} />
+            <Route path="/brand" element={<Brand />} />
             <Route path="/image" element={<Studio kind="image" />} />
             <Route path="/video" element={<Studio kind="video" />} />
             <Route path="/library" element={<Library />} />

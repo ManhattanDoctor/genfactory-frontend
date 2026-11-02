@@ -56,3 +56,12 @@ export function referenceLimit(model?: ModelDescription): number {
     0
   );
 }
+
+export function referenceMinimum(model?: ModelDescription): number {
+  const task = model?.schema.properties?.task;
+  const options = model?.schema.properties?.options;
+  if (task?.required?.includes('fileIds')) return Math.max(1, task.properties?.fileIds?.minItems ?? 1);
+  if (options?.required?.includes('frameImages'))
+    return Math.max(1, options.properties?.frameImages?.minItems ?? 1);
+  return 0;
+}

@@ -69,6 +69,26 @@ export function Home() {
           </div>
         </Link>
       </section>
+      <div className="workspace-entry">
+        <div>
+          <h2>Сначала идея. Затем результат.</h2>
+          <p>Обсудите замысел, подготовьте промпт или соберите сценарий.</p>
+        </div>
+        <div className="workspace-actions">
+          <Link className="button" to="/chat">
+            AI-студия
+          </Link>
+          <Link className="button" to="/prompt">
+            Generate Prompt
+          </Link>
+          <Link className="button" to="/script">
+            Сценарист
+          </Link>
+          <Link className="button" to="/templates">
+            Шаблоны
+          </Link>
+        </div>
+      </div>
       <section className="quick-tools" aria-label="Инструменты">
         <Link to="/image">
           <span className="tool-icon lime">
