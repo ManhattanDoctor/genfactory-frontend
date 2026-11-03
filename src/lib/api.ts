@@ -83,6 +83,71 @@ export async function request<T>(
     }
   }
 }
+export interface IUploadProgress {
+  loaded: number;
+  total?: number;
+  phase: 'uploading' | 'processing';
+  fileName: string;
+}
+async function uploadFile(
+  file: File,
+  sid?: string,
+  context?: IFileOutputSettings,
+  onProgress?: (progress: IUploadProgress) => void,
+): Promise<IGnosisFile> {
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error('Максимальный размер загружаемого файла — 1 ГБ.');
+  const session = sid ?? getSession();
+  const data = new FormData();
+  data.append('file', file);
+  if (context?.directory) data.append('directory', context.directory);
+  if (context?.tags !== undefined) data.append('tags', JSON.stringify(context.tags));
+  pendingWrites++;
+  notifyWrites();
+  try {
+    return await new Promise<IGnosisFile>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${base}/file`);
+      xhr.responseType = 'json';
+      if (session) xhr.setRequestHeader('Authorization', `Bearer ${session}`);
+      const progress = (loaded: number, total: number | undefined, phase: IUploadProgress['phase']) =>
+        onProgress?.({ loaded, total, phase, fileName: file.name });
+      xhr.upload.onprogress = (event) =>
+        progress(event.loaded, event.lengthComputable ? event.total : undefined, 'uploading');
+      xhr.upload.onload = () => progress(file.size, file.size, 'processing');
+      xhr.onerror = () =>
+        reject(
+          new ApiError(
+            'Соединение прервалось при загрузке файла. Проверьте библиотеку перед повторной загрузкой.',
+            0,
+          ),
+        );
+      xhr.onabort = () => reject(new DOMException('Загрузка отменена.', 'AbortError'));
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (!xhr.response || typeof xhr.response.id !== 'number')
+            return reject(new ApiError('Сервер не вернул загруженный файл.', xhr.status));
+          resolve(xhr.response);
+          return;
+        }
+        if (xhr.status === 401 && session === getSession())
+          window.dispatchEvent(new Event('genfactory:unauthorized'));
+        const response = xhr.response;
+        const message =
+          xhr.status === 413
+            ? 'Сервер отклонил загрузку из-за размера файла. Максимальный размер — 1 ГБ.'
+            : typeof response?.message === 'string'
+              ? response.message
+              : `Не удалось загрузить файл (${xhr.status})`;
+        reject(new ApiError(message, xhr.status, response?.details));
+      };
+      progress(0, file.size, 'uploading');
+      xhr.send(data);
+    });
+  } finally {
+    pendingWrites--;
+    notifyWrites();
+  }
+}
 export const api = {
   transactions: (
     userId: number,
@@ -259,20 +324,7 @@ export const api = {
   removeFile: (id: number) => request<void>(`/file/${id}`, { method: 'DELETE' }),
   file: (id: number, sid?: string) => request<IGnosisFile>(`/file/${id}`, {}, sid),
   createPreview: (id: number) => request<IPreview>(`/file/${id}/preview`, { method: 'POST' }),
-  upload: async (file: File, sid?: string, context?: IFileOutputSettings) => {
-    if (file.size > MAX_UPLOAD_BYTES) throw new Error('Максимальный размер загружаемого файла — 1 ГБ.');
-    const data = new FormData();
-    data.append('file', file);
-    if (context?.directory) data.append('directory', context.directory);
-    if (context?.tags !== undefined) data.append('tags', JSON.stringify(context.tags));
-    try {
-      return await request<IGnosisFile>('/file', { method: 'POST', body: data }, sid);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 413)
-        throw new ApiError('Сервер отклонил загрузку из-за размера файла. Максимальный размер — 1 ГБ.', 413);
-      throw error;
-    }
-  },
+  upload: uploadFile,
 };
 export function safeMediaUrl(value?: string): string | undefined {
   if (!value) return undefined;

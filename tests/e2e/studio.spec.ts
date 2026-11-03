@@ -2572,3 +2572,40 @@ test('audio accepts recordings larger than the former upload limits and explains
   expect(uploads).toBe(2);
   expect(state.sends).toHaveLength(0);
 });
+
+for (const path of ['/audio?mode=stt', '/library', '/image', '/prompt']) {
+  test(`upload button shows activity until the server responds: ${path}`, async ({ page }) => {
+    await mockAudio(page);
+    let finish!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const audio = path.startsWith('/audio');
+    await page.route('**/api/file', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      await waiting;
+      await route.fulfill({ json: { ...file, ...(audio ? { type: 'AUDIO', mime: 'audio/wav' } : {}) } });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(path);
+    if (path === '/image') await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
+    await page
+      .locator('input[type=file]')
+      .first()
+      .setInputFiles({
+        name: audio ? 'test.wav' : 'test.png',
+        mimeType: audio ? 'audio/wav' : 'image/png',
+        buffer: readFileSync(
+          new URL(audio ? '../fixtures/audio.wav' : '../../public/media/gallery-1.jpg', import.meta.url),
+        ),
+      });
+    const button = page.locator('button[aria-busy="true"]');
+    await expect(button).toBeVisible();
+    await expect(button).toBeDisabled();
+    await expect(button.locator('.upload-button-spinner')).toBeVisible();
+    await expect(button).toContainText(/Загрузка|Сохранение|Подготовка/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    finish();
+    await expect(page.locator('button[aria-busy="true"]')).toHaveCount(0);
+  });
+}

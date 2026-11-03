@@ -923,7 +923,7 @@ a svg {
   color: #c9cbd0;
   background: #1a1b1c;
 }
-.upload-reference > span {
+.upload-reference > span:not(.upload-button-status) {
   font-size: 8px;
   margin-left: auto;
   color: #6f7681;
@@ -2163,7 +2163,7 @@ a svg,
   font-size: 12px;
   gap: var(--space-2);
 }
-.upload-reference > span {
+.upload-reference > span:not(.upload-button-status) {
   font-size: 10px;
 }
 .model-selection,
@@ -3705,4 +3705,26 @@ a svg,
 }
 .file-tag-chips .chip:focus-visible {
   outline-offset: -2px;
+}
+
+.upload-button-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+.upload-button-spinner {
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .upload-button-spinner {
+    animation: none;
+  }
+}
+
+button[aria-busy='true'] {
+  opacity: 1;
+  cursor: progress;
 }

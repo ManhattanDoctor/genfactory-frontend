@@ -1,3 +1,5 @@
+import { UploadButtonContent } from '../../components/UploadButtonContent';
+import type { IUploadProgress } from '../../lib/api';
 import { ModelField as Field } from '../catalog/ModelField';
 import { FileOutputEditor, useFileOutputSettings } from '../../components/FileOutputEditor';
 import { ReferenceChoice } from './ReferenceChoice';
@@ -158,6 +160,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     setFreshScope(undefined);
   }, [sourceScope]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const [error, setError] = useState('');
   const [modelBrowser, setModelBrowser] = useState(false);
   const [advanced, setAdvanced] = useState(false);
@@ -210,6 +213,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   uploadScope.current = `${auth.session}:${kind}:${currentKey}:${location.key}:${uploadEpoch.current}`;
   useEffect(() => {
     setUploading(false);
+    setUploadProgress(undefined);
     if (input.current) input.current.value = '';
   }, [auth.session, kind, currentKey, location.key]);
   const initializedModel = useRef<string | undefined>(undefined);
@@ -454,6 +458,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       `Черновик восстановлен.${restored.missing ? ' Недоступные файлы пропущены.' : ''} ${new Date().toLocaleTimeString()}`,
     );
     setUploading(false);
+    setUploadProgress(undefined);
   };
   const upload = async (files: FileList | File[] | null) => {
     if (!auth.user) {
@@ -463,6 +468,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     if (!files || !model || uploading) return;
     setError('');
     setUploading(true);
+    setUploadProgress(undefined);
     const scope = uploadScope.current;
     const sid = auth.session!;
     const isCurrent = () => mounted.current && scope === uploadScope.current && getSession() === sid;
@@ -476,7 +482,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
         throw new Error(`Для выбранной модели можно добавить до ${maxRefs} референсов.`);
       for (const file of picked) {
         if (!isCurrent()) return;
-        const saved = await api.upload(file, sid);
+        const saved = await api.upload(file, sid, undefined, (progress) => {
+          if (isCurrent()) setUploadProgress(progress);
+        });
         if (!isCurrent()) return;
         if (saved.userId !== auth.user.id || saved.type !== 'IMAGE')
           throw new Error('Сервер не вернул изображение вашего аккаунта.');
@@ -489,6 +497,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     } finally {
       if (isCurrent()) {
         setUploading(false);
+        setUploadProgress(undefined);
         if (input.current) input.current.value = '';
       }
     }
@@ -689,6 +698,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
             uploadEpoch.current++;
             uploadScope.current = '';
             setUploading(false);
+            setUploadProgress(undefined);
             if (input.current) input.current.value = '';
             navigate(`/${kind}`);
             setPrompt('');
@@ -806,10 +816,13 @@ export function Studio({ kind }: { kind: MediaKind }) {
               <button
                 className="upload-reference"
                 disabled={uploading || busy || (!!model && references.length >= maxRefs)}
+                aria-busy={uploading}
                 onClick={() => (auth.user ? input.current?.click() : setLogin(true))}
               >
-                <Upload size={17} />
-                {uploading ? 'Загружаем…' : 'Добавить референс'}
+                <UploadButtonContent busy={uploading} progress={uploadProgress}>
+                  <Upload size={17} />
+                  Добавить референс
+                </UploadButtonContent>
                 <span>{kind === 'video' ? 'Первый / последний кадр' : 'PNG, JPG, WebP'}</span>
               </button>
             )}

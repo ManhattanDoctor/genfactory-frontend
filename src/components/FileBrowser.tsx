@@ -1,3 +1,5 @@
+import { UploadButtonContent } from './UploadButtonContent';
+import type { IUploadProgress } from '../lib/api';
 import { FileTagFilter } from './FileTagFilter';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -69,6 +71,7 @@ export function FileBrowser({
   const [tags, setTags] = useState('');
   const [destination, setDestination] = useState<string | null>(null);
   const upload = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const files = useQuery({
     queryKey: [
       'files',
@@ -201,10 +204,13 @@ export function FileBrowser({
             type="button"
             className="button"
             disabled={busy || !!query || !!selectedTags.length}
+            aria-busy={!!uploadProgress}
             onClick={() => upload.current?.click()}
           >
-            <Upload size={16} />
-            Загрузить файл
+            <UploadButtonContent busy={!!uploadProgress} progress={uploadProgress}>
+              <Upload size={16} />
+              Загрузить файл
+            </UploadButtonContent>
           </button>
           <input
             hidden
@@ -215,7 +221,13 @@ export function FileBrowser({
               e.target.value = '';
               if (file)
                 void run(async () => {
-                  await api.upload(file, undefined, { directory });
+                  try {
+                    await api.upload(file, undefined, { directory }, (progress) => {
+                      if (alive.current) setUploadProgress(progress);
+                    });
+                  } finally {
+                    if (alive.current) setUploadProgress(undefined);
+                  }
                 }, 'Файл загружен');
             }}
           />

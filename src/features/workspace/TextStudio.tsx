@@ -1,3 +1,5 @@
+import { UploadButtonContent } from '../../components/UploadButtonContent';
+import type { IUploadProgress } from '../../lib/api';
 import { FileOutputEditor, useFileOutputSettings } from '../../components/FileOutputEditor';
 import { useDraft, DraftBar, restoreDraftFiles } from './drafts';
 import { UploadSurface } from '../../components/UploadSurface';
@@ -58,6 +60,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [picker, setPicker] = useState(false);
@@ -191,6 +194,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
     setUseBrand(!!value.useBrand);
     draft.changed();
     setUploading(false);
+    setUploadProgress(undefined);
     setNotice(
       restored.missing ? 'Черновик восстановлен. Недоступные файлы пропущены.' : 'Черновик восстановлен.',
     );
@@ -203,6 +207,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
     if (!selectedFiles || uploading || busy) return;
     const sid = auth.session;
     setUploading(true);
+    setUploadProgress(undefined);
     setError('');
     try {
       let count = files.length;
@@ -229,7 +234,9 @@ function TextEditor({ mode }: { mode: TextMode }) {
           throw new Error('Можно прикрепить до четырёх файлов. Для видео нужны три свободных места.');
         for (const image of images) {
           if (!isCurrent(sid)) return;
-          const saved = await api.upload(image, sid);
+          const saved = await api.upload(image, sid, undefined, (progress) => {
+            if (isCurrent(sid)) setUploadProgress(progress);
+          });
           if (!isCurrent(sid)) return;
           if (saved.userId !== auth.user.id || ((isImage || isVideo) && saved.type !== 'IMAGE'))
             throw new Error('Не удалось получить файл вашего аккаунта.');
@@ -249,6 +256,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
     } finally {
       if (isCurrent(sid)) {
         setUploading(false);
+        setUploadProgress(undefined);
         if (input.current) input.current.value = '';
       }
     }
@@ -463,9 +471,12 @@ function TextEditor({ mode }: { mode: TextMode }) {
               <button
                 className="button"
                 disabled={busy || uploading}
+                aria-busy={uploading}
                 onClick={() => (auth.user ? input.current?.click() : setLogin(true))}
               >
-                {uploading ? 'Загружаем…' : 'Добавить материал'}
+                <UploadButtonContent busy={uploading} progress={uploadProgress}>
+                  Добавить материал
+                </UploadButtonContent>
               </button>
               <button
                 className="button"

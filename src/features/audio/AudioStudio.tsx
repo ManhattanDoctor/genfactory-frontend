@@ -1,3 +1,5 @@
+import { UploadButtonContent } from '../../components/UploadButtonContent';
+import type { IUploadProgress } from '../../lib/api';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -45,6 +47,7 @@ function AudioEditor() {
   const [error, setError] = useState('');
   const [preparing, setPreparing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const [picker, setPicker] = useState(false);
   const [login, setLogin] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -144,9 +147,12 @@ function AudioEditor() {
     const sid = auth.session;
     setError('');
     setUploading(true);
+    setUploadProgress(undefined);
     try {
       if (!/^(audio|video)\//.test(source.type)) throw new Error('Выберите аудио или видео.');
-      const file = await api.upload(source, sid);
+      const file = await api.upload(source, sid, undefined, (progress) => {
+        if (current(sid)) setUploadProgress(progress);
+      });
       if (!current(sid)) return;
       if (file.userId !== auth.user.id || !['AUDIO', 'VIDEO'].includes(file.type))
         throw new Error('Не удалось получить аудио или видео вашего аккаунта.');
@@ -158,6 +164,7 @@ function AudioEditor() {
     } finally {
       if (current(sid)) {
         setUploading(false);
+        setUploadProgress(undefined);
         if (input.current) input.current.value = '';
       }
     }
@@ -336,6 +343,7 @@ function AudioEditor() {
                 }
               } finally {
                 if (current(sid)) setUploading(false);
+                setUploadProgress(undefined);
               }
             }}
           />
@@ -374,9 +382,12 @@ function AudioEditor() {
                 <button
                   className="button"
                   disabled={busy || uploading}
+                  aria-busy={uploading}
                   onClick={() => (auth.user ? input.current?.click() : setLogin(true))}
                 >
-                  {uploading ? 'Загружаем…' : 'Загрузить аудио или видео'}
+                  <UploadButtonContent busy={uploading} progress={uploadProgress}>
+                    Загрузить аудио или видео
+                  </UploadButtonContent>
                 </button>
                 <button
                   className="button"
