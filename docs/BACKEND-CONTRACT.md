@@ -81,3 +81,24 @@ Backend сохраняет сообщение и запускает беседу
 - Checkout и предварительная цена в используемом API отсутствуют. Отображается баланс gnosis без самостоятельного кошелька Genfactory.
 
 Предыдущая версия документа предлагала отдельный `/api/generation`. Это предложение снято как обязательное условие интеграции: существующие беседы и инструменты уже решают основную задачу. Возможные улучшения устойчивости следует делать внутри существующих механизмов после целевых проверок.
+
+### File result settings and tag search (local backend changes, migration 16271212600047)
+
+Conversation create/edit/read supports `fileOutput: { directory?: string | null, tags?: string[] }`. Missing settings keep legacy behavior; null directory means root and [] means no tags. Studios save edited settings before sending the next message. File uploads accept directory UID path and tags (JSON array or repeated multipart fields) in one request. These are not human-readable folder names.
+
+GET /api/fileTag?search=prefix&pageIndex=0&pageSize=20 returns `{ items: [{tag, count}], total, pages, pageIndex, pageSize }`, scoped to the current user. Tag matching via GET /api/file uses `conditions.tags = {type: "ARRAY", condition: "INCLUDES_ALL" | "INCLUDES_ONE_OF", value: ["tag"]}`. Count and result pagination cover all matching files, not just the visible page.
+
+File `origin` records kind (UPLOAD/GENERATION/PROCESSING), optional operationId and historical sourceFileIds; these are a provenance snapshot rather than foreign keys. Existing conversation/message attachment relations remain authoritative. `origin.directoryFallback` tells the viewer that a finished generated result had to be saved in root after its destination disappeared. The backend validates settings before execution and persists the snapshot in asynchronous video jobs.
+
+## Audio conversations
+
+`/audio?mode=tts|stt&conversation=<id>` uses the same conversation APIs and socket rooms as the visual studios. Discover tool providers from `/aimodel/<conversation-provider>` and model settings/validation from `/aimodels?provider=...`. Persist `TTS` or `STT` connections in conversation options and send the selected connection in message settings. Model/voice/format lists are not duplicated in the client.
+
+TTS attaches an audio file; STT receives the exact selected audio/video file ID and `isFile=true`, attaching a full TXT transcript with source provenance. Files inherit the conversation output directory/tags. The library and message viewer provide playback/download; an accepted request with a network failure must not be retried automatically. Local editor uploads are capped at 20 MiB; this is a UI constraint, not a claimed provider limit.
+
+### Authenticated file content (live audio verification follow-up)
+
+- `GET /api/file/:id/text` returns `{ text }` for UTF-8 TXT files (2 MiB maximum, enforced while streaming). Uses the existing file permission checks; rejects other formats, missing files, and oversized content.
+- `GET /api/file/:id/content` streams original bytes with a download filename and original MIME. Used by the viewer download button for images, audio, video and documents. Directories and unresolved links are rejected.
+- Both routes require authentication and send `Cache-Control: private, no-store`. Browser code no longer depends on storage CORS for reading TXT or downloading originals. No AI calls or balance charges for these endpoints.
+- Tool connections carry the model only in `settings.model`; `settings.options` must exclude `model`, even though model catalog validation requires `options.model` in a direct task request.

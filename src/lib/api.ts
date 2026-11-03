@@ -1,5 +1,6 @@
 import type {
   IGnosisFile,
+  IFileOutputSettings,
   IPreview,
   IPaymentTransaction,
   IInitResponse,
@@ -50,6 +51,7 @@ export async function request<T>(
   path: string,
   init: RequestInit = {},
   sid: string | null = getSession(),
+  responseType: 'json' | 'blob' = 'json',
 ): Promise<T> {
   const writing = !['GET', 'HEAD'].includes((init.method || 'GET').toUpperCase());
   if (writing) {
@@ -69,6 +71,7 @@ export async function request<T>(
       throw new ApiError(message, res.status, data.details);
     }
     if (res.status === 204) return undefined as T;
+    if (responseType === 'blob') return (await res.blob()) as T;
     const text = await res.text();
     return text ? (JSON.parse(text) as T) : (undefined as T);
   } finally {
@@ -121,6 +124,8 @@ export const api = {
     ),
   logout: (sid: string | null) =>
     request<void>('/logout', { method: 'POST', signal: AbortSignal.timeout(10_000) }, sid),
+  downloadFile: (id: number) => request<Blob>(`/file/${id}/content`, {}, getSession(), 'blob'),
+  fileText: (id: number, signal?: AbortSignal) => request<{ text: string }>(`/file/${id}/text`, { signal }),
   catalog: (provider: string, signal?: AbortSignal) =>
     request<IModelDescription[]>(`/aimodels?provider=${encodeURIComponent(provider)}`, { signal }),
   details: (provider: string, signal?: AbortSignal) =>
@@ -181,15 +186,82 @@ export const api = {
       { method: 'POST', body: JSON.stringify(body) },
       sid,
     ),
-  files: (page: number, type?: string) =>
-    request<IPagination<IGnosisFile>>(
-      `/file?${new URLSearchParams({ pageSize: '24', pageIndex: String(page), sort: JSON.stringify({ createdDate: false }), ...(type ? { conditions: JSON.stringify({ type }) } : {}) })}`,
+  editFileOutput: (id: number, fileOutput: IFileOutputSettings, sid: string) =>
+    request<IConversation>(
+      `/conversation/${id}`,
+      { method: 'PUT', body: JSON.stringify({ fileOutput }) },
+      sid,
     ),
+  directory: async (path: string) => {
+    const result = await request<IPagination<IGnosisFile>>(
+      `/file?${new URLSearchParams({ pageSize: '1', pageIndex: '0', conditions: JSON.stringify({ uid: path.split('/').at(-1), type: 'DIRECTORY' }) })}`,
+    );
+    if (!result.items[0]) throw new Error('Папка недоступна');
+    return result.items[0];
+  },
+  fileTags: (search: string, page: number) =>
+    request<IPagination<{ tag: string; count: number }>>(
+      `/fileTag?${new URLSearchParams({ search, pageIndex: String(page), pageSize: '20' })}`,
+    ),
+  browseFiles: (
+    page: number,
+    directory: string | null,
+    search = '',
+    foldersOnly = false,
+    type = '',
+    tags: string[] = [],
+    tagMatch: 'all' | 'any' = 'all',
+  ) => {
+    const conditions: Record<string, unknown> = {};
+    if (!search && !tags.length)
+      conditions.directory = directory || { condition: 'NULL', type: 'STRING', value: null };
+    if (search)
+      conditions.name = {
+        condition: 'CONTAINS',
+        type: 'STRING',
+        value: `%${search.replace(/[\\%_]/g, '\\$&')}%`,
+      };
+    if (tags.length)
+      conditions.tags = {
+        type: 'ARRAY',
+        condition: tagMatch === 'all' ? 'INCLUDES_ALL' : 'INCLUDES_ONE_OF',
+        value: tags,
+      };
+    if (foldersOnly) conditions.type = 'DIRECTORY';
+    else if (type === 'DOCUMENT')
+      conditions.mime = [
+        'text/plain',
+        'text/markdown',
+        'application/pdf',
+        'application/msword',
+        'application/json',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ];
+    else if (type)
+      conditions.mime = { condition: 'CONTAINS', type: 'STRING', value: `${type.toLowerCase()}/%` };
+
+    return request<IPagination<IGnosisFile>>(
+      `/file?${new URLSearchParams({ pageSize: '24', pageIndex: String(page), sort: JSON.stringify({ createdDate: false }), conditions: JSON.stringify(conditions) })}`,
+    );
+  },
+  createDirectory: (name: string, directory: string | null) =>
+    request<IGnosisFile>('/fileDirectory', { method: 'POST', body: JSON.stringify({ name, directory }) }),
+  createFileLink: (to: number, directory: string | null) =>
+    request<IGnosisFile>('/fileLink', {
+      method: 'POST',
+      body: JSON.stringify({ to, ...(directory ? { directory } : {}) }),
+    }),
+  editFile: (id: number, changes: { name?: string; tags?: string[]; directory?: string | null }) =>
+    request<IGnosisFile>(`/file/${id}`, { method: 'PUT', body: JSON.stringify(changes) }),
+  removeFile: (id: number) => request<void>(`/file/${id}`, { method: 'DELETE' }),
   file: (id: number, sid?: string) => request<IGnosisFile>(`/file/${id}`, {}, sid),
   createPreview: (id: number) => request<IPreview>(`/file/${id}/preview`, { method: 'POST' }),
-  upload: (file: File, sid?: string) => {
+  upload: (file: File, sid?: string, context?: IFileOutputSettings) => {
     const data = new FormData();
     data.append('file', file);
+    if (context?.directory) data.append('directory', context.directory);
+    if (context?.tags !== undefined) data.append('tags', JSON.stringify(context.tags));
     return request<IGnosisFile>('/file', { method: 'POST', body: data }, sid);
   },
 };

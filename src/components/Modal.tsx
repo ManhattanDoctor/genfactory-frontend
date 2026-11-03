@@ -5,11 +5,13 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  headerActions,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  headerActions?: ReactNode;
 }) {
   const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
@@ -29,9 +31,12 @@ export function Modal({
     >
       <div className="modal-head">
         <h2 id={titleId}>{title}</h2>
-        <button className="icon-button" onClick={onClose} aria-label="Закрыть">
-          <X size={20} />
-        </button>
+        <div className="modal-head-actions">
+          {headerActions}
+          <button className="icon-button" onClick={onClose} aria-label="Закрыть">
+            <X size={20} />
+          </button>
+        </div>
       </div>
       {children}
     </dialog>

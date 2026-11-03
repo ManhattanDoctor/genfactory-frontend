@@ -11,6 +11,10 @@ export function defaults(schema?: ISchema): Record<string, unknown> {
   return values;
 }
 export const fieldNames: Record<string, string> = {
+  voice: 'Голос',
+  speed: 'Скорость речи',
+  language: 'Язык (код, например ru)',
+  temperature: 'Вариативность',
   size: 'Размер',
   aspectRatio: 'Формат кадра',
   resolution: 'Разрешение',

@@ -1,3 +1,4 @@
+import { FileOutputEditor, useFileOutputSettings } from '../../components/FileOutputEditor';
 import { useDraft, DraftBar, restoreDraftFiles } from './drafts';
 import { UploadSurface } from '../../components/UploadSurface';
 import { ReferenceList } from '../../components/ReferenceList';
@@ -87,6 +88,10 @@ function TextEditor({ mode }: { mode: TextMode }) {
     },
   });
   const conversation = detail.data;
+  const fileOutput = useFileOutputSettings(
+    `${auth.user?.id}:${location.pathname}:${location.search}`,
+    conversation,
+  );
   const models = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user,
@@ -298,6 +303,11 @@ function TextEditor({ mode }: { mode: TextMode }) {
     };
     try {
       let active = conversation;
+      if (active && fileOutput.changed) {
+        active = await api.editFileOutput(active.id, fileOutput.value, sid);
+        if (!isCurrent(sid)) return;
+        client.setQueryData(['conversation', userId, active.id], active);
+      }
       if (!active) {
         setCreating(true);
         active = await api.createConversation(
@@ -306,6 +316,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
             model: model!.reference.provider,
             options: { model: model!.reference.model, tools: toolIds.map((uid) => ({ uid })) },
             tags: ['genfactory', mode],
+            ...(fileOutput.changed ? { fileOutput: fileOutput.value } : {}),
             history: 32,
             isConsiderHistory: true,
             system:
@@ -519,6 +530,9 @@ function TextEditor({ mode }: { mode: TextMode }) {
                 onChange={setToolIds}
                 disabled={busy || uploading || (!conversation && !model?.capabilities?.includes('TOOLS'))}
               />
+            )}
+            {auth.user && (
+              <FileOutputEditor value={fileOutput.value} onChange={fileOutput.onChange} disabled={busy} />
             )}
             {toolsChanged && (
               <button className="button" disabled={busy} onClick={() => void saveTools()}>

@@ -119,3 +119,15 @@ API сообщений не возвращает временные настро
 История получает `conversation.preview` из API. В AUTO сервер выбирает последний IMAGE/VIDEO в сообщениях ASSISTANT, в MANUAL — выбранный файл, в NONE — не возвращает обложку. История показывает готовую миниатюру или постер видео, а для старых файлов без превью — заглушку. `FilePreviewChangedEvent` обновляет обложки без перезагрузки страницы.
 
 Service worker регистрируется только в production по HTTPS, кроме localhost и loopback. Он отслеживает версию сборки и не перехватывает fetch: кешей API, авторизации, файлов или HTML нет. Проверка выполняется раз в минуту на видимой вкладке, при возвращении во вкладку и восстановлении сети. Новая версия ждёт нажатия «Обновить приложение». Текущие POST/PUT/DELETE и активные генерации блокируют обновление. Перед reload синхронно сохраняется черновик; при ошибке хранения перезагрузка отменяется. Другие открытые вкладки получают уведомление без автоматической перезагрузки. Первая установка SW не вызывает лишнего обновления страницы.
+
+### Shared file browser
+
+`FileBrowser` serves both Library and LibraryPicker with server pagination, owner-scoped files, UID-based directory paths, debounced global name search, MIME filters (including aliases), upload, folder creation, metadata editing, file/link moves and confirmed deletion. Links are resolved before passing a reference to a studio; missing/cyclic links produce an error. Mutations invalidate `files`; existing user-room file socket events refresh the same query family. Folder moves are intentionally unavailable until backend can move descendants atomically. Reference selection permits only the media types accepted by its studio. Account changes remount the browser to clear navigation and selection state.
+
+### Result organization
+
+Image/video and text studios expose result folder/tag settings. Defaults are saved with conversation creation or before the next message. Backend snapshots defaults before execution and passes them explicitly to tools and graph tools; durable video jobs retain their own copy. Explicit operation settings override defaults; null directory selects root and an empty tag array clears tags. Upload sends folder and tags in multipart directly. Ready previews have no status caption; the media viewer no longer offers comparison. File actions use a thumbnail-corner dropdown without changing card height.
+
+### File API and tags
+
+All public file endpoints and files embedded in conversation/message responses receive previews from the same FileService formatter. The tag filter uses GET /api/fileTag for own-tag suggestions/counts and existing file-list conditions for all/any matching. Tag filters apply across folders, are paginated server-side and ignore case. Clicking a card tag activates that filter. File socket events invalidate both file and tag queries.

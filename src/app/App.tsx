@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  AudioLines,
   Compass,
   Wallet,
   MessageSquare,
@@ -27,6 +28,9 @@ const Studio = lazy(() => import('../features/studio/Studio').then((m) => ({ def
 const TextStudio = lazy(() =>
   import('../features/workspace/TextStudio').then((m) => ({ default: m.TextStudio })),
 );
+const AudioStudio = lazy(() =>
+  import('../features/audio/AudioStudio').then((m) => ({ default: m.AudioStudio })),
+);
 const Templates = lazy(() =>
   import('../features/workspace/Templates').then((m) => ({ default: m.Templates })),
 );
@@ -45,6 +49,7 @@ const navigation = [
   { to: '/templates', label: 'Шаблоны', Icon: LayoutTemplate },
   { to: '/image', label: 'Изображения', Icon: ImagePlus },
   { to: '/video', label: 'Видео', Icon: Clapperboard },
+  { to: '/audio', label: 'Аудио', Icon: AudioLines },
   { to: '/library', label: 'Библиотека', Icon: FolderOpen },
   { to: '/history', label: 'История', Icon: History },
   { to: '/account', label: 'Баланс', Icon: Wallet },
@@ -203,6 +208,7 @@ export function App() {
             <Route path="/brand" element={<Brand />} />
             <Route path="/image" element={<Studio kind="image" />} />
             <Route path="/video" element={<Studio kind="video" />} />
+            <Route path="/audio" element={<AudioStudio />} />
             <Route path="/library" element={<Library />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/account" element={<Account />} />

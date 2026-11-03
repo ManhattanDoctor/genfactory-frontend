@@ -40,7 +40,20 @@ export interface IPreview {
   image?: IPreviewMedia;
   video?: IPreviewMedia;
 }
+export interface IFileOutputSettings {
+  directory?: string | null;
+  tags?: string[];
+}
 export interface IGnosisFile {
+  origin?: {
+    kind: 'UPLOAD' | 'GENERATION' | 'PROCESSING';
+    operationId?: string;
+    sourceFileIds?: number[];
+    directoryFallback?: boolean;
+  };
+  directory?: string | null;
+  linkTo?: number;
+  size?: number;
   preview?: IPreview;
   id: number;
   uid: string;
@@ -67,7 +80,7 @@ export interface IPagination<T> {
 // Used only to validate model inputs against the catalog, never submitted to /task.
 export interface ITaskRequest {
   model: string;
-  task: { session: string; prompt: string; fileIds?: number[] };
+  task: { session?: string; prompt?: string; fileIds?: number[]; text?: string; file?: number };
   options: Record<string, unknown>;
 }
 export interface IToolConnection {
@@ -81,6 +94,7 @@ export interface IToolDescription {
   providers?: string[];
 }
 export interface IConversation {
+  fileOutput?: IFileOutputSettings;
   preview?: IPreview;
   id: number;
   userId: number;
@@ -102,6 +116,7 @@ export interface IConversationMessage {
   createdDate: string;
 }
 export interface IConversationCreate {
+  fileOutput?: IFileOutputSettings;
   name: string;
   model: string;
   options: IConversation['options'];

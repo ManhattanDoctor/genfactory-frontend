@@ -53,3 +53,38 @@ Frontend показывает выбранные референсы до отп�
 В дальнейшем стоит передавать намерение отдельным структурированным полем запуска (`references` / `fromScratch` / `conversationContext`), а не только текстом сообщения. Backend должен проверять фактические аргументы IMAGE/VIDEO: выбранные исходники не должны исчезать из вызова инструмента. Нужны сохранение выбранного режима и исходников вместе с запуском и чтение фактически использованных файлов. Сейчас frontend гарантирует состав отправленного сообщения, но не может принудительно обеспечить поведение LLM внутри инструментального вызова.
 
 02.11.2026: локальная диагностика теперь включена по умолчанию в development (`LOGGER_LEVEL=ALL`, tool diagnostics), чувствительные значения редактируются в логах. Разрешённый повтор беседы 52 успешно создал файл 108 с референсом 90, стоимость 8,1585 ₽. Причина первоначальной ошибки не установлена: исходный диагностический лог отсутствует. Постоянная серверная история вызовов инструментов остаётся отдельной задачей.
+
+## File browser (2026-11-02)
+
+The React library and attachment picker share `FileBrowser`, backed by existing file APIs. No backend changes in this iteration.
+
+- Add an atomic directory move operation: existing `FileService.edit` updates only the directory row, leaving descendant paths unchanged. Until available, frontend moves only files/links. Validate parent ownership, prevent cycles, update descendant paths transactionally and notify affected clients.
+- Implemented locally: `FileEditController` returns fresh metadata; edits validate destination ownership and normalize tags.
+- Implemented locally: multipart upload accepts directory and tags in one request; shared file creation applies and validates these settings.
+- Expand list API with effective media type for links and folder-aware search/breadcrumb metadata; frontend currently filters media by MIME, resolves the target on selection, and searches by name across all folders.
+
+### File output context implemented locally
+
+Conversation `fileOutput` stores default directory and tags. Shared `IFileAddContext` carries a snapshot through tools/graphs and persists in video jobs. Existing conversation/message file relations are reused. File `origin` contains creation kind, operation ID and historical source IDs (kept when inputs are deleted; not foreign keys). No semantic AI tagging or extra model requests.
+
+Completed generated results fall back to root when the destination disappeared, marked by origin.directoryFallback and explained in the viewer. Source IDs remain historical when inputs disappear after execution started. New requests with inaccessible destinations still fail before execution. Reliable parent conversation recovery after process restart remains separate from durable video result storage. Directory-wide move remains deferred.
+
+### Unified file responses and tag search — implemented locally
+
+- FileService enriches file responses with previews for upload, buffer upload, link creation, read, edit and list; conversation/message attachments use the same batch path. Metadata edit returns fresh data.
+- GET /api/fileTag provides paginated, case-insensitive own-tag suggestions with distinct file counts and literal prefix search. Even administrators receive only their own tags.
+- Existing file-list INCLUDES_ALL / INCLUDES_ONE_OF tag filters normalize whitespace/case without a data rewrite; new frontend supports both modes and clickable card tags. Filters search across folders and server pages.
+- No separate tag entity/table yet; tags remain user-managed file metadata. Automatic semantic tagging is not enabled.
+
+### Audio editor — implemented locally (2026-11-03)
+
+TTS and STT use existing conversations, per-tool model settings and the server model catalog. STT now accepts video directly through MediaSplitCommand; FFmpeg checks for an audio track before recognition. Supported persisted TTS encodings are shared by the schema and tool. No new tables or audio-generation endpoints. Live verification subsequently added authenticated file text/content reads to avoid storage CORS; see BACKEND-CONTRACT.md.
+
+Remaining backend work:
+
+- Structured transcription result with segments, timestamps and optional speakers, then SRT/VTT export. Current provider tasks return plain text.
+- A deterministic execution API for a selected tool within a conversation, avoiding an extra assistant interpretation step for exact TTS/STT operations. The editor currently uses the established conversation mechanism.
+- Durable recovery for interrupted non-video tasks and explicit tool outcome in history; do not infer success solely from conversation LOADED.
+- Reliable preflight cost estimate including assistant overhead. UI currently links to actual balance history and does not invent an estimate.
+- Per-model voice catalogs and verified encoding capabilities for providers whose schema currently exposes a free-form voice string. Do not maintain provider voice lists in the frontend.
+- Dubbing/mixing with video and subtitle timing are separate media operations; they are not implemented in this iteration.

@@ -1,3 +1,5 @@
+import { ModelField as Field } from '../catalog/ModelField';
+import { FileOutputEditor, useFileOutputSettings } from '../../components/FileOutputEditor';
 import { ReferenceChoice } from './ReferenceChoice';
 import { saveRecipe } from './variants';
 import { useDraft, DraftBar, restoreDraftFiles } from '../workspace/drafts';
@@ -18,11 +20,10 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { api, getSession } from '../../lib/api';
-import type { IGnosisFile, MediaKind, IModelDescription, ISchema, ITaskRequest } from '../../lib/types';
+import type { IGnosisFile, MediaKind, IModelDescription, ITaskRequest } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import {
   defaults,
-  fieldNames,
   optionFields,
   referenceLimit,
   referenceMinimum,
@@ -56,65 +57,6 @@ const suggestions = {
     'Плавное приближение к предмету, мягкий студийный свет',
   ],
 };
-function Field({
-  name,
-  schema,
-  value,
-  onChange,
-}: {
-  name: string;
-  schema: ISchema;
-  value: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const label = fieldNames[name] || name;
-  if (schema.type === 'boolean')
-    return (
-      <label className="toggle-field">
-        <span>{label}</span>
-        <input type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />
-        <span className="toggle-track" />
-      </label>
-    );
-  return (
-    <label className="setting-field">
-      <span>{label}</span>
-      {schema.enum ? (
-        <SelectControl
-          aria-label={label}
-          value={value === undefined ? '' : JSON.stringify(value)}
-          onChange={(e) => onChange(e.target.value === '' ? undefined : JSON.parse(e.target.value))}
-        >
-          <option value="">По умолчанию</option>
-          {schema.enum.map((item) => (
-            <option key={JSON.stringify(item)} value={JSON.stringify(item)}>
-              {String(item)}
-            </option>
-          ))}
-        </SelectControl>
-      ) : (
-        <input
-          value={value === undefined ? '' : String(value)}
-          type={['number', 'integer'].includes(schema.type || '') ? 'number' : 'text'}
-          min={schema.minimum}
-          max={schema.maximum}
-          step={schema.type === 'integer' ? 1 : 'any'}
-          maxLength={schema.maxLength}
-          placeholder="По умолчанию"
-          onChange={(e) =>
-            onChange(
-              e.target.value === ''
-                ? undefined
-                : ['number', 'integer'].includes(schema.type || '')
-                  ? Number(e.target.value)
-                  : e.target.value,
-            )
-          }
-        />
-      )}
-    </label>
-  );
-}
 export function Studio({ kind }: { kind: MediaKind }) {
   const auth = useAuth();
   const prefs = usePreferences();
@@ -160,6 +102,10 @@ export function Studio({ kind }: { kind: MediaKind }) {
     retry: false,
   });
   const conversation = conversationQuery.data;
+  const fileOutput = useFileOutputSettings(
+    `${auth.user?.id}:${location.pathname}:${location.search}`,
+    conversation,
+  );
   const agents = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user && !conversationId,
@@ -224,6 +170,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   const previousUser = useRef(auth.user?.id);
   const previousKind = useRef(kind);
   const uploadScope = useRef('');
+  const uploadEpoch = useRef(0);
   const repeatRequest = useRef<ITaskRequest | null>(null);
   const busy = creating || pendingSends > 0 || conversation?.status === 'LOADING';
   useEffect(() => {
@@ -260,7 +207,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   const modelKey = (m: IModelDescription) => `${m.reference.provider}:${m.reference.model}`;
   const model = models.find((m) => modelKey(m) === selected) || models[0];
   const currentKey = model ? modelKey(model) : '';
-  uploadScope.current = `${auth.session}:${kind}:${currentKey}:${location.key}`;
+  uploadScope.current = `${auth.session}:${kind}:${currentKey}:${location.key}:${uploadEpoch.current}`;
   useEffect(() => {
     setUploading(false);
     if (input.current) input.current.value = '';
@@ -615,6 +562,10 @@ export function Studio({ kind }: { kind: MediaKind }) {
         const latest = await api.conversation(conversation.id, undefined, sid);
         if (latest.userId !== userId || latest.status === 'LOADING')
           throw new Error('Беседа недоступна или уже выполняет запрос.');
+        if (fileOutput.changed) {
+          const updated = await api.editFileOutput(latest.id, fileOutput.value, sid);
+          client.setQueryData(['conversation', userId, latest.id], updated);
+        }
         const system = migratedReferenceSystem(latest);
         if (system !== undefined) {
           const updated = await api.editConversation(latest, { system }, sid);
@@ -631,7 +582,13 @@ export function Studio({ kind }: { kind: MediaKind }) {
       let id = conversationId;
       if (!id) {
         setCreating(true);
-        const created = await api.createConversation(createConversationBody(prompt, kind, agent!, tool), sid);
+        const created = await api.createConversation(
+          {
+            ...createConversationBody(prompt, kind, agent!, tool),
+            ...(fileOutput.changed ? { fileOutput: fileOutput.value } : {}),
+          },
+          sid,
+        );
         void client.invalidateQueries({ queryKey: ['conversations', userId] });
         if (
           !mounted.current ||
@@ -729,6 +686,10 @@ export function Studio({ kind }: { kind: MediaKind }) {
           className="button"
           disabled={creating}
           onClick={() => {
+            uploadEpoch.current++;
+            uploadScope.current = '';
+            setUploading(false);
+            if (input.current) input.current.value = '';
             navigate(`/${kind}`);
             setPrompt('');
             setReferences([]);
@@ -973,6 +934,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
                   </div>
                 )}
               </>
+            )}
+            {auth.user && (
+              <FileOutputEditor value={fileOutput.value} onChange={fileOutput.onChange} disabled={busy} />
             )}
             <details className="workspace-details">
               <summary>Съёмка и стиль</summary>

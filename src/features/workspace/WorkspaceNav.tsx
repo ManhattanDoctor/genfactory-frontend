@@ -18,6 +18,7 @@ export function WorkspaceNav({
           ['script', 'Сценарий'],
           ['image', 'Изображение'],
           ['video', 'Видео'],
+          ['audio', 'Аудио'],
         ] as const
       ).map(([mode, label]) => (
         <NavLink

@@ -214,8 +214,18 @@ export function History() {
                   </button>
                 </div>
                 <footer>
+                  {c.options.tools?.some((t) =>
+                    ['TTS', 'STT'].includes(typeof t === 'string' ? t : t.uid),
+                  ) && (
+                    <Link
+                      className="button"
+                      to={`/audio?mode=${c.tags?.includes('stt') ? 'stt' : 'tts'}&conversation=${c.id}`}
+                    >
+                      Открыть аудио
+                    </Link>
+                  )}
                   {!connection(c, 'image') && !connection(c, 'video') && (
-                    <Link className="button" to={`/image?conversation=${c.id}`}>
+                    <Link className="button" to={`/chat?conversation=${c.id}`}>
                       Открыть беседу
                     </Link>
                   )}

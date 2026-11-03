@@ -5,6 +5,10 @@ import { api, getSession } from '../lib/api';
 import type { IConversation } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { Modal } from './Modal';
+const workUrl = (c: IConversation) =>
+  c.tags?.includes('audio')
+    ? `/audio?mode=${c.tags.includes('stt') ? 'stt' : 'tts'}&conversation=${c.id}`
+    : `/chat?conversation=${c.id}`;
 export function ActiveJobs() {
   const auth = useAuth();
   return auth.user ? (
@@ -65,7 +69,7 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
             {notices[0].status === 'ERROR' ? 'Работа завершилась с ошибкой' : 'Работа завершена'}:{' '}
             {notices[0].name}
           </span>
-          <Link to={`/chat?conversation=${notices[0].id}`} onClick={() => setNotices((n) => n.slice(1))}>
+          <Link to={workUrl(notices[0])} onClick={() => setNotices((n) => n.slice(1))}>
             Открыть
           </Link>
           <button
@@ -97,7 +101,7 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
               <ul className="jobs-list">
                 {running.map((c) => (
                   <li key={c.id}>
-                    <Link to={`/chat?conversation=${c.id}`} onClick={() => setOpen(false)}>
+                    <Link to={workUrl(c)} onClick={() => setOpen(false)}>
                       {c.name}
                     </Link>
                     <span className="small muted">Выполняется</span>

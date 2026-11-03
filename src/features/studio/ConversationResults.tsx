@@ -113,6 +113,16 @@ export function ConversationResults({
               >
                 Копировать текст
               </button>
+              {message.role === 'ASSISTANT' && (
+                <button
+                  className="text-button"
+                  onClick={() =>
+                    navigate('/audio', { state: { prompt: message.text, userId: conversation.userId } })
+                  }
+                >
+                  Озвучить
+                </button>
+              )}
               {onUseText && (
                 <>
                   {(['image', 'video'] as const).map((kind) => (
