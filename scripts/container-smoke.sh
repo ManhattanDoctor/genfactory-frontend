@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "Container smoke failed at line $LINENO" >&2' ERR
 image=${1:-genfactory-check}
 network="genfactory-smoke-$$"
 upstream="$network-api"
@@ -14,6 +15,7 @@ trap cleanup EXIT
 cat > "$fixture_dir/default.conf" <<'NGINX'
 server {
     listen 8080;
+    client_max_body_size 1g;
     location = /api/check { default_type application/json; return 200 '{"ok":true}'; }
     location /api/ { return 418; }
     location /socket.io/ { return 200 "$http_upgrade"; }
