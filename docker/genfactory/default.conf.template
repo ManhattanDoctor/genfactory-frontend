@@ -12,7 +12,7 @@ server {
     server_tokens off;
     access_log /dev/stdout privacy;
     error_log /dev/stderr crit;
-    client_max_body_size 25m;
+    client_max_body_size 1g;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy no-referrer always;
 

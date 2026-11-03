@@ -94,7 +94,7 @@ File `origin` records kind (UPLOAD/GENERATION/PROCESSING), optional operationId 
 
 `/audio?mode=tts|stt&conversation=<id>` uses the same conversation APIs and socket rooms as the visual studios. Discover tool providers from `/aimodel/<conversation-provider>` and model settings/validation from `/aimodels?provider=...`. Persist `TTS` or `STT` connections in conversation options and send the selected connection in message settings. Model/voice/format lists are not duplicated in the client.
 
-TTS attaches an audio file; STT receives the exact selected audio/video file ID and `isFile=true`, attaching a full TXT transcript with source provenance. Files inherit the conversation output directory/tags. The library and message viewer provide playback/download; an accepted request with a network failure must not be retried automatically. Local editor uploads are capped at 20 MiB; this is a UI constraint, not a claimed provider limit.
+TTS attaches an audio file; STT receives the exact selected audio/video file ID and `isFile=true`, attaching a full TXT transcript with source provenance. Files inherit the conversation output directory/tags. The library and message viewer provide playback/download; an accepted request with a network failure must not be retried automatically. Audio editor and library uploads accept files up to 1 GB (1,000,000,000 bytes); the frontend and public nginx proxies match the existing API limit of 1 GiB per request, leaving room for multipart headers. This upload limit is separate from model capabilities; STT splits long recordings on the backend.
 
 ### Authenticated file content (live audio verification follow-up)
 

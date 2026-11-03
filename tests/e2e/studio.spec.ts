@@ -2527,3 +2527,48 @@ test('file tags stay inside cards and filters while audio and documents have con
     await page.screenshot({ path: `test-results/file-tags-placeholders-${width}.png`, fullPage: true });
   }
 });
+
+test('audio accepts recordings larger than the former upload limits and explains server size rejection', async ({
+  page,
+}) => {
+  const state = await mockAudio(page);
+  let uploads = 0;
+  let reject = false;
+  await page.route('**/api/file', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    uploads++;
+    if (reject)
+      return route.fulfill({
+        status: 413,
+        contentType: 'text/html',
+        body: '<h1>413 Request Entity Too Large</h1>',
+      });
+    return route.fulfill({
+      json: {
+        ...file,
+        name: 'large-recording.wav',
+        type: 'AUDIO',
+        mime: 'audio/wav',
+        size: 32 * 1024 * 1024,
+      },
+    });
+  });
+  await page.goto('/audio?mode=stt');
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'large-recording.wav',
+    mimeType: 'audio/wav',
+    buffer: Buffer.alloc(32 * 1024 * 1024),
+  });
+  await expect(page.getByRole('button', { name: 'Расшифровать файл', exact: true })).toBeEnabled({
+    timeout: 20_000,
+  });
+  expect(uploads).toBe(1);
+  expect(state.sends).toHaveLength(0);
+  reject = true;
+  await page
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'another.wav', mimeType: 'audio/wav', buffer: Buffer.from('fixture') });
+  await expect(page.getByRole('alert')).toContainText('Сервер отклонил загрузку из-за размера файла');
+  expect(uploads).toBe(2);
+  expect(state.sends).toHaveLength(0);
+});

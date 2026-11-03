@@ -13,6 +13,8 @@ import type {
   IConversationProgress,
   IToolDescription,
 } from './types';
+// Leave room for multipart headers under the existing nginx 1 GiB request limit.
+export const MAX_UPLOAD_BYTES = 1_000_000_000;
 export const SESSION_KEY = 'genfactory.session';
 const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
 export class ApiError extends Error {
@@ -257,12 +259,19 @@ export const api = {
   removeFile: (id: number) => request<void>(`/file/${id}`, { method: 'DELETE' }),
   file: (id: number, sid?: string) => request<IGnosisFile>(`/file/${id}`, {}, sid),
   createPreview: (id: number) => request<IPreview>(`/file/${id}/preview`, { method: 'POST' }),
-  upload: (file: File, sid?: string, context?: IFileOutputSettings) => {
+  upload: async (file: File, sid?: string, context?: IFileOutputSettings) => {
+    if (file.size > MAX_UPLOAD_BYTES) throw new Error('Максимальный размер загружаемого файла — 1 ГБ.');
     const data = new FormData();
     data.append('file', file);
     if (context?.directory) data.append('directory', context.directory);
     if (context?.tags !== undefined) data.append('tags', JSON.stringify(context.tags));
-    return request<IGnosisFile>('/file', { method: 'POST', body: data }, sid);
+    try {
+      return await request<IGnosisFile>('/file', { method: 'POST', body: data }, sid);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 413)
+        throw new ApiError('Сервер отклонил загрузку из-за размера файла. Максимальный размер — 1 ГБ.', 413);
+      throw error;
+    }
   },
 };
 export function safeMediaUrl(value?: string): string | undefined {

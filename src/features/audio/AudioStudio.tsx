@@ -146,7 +146,6 @@ function AudioEditor() {
     setUploading(true);
     try {
       if (!/^(audio|video)\//.test(source.type)) throw new Error('Выберите аудио или видео.');
-      if (source.size > 20 * 1024 * 1024) throw new Error('В редакторе поддерживаются загрузки до 20 МБ.');
       const file = await api.upload(source, sid);
       if (!current(sid)) return;
       if (file.userId !== auth.user.id || !['AUDIO', 'VIDEO'].includes(file.type))
@@ -395,7 +394,7 @@ function AudioEditor() {
                 onChange={(e) => void upload(e.target.files?.[0])}
               />
               <p className="small muted">
-                Загрузка до 20 МБ. Из видео извлекается звук. Полная расшифровка сохраняется в TXT.
+                Загрузка до 1 ГБ. Из видео извлекается звук. Полная расшифровка сохраняется в TXT.
               </p>
             </>
           )}

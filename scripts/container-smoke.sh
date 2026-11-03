@@ -48,6 +48,9 @@ grep -qi '<!doctype html>' "$fixture_dir/index.html"
 curl -fsSI "$base/auth/callback?code=smoke-secret-marker" | grep -qi 'cache-control: no-cache'
 [[ $(curl -fsS "$base/api/check") == '{"ok":true}' ]]
 [[ $(curl -s -o /dev/null -w '%{http_code}' "$base/api/missing") == 418 ]]
+# The frontend proxy must accept recordings above the old 25 MiB limit.
+truncate -s 32M "$fixture_dir/recording.bin"
+[[ $(curl -sS -o /dev/null -w '%{http_code}' -H 'Expect:' --data-binary @"$fixture_dir/recording.bin" "$base/api/upload") == 418 ]]
 [[ $(curl -s -o /dev/null -w '%{http_code}' "$base/assets/missing.js") == 404 ]]
 [[ $(curl -fsS -H 'Upgrade: websocket' "$base/socket.io/?transport=websocket") == websocket ]]
 asset=$(sed -n 's/.*src="\(\/assets\/[^\"]*\.js\)".*/\1/p' "$fixture_dir/index.html" | head -1)
