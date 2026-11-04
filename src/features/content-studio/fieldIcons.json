@@ -1,0 +1,59 @@
+{
+  "format": {
+    "Не задано": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"18\" y=\"12\" width=\"44\" height=\"24\" rx=\"4\" fill=\"#2a2b30\"></rect></svg>",
+    "UGC, съёмка на телефон": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"30\" y=\"6\" width=\"20\" height=\"36\" rx=\"4\" fill=\"#2a2b30\"></rect><circle cx=\"40\" cy=\"14\" r=\"3\" fill=\"#f4f4f5\"></circle></svg>",
+    "Премиум, студийный свет": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect width=\"80\" height=\"48\" fill=\"#2a2b30\"></rect><ellipse cx=\"22\" cy=\"16\" rx=\"10\" ry=\"6\" fill=\"#f4f4f5\"></ellipse><ellipse cx=\"40\" cy=\"12\" rx=\"10\" ry=\"6\" fill=\"#f4f4f5\"></ellipse><ellipse cx=\"58\" cy=\"16\" rx=\"10\" ry=\"6\" fill=\"#f4f4f5\"></ellipse></svg>",
+    "Минимализм, чистый фон": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"12\" y=\"10\" width=\"56\" height=\"28\" rx=\"2\" fill=\"#f4f4f5\"></rect></svg>",
+    "Динамичный, быстрый ритм": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M14 34 34 14l12 10 20-18\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"2\"></path></svg>"
+  },
+  "idea": {
+    "Не задано": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><circle cx=\"40\" cy=\"24\" r=\"8\" fill=\"#2a2b30\"></circle></svg>",
+    "Начать с проблемы": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M40 10v20M40 36v2\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"3\" stroke-linecap=\"round\"></path></svg>",
+    "Начать с вопроса": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><circle cx=\"40\" cy=\"22\" r=\"10\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"2\"></circle><circle cx=\"40\" cy=\"36\" r=\"2\" fill=\"#f4f4f5\"></circle></svg>",
+    "Сразу показать товар": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"24\" y=\"12\" width=\"32\" height=\"24\" rx=\"3\" fill=\"#f4f4f5\"></rect></svg>",
+    "Резкий старт": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M20 36 52 12l-4 14 12-2Z\" fill=\"#f4f4f5\"></path></svg>"
+  },
+  "place": {
+    "Не задано": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"20\" y=\"14\" width=\"40\" height=\"20\" rx=\"3\" fill=\"#2a2b30\"></rect></svg>",
+    "Дома": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M12 28 40 10l28 18v14H12Z\" fill=\"#2a2b30\"></path><rect x=\"34\" y=\"28\" width=\"12\" height=\"14\" fill=\"#f4f4f5\"></rect></svg>",
+    "На улице": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"8\" y=\"28\" width=\"64\" height=\"8\" fill=\"#2a2b30\"></rect><rect x=\"18\" y=\"12\" width=\"14\" height=\"16\" fill=\"#6d6e73\"></rect><rect x=\"48\" y=\"8\" width=\"16\" height=\"20\" fill=\"#6d6e73\"></rect></svg>",
+    "В студии": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"10\" y=\"10\" width=\"60\" height=\"28\" rx=\"2\" fill=\"#2a2b30\"></rect><circle cx=\"40\" cy=\"24\" r=\"6\" fill=\"#f4f4f5\"></circle></svg>",
+    "В кафе": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><ellipse cx=\"40\" cy=\"30\" rx=\"22\" ry=\"6\" fill=\"#2a2b30\"></ellipse><rect x=\"28\" y=\"14\" width=\"24\" height=\"16\" rx=\"2\" fill=\"#f4f4f5\"></rect></svg>",
+    "На природе": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M8 36 28 14l16 14 12-10 16 18Z\" fill=\"#2a2b30\"></path><circle cx=\"58\" cy=\"12\" r=\"6\" fill=\"#f4f4f5\"></circle></svg>"
+  },
+  "camera": {
+    "Авто": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"18\" y=\"14\" width=\"44\" height=\"22\" rx=\"4\" fill=\"#2a2b30\"></rect><circle cx=\"40\" cy=\"25\" r=\"7\" fill=\"#f4f4f5\"></circle></svg>",
+    "Статичная": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"30\" y=\"8\" width=\"20\" height=\"14\" rx=\"3\" fill=\"#2a2b30\"></rect><path d=\"M40 22v14M28 36h24\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"2\"></path></svg>",
+    "С телефона": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"30\" y=\"6\" width=\"20\" height=\"36\" rx=\"4\" fill=\"#2a2b30\"></rect><circle cx=\"40\" cy=\"14\" r=\"3\" fill=\"#f4f4f5\"></circle></svg>",
+    "С рук": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M12 30l10-8 8 6 10-12 8 8 12-10\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"2\"></path></svg>",
+    "Низкий угол": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M12 38 40 10l28 28Z\" fill=\"#2a2b30\"></path></svg>",
+    "Сверху": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"16\" y=\"8\" width=\"48\" height=\"32\" rx=\"4\" fill=\"#2a2b30\"></rect><rect x=\"28\" y=\"16\" width=\"24\" height=\"16\" rx=\"2\" fill=\"#f4f4f5\"></rect></svg>"
+  },
+  "move": {
+    "Нет": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><circle cx=\"40\" cy=\"24\" r=\"6\" fill=\"#f4f4f5\"></circle></svg>",
+    "Наезд": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M16 24h20M28 16l8 8-8 8M44 24h20M56 16l8 8-8 8\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"2\"></path></svg>",
+    "Отъезд": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M28 24H12M20 16l-8 8 8 8M52 24h16M60 16l8 8-8 8\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"2\"></path></svg>",
+    "Объезд": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><path d=\"M18 32a18 18 0 1 1 22-20\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"2\"></path><path d=\"M40 10l6 4-8 2Z\" fill=\"#f4f4f5\"></path></svg>",
+    "Слежение": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><circle cx=\"22\" cy=\"24\" r=\"5\" fill=\"#f4f4f5\"></circle><path d=\"M34 24h28M52 16l10 8-10 8\" fill=\"none\" stroke=\"#f4f4f5\" stroke-width=\"2\"></path></svg>"
+  },
+  "lens": {
+    "Авто": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"8\" y=\"10\" width=\"64\" height=\"28\" rx=\"4\" fill=\"#1c1e20\"></rect><circle cx=\"40\" cy=\"24\" r=\"8\" fill=\"#f4f4f5\"></circle></svg>",
+    "24 мм": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"4\" y=\"14\" width=\"72\" height=\"20\" rx=\"3\" fill=\"#2a2b30\"></rect><circle cx=\"40\" cy=\"24\" r=\"3\" fill=\"#f4f4f5\"></circle></svg>",
+    "35 мм": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"10\" y=\"12\" width=\"60\" height=\"24\" rx=\"3\" fill=\"#2a2b30\"></rect><circle cx=\"40\" cy=\"24\" r=\"5\" fill=\"#f4f4f5\"></circle></svg>",
+    "50 мм": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"18\" y=\"8\" width=\"44\" height=\"32\" rx=\"3\" fill=\"#2a2b30\"></rect><circle cx=\"40\" cy=\"24\" r=\"8\" fill=\"#f4f4f5\"></circle></svg>",
+    "85 мм": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"24\" y=\"6\" width=\"32\" height=\"36\" rx=\"16\" fill=\"#f4f4f5\"></rect><rect x=\"4\" y=\"6\" width=\"16\" height=\"36\" fill=\"#121314\" opacity=\".72\"></rect><rect x=\"60\" y=\"6\" width=\"16\" height=\"36\" fill=\"#121314\" opacity=\".72\"></rect></svg>",
+    "Макро": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><circle cx=\"40\" cy=\"24\" r=\"16\" fill=\"#f4f4f5\"></circle><circle cx=\"40\" cy=\"24\" r=\"6\" fill=\"#17180a\"></circle></svg>"
+  },
+  "light": {
+    "Авто": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect width=\"80\" height=\"48\" fill=\"#1c1e20\"></rect><circle cx=\"40\" cy=\"24\" r=\"10\" fill=\"#f4f4f5\"></circle></svg>",
+    "Дневной": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect width=\"80\" height=\"48\" fill=\"#6aa7e8\"></rect><circle cx=\"58\" cy=\"14\" r=\"8\" fill=\"#f4f4f5\"></circle></svg>",
+    "Студия": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect width=\"80\" height=\"48\" fill=\"#2a2b30\"></rect><ellipse cx=\"22\" cy=\"16\" rx=\"10\" ry=\"6\" fill=\"#f4f4f5\"></ellipse><ellipse cx=\"40\" cy=\"12\" rx=\"10\" ry=\"6\" fill=\"#f4f4f5\"></ellipse><ellipse cx=\"58\" cy=\"16\" rx=\"10\" ry=\"6\" fill=\"#f4f4f5\"></ellipse></svg>",
+    "Золотой час": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect width=\"80\" height=\"48\" fill=\"#c47a2a\"></rect><rect y=\"30\" width=\"80\" height=\"18\" fill=\"#8a4b16\"></rect></svg>",
+    "Ночь": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect width=\"80\" height=\"48\" fill=\"#141820\"></rect><circle cx=\"54\" cy=\"16\" r=\"7\" fill=\"#f4f4f5\"></circle></svg>"
+  },
+  "quality": {
+    "480p": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"8\" y=\"8\" width=\"28\" height=\"32\" fill=\"#3a3b42\"></rect><rect x=\"44\" y=\"8\" width=\"28\" height=\"32\" fill=\"#3a3b42\"></rect></svg>",
+    "720p": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"6\" y=\"8\" width=\"20\" height=\"14\" fill=\"#6d6e73\"></rect><rect x=\"30\" y=\"8\" width=\"20\" height=\"14\" fill=\"#6d6e73\"></rect><rect x=\"54\" y=\"8\" width=\"20\" height=\"14\" fill=\"#6d6e73\"></rect><rect x=\"6\" y=\"26\" width=\"20\" height=\"14\" fill=\"#6d6e73\"></rect><rect x=\"30\" y=\"26\" width=\"20\" height=\"14\" fill=\"#6d6e73\"></rect><rect x=\"54\" y=\"26\" width=\"20\" height=\"14\" fill=\"#6d6e73\"></rect></svg>",
+    "1080p": "<svg viewBox=\"0 0 80 48\" aria-hidden=\"true\"><rect x=\"6\" y=\"6\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"20\" y=\"6\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"34\" y=\"6\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"48\" y=\"6\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"62\" y=\"6\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"6\" y=\"20\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"20\" y=\"20\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"34\" y=\"20\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"48\" y=\"20\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"62\" y=\"20\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"6\" y=\"34\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"20\" y=\"34\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"34\" y=\"34\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"48\" y=\"34\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect><rect x=\"62\" y=\"34\" width=\"10\" height=\"8\" fill=\"#f4f4f5\"></rect></svg>"
+  }
+}

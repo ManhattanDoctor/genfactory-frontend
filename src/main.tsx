@@ -9,6 +9,7 @@ import { AuthProvider } from './features/auth/AuthProvider';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/manrope';
 import './styles/global.css';
+import './styles/shell.css';
 const client = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 }, mutations: { retry: false } },
 });

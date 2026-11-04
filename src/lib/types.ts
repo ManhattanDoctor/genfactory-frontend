@@ -44,9 +44,16 @@ export interface IFileOutputSettings {
   directory?: string | null;
   tags?: string[];
 }
+export interface IFileGeneration {
+  model: IModelDescription['reference'];
+  prompt: string;
+  options: Record<string, unknown>;
+  maskFileId?: number;
+}
 export interface IGnosisFile {
   origin?: {
     kind: 'UPLOAD' | 'GENERATION' | 'PROCESSING';
+    generation?: IFileGeneration;
     operationId?: string;
     sourceFileIds?: number[];
     directoryFallback?: boolean;

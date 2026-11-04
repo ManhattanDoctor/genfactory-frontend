@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img">
+<rect width="640" height="360" fill="#111111"/>
+<rect width="8" height="360" fill="#d1fe17"/>
+<rect x="300" y="136" width="28" height="114" rx="6" fill="#d1fe17"/>
+<rect x="348" y="106" width="28" height="144" rx="6" fill="#d1fe17"/>
+<rect x="396" y="164" width="28" height="86" rx="6" fill="#d1fe17"/>
+<rect x="444" y="62" width="28" height="188" rx="6" fill="#d1fe17"/>
+<rect x="492" y="128" width="28" height="122" rx="6" fill="#d1fe17"/>
+<rect x="540" y="100" width="28" height="150" rx="6" fill="#d1fe17"/>
+<text x="36" y="78" fill="#f5f5f5" font-family="Arial, sans-serif" font-size="32" font-weight="700">What is an AI PPT</text><text x="36" y="118" fill="#f5f5f5" font-family="Arial, sans-serif" font-size="32" font-weight="700">prompt?</text>
+<text x="36" y="166" fill="#d1fe17" font-family="Arial, sans-serif" font-size="16" font-weight="700">Стиль</text>
+</svg>

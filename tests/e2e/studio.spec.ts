@@ -1,6 +1,9 @@
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import type { IConversation, IConversationMessage, IModelDescription } from '../../src/lib/types';
+const templates: { id: string; kind: string; title: string }[] = JSON.parse(
+  readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
+);
 const catalog: IModelDescription[] = JSON.parse(
   readFileSync(new URL('../fixtures/catalog.json', import.meta.url), 'utf8'),
 );
@@ -41,6 +44,13 @@ function savedConversation(id = 101): IConversation {
     tags: ['genfactory'],
     createdDate: file.createdDate,
   };
+}
+// Старые редакторы остаются доступны по URL; их пункты убраны из меню прототипа.
+async function navigateLegacyRoute(page: Page, path: string) {
+  await page.evaluate((path) => {
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, path);
 }
 async function openViewerActions(page: Page) {
   const trigger = page.locator('.preview-menu > summary');
@@ -252,7 +262,7 @@ test('image studio creates a configured conversation and sends tool preferences,
   expect(state.forbidden).toEqual([]);
   await expect(page).toHaveURL(/conversation=101/);
   await page.screenshot({ path: 'test-results/studio-desktop.png', fullPage: true });
-  await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
+  await navigateLegacyRoute(page, '/library');
   await expect(page.getByRole('button', { name: /Test result/ })).toBeVisible();
 });
 test('invalid parameters do not create or execute a conversation', async ({ page }) => {
@@ -343,7 +353,7 @@ test('library reference survives returning to a studio with a cached catalog', a
   const state = await mockApi(page);
   await page.goto('/image');
   await expect(page.getByLabel('Модель', { exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
+  await navigateLegacyRoute(page, '/library');
   await page.getByRole('button', { name: /Test result/ }).click();
   await openViewerActions(page);
   await page.getByRole('button', { name: 'Использовать как референс' }).click();
@@ -430,7 +440,9 @@ test('session expiry clears account and a private file preview', async ({ page }
     await api.init().catch(() => {});
   });
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  await expect(page.getByRole('button', { name: 'Войти в аккаунт', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('main').getByRole('button', { name: 'Войти в аккаунт', exact: true }),
+  ).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('genfactory.session'))).toBeNull();
 });
 
@@ -513,10 +525,7 @@ test('leaving during conversation creation never starts a paid message in the ba
   );
   await submit(page);
   await started;
-  await page
-    .getByRole('navigation', { name: 'Основное меню' })
-    .getByRole('link', { name: 'Библиотека', exact: true })
-    .click();
+  await navigateLegacyRoute(page, '/library');
   const completed = page.waitForResponse(
     (r) => new URL(r.url()).pathname === '/api/conversation' && r.request().method() === 'POST',
   );
@@ -618,13 +627,19 @@ test('select arrows stay inside controls at desktop and mobile widths with long 
   });
 });
 
-test('inspiration prompt survives a return to the cached image editor', async ({ page }) => {
+test('home model reviews switch tabs, expand examples and open the viewer', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/image');
-  await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
-  await page.getByRole('link', { name: 'Обзор', exact: true }).click();
-  await page.locator('.inspiration-card').first().click();
-  await expect(page.getByLabel('Ваша идея', { exact: true })).not.toHaveValue('');
+  await page.goto('/');
+  const review = page.getByRole('region', { name: 'GPT Image 2.5 Sunburst' });
+  await review.getByRole('tab', { name: 'Ограничение', exact: true }).click();
+  await expect(review.getByRole('tabpanel')).toContainText('пространственная логика');
+  await review.getByRole('button', { name: 'Развернуть', exact: true }).click();
+  await expect(review.locator('.model-review-frame')).toHaveCount(27);
+  await review.locator('.model-review-frame').first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(review.locator('.model-review-frame').first()).toBeFocused();
 });
 
 test('reference survives restoration of a different saved video model', async ({ page }) => {
@@ -1010,7 +1025,7 @@ test('workspace chat defaults to no tools, continues a server conversation and s
   page,
 }) => {
   const state = await mockApi(page);
-  await page.goto('/chat');
+  await page.goto('/agent');
   await page.getByLabel('Ваш запрос', { exact: true }).fill('Помоги придумать рекламную идею');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect(page.getByText('Точный промпт для генерации.', { exact: true })).toBeVisible();
@@ -1062,7 +1077,7 @@ test('workspace script stays in the same conversation when changing text modes',
     .getByRole('navigation', { name: 'Режим работы' })
     .getByRole('link', { name: 'Обсудить', exact: true })
     .click();
-  await expect(page).toHaveURL(/chat\?conversation=101/);
+  await expect(page).toHaveURL(/agent\?conversation=101/);
   await expect(page.getByRole('heading', { name: 'Обсудить идею' })).toBeVisible();
   await page.getByLabel('Ваш запрос', { exact: true }).fill('Измени концовку');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
@@ -1077,7 +1092,7 @@ test('workspace tools use the existing catalog and preserve conversation attachm
   const state = await mockApi(page);
   const c = { ...savedConversation(), files: [file], options: { model: agent.reference.model, tools: [] } };
   state.conversations.push(c);
-  await page.goto('/chat?conversation=101');
+  await page.goto('/agent?conversation=101');
   await page.getByText('Инструменты · 0', { exact: true }).click();
   await page.getByLabel('Поиск в Яндексе', { exact: true }).check();
   await page.getByRole('button', { name: 'Сохранить инструменты' }).click();
@@ -1118,7 +1133,7 @@ test('workspace custom templates restore prompt model and options', async ({ pag
   await page.getByText('Сохранить как шаблон', { exact: true }).click();
   await page.getByLabel('Название шаблона').fill('Мой сценарий');
   await page.getByRole('button', { name: 'Сохранить шаблон', exact: true }).click();
-  await page.getByRole('link', { name: 'Шаблоны', exact: true }).click();
+  await navigateLegacyRoute(page, '/templates');
   await page.getByRole('button', { name: 'Мои', exact: true }).click();
   await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   await expect(page.getByLabel('Ваша идея', { exact: true })).toHaveValue('Мой предметный кадр');
@@ -1189,7 +1204,7 @@ test('workspace video prompt extracts three frames without uploading the source 
 test('workspace lost response reports the error after the new conversation navigation', async ({ page }) => {
   const state = await mockApi(page);
   state.abortAfterAccept = true;
-  await page.goto('/chat');
+  await page.goto('/agent');
   await page.getByLabel('Ваш запрос', { exact: true }).fill('Помоги с идеей');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect(page).toHaveURL(/conversation=101/);
@@ -1205,7 +1220,7 @@ test('workspace documents require an appropriate tool and remain file attachment
       ? route.fulfill({ json: { ...file, type: 'DOCUMENT', mime: 'application/pdf', name: 'brief.pdf' } })
       : route.fallback(),
   );
-  await page.goto('/chat');
+  await page.goto('/agent');
   await expect(page.getByLabel('Ассистент', { exact: true })).toBeEnabled();
   await page
     .locator('input[type=file]')
@@ -1252,7 +1267,7 @@ test('workspace local brand and templates remain isolated between accounts', asy
     );
   });
   await expect(page.getByLabel('Правила оформления')).toHaveValue('');
-  await page.getByRole('link', { name: 'Шаблоны', exact: true }).click();
+  await navigateLegacyRoute(page, '/templates');
   await expect(page.getByText('PRIVATE TEMPLATE')).toHaveCount(0);
 });
 
@@ -1287,10 +1302,7 @@ test('restores text draft after navigation without sending a message', async ({ 
   const state = await mockApi(page);
   await page.goto('/prompt');
   await page.locator('.composer textarea').fill('Черновик промпта');
-  await page
-    .getByRole('navigation', { name: 'Основное меню' })
-    .getByRole('link', { name: 'Библиотека' })
-    .click();
+  await navigateLegacyRoute(page, '/library');
   await page.goto('/prompt');
   await page.getByRole('button', { name: 'Восстановить черновик' }).click();
   await expect(page.locator('.composer textarea')).toHaveValue('Черновик промпта');
@@ -1514,10 +1526,7 @@ test('leaving during repeat attachment checks does not navigate back into the ed
   await page.getByText('История вариантов', { exact: true }).click();
   await page.getByRole('button', { name: 'Повторить с изменениями' }).click();
   await expect.poll(() => requested).toBe(true);
-  await page
-    .getByRole('navigation', { name: 'Основное меню' })
-    .getByRole('link', { name: 'Библиотека', exact: true })
-    .click();
+  await navigateLegacyRoute(page, '/library');
   release();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.getByRole('heading', { name: 'Библиотека', exact: true })).toBeVisible();
@@ -1679,7 +1688,7 @@ test('a template can start a new work while another conversation request is stil
     await page.goto('/image');
     await submit(page, 'Долгая первая генерация');
     await expect.poll(() => accepted).toBe(true);
-    await page.getByRole('link', { name: 'Шаблоны', exact: true }).click();
+    await navigateLegacyRoute(page, '/templates');
     await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).first().click();
     await expect(page.getByLabel('Ваша идея', { exact: true })).not.toHaveValue('');
     const generate = page.getByRole('button', { name: 'Создать изображение', exact: true });
@@ -2346,7 +2355,7 @@ test('audio editor fits mobile and hands text off without automatically spending
     { id: 5, role: 'ASSISTANT', text: 'Текст из ответа.', createdDate: file.createdDate },
   ]);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/chat?conversation=101');
+  await page.goto('/agent?conversation=101');
   await page.getByRole('button', { name: 'Озвучить', exact: true }).click();
   await expect(page.getByLabel('Текст для озвучки', { exact: true })).toHaveValue('Текст из ответа.');
   await expect(page.getByLabel('Голос', { exact: true })).toBeVisible();
@@ -2609,3 +2618,936 @@ for (const path of ['/audio?mode=stt', '/library', '/image', '/prompt']) {
     await expect(page.locator('button[aria-busy="true"]')).toHaveCount(0);
   });
 }
+
+test('home task opens the studio with its text and never starts a paid request', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const state = await mockApi(page);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Сначала задача. Потом кадр.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Продолжить в студии' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  expect(
+    await page
+      .getByRole('textbox', { name: 'Ваша задача', exact: true })
+      .evaluate((el) => (el as HTMLTextAreaElement).validity.valueMissing),
+  ).toBe(true);
+  await page.getByRole('textbox', { name: 'Ваша задача', exact: true }).fill('Красная чашка на белом фоне');
+  await page.getByRole('button', { name: 'Продолжить в студии' }).click();
+  await expect(page).toHaveURL(/\/chat$/);
+  await expect(page.locator('#cw-draft')).toHaveValue('Красная чашка на белом фоне');
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('prototype navigation selects specialized editors and matches the reference sections', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto('/');
+  const nav = page.getByRole('navigation', { name: 'Основное меню' });
+  await nav.getByRole('link', { name: 'Nano Banana', exact: true }).click();
+  await expect(page).toHaveURL(/\/image\?studio=banana$/);
+  await expect(nav.getByRole('link', { name: 'Nano Banana', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(nav.getByRole('link', { name: 'Изображения', exact: true })).not.toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await nav.getByRole('link', { name: 'Seedance Studio', exact: true }).click();
+  await expect(page).toHaveURL(/\/video\?studio=seedance$/);
+  for (const label of ['Аудио', 'Библиотека', 'Шаблоны', 'Правила бренда']) {
+    await expect(nav.getByRole('link', { name: label, exact: true })).toHaveCount(0);
+  }
+  await nav.getByRole('link', { name: 'AI agent', exact: true }).click();
+  await expect(page.locator('#text-prompt')).toBeVisible();
+});
+
+test('home fits the mobile matrix and menu restores keyboard focus', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/');
+  for (const [width, height] of [
+    [360, 800],
+    [375, 667],
+    [390, 844],
+    [412, 915],
+    [430, 932],
+    [1440, 1000],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expect(page.getByRole('textbox', { name: 'Ваша задача', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+    await page.screenshot({ path: `test-results/home-prototype-${width}.png`, fullPage: true });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Меню', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Меню', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Открыть меню', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
+  await page.getByRole('dialog').getByRole('link', { name: 'История', exact: true }).click();
+  await expect(page).toHaveURL(/\/history$/);
+  await expect(page.getByRole('dialog', { name: 'Меню', exact: true })).toHaveCount(0);
+});
+
+test('login stays in place while account initialization retries on tab return', async ({ page }) => {
+  await mockApi(page);
+  let release: (() => void) | undefined;
+  let requests = 0;
+  await page.route('**/api/init', async (route) => {
+    requests++;
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await route.fulfill({ status: 503, json: { message: 'Temporarily unavailable' } });
+  });
+  await page.goto('/');
+  const login = page.getByRole('button', { name: 'Войти в аккаунт', exact: true });
+  await expect(login).toBeVisible();
+  const initial = await login.boundingBox();
+  await expect.poll(() => requests).toBe(1);
+  release!();
+  await expect(login).toHaveAttribute('aria-busy', 'false');
+  expect(await login.boundingBox()).toEqual(initial);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    window.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    window.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(() => requests).toBe(2);
+  await expect(login).toBeVisible();
+  expect(await login.boundingBox()).toEqual(initial);
+  release!();
+  await expect(login).toHaveAttribute('aria-busy', 'false');
+  expect(await login.boundingBox()).toEqual(initial);
+});
+
+test('home history filters saved work by type', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), tags: ['genfactory', 'image'] });
+  await page.goto('/');
+  const history = page.getByRole('region', { name: 'История', exact: true });
+  await expect(history.getByRole('tab', { name: 'Все', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(history.getByRole('link', { name: 'Открыть работу Saved creative work' })).toBeVisible();
+  await history.getByRole('tab', { name: 'Видео', exact: true }).click();
+  await expect(history).toContainText('В этом списке пока ничего нет.');
+  await history.getByRole('tab', { name: 'Изображения', exact: true }).click();
+  await expect(history.getByRole('link', { name: 'Открыть работу Saved creative work' })).toBeVisible();
+});
+
+test('content studio prototype controls, templates and guest favorites work without generating', async ({
+  page,
+}) => {
+  const state = await mockApi(page, false);
+  await page.goto('/chat');
+  await expect(page.getByRole('button', { name: 'Видео', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.locator('.cw-card')).toHaveCount(30);
+  const first = page.locator('.cw-card').first();
+  await first.locator('.cw-fav').click();
+  await page.getByRole('button', { name: 'Избранные шаблоны', exact: true }).click();
+  await expect(page.locator('.cw-card')).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator('.cw-card').first().locator('.cw-fav')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.cw-card-media').first().click();
+  await page.locator('.cw-add').first().click();
+  await expect(page.getByRole('dialog', { name: 'Studio product turn' })).toBeVisible();
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue('');
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('button', { name: 'Камера Авто', exact: true }).click();
+  await page.getByRole('option', { name: 'Сверху', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Камера Сверху', exact: true })).toBeVisible();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Сценарист', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'false',
+  );
+  await page.getByRole('button', { name: 'Презентация', exact: true }).click();
+  await expect(page.locator('.cw-settings-pane')).toContainText(
+    'Для презентации дополнительных настроек съёмки нет.',
+  );
+  await page.getByRole('tab', { name: 'Шаблоны', exact: true }).click();
+  await expect(page.locator('.cw-card')).not.toHaveCount(0);
+  await page.getByRole('button', { name: 'Ширина галереи: средняя', exact: true }).click();
+  await expect(page.locator('#creative-workspace')).toHaveAttribute('data-gallery', 'l');
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('content studio sends image in a persistent conversation and restores its result', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
+  await page.getByRole('option', { name: '1:1', exact: true }).click();
+  await page.locator('#cw-draft').fill('Чашка на белом фоне');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.creates[0].options.tools).toHaveLength(1);
+  expect(state.sends[0].settings.tools[0].uid).toBe('IMAGE');
+  await expect(page).toHaveURL(/chat\?conversation=101/);
+  await expect(page.locator('.cw-thread')).toContainText('Чашка на белом фоне');
+  await page.reload();
+  await expect(page.locator('.cw-thread')).toContainText('Чашка на белом фоне');
+  expect(state.sends).toHaveLength(1);
+  await expect.poll(() => state.joinedRooms.some((room) => room.includes('101'))).toBe(true);
+  await page.screenshot({ path: '/tmp/content-studio-connected.png' });
+});
+
+test('content studio writer removes connected media tools before sending', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  await page.goto('/chat?conversation=101');
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Сценарист', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'false',
+  );
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page.locator('#cw-draft').fill('Придумай сценарий рекламы кофейни');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.edits.at(-1).options.tools).toEqual([]);
+  expect(state.sends[0].settings.tools).toEqual([]);
+  expect(state.sends[0].text).toContain('Не запускай генерацию медиа');
+  expect(state.creates).toHaveLength(0);
+});
+
+test('content studio blocks an end frame without a start frame before uploading', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('button', { name: 'Конечный кадр Не задан', exact: true }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
+  await (await chooser).setFiles({ name: 'cup.png', mimeType: 'image/png', buffer: Buffer.from('fake') });
+  await page.locator('#cw-draft').fill('Оживи чашку');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('добавьте начальный');
+  expect(state.uploads).toBe(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('content studio uploads a reference and sends video with its file id', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'cup.png', mimeType: 'image/png', buffer: Buffer.from('fake') });
+  await page.locator('#cw-draft').fill('Поверни чашку');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.uploads).toBe(1);
+  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].settings.tools[0]).toMatchObject({
+    uid: 'VIDEO',
+    settings: { options: { duration: 8, aspectRatio: '9:16', generateAudio: false } },
+  });
+  await expect(page.locator('.cw-thread video')).toBeVisible();
+});
+
+test('content studio restores a running job and receives socket completion without resending', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), status: 'LOADING' });
+  await page.goto('/chat?conversation=101');
+  await expect(page.getByRole('button', { name: 'Отправить запрос', exact: true })).toBeDisabled();
+  await expect.poll(() => state.joinedRooms.includes('conversation101')).toBe(true);
+  state.conversations[0].status = 'LOADED';
+  state.messages.set(101, [
+    {
+      id: 1,
+      role: 'ASSISTANT',
+      text: 'Результат пришёл по сокету.',
+      files: [file],
+      createdDate: file.createdDate,
+    },
+  ]);
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          uid: crypto.randomUUID(),
+          name: 'ConversationChangedEvent',
+          data: { id: 101, item: { status: 'LOADED' } },
+        },
+      ]),
+  );
+  await expect(page.getByText('Результат пришёл по сокету.', { exact: true })).toBeVisible();
+  expect(state.sends).toHaveLength(0);
+});
+
+test('content studio retains draft after an accepted network failure without retry', async ({ page }) => {
+  const state = await mockApi(page);
+  state.abortAfterAccept = true;
+  await page.goto('/chat');
+  await page.locator('#cw-draft').fill('Подготовь сценарий');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
+  await expect(page.locator('#cw-draft')).toHaveValue('Подготовь сценарий');
+  await expect(page.locator('.cw-thread')).toContainText('Подготовь сценарий');
+  expect(state.sends).toHaveLength(1);
+});
+
+test('content studio controls keep chevrons clear of labels and match conversation structure', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  state.messages.set(101, [
+    { id: 1, role: 'USER', text: 'Красная чашка на столе', createdDate: file.createdDate },
+    {
+      id: 2,
+      role: 'ASSISTANT',
+      text: 'Изображение готово. [Смотреть видео](https://example.test/result.mp4)',
+      files: [file],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/chat?conversation=101');
+  await expect(page.locator('.as-turn')).toHaveCount(1);
+  await expect(page.locator('.as-face')).toHaveCount(2);
+  await expect(page.getByRole('link', { name: 'Смотреть видео', exact: true })).toHaveAttribute(
+    'href',
+    'https://example.test/result.mp4',
+  );
+  await expect(page.getByRole('button', { name: 'Повторить запрос', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Повторить запрос', exact: true }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue('Красная чашка на столе');
+  await expect(page.locator('#cw-draft')).toBeFocused();
+  expect(state.sends).toHaveLength(0);
+  await page.getByRole('button', { name: 'Видео', exact: true }).click();
+  const chips = page.locator('.cw-ratio-pick');
+  await expect(chips).toHaveCount(3);
+  for (const chip of await chips.all()) {
+    expect(await chip.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+  }
+  await page.locator('.cw-model').click();
+  await expect(page.locator('.cw-model')).toHaveAttribute('aria-expanded', 'true');
+  const box = await page.locator('.cw-model-menu').boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(1440);
+  await page.screenshot({ path: '/tmp/content-controls-checked.png' });
+});
+
+test('content studio gallery creates explicit first and last image frames and sends their ids', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  for (const label of ['Начальный', 'Конечный']) {
+    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    await page.getByRole('button', { name: `${label} кадр Не задан`, exact: true }).click();
+    await page.getByRole('button', { name: 'Выбрать шаблон', exact: true }).click();
+    await page.locator('.cw-card-media').first().click();
+    await page.locator('.cw-add').first().click();
+    await expect(page.locator('.cw-use-tag').filter({ hasText: `${label} кадр` })).toBeVisible({
+      timeout: 20000,
+    });
+  }
+  expect(state.uploads).toBe(0);
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page.locator('#cw-draft').fill('Плавно перейди от первого кадра к последнему');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.uploads).toBe(2);
+  expect(state.sends[0].files).toEqual([12, 13]);
+  expect(state.sends[0].settings.tools[0].uid).toBe('VIDEO');
+});
+
+test('content studio template is a recipe and portrait format is translated to image size', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.locator('.cw-card-media').first().click();
+  await page.locator('.cw-add').first().click();
+  await page.getByLabel('Продукт', { exact: true }).fill('Красная чашка');
+  await page.getByRole('dialog').getByRole('button', { name: 'Из библиотеки' }).click();
+  await page
+    .getByRole('dialog', { name: 'Выбрать референс' })
+    .getByText('Test result', { exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+  await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
+  await page.getByRole('option', { name: '2:3', exact: true }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue(/Красная чашка/);
+  expect(state.sends).toHaveLength(0);
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].text).toContain('Professional e-commerce main product photo');
+  expect(state.sends[0].text).not.toContain('[PRODUCT]');
+  expect(state.sends[0].settings.tools[0].settings.options.size).toBe('1024x1536');
+  expect(state.sends[0].text).toContain('Размер (options.size): 1024x1536');
+  expect(state.sends[0].files).toEqual([12]);
+  expect(state.uploads).toBe(0);
+});
+
+test('content studio forwards all creative controls and brand rules', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'genfactory.preferences.v1.7',
+      JSON.stringify({ brand: 'Только синий фон, без надписей' }),
+    ),
+  );
+  await page.goto('/chat');
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Дизайн-система', exact: true }).click();
+  const settings = [
+    ['Формат', 'Премиум, студийный свет'],
+    ['Идея', 'Сразу показать товар'],
+    ['Обстановка', 'В студии'],
+    ['Камера', 'Сверху'],
+    ['Движение', 'Наезд'],
+    ['Линза', '85 мм'],
+    ['Свет', 'Студия'],
+  ];
+  for (const [label, value] of settings) {
+    await page.getByRole('button', { name: new RegExp(`^${label} `) }).click();
+    await page.getByRole('option', { name: value, exact: true }).click();
+  }
+  await page.locator('#cw-draft').fill('Сценарий рекламы чашки');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  for (const [label, value] of settings) expect(state.sends[0].text).toContain(`${label}: ${value}`);
+  expect(state.sends[0].text).toContain('Правила бренда: Только синий фон, без надписей');
+  expect(state.sends[0].settings.tools).toEqual([]);
+});
+
+test('content studio presentation template sends text instructions without media tools', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Презентация', exact: true }).click();
+  await page.locator('.cw-card-media').first().click();
+  await page.locator('.cw-add').first().click();
+  await page.getByLabel('Тема и исходные факты').fill('Презентация кофейни. Не придумывай факты.');
+  await page.getByRole('button', { name: 'Использовать шаблон' }).click();
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].text).toContain('Подготовь текст по слайдам');
+  expect(state.sends[0].text).toContain('10-slide minimal SaaS');
+  expect(state.sends[0].settings.tools).toEqual([]);
+  expect(state.uploads).toBe(0);
+});
+
+test('content studio restores video technical options on reload', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page.getByRole('button', { name: 'Короче', exact: true }).click();
+  await page.locator('#cw-draft').fill('Простой ролик');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  const options = state.sends[0].settings.tools[0].settings.options;
+  await page.reload();
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Сценарист', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'false',
+  );
+  await page.locator('#cw-draft').fill('Повтори с теми же параметрами');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(2);
+  expect(state.sends[1].settings.tools[0].settings.options).toEqual(options);
+});
+
+test('content studio rejects unsupported attachments before upload', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'document.pdf', mimeType: 'application/pdf', buffer: Buffer.from('fake') });
+  await expect(page.getByRole('alert')).toContainText('JPEG, PNG или WebP');
+  expect(state.uploads).toBe(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('content studio sends sound duration scene structure and quality independently', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.getByRole('button', { name: /^Качество / }).click();
+  await page.getByRole('option', { name: 'low', exact: true }).click();
+  await page.getByRole('button', { name: 'Видео', exact: true }).click();
+  await page.getByRole('button', { name: 'Без звука', exact: true }).click();
+  await page.getByRole('option', { name: 'Со звуком', exact: true }).click();
+  await page.getByRole('button', { name: 'Один кадр', exact: true }).click();
+  await page.getByRole('option', { name: 'Набор сцен', exact: true }).click();
+  await page.getByRole('button', { name: 'Длиннее', exact: true }).click();
+  await page.getByRole('button', { name: 'Стороны: 9:16', exact: true }).click();
+  await page.getByRole('option', { name: '16:9', exact: true }).click();
+  await page.locator('#cw-draft').fill('Ролик с несколькими сценами');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].text).toContain('Структура: Набор сцен');
+  expect(state.sends[0].settings.tools[0].settings.options).toMatchObject({
+    generateAudio: true,
+    duration: 10,
+    resolution: '720p',
+    aspectRatio: '16:9',
+  });
+});
+
+test('content studio preserves presentation recipe and draft across reload', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Презентация', exact: true }).click();
+  await page.locator('.cw-card-media').first().click();
+  await page.locator('.cw-add').first().click();
+  await page.getByLabel('Тема и исходные факты').fill('Презентация кофейни');
+  await page.getByRole('button', { name: 'Использовать шаблон' }).click();
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  await expect(page.locator('#cw-draft')).toHaveValue('');
+  await page.locator('#cw-draft').fill('Добавь слайд с адресом');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.content-studio.101')))
+    .toContain('Добавь слайд');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Презентация', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(
+    await page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.content-studio.101')),
+  ).toContain('Startup');
+  await expect(page.locator('#cw-draft')).toHaveValue('Добавь слайд с адресом');
+  expect(state.sends).toHaveLength(1);
+});
+
+test('content studio restores creative settings without leaking into another project', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation(101), savedConversation(102));
+  await page.goto('/chat?conversation=101');
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('button', { name: 'Свет Авто', exact: true }).click();
+  await page.getByRole('option', { name: 'Ночь', exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.content-studio.101')))
+    .toContain('Ночь');
+  await page.reload();
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Свет Ночь', exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    history.pushState(null, '', '/chat?conversation=102');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page.getByRole('button', { name: 'Свет Авто', exact: true })).toBeVisible();
+  expect(state.sends).toHaveLength(0);
+});
+
+test('content studio applies a saved script with references without generating until send', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'cup.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fake'),
+  });
+  await page.locator('#cw-draft').fill('Подготовь сценарий для этой чашки');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].settings.tools).toEqual([]);
+  await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Использовать сценарий', exact: true }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue('Точный промпт для генерации.');
+  await expect(page.locator('#cw-draft')).toBeFocused();
+  expect(state.sends).toHaveLength(1);
+  expect(state.uploads).toBe(1);
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Сценарист', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'false',
+  );
+  await page.locator('#cw-draft').fill('Утверждённый сценарий: чашка вращается');
+  await page.screenshot({ path: '/tmp/content-script-applied.png' });
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(2);
+  expect(state.sends[1].files).toEqual([12]);
+  expect(state.sends[1].text).toContain('Утверждённый сценарий: чашка вращается');
+  expect(state.sends[1].settings.tools[0].uid).toBe('VIDEO');
+  expect(state.uploads).toBe(1);
+  await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toHaveCount(1);
+});
+
+test('content studio model search and favorites preserve actual selection across reload', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.locator('.cw-model').click();
+  await page.getByRole('searchbox', { name: 'Поиск модели' }).fill('gpt-image-1-mini');
+  await expect(page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true })).toBeVisible();
+  await expect(page.getByRole('option', { name: 'GPT Image 2', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'О модели GPT Image 1 Mini', exact: true }).click();
+  await expect(page.locator('dialog')).toContainText('OPEN_AI_IMAGE_GPT:gpt-image-1-mini');
+  expect(state.sends).toHaveLength(0);
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await page.getByRole('button', { name: 'В избранные: GPT Image 1 Mini', exact: true }).click();
+  await expect(page.locator('.cw-model')).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Поиск модели' }).fill('');
+  await expect(page.getByRole('option')).toHaveCount(2);
+  await page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true }).click();
+  await expect(page.locator('.cw-model')).toContainText('GPT Image 1 Mini');
+  await page.reload();
+  await expect(page.locator('.cw-model')).toContainText('GPT Image 1 Mini');
+  await page.locator('.cw-model').click();
+  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
+  await expect(page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await page.screenshot({ path: '/tmp/content-model-favorites.png' });
+  await page.getByRole('button', { name: 'Убрать из избранных: GPT Image 1 Mini', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Нет избранных моделей');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cw-model')).toBeFocused();
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page.locator('#cw-draft').fill('Чашка на белом фоне');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].settings.tools[0].settings.model).toEqual({
+    provider: 'OPEN_AI_IMAGE_GPT',
+    model: 'gpt-image-1-mini',
+  });
+});
+
+test('content studio restores actual result settings and sources instead of current conversation settings', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  const generation = {
+    model: { provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1-mini' },
+    prompt: 'Исторический промпт чашки',
+    options: { size: '1024x1536', quality: 'low', background: 'opaque' },
+  };
+  state.messages.set(101, [
+    { id: 1, role: 'USER', text: 'Исходный бриф', files: [file], createdDate: file.createdDate },
+    {
+      id: 2,
+      role: 'ASSISTANT',
+      text: 'Готово',
+      files: [{ ...file, id: 13, origin: { kind: 'GENERATION', sourceFileIds: [12], generation } }],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/chat?conversation=101');
+  await expect(page.getByLabel(`Параметры ${file.name}`)).toContainText('GPT Image 1 Mini');
+  await expect(page.getByLabel(`Параметры ${file.name}`)).toContainText('1024x1536');
+  await page.reload();
+  await page.getByRole('button', { name: 'Использовать параметры', exact: true }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue(generation.prompt);
+  await expect(page.locator('#cw-draft')).toBeFocused();
+  await expect(page.locator('.cw-model')).toContainText('GPT Image 1 Mini');
+  expect(state.sends).toHaveLength(0);
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].settings.tools[0].settings).toEqual({
+    model: generation.model,
+    options: generation.options,
+  });
+  expect(state.sends[0].files).toEqual([12]);
+  expect(state.uploads).toBe(0);
+});
+
+test('content studio refuses missing historical references without replacing the draft or generating', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  state.messages.set(101, [
+    {
+      id: 2,
+      role: 'ASSISTANT',
+      files: [
+        {
+          ...file,
+          origin: {
+            kind: 'GENERATION',
+            sourceFileIds: [12],
+            generation: {
+              model: catalog[0].reference,
+              prompt: 'Старый промпт',
+              options: { size: '1024x1024', quality: 'low' },
+            },
+          },
+        },
+      ],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.route('**/api/file/12', (route) =>
+    route.fulfill({ status: 404, json: { message: 'Исходный файл удалён' } }),
+  );
+  await page.goto('/chat?conversation=101');
+  await page.locator('#cw-draft').fill('Мой текущий черновик');
+  await page.getByRole('button', { name: 'Использовать параметры', exact: true }).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.locator('#cw-draft')).toHaveValue('Мой текущий черновик');
+  expect(state.sends).toHaveLength(0);
+});
+
+test('content studio preserves custom generation dimensions when restoring the same aspect ratio', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  const model = catalog.find((item) => item.reference.model === 'gpt-image-2')!;
+  const generation = {
+    model: model.reference,
+    prompt: 'Квадратная чашка',
+    options: { size: '1536x1536', quality: 'low', background: 'opaque' },
+  };
+  state.messages.set(101, [
+    {
+      id: 2,
+      role: 'ASSISTANT',
+      files: [{ ...file, origin: { kind: 'GENERATION', sourceFileIds: [], generation } }],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/chat?conversation=101');
+  await page.getByRole('button', { name: 'Использовать параметры', exact: true }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue(generation.prompt);
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].settings.tools[0].settings.options.size).toBe('1536x1536');
+  expect(state.sends[0].text).toContain('Создай с нуля, без референсов');
+  expect(state.sends[0].files).toEqual([]);
+});
+
+test('content studio library reuses saved references without uploading or sending on selection', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Выбрать референс' });
+  await picker.getByText('Test result', { exact: true }).click();
+  await expect(picker).not.toBeVisible();
+  await expect(page.locator('.cw-files')).toContainText('Test result');
+  expect(state.uploads).toBe(0);
+  expect(state.sends).toHaveLength(0);
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page.locator('#cw-draft').fill('Use this saved image');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].files).toEqual([12]);
+  expect(state.uploads).toBe(0);
+});
+
+test('content studio library selects and replaces frame slots on mobile', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Видео', exact: true }).click();
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('button', { name: /Начальный кадр/ }).click();
+  await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Выбрать референс' })).toBeVisible();
+  await page.screenshot({ path: '/tmp/content-library-mobile.png' });
+  await page.getByRole('dialog').getByText('Test result', { exact: true }).click();
+  await expect(page.getByRole('button', { name: /Начальный кадр Test result/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Добавить файл', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: /Начальный кадр Test result/ }).click();
+  await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
+  await page.getByRole('dialog').getByText('Test result', { exact: true }).click();
+  await expect(page.locator('.cw-files .cw-use-tag')).toHaveCount(1);
+  expect(state.uploads).toBe(0);
+  expect(state.sends).toHaveLength(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('library shows stored generation details and handles unavailable sources without generating', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  const generated = {
+    ...file,
+    origin: {
+      kind: 'GENERATION',
+      sourceFileIds: [999],
+      generation: {
+        model: { provider: 'OPEN_ROUTER_VIDEO', model: 'x-ai/grok-imagine-video-1.5-lite' },
+        prompt: 'Historical prompt with roses',
+        options: { duration: 4, resolution: '480p', aspectRatio: '9:16', generateAudio: true },
+      },
+    },
+  };
+  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([generated]) }));
+  await page.route('**/api/file/12', (route) => route.fulfill({ json: generated }));
+  await page.route('**/api/file/999', (route) =>
+    route.fulfill({ status: 404, json: { message: 'Unavailable' } }),
+  );
+  await page.goto('/library');
+  await expect(page.locator('.file-generation-summary')).toContainText('4 с · 480p');
+  await page.getByRole('button', { name: /Test result/ }).click();
+  await page.getByText('Параметры генерации', { exact: true }).click();
+  await expect(page.getByText('Historical prompt with roses', { exact: true })).toBeVisible();
+  await expect(page.getByText('Исходник №999 недоступен')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Копировать промпт' })).toBeVisible();
+  await page.screenshot({ path: '/tmp/library-generation-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: '/tmp/library-generation-mobile.png' });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(state.sends).toHaveLength(0);
+  expect(state.uploads).toBe(0);
+});
+
+test('library does not invent generation details for uploaded files', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/library');
+  await expect(page.getByRole('button', { name: /Test result/ })).toBeVisible();
+  await expect(page.locator('.file-generation-summary')).toHaveCount(0);
+  await page.getByRole('button', { name: /Test result/ }).click();
+  await expect(page.getByText('Параметры генерации', { exact: true })).toHaveCount(0);
+});
+
+for (const title of ['Studio product turn', 'Product in use']) {
+  test(`guided template ${title} validates materials and applies without generation`, async ({ page }) => {
+    const state = await mockApi(page);
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Короче', exact: true }).click();
+    const card = page.locator('.cw-card').filter({ has: page.locator('strong', { hasText: title }) });
+    await card.locator('.cw-card-media').click();
+    await card.locator('.cw-add').click();
+    await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Заполните');
+    await page.getByLabel('Продукт', { exact: true }).fill('Красная чашка');
+    if (title === 'Studio product turn') await page.getByLabel('Цвет фона', { exact: true }).fill('Белый');
+    else {
+      await page.getByLabel('Место действия', { exact: true }).fill('Парк');
+      await page.getByLabel('Персонаж', { exact: true }).fill('Взрослая девушка');
+      await page.getByLabel('Действие', { exact: true }).fill('Держит чашку');
+    }
+    await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Выберите изображение');
+    await page.getByRole('dialog').getByRole('button', { name: 'Из библиотеки' }).click();
+    await page
+      .getByRole('dialog', { name: 'Выбрать референс' })
+      .getByText('Test result', { exact: true })
+      .click();
+    await page.getByRole('button', { name: /Адаптировать под/ }).click();
+    await expect(page.getByLabel('Готовый текст для редактора')).toHaveValue(/6-second/);
+    await expect(page.getByRole('region', { name: 'Настройки после применения' })).toContainText('6 с');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: `/tmp/template-${title.replaceAll(' ', '-')}.png` });
+    await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('#cw-draft')).toHaveValue(/6-second/);
+    await expect(page.locator('#cw-draft')).toHaveValue(/Красная чашка/);
+    await expect(page.locator('.cw-stepper')).toContainText('6 с');
+    await expect(page.locator('.cw-files')).toContainText('Test result');
+    expect(state.sends).toHaveLength(0);
+    expect(state.uploads).toBe(0);
+    await expect(page.getByRole('status').filter({ hasText: 'применён' })).toBeVisible();
+    await page.getByRole('button', { name: 'Убрать Test result', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'применён' })).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator('#cw-draft')).toHaveValue(/Красная чашка/);
+  });
+}
+
+for (const kind of ['image', 'video', 'presentation']) {
+  test(`all ${kind} templates prepare a complete draft without generation`, async ({ page }) => {
+    test.setTimeout(420_000);
+    const state = await mockApi(page);
+    await page.goto('/chat');
+    const modeName = { image: 'Изображение', video: 'Видео', presentation: 'Презентация' }[kind]!;
+    await page.getByRole('button', { name: modeName, exact: true }).click();
+    const items = templates.filter((item) => item.kind === kind);
+    for (const [index, item] of items.entries()) {
+      const card = page.locator('.cw-card').nth(index);
+      await card.locator('.cw-card-media').click();
+      await card.locator('.cw-add').click();
+      const dialog = page.getByRole('dialog', { name: item.title, exact: true });
+      const inputs = dialog.locator('[data-template-variable]');
+      for (const input of await inputs.all()) await input.fill('Тестовые данные');
+      if (kind === 'presentation')
+        await page
+          .getByLabel('Тема и исходные факты')
+          .fill('Кофейня: 2 филиала, основана в 2020 году. Другие данные неизвестны.');
+      else {
+        // Проверяем доступный референс во всех media-шаблонах без загрузки и платного запроса.
+        await dialog.getByRole('button', { name: 'Из библиотеки' }).click();
+        await page
+          .getByRole('dialog', { name: 'Выбрать референс' })
+          .getByText('Test result', { exact: true })
+          .click();
+      }
+      const adapt = dialog.getByRole('button', { name: /Адаптировать под/ });
+      if (await adapt.count()) await adapt.click();
+      const prepared = await dialog.getByLabel('Готовый текст для редактора').inputValue();
+      expect(prepared, item.id).not.toMatch(/\[[A-Za-z][A-Za-z_0-9 ]*\]/);
+      await dialog.getByRole('button', { name: 'Использовать шаблон' }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.locator('#cw-draft')).toHaveValue(prepared);
+      expect(state.sends, item.id).toHaveLength(0);
+      expect(state.uploads, item.id).toBe(0);
+    }
+  });
+}
+
+test('optional template clears previous references and sends explicitly from scratch', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  await page.goto('/chat?conversation=101');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Выбрать референс' })
+    .getByText('Test result', { exact: true })
+    .click();
+  const card = page.locator('.cw-card').nth(11);
+  await card.locator('.cw-card-media').click();
+  await card.locator('.cw-add').click();
+  const dialog = page.getByRole('dialog');
+  for (const input of await dialog.locator('[data-template-variable]').all())
+    await input.fill('Спокойный парк');
+  await dialog.getByRole('button', { name: 'Убрать референс' }).click();
+  await dialog.getByRole('button', { name: 'Использовать шаблон' }).click();
+  await expect(page.locator('.cw-files')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('#cw-draft')).toHaveValue(/Спокойный парк/);
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].files).toEqual([]);
+  expect(state.sends[0].text).toContain('Создай с нуля, без референсов');
+  expect(state.uploads).toBe(0);
+  await expect(page.locator('#cw-draft')).toHaveValue('');
+  await page.locator('#cw-draft').fill('Сделай свет мягче на предыдущем результате');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(2);
+  expect(state.sends[1].text).toContain('Продолжи беседу с учётом контекста');
+});

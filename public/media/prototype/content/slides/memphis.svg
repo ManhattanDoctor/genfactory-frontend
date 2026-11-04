@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img">
+<rect width="640" height="360" fill="#111111"/>
+<rect width="8" height="360" fill="#d1fe17"/>
+<circle cx="310" cy="190" r="26" fill="#d1fe17"/>
+<text x="310" y="198" text-anchor="middle" fill="#141414" font-family="Arial, sans-serif" font-size="18" font-weight="700">1</text>
+<circle cx="388" cy="190" r="26" fill="#d1fe17"/>
+<text x="388" y="198" text-anchor="middle" fill="#141414" font-family="Arial, sans-serif" font-size="18" font-weight="700">2</text>
+<circle cx="466" cy="190" r="26" fill="#d1fe17"/>
+<text x="466" y="198" text-anchor="middle" fill="#141414" font-family="Arial, sans-serif" font-size="18" font-weight="700">3</text>
+<circle cx="544" cy="190" r="26" fill="#d1fe17"/>
+<text x="544" y="198" text-anchor="middle" fill="#141414" font-family="Arial, sans-serif" font-size="18" font-weight="700">4</text>
+<text x="36" y="78" fill="#f5f5f5" font-family="Arial, sans-serif" font-size="32" font-weight="700">Memphis</text>
+<text x="36" y="126" fill="#d1fe17" font-family="Arial, sans-serif" font-size="16" font-weight="700">Стиль</text>
+</svg>

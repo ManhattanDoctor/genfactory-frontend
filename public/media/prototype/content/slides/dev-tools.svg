@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img">
+<rect width="640" height="360" fill="#0D0D0D"/>
+<rect width="8" height="360" fill="#00FF87"/>
+<rect x="300" y="152" width="28" height="98" rx="6" fill="#00FF87"/>
+<rect x="348" y="102" width="28" height="148" rx="6" fill="#00FF87"/>
+<rect x="396" y="176" width="28" height="74" rx="6" fill="#00FF87"/>
+<rect x="444" y="66" width="28" height="184" rx="6" fill="#00FF87"/>
+<rect x="492" y="124" width="28" height="126" rx="6" fill="#00FF87"/>
+<rect x="540" y="112" width="28" height="138" rx="6" fill="#00FF87"/>
+<text x="36" y="78" fill="#f5f5f5" font-family="Arial, sans-serif" font-size="32" font-weight="700">Dev Tools</text>
+<text x="36" y="126" fill="#00FF87" font-family="Arial, sans-serif" font-size="16" font-weight="700">Продажи</text>
+</svg>

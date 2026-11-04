@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img">
+<rect width="640" height="360" fill="#ffffff"/>
+<rect width="8" height="360" fill="#FF4F4F"/>
+<polygon points="300,120 620,120 580,180 340,180" fill="#FF4F4F"/>
+<polygon points="340,196 580,196 550,250 370,250" fill="#FF4F4F" opacity="0.75"/>
+<polygon points="390,266 530,266 500,310 420,310" fill="#FF4F4F" opacity="0.5"/>
+<text x="36" y="78" fill="#141414" font-family="Arial, sans-serif" font-size="32" font-weight="700">Growth</text>
+<text x="36" y="126" fill="#FF4F4F" font-family="Arial, sans-serif" font-size="16" font-weight="700">Продажи</text>
+</svg>

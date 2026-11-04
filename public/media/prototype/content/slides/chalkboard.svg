@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img">
+<rect width="640" height="360" fill="#f4f7fb"/>
+<rect width="8" height="360" fill="#0b3a75"/>
+<rect x="300" y="152" width="28" height="98" rx="6" fill="#0b3a75"/>
+<rect x="348" y="90" width="28" height="160" rx="6" fill="#0b3a75"/>
+<rect x="396" y="160" width="28" height="90" rx="6" fill="#0b3a75"/>
+<rect x="444" y="70" width="28" height="180" rx="6" fill="#0b3a75"/>
+<rect x="492" y="136" width="28" height="114" rx="6" fill="#0b3a75"/>
+<rect x="540" y="96" width="28" height="154" rx="6" fill="#0b3a75"/>
+<text x="36" y="78" fill="#141414" font-family="Arial, sans-serif" font-size="32" font-weight="700">Chalkboard</text>
+<text x="36" y="126" fill="#0b3a75" font-family="Arial, sans-serif" font-size="16" font-weight="700">Инвесторам</text>
+</svg>

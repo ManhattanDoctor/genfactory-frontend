@@ -1,0 +1,2576 @@
+[
+  {
+    "id": "video:media/creatives/01.mp4",
+    "kind": "video",
+    "title": "Studio product turn",
+    "genre": "Продукт",
+    "prompt": "8-second single continuous take, premium e-commerce product video. @Image1 controls only the exact product: preserve its shape, proportions, colors, materials, logo and label placement. Do not copy @Image1's background. [PRODUCT] stands centered on a slowly rotating matte round podium against a seamless [BACKGROUND_COLOR] studio backdrop. 0-8 seconds: the podium completes one smooth 360-degree rotation at constant speed. Camera: locked-off, eye level, product fills 60% of the frame, very slow push-in. Lighting: soft large key light from the left, subtle rim light, gentle reflection on the podium surface, soft contact shadow. Photorealistic, sharp focus, commercial catalog quality. Audio: quiet soft ambient tone, no music, no voice. Constraints: product shape and label never change, no extra objects, no text, no cuts.",
+    "src": "/media/prototype/content/video/01.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/02.mp4",
+    "kind": "video",
+    "title": "Macro: detail and texture",
+    "genre": "Продукт",
+    "prompt": "10-second macro product detail video in three shots with clean cuts. @Image1 controls only the exact product design, colors and materials; do not copy its background. Dark neutral studio, shallow depth of field. Shot 1 (0-3s): extreme macro slow slide across the surface texture of [PRODUCT], light raking across it to reveal fine grain. Shot 2 (3-7s): macro rack focus onto [KEY_DETAILS], a thin highlight glides over the edge. Shot 3 (7-10s): camera pulls back smoothly to reveal the whole product standing on a dark reflective surface, soft rim light outlines its silhouette. Cinematic, high detail, luxury commercial look, slow deliberate motion. Audio: subtle whooshes synced to camera moves, soft low ambient hum, no voice. Constraints: product design stays identical across shots, no text, no hands.",
+    "src": "/media/prototype/content/video/02.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/03.mp4",
+    "kind": "video",
+    "title": "First-person unboxing",
+    "genre": "UGC",
+    "prompt": "12-second first-person POV unboxing, single continuous take, natural real-time speed. @Image1 controls only the exact product appearance; do not copy its background. A clean light wooden desk by a window with soft daylight. 0-3 seconds: two hands place a [BOX_DESCRIPTION] in the center of the desk and lift the lid upward. 3-6 seconds: the hands fold back tissue paper, revealing [PRODUCT] resting inside. 6-10 seconds: the right hand lifts the product out and slowly turns it toward the camera, showing the front. 10-12 seconds: the hands hold it still in the center of the frame, slight natural hand movement. Camera: top-down POV tilting slightly forward, handheld feel but stable. Audio: crisp cardboard and tissue paper rustling, soft lid sounds, quiet room tone, no music, no voice. Constraints: exactly two hands, correct finger count, product appears only once, no text.",
+    "src": "/media/prototype/content/video/03.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/04.mp4",
+    "kind": "video",
+    "title": "Product in use",
+    "genre": "Лайфстайл",
+    "prompt": "10-second lifestyle product video, two shots. @Image1 controls only the exact product: preserve shape, colors and branding; do not copy its background or lighting. Warm natural golden-hour light in [LOCATION]. Shot 1 (0-5s): medium shot, [PERSON] picks up [PRODUCT] and [ACTION], relaxed genuine smile, natural body movement. Camera: slow handheld dolly-in from the side. Shot 2 (5-10s): close-up of the hands using [PRODUCT], shallow depth of field, background softly blurred, the product clearly visible and in focus. Authentic, candid, modern lifestyle commercial, soft film grain. Audio: light ambient sounds of the location, gentle upbeat acoustic music low in the mix, no voice. Constraints: product looks identical in both shots, natural hands, no text overlays.",
+    "src": "/media/prototype/content/video/04.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/05.mp4",
+    "kind": "video",
+    "title": "Liquid splash",
+    "genre": "Продукт",
+    "prompt": "8-second high-speed commercial shot. @Image1 controls only the exact bottle/package: preserve shape, label and colors; do not copy its background. [PRODUCT] stands upright in the center against a gradient backdrop matching its main color. 0-3 seconds: [INGREDIENTS] fall from above in slow motion past the product. 3-6 seconds: a crown-shaped splash of [LIQUID] erupts around the base and wraps around the product in a smooth swirling arc, droplets catching the light. 6-8 seconds: droplets settle, fresh condensation beads glisten on the surface, product stays perfectly still and sharp. Camera: slow orbit 30 degrees to the right, low angle. Lighting: strong backlight making the liquid glow, crisp specular highlights. Hyper-realistic fluid simulation, advertising quality. Audio: satisfying liquid splash and droplet sounds, soft whoosh, no voice. Constraints: label stays readable and unchanged, no extra bottles.",
+    "src": "/media/prototype/content/video/05.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/06.mp4",
+    "kind": "video",
+    "title": "Levitation and exploded view",
+    "genre": "Техника",
+    "prompt": "10-second technical product reveal, single continuous take. @Image1 controls only the exact product exterior; do not copy its background. [PRODUCT] levitates in the center of a dark minimal space with a soft spotlight. 0-3 seconds: the product slowly rotates, floating gently. 3-6 seconds: it smoothly separates into an exploded view, its internal components and layers drifting apart in perfect alignment along one axis. 6-9 seconds: the parts glide back together and click into place. 9-10 seconds: the assembled product settles, a soft light pulse runs along its edges. Camera: slow orbit around the product at a three-quarter angle. Clean, precise, high-tech engineering aesthetic, photorealistic materials. Audio: soft mechanical clicks and airy whooshes synced to motion, low electronic ambient tone, no voice. Constraints: the final product is identical to the starting one, no text.",
+    "src": "/media/prototype/content/video/06.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/07.mp4",
+    "kind": "video",
+    "title": "Before and after",
+    "genre": "Реклама",
+    "prompt": "10-second before-and-after demonstration, single continuous take, real-time speed. @Image1 controls only the exact product appearance; do not copy its background. Bright clean setting, soft daylight. 0-3 seconds: close-up of [BEFORE_STATE]. 3-7 seconds: a hand enters frame from the right holding [PRODUCT], applies it and wipes/uses it in one smooth sweeping motion from left to right; the area behind the motion transforms into [AFTER_STATE]. 7-10 seconds: the hand moves out of frame, the camera holds on the clean result, a soft sparkle of light glints across the surface. Camera: static, slightly top-down, then a gentle push-in at the end. Realistic, satisfying, clear contrast between before and after. Audio: realistic application sounds, a light satisfying chime at the end, no music, no voice. Constraints: the change happens only where the product passes, no cuts, no text.",
+    "src": "/media/prototype/content/video/07.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/08.mp4",
+    "kind": "video",
+    "title": "Clothing on a model",
+    "genre": "Мода",
+    "prompt": "10-second fashion lookbook video, two shots. @Image1 controls only the exact garment: preserve its cut, fabric, color, pattern and details; do not copy the pose or background of @Image1. [MODEL] wears [GARMENT] in [LOCATION]. Shot 1 (0-6s): full-body shot, the model walks confidently toward the camera, fabric moving naturally with each step, then stops and turns 90 degrees to show the side silhouette. Camera: slow backward tracking shot at waist height. Shot 2 (6-10s): close-up tracking along the fabric texture, seams and details as the model adjusts the collar/sleeve with one hand. Editorial fashion film look, soft natural light, subtle film grain, 35mm lens feel. Audio: stylish minimal electronic beat, footsteps, no voice. Constraints: garment stays identical in both shots, realistic fabric physics, natural anatomy, no text.",
+    "src": "/media/prototype/content/video/08.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/09.mp4",
+    "kind": "video",
+    "title": "Appetizing dish",
+    "genre": "Еда",
+    "prompt": "8-second food commercial close-up, single continuous take. @Image1 controls only the exact dish look and plating; do not copy its background. [DISH] on a dark rustic plate on a wooden table, warm moody side light, dark background. 0-3 seconds: thin wisps of steam rise from the hot food in slow motion. 3-6 seconds: [SAUCE_OR_TOPPING] is poured from above and flows glossily over the food. 6-8 seconds: a fork enters from the right, lifts a bite toward the camera, revealing juicy texture. Camera: slow push-in at a 45-degree angle, shallow depth of field, macro details. Mouth-watering, rich colors, glossy highlights, professional food styling. Audio: soft sizzling, pouring sauce, gentle ambient restaurant tone, no voice. Constraints: realistic food physics, no extra plates, no text.",
+    "src": "/media/prototype/content/video/09.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/10.mp4",
+    "kind": "video",
+    "title": "Gadget in neon light",
+    "genre": "Техника",
+    "prompt": "8-second dramatic tech product reveal, single continuous take. @Image1 controls only the exact device design, colors and logo; do not copy its background. Pitch-black space with a glossy black floor. 0-2 seconds: darkness, a thin [NEON_COLORS] light line slowly sweeps across, revealing only the edge of [PRODUCT]. 2-5 seconds: more neon light strips ignite one by one around it, the product's silhouette and surfaces gradually revealed with sharp reflections. 5-8 seconds: full reveal, the product rotates slightly toward the camera, reflections shimmer on the floor, light haze in the air. Camera: slow low-angle arc from left to right, ending on a hero three-quarter view. Cyberpunk, sleek, premium, high contrast. Audio: deep bass hit on reveal, electric hums, futuristic synth pad, no voice. Constraints: product design unchanged, no text.",
+    "src": "/media/prototype/content/video/10.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/11.mp4",
+    "kind": "video",
+    "title": "User-generated clip",
+    "genre": "UGC",
+    "prompt": "12-second UGC-style selfie video, single continuous take, filmed on a smartphone front camera. @Image1 controls only the exact product appearance; do not copy its background. [PERSON] sits in [LOCATION] with soft natural window light, holding [PRODUCT] near the face. 0-5 seconds: looking directly into the camera, excited but natural, the person says: \"[LINE_1]\". 5-7 seconds: the person turns the product toward the lens and taps it with a finger. 7-12 seconds: the person smiles and says: \"[LINE_2]\", then gives a small nod. Camera: handheld arm's-length selfie framing, slight natural shake, face and product both in focus. Authentic, casual, relatable, no cinematic polish. Audio: clear natural voice with accurate lip sync, quiet room tone, no music. Constraints: only this one person speaks, product stays identical, natural hands, no subtitles.",
+    "src": "/media/prototype/content/video/11.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/12.mp4",
+    "kind": "video",
+    "title": "Morning routine",
+    "genre": "Лайфстайл",
+    "prompt": "15-second aesthetic morning routine video, four quick shots with clean cuts on the beat. @Image1 controls only the exact product appearance. Soft warm sunlight, cozy minimal apartment, beige and white tones. Shot 1 (0-3s): curtains open, sunlight floods a bright bedroom. Shot 2 (3-7s): [PERSON] in a robe makes coffee in the kitchen, steam rising. Shot 3 (7-12s): close-up at a bathroom mirror, [PERSON] uses [PRODUCT], calm content expression, the product clearly visible. Shot 4 (12-15s): [PERSON] walks out the door smiling, bag on shoulder. Camera: smooth handheld, eye level, soft focus transitions. Dreamy, clean girl aesthetic, light film grain. Audio: soft lo-fi chill beat, subtle ambient sounds of each action, no voice. Constraints: same person and outfit continuity, product identical, no text.",
+    "src": "/media/prototype/content/video/12.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/13.mp4",
+    "kind": "video",
+    "title": "Snap transition",
+    "genre": "Вирусное",
+    "prompt": "8-second viral transformation transition video. @Image1 controls only the exact outfit/product shown in the final look. [PERSON] stands facing the camera in a bright room. 0-3 seconds: wearing [BEFORE_LOOK], slightly bored expression, the person raises a hand toward the lens. 3-4 seconds: the person snaps fingers, the hand covers the lens for a split second with a quick whip motion. 4-8 seconds: the hand moves away revealing the same person in [AFTER_LOOK], confident pose, hair flip, big smile, slight slow motion. Camera: static phone on a tripod, full-body framing, identical position before and after the transition. Trendy TikTok style, bright punchy colors. Audio: trending-style bass drop exactly on the snap, snap sound effect, no voice. Constraints: same person, same room, only the look changes, no text.",
+    "src": "/media/prototype/content/video/13.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/14.mp4",
+    "kind": "video",
+    "title": "ASMR",
+    "genre": "ASMR",
+    "prompt": "10-second oddly satisfying ASMR close-up, single continuous take, real-time speed. @Image1 controls only the exact product appearance. Clean pastel surface, soft even top light. 0-10 seconds: extreme close-up of [SATISFYING_ACTION] with [PRODUCT], perfectly smooth, precise, continuous motion, the material responding with rich realistic texture. Camera: static macro, top-down 45-degree angle, perfectly centered composition, shallow depth of field. Pastel color palette, crisp detail, calm hypnotic rhythm. Audio: crisp high-fidelity ASMR sounds of the action — tapping, crunching, pouring or slicing — no music, no voice. Constraints: no cuts, no hands shaking, no text, physically realistic material behavior.",
+    "src": "/media/prototype/content/video/14.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/15.mp4",
+    "kind": "video",
+    "title": "Stories",
+    "genre": "Stories",
+    "prompt": "10-second first-person POV video about [SITUATION], single continuous take. @Image1 controls only the exact product appearance. 0-3 seconds: POV view, own hands visible at the bottom of the frame, the viewer walks into the scene and looks around. 3-7 seconds: the hands reach out and pick up [PRODUCT], bringing it closer to the eyes. 7-10 seconds: the camera tilts up to a pleasant surprise moment that resolves the situation, warm light, relatable atmosphere. Camera: realistic head-mounted POV, natural walking bounce, eye-level perspective. Relatable, cozy, social media authentic style, natural colors. Audio: realistic ambient sounds of the environment, footsteps, soft trending-style pop beat, no voice. Constraints: exactly two hands visible, product identical, no text on screen.",
+    "src": "/media/prototype/content/video/15.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/16.mp4",
+    "kind": "video",
+    "title": "Vlog",
+    "genre": "Влог",
+    "prompt": "15-second 'day in my life' vlog montage, five fast shots with cuts on the beat. [PERSON], a [PROFESSION_OR_BUSINESS], same outfit throughout. Shot 1 (0-3s): alarm clock, stretching in morning light. Shot 2 (3-6s): walking through the city with a coffee cup, handheld tracking from behind. Shot 3 (6-9s): focused at work, close-up of hands doing the main task. Shot 4 (9-12s): laughing with a colleague or client, candid medium shot. Shot 5 (12-15s): evening golden-hour view from a window, the person smiles at the camera. Camera: handheld smartphone vlog style, mix of wide and close-up shots. Warm, energetic, authentic, natural color grading. Audio: upbeat indie pop beat, light ambient sounds per scene, no voice. Constraints: same person and outfit in all shots, no text.",
+    "src": "/media/prototype/content/video/16.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/17.mp4",
+    "kind": "video",
+    "title": "Pet and product",
+    "genre": "Животные",
+    "prompt": "10-second funny cute pet video, single continuous take, natural real-time speed. @Image1 controls only the exact product appearance. A cozy living room with soft afternoon light. 0-3 seconds: [PET] sits on the floor, curiously staring at [PRODUCT] placed in front of it, head tilting. 3-6 seconds: the pet cautiously sniffs it and gently taps it with a paw, the product moves slightly. 6-10 seconds: the pet happily plays with/enjoys the product, then looks straight into the camera with an adorable expression. Camera: low angle at pet's eye level, handheld phone style, slow push-in at the end. Heartwarming, playful, realistic fur and animal behavior. Audio: soft pet sounds, light playful ukulele music, no voice. Constraints: realistic animal anatomy, one pet only, product identical, no text.",
+    "src": "/media/prototype/content/video/17.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/18.mp4",
+    "kind": "video",
+    "title": "Mini tutorial in 3 steps",
+    "genre": "Обучение",
+    "prompt": "12-second top-down tutorial video, three clear steps with clean cuts. @Image1 controls only the exact product appearance; do not copy its background. Clean white table, bright soft even light, overhead camera. Step 1 (0-4s): hands [STEP_1] with [PRODUCT]. Step 2 (4-8s): hands [STEP_2], the motion clear and easy to follow. Step 3 (8-12s): hands [STEP_3], then present the finished result to the camera with an open-palm gesture. Camera: static top-down flat-lay framing, subtle zoom-in on each key action. Clean, minimal, instructive, bright modern style. Audio: light upbeat background music, soft action sounds, a gentle click sound at each step change, no voice. Constraints: same hands and table throughout, product identical, logical step continuity, no text.",
+    "src": "/media/prototype/content/video/18.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/19.mp4",
+    "kind": "video",
+    "title": "Looped cinemagraph",
+    "genre": "Атмосфера",
+    "prompt": "6-second seamless loop cinemagraph. @Image1 controls the overall scene composition and look if provided. [SCENE], mostly still, calm and aesthetic. 0-6 seconds: only [MOVING_ELEMENT] moves gently and continuously — the rest of the frame stays perfectly still. The final frame matches the first frame exactly for a perfect loop. Camera: completely locked-off, no movement. Soft natural light, dreamy pastel color grading, fine detail, atmospheric. Audio: soft ambient sound matching the moving element, no music, no voice. Constraints: seamless loop, no cuts, no camera shake, no people entering, no text.",
+    "src": "/media/prototype/content/video/19.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/20.mp4",
+    "kind": "video",
+    "title": "Comedy sketch",
+    "genre": "Юмор",
+    "prompt": "12-second comedic sketch, three shots with snappy cuts. [CHARACTER] in a bright everyday setting. Shot 1 (0-4s): medium shot, [SETUP], the character looks frustrated and exaggeratedly sighs. Shot 2 (4-8s): quick punch-in close-up on the character's face as they notice something, eyes widen dramatically, comic pause. Shot 3 (8-12s): wide shot, [PUNCHLINE], the character looks into the camera and says: \"[LINE]\" with a deadpan expression. Camera: handheld sitcom style, fast zoom-in on the reaction. Exaggerated but natural acting, bright saturated colors, meme energy. Audio: comedic sound effects on the reaction (record scratch or boing), clear voice with accurate lip sync, light quirky music. Constraints: same character and outfit in all shots, only one speaker, no subtitles.",
+    "src": "/media/prototype/content/video/20.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/21.mp4",
+    "kind": "video",
+    "title": "Brand film, 15 seconds",
+    "genre": "Бренд",
+    "prompt": "15-second cinematic brand commercial, four shots with smooth motivated cuts. @Image1 controls only the exact product: preserve its shape, colors, logo and label; do not copy its background. Mood: [BRAND_MOOD]. Shot 1 (0-3s): wide establishing shot of an atmospheric location at golden hour, slow drone push-in. Shot 2 (3-7s): [TARGET_PERSON] in motion, living an inspiring moment, medium tracking shot. Shot 3 (7-11s): close-up of the person's hand reaching for [PRODUCT], shallow depth of field, lens flare. Shot 4 (11-15s): hero product shot, [PRODUCT] centered on a clean surface, slow push-in, glowing rim light, empty space above the product for a logo. Cinematic anamorphic look, rich color grading, premium advertising quality. Audio: emotional cinematic music building to a peak on the final shot, subtle ambient sound design, no voice. Constraints: product identical in all shots, consistent person, no text generated.",
+    "src": "/media/prototype/content/video/21.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/22.mp4",
+    "kind": "video",
+    "title": "Problem and solution",
+    "genre": "Реклама",
+    "prompt": "12-second problem-solution ad, three shots. @Image1 controls only the exact product appearance; do not copy its background. Shot 1 (0-4s): [PERSON] struggles with [PROBLEM], visibly annoyed, cool desaturated blue color grading, slightly handheld medium shot. Shot 2 (4-7s): close-up, the person discovers [PRODUCT], picks it up with curiosity; light warms up. Shot 3 (7-12s): [PERSON] easily achieves [RESULT] using the product, relieved happy smile, bright warm saturated colors, the camera slowly pushes in, ending on the person holding the product toward the camera. Clear visual contrast between the gray 'before' and colorful 'after'. Modern commercial style. Audio: tense subtle sound in shot 1, uplifting positive music kicks in at shot 2, no voice. Constraints: same person and outfit throughout, product identical, no text.",
+    "src": "/media/prototype/content/video/22.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/23.mp4",
+    "kind": "video",
+    "title": "Sale and promo",
+    "genre": "Промо",
+    "prompt": "8-second high-energy sale promo video, fast rhythmic cuts on the beat. @Image1 controls only the exact product appearance. Bold solid backgrounds in [BRAND_COLORS] switching on every beat. 0-2 seconds: [PRODUCT] drops from above and bounces into the center of the frame with a punchy impact. 2-5 seconds: quick cuts — the product spins, zooms toward the camera, confetti and shopping bags burst around it. 5-8 seconds: the product settles in the center, the camera holds, large empty space above it for a discount label, glossy light sweep across the product. Style: vibrant, playful, 3D commercial motion design, bright saturated colors, dynamic energy. Audio: punchy upbeat electronic beat, whooshes and pop sounds on every cut, cash-register ding at the end, no voice. Constraints: product always identical, no generated text or numbers.",
+    "src": "/media/prototype/content/video/23.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/24.mp4",
+    "kind": "video",
+    "title": "Luxury",
+    "genre": "Люкс",
+    "prompt": "10-second luxury commercial, single continuous take in elegant slow motion. @Image1 controls only the exact product: preserve its shape, facets, metal, glass and engravings; do not copy its background. [PRODUCT] rests on a black marble pedestal in a dark velvet space. 0-4 seconds: [LUXURY_ELEMENTS] drift slowly through the air around the product, catching warm golden light. 4-7 seconds: a slow beam of light sweeps across the product, making it sparkle with brilliant highlights and refractions. 7-10 seconds: the camera settles on a hero close-up, soft bokeh glints in the background. Camera: very slow orbit and gentle push-in, macro lens. Opulent, sensual, sophisticated, deep blacks and gold tones, high-end fashion house aesthetic. Audio: elegant slow piano and strings, soft shimmer sounds, no voice. Constraints: product unchanged, no hands, no text.",
+    "src": "/media/prototype/content/video/24.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/25.mp4",
+    "kind": "video",
+    "title": "Sport and energy",
+    "genre": "Спорт",
+    "prompt": "10-second high-energy sports commercial, four fast shots cut on the beat. @Image1 controls only the exact product/gear appearance. Shot 1 (0-2s): extreme close-up of [ATHLETE]'s determined eyes, sweat drops, dramatic side light. Shot 2 (2-5s): explosive [SPORT] action in slow motion, dust and water particles in the air, low angle. Shot 3 (5-8s): fast tracking shot following the athlete at full speed, motion blur in the background, [PRODUCT] clearly visible. Shot 4 (8-10s): the athlete stops, breathes heavily, looks into the camera with confidence, backlit silhouette with strong rim light. Gritty, powerful, high contrast, cinematic sports ad look. Audio: heavy percussive beat, intense breathing, impact sounds synced to action, no voice. Constraints: same athlete and outfit, realistic athletic motion, no text.",
+    "src": "/media/prototype/content/video/25.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/26.mp4",
+    "kind": "video",
+    "title": "Interior room walkthrough",
+    "genre": "Недвижимость",
+    "prompt": "12-second real estate walkthrough, single continuous gimbal take. @Image1 controls only the interior design, layout, materials and furniture of the room; keep them exactly. [PROPERTY] in [STYLE] style, bright natural daylight through large windows. 0-4 seconds: the camera glides forward through the entrance into the living room. 4-8 seconds: smooth turn to the right revealing the kitchen and dining area, sunlight on the surfaces. 8-12 seconds: the camera moves toward the window, revealing the view outside, sheer curtains moving gently. Camera: smooth steady gimbal at chest height, wide-angle lens, no shake. Architectural photography style, warm inviting atmosphere, realistic materials, perfectly straight vertical lines. Audio: soft calm ambient piano music, subtle room tone, no voice. Constraints: no people, no furniture changes, no distorted geometry, no text.",
+    "src": "/media/prototype/content/video/26.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/27.mp4",
+    "kind": "video",
+    "title": "Car in motion",
+    "genre": "Авто",
+    "prompt": "10-second cinematic car commercial, three shots. @Image1 controls only the exact car: preserve its body shape, color, wheels, lights and badges; do not copy its background. Shot 1 (0-4s): aerial drone shot following [CAR] driving along [ROAD_LOCATION] at sunset, long shadows. Shot 2 (4-7s): low tracking shot alongside the car at speed, wheels spinning, motion blur on the road, reflections gliding over the paint. Shot 3 (7-10s): the car stops, headlights turn on, slow push-in to a three-quarter front hero view, warm backlight and light haze. Cinematic, sleek, premium automotive ad look, anamorphic lens flares, rich color grading. Audio: deep engine roar, tire sounds, epic cinematic music, no voice. Constraints: same car in all shots, correct physics, no text or license plate numbers.",
+    "src": "/media/prototype/content/video/27.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/28.mp4",
+    "kind": "video",
+    "title": "Cafe and restaurant",
+    "genre": "Еда",
+    "prompt": "12-second restaurant/cafe ad, four warm shots with smooth cuts. @Image1 controls only the interior style of the venue if provided. [VENUE], warm evening light, cozy atmosphere. Shot 1 (0-3s): wide shot of the interior, soft lights, guests chatting in soft focus. Shot 2 (3-6s): close-up of a chef's or barista's hands preparing [SIGNATURE_ITEM] with skill. Shot 3 (6-9s): slow-motion hero shot of [SIGNATURE_ITEM] being placed on the table, steam or foam visible. Shot 4 (9-12s): two friends take the first bite/sip and laugh, candid happy moment. Camera: smooth handheld, shallow depth of field, warm amber tones. Inviting, authentic, appetizing. Audio: warm jazzy acoustic music, soft cafe chatter, clinking cups, no clear dialogue. Constraints: consistent interior, realistic food, no text.",
+    "src": "/media/prototype/content/video/28.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/29.mp4",
+    "kind": "video",
+    "title": "App ad",
+    "genre": "Приложение",
+    "prompt": "10-second app promo video, three shots. @Image1 controls only what is displayed on the phone screen if provided. Shot 1 (0-3s): [PERSON] in [LOCATION] looks at a smartphone, slightly stressed. Shot 2 (3-6s): over-the-shoulder close-up, the thumb taps the phone screen confidently a few times, the screen glows softly with a clean modern interface. Shot 3 (6-10s): [PERSON] smiles with relief as [APP_BENEFIT] happens around them, then looks at the camera and holds the phone slightly toward the lens. Camera: smooth handheld, modern tech commercial, bright clean colors, soft daylight. Audio: light modern upbeat electronic music, soft UI tap sounds, a positive notification chime, no voice. Constraints: same person and phone throughout, natural hands and fingers, no readable text on screen.",
+    "src": "/media/prototype/content/video/29.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "video:media/creatives/30.mp4",
+    "kind": "video",
+    "title": "Emotional story",
+    "genre": "Эмоции",
+    "prompt": "15-second emotional storytelling commercial, four shots with gentle cuts. @Image1 controls only the exact product appearance. [CHARACTERS] on [OCCASION], warm soft natural light, cozy home. Shot 1 (0-4s): one character quietly prepares a surprise, hiding [PRODUCT] behind their back, nervous smile. Shot 2 (4-8s): the other character enters the room, curious; medium shot, soft focus. Shot 3 (8-12s): close-up, the gift is revealed, the recipient's eyes fill with happy tears, genuine emotion. Shot 4 (12-15s): wide shot, the two hug warmly, the camera slowly pulls back, golden light fills the room. Cinematic, heartfelt, natural acting, warm color grading, subtle film grain. Audio: tender piano melody building gently, soft natural room sounds, no voice. Constraints: consistent characters and outfits, product identical, no text.",
+    "src": "/media/prototype/content/video/30.mp4",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:1",
+    "kind": "image",
+    "title": "Главное фото на белом фоне (маркетплейс)",
+    "genre": "Товары",
+    "prompt": "Professional e-commerce main product photo of [PRODUCT] from the reference image, keeping its exact shape, colors, materials, logo and label unchanged. The product is centered on a pure white seamless background (#FFFFFF), filling about 80% of the frame, three-quarter front view. Soft even studio lighting from a large softbox, subtle natural contact shadow beneath the product, no reflections. Ultra sharp focus, true-to-life colors, high-end catalog photography, 4K.",
+    "src": "/media/prototype/content/image/01.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:2",
+    "kind": "image",
+    "title": "Инфографика для карточки товара",
+    "genre": "Товары",
+    "prompt": "Marketplace product infographic featuring [PRODUCT] from the reference image, unchanged in shape and branding, placed slightly right of center on a clean [BG_COLOR] gradient background. On the left side, three neat callout blocks with thin lines pointing to parts of the product, each with a simple minimal line icon and short bold text: \"[BENEFIT_1]\", \"[BENEFIT_2]\", \"[BENEFIT_3]\". Modern sans-serif font, clear hierarchy, generous white space, soft studio lighting, subtle shadow under the product. Clean commercial graphic design, crisp readable text, 2K.",
+    "src": "/media/prototype/content/image/02.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:3",
+    "kind": "image",
+    "title": "Товар в интерьере (lifestyle)",
+    "genre": "Товары",
+    "prompt": "Lifestyle product photo: place [PRODUCT] from the reference image, keeping it exactly the same, naturally in [LOCATION] decorated in [STYLE] style. The product stands on a surface in the foreground, in sharp focus, with realistic scale, contact shadows and reflections matching the scene. Soft warm morning daylight from a side window, background gently blurred with a few tasteful props. Photorealistic, cozy, editorial interior magazine look, shot on a 50mm lens, f/2.8.",
+    "src": "/media/prototype/content/image/03.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:4",
+    "kind": "image",
+    "title": "Флэтлей (вид сверху с аксессуарами)",
+    "genre": "Товары",
+    "prompt": "Top-down flat lay photograph of [PRODUCT] from the reference image, unchanged, placed as the hero in the center of a [SURFACE]. Around it, neatly arranged complementary props: [PROPS], balanced composition with pleasing negative space. Soft diffused overhead lighting, gentle natural shadows, harmonious muted color palette that matches the product. Styled Instagram flat lay, crisp detail, high-end product photography, 4K.",
+    "src": "/media/prototype/content/image/04.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:5",
+    "kind": "image",
+    "title": "Всплеск и ингредиенты",
+    "genre": "Товары",
+    "prompt": "High-speed commercial product photo of [PRODUCT] from the reference image with its exact label and shape. A dynamic splash of [LIQUID] frozen in mid-air wrapping around the product, with [INGREDIENTS] flying around it. Vibrant gradient background matching the product color, strong backlight making the liquid glow, crisp droplets and fresh condensation on the surface. Hyper-realistic, high-energy advertising photography, ultra sharp, 4K.",
+    "src": "/media/prototype/content/image/05.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:6",
+    "kind": "image",
+    "title": "Товар на подиуме (3D-сцена)",
+    "genre": "Товары",
+    "prompt": "Product showcase scene: [PRODUCT] from the reference image, unchanged, standing on a smooth cylindrical podium surrounded by minimal geometric shapes  -  arches, spheres and steps  -  in a [COLOR_PALETTE] palette, with [DECOR] as accents. Soft studio lighting, gentle shadows, clean pastel 3D render aesthetic combined with photorealistic product materials. Symmetrical composition, premium modern brand look, 4K.",
+    "src": "/media/prototype/content/image/06.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:7",
+    "kind": "image",
+    "title": "Макро-деталь (качество материала)",
+    "genre": "Товары",
+    "prompt": "Extreme macro close-up of [DETAIL] of [PRODUCT] from the reference image, preserving its exact material and color. Raking side light revealing fine texture, stitching and surface grain, very shallow depth of field with a creamy blurred background. Luxurious, tactile, high-end detail photography, razor-sharp focus on the texture, 4K.",
+    "src": "/media/prototype/content/image/07.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:8",
+    "kind": "image",
+    "title": "Одежда на модели (виртуальная примерка)",
+    "genre": "Товары",
+    "prompt": "Fashion e-commerce photo: [MODEL] wearing the [GARMENT] from the reference image, reproducing its exact cut, fabric, color, pattern and details with realistic fit and natural folds. Full-body shot, [POSE], in [LOCATION]. Soft natural light, clean composition, neutral styling that keeps the focus on the garment. Editorial fashion lookbook photography, realistic skin and anatomy, sharp detail, 4K.",
+    "src": "/media/prototype/content/image/08.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:9",
+    "kind": "image",
+    "title": "Разные ракурсы товара (сетка)",
+    "genre": "Товары",
+    "prompt": "A clean 2x2 grid product sheet of [PRODUCT] from the reference image, the same product in every panel with identical colors and branding: top left  -  front view, top right  -  side view, bottom left  -  back view, bottom right  -  close-up of the key detail. Each panel on a uniform light gray seamless background with soft studio lighting and a subtle shadow. Thin white gutters between panels, consistent scale, professional catalog photography, 4K.",
+    "src": "/media/prototype/content/image/09.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:10",
+    "kind": "image",
+    "title": "Еда: аппетитное фото блюда",
+    "genre": "Товары",
+    "prompt": "Mouth-watering food photography of [DISH] (matching the reference image if provided), beautifully plated on [TABLE_SETTING]. 45-degree angle, warm moody side lighting from a window, gentle steam rising, glossy sauces and fresh garnish, a few scattered ingredients around. Dark rustic background, shallow depth of field, rich appetizing colors. Professional restaurant menu photography, ultra detailed, 4K.",
+    "src": "/media/prototype/content/image/10.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:11",
+    "kind": "image",
+    "title": "UGC-фото: человек с товаром (селфи)",
+    "genre": "Соцсети",
+    "prompt": "Casual smartphone selfie of [PERSON] holding [PRODUCT] from the reference image, unchanged, next to their face and smiling naturally at the camera, in [LOCATION]. Authentic user-generated content look: natural window light, slightly imperfect framing, realistic skin texture, relaxed everyday clothes, subtle phone camera wide-angle lens. Genuine, relatable, not overly polished, realistic hands and product.",
+    "src": "/media/prototype/content/image/11.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:12",
+    "kind": "image",
+    "title": "Эстетичный пост в стиле Pinterest",
+    "genre": "Соцсети",
+    "prompt": "Aesthetic Pinterest-style photo of [SCENE], soft [COLOR_PALETTE] color palette, cozy calm mood. Gentle natural light, soft shadows, film photography look with light grain, slightly faded tones, thoughtful minimal composition with negative space. Dreamy, warm, inviting lifestyle aesthetic, high detail.",
+    "src": "/media/prototype/content/image/12.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:13",
+    "kind": "image",
+    "title": "Обложка для Reels / YouTube",
+    "genre": "Соцсети",
+    "prompt": "Eye-catching video cover thumbnail: [PERSON] in the right half of the frame with an exaggerated [EMOTION] expression, looking at the camera, [TOPIC_OBJECT] next to them. Large bold headline text \"[TITLE]\" in the upper part, thick white letters with a strong dark outline, highly readable. Bright saturated background with a subtle glow behind the person, high contrast, sharp focus on the face. Viral social media thumbnail style, 2K.",
+    "src": "/media/prototype/content/image/13.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:14",
+    "kind": "image",
+    "title": "Карусель-слайд с советом",
+    "genre": "Соцсети",
+    "prompt": "Instagram carousel slide design in [BRAND_COLORS]. A short bold headline at the top: \"[HEADLINE]\", clean modern sans-serif font. Below it, a friendly flat vector illustration of [ILLUSTRATION_SUBJECT] with soft shapes and subtle grain texture. Lots of white space, rounded corners, small arrow icon in the bottom right corner hinting to swipe. Minimal, trendy, cohesive social media graphic design, crisp readable text, 2K.",
+    "src": "/media/prototype/content/image/14.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:15",
+    "kind": "image",
+    "title": "Цитата / мотивационный пост",
+    "genre": "Соцсети",
+    "prompt": "Elegant quote post: [BACKGROUND_SCENE] as a soft, slightly blurred background with calm tones. In the center, the text \"[QUOTE]\" in a refined serif font, white with a subtle shadow, perfectly readable, balanced typography with generous margins. Minimal, inspiring, premium social media aesthetic, 2K.",
+    "src": "/media/prototype/content/image/15.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:16",
+    "kind": "image",
+    "title": "Аватар / портрет для профиля",
+    "genre": "Соцсети",
+    "prompt": "Professional portrait of the person from the reference image, preserving their exact facial features, identity, hairstyle and skin tone. Chest-up framing, wearing [OUTFIT], confident friendly expression, looking at the camera. [BACKGROUND], soft flattering studio lighting with gentle rim light. [STYLE] style, realistic skin texture, sharp eyes, high-end headshot photography, 4K.",
+    "src": "/media/prototype/content/image/16.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:17",
+    "kind": "image",
+    "title": "Стилизация фото (аниме, 3D, акварель)",
+    "genre": "Соцсети",
+    "prompt": "Transform the reference image into [STYLE] style, keeping the same composition, people, poses, facial features and key objects recognizable. Apply the style consistently to lighting, colors, textures and background. Clean, polished, high-quality artwork, rich detail, harmonious color palette.",
+    "src": "/media/prototype/content/image/17.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:18",
+    "kind": "image",
+    "title": "3D-фигурка / коллекционная игрушка",
+    "genre": "Соцсети",
+    "prompt": "A realistic collectible action figure of the person from the reference image, preserving their recognizable face, hairstyle and outfit, standing inside a clear plastic blister package with a colorful cardboard backing. The package shows the name \"[NAME]\" at the top in bold toy-brand lettering, and small accessories next to the figure: [ACCESSORIES]. Glossy plastic material, soft studio lighting, placed on a desk, product photography style, highly detailed, 4K.",
+    "src": "/media/prototype/content/image/18.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:19",
+    "kind": "image",
+    "title": "Фон для сторис / обоев",
+    "genre": "Соцсети",
+    "prompt": "Vertical atmospheric background of [SCENE], [MOOD] mood. Large calm empty area in the upper and middle part of the frame for text overlay, interesting details concentrated near the bottom. Soft gradient light, harmonious colors, subtle depth and texture, no people, no text. High-quality wallpaper, 4K.",
+    "src": "/media/prototype/content/image/19.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:20",
+    "kind": "image",
+    "title": "Мем / смешная ситуация",
+    "genre": "Соцсети",
+    "prompt": "Funny meme-style photo: [CHARACTER] in [FUNNY_SITUATION], with an exaggerated, hilarious facial expression. Realistic photographic style, bright natural lighting, candid snapshot feel. At the top, a short caption in bold white Impact-style letters with black outline: \"[CAPTION]\". Humorous, relatable, internet meme aesthetic.",
+    "src": "/media/prototype/content/image/20.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:21",
+    "kind": "image",
+    "title": "Рекламный баннер с оффером",
+    "genre": "Реклама",
+    "prompt": "Advertising web banner in [BRAND_COLORS]. On the right, [PRODUCT] from the reference image, unchanged, with dramatic studio lighting and a soft glow behind it. On the left, bold headline text \"[HEADLINE]\" in a strong modern sans-serif font, and below it a rounded button with the text \"[CTA]\". Clean layout, clear visual hierarchy, subtle abstract shapes in the background. Professional digital advertising design, crisp readable text, 2K.",
+    "src": "/media/prototype/content/image/21.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "image:22",
+    "kind": "image",
+    "title": "Распродажа / скидка",
+    "genre": "Реклама",
+    "prompt": "High-impact sale poster: [PRODUCT] from the reference image in the center, unchanged, bursting out of a torn paper background with confetti, shopping bags and glossy 3D shapes flying around. Huge bold text \"[DISCOUNT_TEXT]\" at the top, energetic and eye-catching. Vibrant [BRAND_COLORS] color scheme, dynamic diagonal composition, strong lighting and depth. Bold retail advertising design, crisp readable text, 2K.",
+    "src": "/media/prototype/content/image/22.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:23",
+    "kind": "image",
+    "title": "Люкс: парфюм, украшения, часы",
+    "genre": "Реклама",
+    "prompt": "Luxury advertising photograph of [PRODUCT] from the reference image, exactly preserving its shape, glass, metal and engravings. It rests on a black marble surface surrounded by [LUXURY_ELEMENTS], in a dark velvet setting. A single warm spotlight creating brilliant highlights and refractions, deep blacks and gold tones, soft bokeh sparkles in the background. Opulent, elegant, high-end fashion house campaign aesthetic, ultra detailed, 4K.",
+    "src": "/media/prototype/content/image/23.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:24",
+    "kind": "image",
+    "title": "Кинематографичный кадр рекламной кампании",
+    "genre": "Реклама",
+    "prompt": "Cinematic advertising campaign still: [PERSON] using [PRODUCT] from the reference image, unchanged, in [LOCATION] at golden hour. [MOOD] atmosphere, anamorphic lens look with soft flares, rich teal and amber color grading, shallow depth of field, the product clearly visible and in focus. Wide composition with negative space on one side for a logo. Premium brand campaign photography, film still quality, 4K.",
+    "src": "/media/prototype/content/image/24.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "image:25",
+    "kind": "image",
+    "title": "Проблема → решение (сравнение)",
+    "genre": "Реклама",
+    "prompt": "Split-screen before-and-after advertising image divided vertically in the middle. Left half: [PROBLEM_SCENE], cool desaturated gray-blue tones, gloomy lighting, small label \"BEFORE\". Right half: [SOLUTION_SCENE] with [PRODUCT] (from the reference image, unchanged) clearly visible, bright warm saturated colors, cheerful lighting, small label \"AFTER\". Same camera angle on both sides for a clear comparison. Clean commercial photography, crisp readable labels, 2K.",
+    "src": "/media/prototype/content/image/25.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:26",
+    "kind": "image",
+    "title": "Наружная реклама (билборд-мокап)",
+    "genre": "Реклама",
+    "prompt": "Realistic outdoor advertising mockup: a large billboard in [CITY_SCENE] displaying [AD_CONTENT] (use the reference image as the billboard artwork if provided, placed flat with correct perspective). Evening city atmosphere, the billboard lit by spotlights, pedestrians and cars slightly motion-blurred below, reflections on wet asphalt. Photorealistic urban photography, correct perspective and lighting integration, 4K.",
+    "src": "/media/prototype/content/image/26.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "image:27",
+    "kind": "image",
+    "title": "Реклама приложения / сервиса",
+    "genre": "Реклама",
+    "prompt": "App advertising visual: a hand holding a modern smartphone at a slight angle, the screen showing a clean app interface (use the reference image as the screen content if provided, fitted exactly to the display). Floating around the phone: glossy 3D icons representing [BENEFIT_ICONS]. Soft gradient background in [BRAND_COLORS], the app name \"[APP_NAME]\" in bold modern font at the top. Bright, friendly tech commercial style, realistic hand, crisp readable text, 2K.",
+    "src": "/media/prototype/content/image/27.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:28",
+    "kind": "image",
+    "title": "Кафе / ресторан  -  атмосфера",
+    "genre": "Реклама",
+    "prompt": "Warm atmospheric advertising photo of [VENUE] in the evening: [SIGNATURE_ITEM] in the sharp foreground on a wooden table, behind it softly blurred happy guests chatting under warm string lights. Amber and golden tones, cozy inviting mood, shallow depth of field, natural candid feel. Hospitality lifestyle photography, realistic, 4K.",
+    "src": "/media/prototype/content/image/28.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:29",
+    "kind": "image",
+    "title": "Недвижимость: интерьер/экстерьер",
+    "genre": "Реклама",
+    "prompt": "Architectural real estate photograph of [PROPERTY] in [STYLE] style at [TIME_OF_DAY] (if a reference image is provided, keep its layout and structure and improve lighting, decor and styling). Wide-angle lens, perfectly straight vertical lines, bright natural light, warm interior lamps glowing, clean tidy staging with tasteful furniture and plants. Inviting, spacious, premium real estate listing photography, HDR balanced exposure, 4K.",
+    "src": "/media/prototype/content/image/29.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "image:30",
+    "kind": "image",
+    "title": "Праздничная / сезонная кампания",
+    "genre": "Реклама",
+    "prompt": "Festive [HOLIDAY] advertising image: [PRODUCT] from the reference image, unchanged, as the hero in the center of a beautifully decorated seasonal scene with themed decorations, soft bokeh lights and gentle magical glow. Elegant short greeting text \"[GREETING]\" at the top in a stylish festive font. Warm, joyful, cozy mood, rich harmonious colors, premium holiday campaign photography, crisp readable text, 4K.",
+    "src": "/media/prototype/content/image/30.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:31",
+    "kind": "image",
+    "title": "Главный кадр 3:4, белый фон",
+    "genre": "Маркетплейсы",
+    "prompt": "Marketplace main image of [PRODUCT] from the reference, exact shape, color, logo and label unchanged. Pure white background #FFFFFF, product fills about 85% of a vertical 3:4 frame, front three-quarter view, soft contact shadow only. No text, badges, prices or props. Sharp catalog photo, true color, 4K.",
+    "src": "/media/prototype/content/image/31.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:32",
+    "kind": "image",
+    "title": "Один тезис на слайде",
+    "genre": "Маркетплейсы",
+    "prompt": "Clean marketplace slide of [PRODUCT] from the reference, unchanged. Soft [BG_COLOR] background. One large readable headline only: \"[BENEFIT]\". Small line icon beside it. Lots of empty space, no extra badges, prices or awards. Modern sans-serif, soft shadow, 2K.",
+    "src": "/media/prototype/content/image/32.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:33",
+    "kind": "image",
+    "title": "Размер рядом с рукой",
+    "genre": "Маркетплейсы",
+    "prompt": "Scale photo: an adult hand next to [PRODUCT] from the reference, product unchanged. Neutral table, soft daylight, both hand and product in focus. Optional small label \"[SIZE]\". No beauty filters. Honest catalog photo, 4K.",
+    "src": "/media/prototype/content/image/33.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:34",
+    "kind": "image",
+    "title": "Что в комплекте",
+    "genre": "Маркетплейсы",
+    "prompt": "What's included flat lay of the set from the reference. Each piece of [PRODUCT] laid once on light gray, same lighting. Thin labels: [ITEM_1], [ITEM_2], [ITEM_3]. No extra gifts that are not in the box. Clean top-down catalog photo, 4K.",
+    "src": "/media/prototype/content/image/34.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:35",
+    "kind": "image",
+    "title": "Три шага, как пользоваться",
+    "genre": "Маркетплейсы",
+    "prompt": "Three-step how-to of [PRODUCT] from the reference, product unchanged in every step. Three equal vertical panels labeled 1 2 3 with short lines: \"[STEP_1]\", \"[STEP_2]\", \"[STEP_3]\". Light background, one action per panel, readable type, 2K.",
+    "src": "/media/prototype/content/image/35.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:36",
+    "kind": "image",
+    "title": "Крупно материал",
+    "genre": "Маркетплейсы",
+    "prompt": "Macro of [DETAIL] on [PRODUCT] from the reference, same material and color. Side light, shallow depth of field, no retouch that hides texture. Catalog detail photo, 4K.",
+    "src": "/media/prototype/content/image/36.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:37",
+    "kind": "image",
+    "title": "Модуль rich-контента",
+    "genre": "Маркетплейсы",
+    "prompt": "Wide rich-content banner, 16:9. [PRODUCT] from the reference on the left, unchanged. On the right a short paragraph \"[TEXT]\" in a clean sans-serif, high contrast, no prices or medals. Soft studio light, 2K.",
+    "src": "/media/prototype/content/image/37.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "image:38",
+    "kind": "image",
+    "title": "Обложка видео в галерее",
+    "genre": "Маркетплейсы",
+    "prompt": "Video cover still for a marketplace gallery. [PRODUCT] from the reference fills the frame in the first moment, in [USE_SCENE]. Small play mark in a corner, optional caption \"[CAPTION]\". Same color and pack as the listing. Natural light, 2K.",
+    "src": "/media/prototype/content/image/38.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:39",
+    "kind": "image",
+    "title": "Все цвета на одном листе",
+    "genre": "Маркетплейсы",
+    "prompt": "Color lineup of [PRODUCT] from the reference. Same model in colors [COLORS], equal size, white background, labels under each. No mixed products. Catalog sheet, 4K.",
+    "src": "/media/prototype/content/image/39.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:40",
+    "kind": "image",
+    "title": "Таблица размера",
+    "genre": "Маркетплейсы",
+    "prompt": "Size guide slide. Simple chart titled \"[CHART_TITLE]\" with rows [SIZE_ROWS]. A small photo of [PRODUCT] from the reference at the side, unchanged. White background, large readable numbers, no medical or fit promises beyond the chart text. 2K.",
+    "src": "/media/prototype/content/image/40.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:41",
+    "kind": "image",
+    "title": "На полке категории",
+    "genre": "Маркетплейсы",
+    "prompt": "Retail shelf photo. [PRODUCT] from the reference in the center, in focus, neighboring packs softly blurred. Same facing as the listing. Cool store light, no fake sale tags. 4K.",
+    "src": "/media/prototype/content/image/41.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:42",
+    "kind": "image",
+    "title": "Открытая коробка",
+    "genre": "Маркетплейсы",
+    "prompt": "Open box photo of [PRODUCT] from the reference, lid open, insert visible, product unchanged. Top three-quarter view, soft light, light gray background. No extra items. 4K.",
+    "src": "/media/prototype/content/image/42.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:43",
+    "kind": "image",
+    "title": "Уход и хранение",
+    "genre": "Маркетплейсы",
+    "prompt": "Care slide for [PRODUCT] from the reference. Three short lines with simple icons: \"[CARE_1]\", \"[CARE_2]\", \"[CARE_3]\". Product small on the side, unchanged. Calm layout, no warnings you were not given. 2K.",
+    "src": "/media/prototype/content/image/43.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:44",
+    "kind": "image",
+    "title": "Состав крупно",
+    "genre": "Маркетплейсы",
+    "prompt": "Ingredient slide. [PRODUCT] from the reference on the left, unchanged. On the right a clean list \"[INGREDIENTS]\" in large type. Neutral background. Do not add health claims. 2K.",
+    "src": "/media/prototype/content/image/44.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:45",
+    "kind": "image",
+    "title": "Подарочный вид",
+    "genre": "Маркетплейсы",
+    "prompt": "Gift set photo of [PRODUCT] from the reference on [SURFACE], with [WRAP] and a small card \"[NOTE]\". Soft daylight, no other brands. Premium but honest, 4K.",
+    "src": "/media/prototype/content/image/45.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:46",
+    "kind": "image",
+    "title": "Было и стало в быту",
+    "genre": "Маркетплейсы",
+    "prompt": "Split comparison, same room and camera. Left: [BEFORE_SCENE], label \"Было\". Right: the same place with [PRODUCT] from the reference in use, label \"Стало\". No percentages or invented results. Natural light, 2K.",
+    "src": "/media/prototype/content/image/46.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:47",
+    "kind": "image",
+    "title": "С чем совместим",
+    "genre": "Маркетплейсы",
+    "prompt": "Compatibility slide. [PRODUCT] from the reference centered. Short list \"[FITS]\" of models or sizes it fits. Do not add models that are not in the list. White background, readable type, 2K.",
+    "src": "/media/prototype/content/image/47.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:48",
+    "kind": "image",
+    "title": "Сезон без дефицита",
+    "genre": "Маркетплейсы",
+    "prompt": "Seasonal marketplace still of [PRODUCT] from the reference in a [SEASON] setting. Small greeting \"[LINE]\" only. No countdown, no discount, no scarcity text. Warm light, product unchanged, 2K.",
+    "src": "/media/prototype/content/image/48.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:49",
+    "kind": "image",
+    "title": "Крупный русский текст",
+    "genre": "Маркетплейсы",
+    "prompt": "Mobile-first marketplace graphic. [PRODUCT] from the reference. Headline \"[HEADLINE]\" in Russian, very large, high contrast, at most two lines. One subline \"[SUBLINE]\". No tiny type. 2K.",
+    "src": "/media/prototype/content/image/49.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:50",
+    "kind": "image",
+    "title": "Силуэт для поиска",
+    "genre": "Маркетплейсы",
+    "prompt": "Search thumbnail of [PRODUCT] from the reference, centered, full product visible, pure white, no crop of important parts, no text. Even light, 2K.",
+    "src": "/media/prototype/content/image/50.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:51",
+    "kind": "image",
+    "title": "Линейка в кадре",
+    "genre": "Маркетплейсы",
+    "prompt": "Measurement photo. [PRODUCT] from the reference beside a metric ruler or [REFERENCE_OBJECT]. Label \"[SIZE_CM]\". Straight-on view, both sharp, white background. 4K.",
+    "src": "/media/prototype/content/image/51.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:52",
+    "kind": "image",
+    "title": "Квадрат для Маркета",
+    "genre": "Маркетплейсы",
+    "prompt": "Square marketplace hero of [PRODUCT] from the reference, full item in frame, light gray seamless background, soft shadow, no text. Exact color and logo. 4K.",
+    "src": "/media/prototype/content/image/52.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:53",
+    "kind": "image",
+    "title": "Слайд «для кого»",
+    "genre": "Маркетплейсы",
+    "prompt": "Audience slide. [PRODUCT] from the reference and a short line \"[WHO]\". Simple icons, no stock celebrity, no invented person unless [PERSON] is described. Soft background, 2K.",
+    "src": "/media/prototype/content/image/53.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:54",
+    "kind": "image",
+    "title": "Слайд ограничений",
+    "genre": "Маркетплейсы",
+    "prompt": "Limits slide for [PRODUCT] from the reference. Three plain lines: \"[LIMIT_1]\", \"[LIMIT_2]\", \"[LIMIT_3]\". No extra warnings. Quiet layout, readable, 2K.",
+    "src": "/media/prototype/content/image/54.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:55",
+    "kind": "image",
+    "title": "До / после упаковки",
+    "genre": "Маркетплейсы",
+    "prompt": "Two views of the same [PRODUCT] from the reference: closed pack and open pack, side by side, white background, equal scale, labels \"Закрыто\" and \"Открыто\". 4K.",
+    "src": "/media/prototype/content/image/55.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:56",
+    "kind": "image",
+    "title": "Герой под 45 градусов",
+    "genre": "Товары",
+    "prompt": "Hero product photo of [PRODUCT] from the reference at 45 degrees, exact form and branding. Soft gradient [BG_COLOR], large softbox, gentle shadow. No text. 4K.",
+    "src": "/media/prototype/content/image/56.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:57",
+    "kind": "image",
+    "title": "Вид сзади и снизу",
+    "genre": "Товары",
+    "prompt": "Two-panel photo of [PRODUCT] from the reference: back view and underside, same color, light gray background, labels \"Сзади\" and \"Снизу\". 4K.",
+    "src": "/media/prototype/content/image/57.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:58",
+    "kind": "image",
+    "title": "Крышка открыта",
+    "genre": "Товары",
+    "prompt": "Photo of [PRODUCT] from the reference with the lid or cap open, contents [INSIDE] visible, shape unchanged. Soft side light, simple background. 4K.",
+    "src": "/media/prototype/content/image/58.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:59",
+    "kind": "image",
+    "title": "Три цвета рядом",
+    "genre": "Товары",
+    "prompt": "Three colorways of [PRODUCT] from the reference in [COLOR_A], [COLOR_B], [COLOR_C], same angle and size, white sweep. 4K.",
+    "src": "/media/prototype/content/image/59.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "image:60",
+    "kind": "image",
+    "title": "В ладони",
+    "genre": "Товары",
+    "prompt": "Adult palm holding [PRODUCT] from the reference, product unchanged, natural skin, window light, plain background. 4K.",
+    "src": "/media/prototype/content/image/60.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:61",
+    "kind": "image",
+    "title": "На ткани",
+    "genre": "Товары",
+    "prompt": "Fabric photo of [PRODUCT] from the reference draped on [SURFACE], showing [TEXTURE]. Soft light, true color, no plastic shine. 4K.",
+    "src": "/media/prototype/content/image/61.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:62",
+    "kind": "image",
+    "title": "Еда в контейнере доставки",
+    "genre": "Товары",
+    "prompt": "Delivery photo of [DISH] in [CONTAINER], matching the reference if given. 45 degree angle, visible steam if hot food, true portion, neutral table. No extra garnish that is not served. 4K.",
+    "src": "/media/prototype/content/image/62.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:63",
+    "kind": "image",
+    "title": "Свотч косметики",
+    "genre": "Товары",
+    "prompt": "Cosmetic swatch: [PRODUCT] from the reference beside a real smear of [SHADE] on skin or a card. Soft light, exact shade, no retouch of the color. 4K.",
+    "src": "/media/prototype/content/image/63.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:64",
+    "kind": "image",
+    "title": "Подошва обуви",
+    "genre": "Товары",
+    "prompt": "Shoe photo: [SHOE] from the reference standing, plus a close-up of the sole pattern. Same pair, white background. 4K.",
+    "src": "/media/prototype/content/image/64.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:65",
+    "kind": "image",
+    "title": "Украшение на нейтральном",
+    "genre": "Товары",
+    "prompt": "Jewelry photo of [JEWEL] from the reference on a matte [SURFACE], soft reflection, sharp facet detail, no extra stones. 4K.",
+    "src": "/media/prototype/content/image/65.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:66",
+    "kind": "image",
+    "title": "Техника на столе",
+    "genre": "Товары",
+    "prompt": "Desk photo of [DEVICE] from the reference on a tidy [DESK]. Screen shows [SCREEN] only if provided, otherwise a blank dark screen. Daylight, no fake apps. 4K.",
+    "src": "/media/prototype/content/image/66.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "image:67",
+    "kind": "image",
+    "title": "Текстиль в комнате",
+    "genre": "Товары",
+    "prompt": "Interior photo of [TEXTILE] from the reference in [ROOM], natural wrinkles allowed, daylight, true color. 4K.",
+    "src": "/media/prototype/content/image/67.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:68",
+    "kind": "image",
+    "title": "Товар и питомец",
+    "genre": "Товары",
+    "prompt": "Pet photo: [PET] beside [PRODUCT] from the reference in a home, product unchanged, kind handling, natural light. No costume unless asked. 4K.",
+    "src": "/media/prototype/content/image/68.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:69",
+    "kind": "image",
+    "title": "В зале",
+    "genre": "Товары",
+    "prompt": "Gym photo of [PRODUCT] from the reference in use by [PERSON] or resting on the floor. Honest gym light, no trophy backdrop. 4K.",
+    "src": "/media/prototype/content/image/69.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:70",
+    "kind": "image",
+    "title": "Запасной блок",
+    "genre": "Товары",
+    "prompt": "Refill photo: original [PRODUCT] from the reference and refill [REFILL] side by side, labels visible, white background. 4K.",
+    "src": "/media/prototype/content/image/70.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:71",
+    "kind": "image",
+    "title": "Схема комплекта",
+    "genre": "Товары",
+    "prompt": "Exploded layout of [PRODUCT] from the reference: parts separated in order, thin numbered labels [PARTS], light background. Same materials. 4K.",
+    "src": "/media/prototype/content/image/71.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:72",
+    "kind": "image",
+    "title": "Флакон и блик",
+    "genre": "Товары",
+    "prompt": "Bottle photo of [PRODUCT] from the reference, label readable, one soft highlight, dark or light [BG] as asked, no extra droplets unless [LIQUID] is set. 4K.",
+    "src": "/media/prototype/content/image/72.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:73",
+    "kind": "image",
+    "title": "Детский предмет без лица",
+    "genre": "Товары",
+    "prompt": "Product photo of [PRODUCT] from the reference with an adult hand only. No child's face, no baby portrait. Soft home light, safe neutral background. 4K.",
+    "src": "/media/prototype/content/image/73.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:74",
+    "kind": "image",
+    "title": "Обложка книги или журнала",
+    "genre": "Товары",
+    "prompt": "Straight-on photo of [COVER] from the reference, cover flat to camera, even light, text not warped, simple background. 4K.",
+    "src": "/media/prototype/content/image/74.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:75",
+    "kind": "image",
+    "title": "Напиток с каплями",
+    "genre": "Товары",
+    "prompt": "Drink photo of [DRINK] from the reference, label intact, light condensation if it is a cold drink, [BG_COLOR] backdrop, no splash unless asked. 4K.",
+    "src": "/media/prototype/content/image/75.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:76",
+    "kind": "image",
+    "title": "Инструмент в руке",
+    "genre": "Товары",
+    "prompt": "Work photo: adult hands using [TOOL] from the reference on [MATERIAL]. Workshop light, product recognizable, no extra tools. 4K.",
+    "src": "/media/prototype/content/image/76.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:77",
+    "kind": "image",
+    "title": "Растение в горшке",
+    "genre": "Товары",
+    "prompt": "Plant photo of [PLANT] in [POT] from the reference, window light, real leaves, simple interior. 4K.",
+    "src": "/media/prototype/content/image/77.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:78",
+    "kind": "image",
+    "title": "Свеча крупно",
+    "genre": "Товары",
+    "prompt": "Candle photo of [CANDLE] from the reference, wax texture visible. Flame only if [FLAME] is yes. Neutral background, 4K.",
+    "src": "/media/prototype/content/image/78.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:79",
+    "kind": "image",
+    "title": "Сумка по пояс",
+    "genre": "Товары",
+    "prompt": "Cropped fashion photo of [BAG] from the reference worn by [PERSON], frame from chest to hip, bag in focus, street or studio [PLACE]. Exact hardware and color. 4K.",
+    "src": "/media/prototype/content/image/79.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:80",
+    "kind": "image",
+    "title": "Дорожный набор",
+    "genre": "Товары",
+    "prompt": "Travel kit flat lay: open [CASE] from the reference with only [ITEMS] inside, top view, soft light. 4K.",
+    "src": "/media/prototype/content/image/80.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:81",
+    "kind": "image",
+    "title": "Селфи с тем же товаром",
+    "genre": "UGC",
+    "prompt": "Phone selfie of [PERSON] holding [PRODUCT] from the reference, same pack and color, next to the face. Ordinary room [ROOM], window light, slight wide-angle, real skin. Not a studio ad. 2K.",
+    "src": "/media/prototype/content/image/81.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:82",
+    "kind": "image",
+    "title": "Распаковка на кровати",
+    "genre": "UGC",
+    "prompt": "Unboxing still: hands opening [PRODUCT] from the reference on a bed, tissue paper, phone-camera look, daylight. Same item as the listing. 2K.",
+    "src": "/media/prototype/content/image/82.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:83",
+    "kind": "image",
+    "title": "Кухонный стол",
+    "genre": "UGC",
+    "prompt": "Kitchen-table photo of [PRODUCT] from the reference among everyday dishes, afternoon light, slightly imperfect framing. Same label. 2K.",
+    "src": "/media/prototype/content/image/83.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:84",
+    "kind": "image",
+    "title": "Взгляд сверху на стол",
+    "genre": "UGC",
+    "prompt": "Top-down POV of [PERSON]'s hands and [PRODUCT] from the reference on [TABLE]. Phone photo, natural color, no beauty grade. 2K.",
+    "src": "/media/prototype/content/image/84.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:85",
+    "kind": "image",
+    "title": "Зеркало, образ целиком",
+    "genre": "UGC",
+    "prompt": "Mirror selfie of [PERSON] wearing or holding [PRODUCT] from the reference, bedroom mirror, phone visible, real clothes [OUTFIT]. Same color as the listing. 2K.",
+    "src": "/media/prototype/content/image/85.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:86",
+    "kind": "image",
+    "title": "Руки крупно",
+    "genre": "UGC",
+    "prompt": "Close UGC of ordinary hands using [PRODUCT] from the reference. Window light, short nails or natural nails, no jewelry unless [JEWELRY] is set. 2K.",
+    "src": "/media/prototype/content/image/86.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:87",
+    "kind": "image",
+    "title": "В машине",
+    "genre": "UGC",
+    "prompt": "Car photo of [PRODUCT] from the reference in a normal car interior, daylight through the window, phone snapshot. Same pack. 2K.",
+    "src": "/media/prototype/content/image/87.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:88",
+    "kind": "image",
+    "title": "После тренировки",
+    "genre": "UGC",
+    "prompt": "Locker-room snapshot of [PERSON] with [PRODUCT] from the reference, tired natural look, fluorescent light mixed with daylight. Product matches the listing. 2K.",
+    "src": "/media/prototype/content/image/88.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:89",
+    "kind": "image",
+    "title": "Полка в ванной",
+    "genre": "UGC",
+    "prompt": "Bathroom shelf photo, [PRODUCT] from the reference among plain bottles, slightly wet surfaces, phone camera. No spa set. 2K.",
+    "src": "/media/prototype/content/image/89.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:90",
+    "kind": "image",
+    "title": "С собакой или кошкой",
+    "genre": "UGC",
+    "prompt": "Home snapshot of [PERSON] and [PET] with [PRODUCT] from the reference on the floor. Natural light, candid, product recognizable. 2K.",
+    "src": "/media/prototype/content/image/90.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:91",
+    "kind": "image",
+    "title": "Кадр с субтитром",
+    "genre": "UGC",
+    "prompt": "Vertical still that looks like a paused phone video. [PERSON] using [PRODUCT] from the reference. One burned-in caption \"[CAPTION]\" at the bottom, large, high contrast. Same SKU. 2K.",
+    "src": "/media/prototype/content/image/91.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:92",
+    "kind": "image",
+    "title": "Показал подруге",
+    "genre": "UGC",
+    "prompt": "Candid photo of two adults, [PERSON_A] and [PERSON_B], looking at [PRODUCT] from the reference in a cafe or kitchen. Natural expressions, daylight. Product unchanged. 2K.",
+    "src": "/media/prototype/content/image/92.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:93",
+    "kind": "image",
+    "title": "Комната до и после",
+    "genre": "UGC",
+    "prompt": "Split home photo of the same corner. Left [BEFORE], right the same corner with [PRODUCT] from the reference. Labels \"До\" and \"После\". No scores. 2K.",
+    "src": "/media/prototype/content/image/93.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:94",
+    "kind": "image",
+    "title": "Сторис с одной фразой",
+    "genre": "UGC",
+    "prompt": "Story frame: [PERSON] with [PRODUCT] from the reference, text \"[LINE]\" at the top in a simple sticker style. Phone photo, 9:16. 2K.",
+    "src": "/media/prototype/content/image/94.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:95",
+    "kind": "image",
+    "title": "Плашка как комментарий",
+    "genre": "UGC",
+    "prompt": "UGC photo of [PRODUCT] from the reference in [PLACE], with a comment bubble containing only \"[COMMENT]\". Do not invent a review. Casual light. 2K.",
+    "src": "/media/prototype/content/image/95.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:96",
+    "kind": "image",
+    "title": "Сборы на столе",
+    "genre": "UGC",
+    "prompt": "Getting-ready flat lay, phone photo: [PRODUCT] from the reference among [ITEMS] on a dresser. Morning light, slightly messy. 2K.",
+    "src": "/media/prototype/content/image/96.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:97",
+    "kind": "image",
+    "title": "Вечерняя лампа",
+    "genre": "UGC",
+    "prompt": "Evening snapshot of [PRODUCT] from the reference under a warm house lamp, dark room around, phone noise slight, true color of the pack. 2K.",
+    "src": "/media/prototype/content/image/97.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:98",
+    "kind": "image",
+    "title": "Пакет из пункта выдачи",
+    "genre": "UGC",
+    "prompt": "Doorstep photo: sealed marketplace parcel opened to show [PRODUCT] from the reference, hallway floor, shoes nearby, phone camera. Same item. 2K.",
+    "src": "/media/prototype/content/image/98.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:99",
+    "kind": "image",
+    "title": "Два своих ракурса",
+    "genre": "UGC",
+    "prompt": "Two phone photos side by side of the same [PRODUCT] from the reference: front and in-hand. White divider, no other brand. 2K.",
+    "src": "/media/prototype/content/image/99.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:100",
+    "kind": "image",
+    "title": "Реакция и товар",
+    "genre": "UGC",
+    "prompt": "Vertical photo of [PERSON] with expression [EMOTION], holding [PRODUCT] from the reference close to camera. Room behind, natural skin, same pack. 2K.",
+    "src": "/media/prototype/content/image/100.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:101",
+    "kind": "image",
+    "title": "На прогулке",
+    "genre": "UGC",
+    "prompt": "Street snapshot of [PERSON] walking with [PRODUCT] from the reference. Overcast daylight, real clothes, background a normal sidewalk. 2K.",
+    "src": "/media/prototype/content/image/101.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:102",
+    "kind": "image",
+    "title": "Рабочий стол",
+    "genre": "UGC",
+    "prompt": "Desk snapshot with laptop, mug and [PRODUCT] from the reference. Afternoon window light, slight clutter. Product label visible. 2K.",
+    "src": "/media/prototype/content/image/102.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:103",
+    "kind": "image",
+    "title": "Завтрак",
+    "genre": "UGC",
+    "prompt": "Breakfast photo at home: [PRODUCT] from the reference with [MEAL], phone camera, daylight, normal portion, no food styling team. 2K.",
+    "src": "/media/prototype/content/image/103.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:104",
+    "kind": "image",
+    "title": "Примерка дома",
+    "genre": "UGC",
+    "prompt": "Home try-on of [GARMENT] from the reference on [PERSON], exact print and color, apartment background, phone mirror or friend photo. 2K.",
+    "src": "/media/prototype/content/image/104.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:105",
+    "kind": "image",
+    "title": "Кадр как из отзыва",
+    "genre": "UGC",
+    "prompt": "Imperfect review photo of [PRODUCT] from the reference on a kitchen counter, slight tilt, mixed light, real texture. Same SKU, no glamour retouch. 2K.",
+    "src": "/media/prototype/content/image/105.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:106",
+    "kind": "image",
+    "title": "Маскот бренда",
+    "genre": "Аниме",
+    "prompt": "Original anime mascot for [BRAND], not copied from any existing series, game or celebrity. [CHARACTER] described only by the brackets, holding [PRODUCT] from the reference. Clean line art, flat colors, simple background [BG]. 2K.",
+    "src": "/media/prototype/content/image/106.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:107",
+    "kind": "image",
+    "title": "Постер-ключ",
+    "genre": "Аниме",
+    "prompt": "Original anime key visual, vertical. [CHARACTER] and [PRODUCT] from the reference, dramatic but clean lighting, title text \"[TITLE]\" only. No known franchise costumes or logos. 2K.",
+    "src": "/media/prototype/content/image/107.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:108",
+    "kind": "image",
+    "title": "Чиби-стикер",
+    "genre": "Аниме",
+    "prompt": "Chibi sticker of an original character [CHARACTER] with [PRODUCT] from the reference. Thick outline, flat color, white sticker border, transparent-looking background. Not a known character. 2K.",
+    "src": "/media/prototype/content/image/108.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:109",
+    "kind": "image",
+    "title": "Кадр манги",
+    "genre": "Аниме",
+    "prompt": "Single manga panel, black and white with one spot color. Original character [CHARACTER] says \"[LINE]\" in a speech bubble, [PRODUCT] from the reference in the panel. No existing series. 2K.",
+    "src": "/media/prototype/content/image/109.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:110",
+    "kind": "image",
+    "title": "Обложка ранобэ",
+    "genre": "Аниме",
+    "prompt": "Light-novel cover layout, original art only. [CHARACTER], [PRODUCT] from the reference, title \"[TITLE]\", author line \"[AUTHOR]\". Painterly anime, not a copy of a published cover. 2K.",
+    "src": "/media/prototype/content/image/110.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:111",
+    "kind": "image",
+    "title": "Рисунок на упаковке",
+    "genre": "Аниме",
+    "prompt": "Pack shot of [PRODUCT] from the reference, label unchanged, with a small original anime illustration of [CHARACTER] printed beside it as new artwork, not covering the logo. Studio light. 2K.",
+    "src": "/media/prototype/content/image/111.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:112",
+    "kind": "image",
+    "title": "Четыре эмоции",
+    "genre": "Аниме",
+    "prompt": "Sheet of four original chibi faces of [CHARACTER]: glad, thinking, surprised, calm. Same design, no known character. Labels in Russian: Рад, Думает, Удивлён, Спокоен. 2K.",
+    "src": "/media/prototype/content/image/112.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:113",
+    "kind": "image",
+    "title": "Город и вывеска",
+    "genre": "Аниме",
+    "prompt": "Original anime city street at night, shop sign \"[SHOP]\" only, [PRODUCT] from the reference in the window. No copied landmarks or series. 2K.",
+    "src": "/media/prototype/content/image/113.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "image:114",
+    "kind": "image",
+    "title": "Персонаж с товаром",
+    "genre": "Аниме",
+    "prompt": "Waist-up original anime character [CHARACTER] holding [PRODUCT] from the reference toward the viewer. Simple gradient background. Not based on a known design. 2K.",
+    "src": "/media/prototype/content/image/114.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:115",
+    "kind": "image",
+    "title": "Инфографика в рамке",
+    "genre": "Аниме",
+    "prompt": "Anime-frame infographic. [PRODUCT] from the reference, three short lines \"[POINT_1]\", \"[POINT_2]\", \"[POINT_3]\". Original decorative frame, readable Russian or the given text, no franchise marks. 2K.",
+    "src": "/media/prototype/content/image/115.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:116",
+    "kind": "image",
+    "title": "Иконка приложения",
+    "genre": "Аниме",
+    "prompt": "App icon, rounded square, original anime symbol of [SUBJECT] or [PRODUCT] from the reference, few shapes, readable at small size. No existing game icon. 2K.",
+    "src": "/media/prototype/content/image/116.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:117",
+    "kind": "image",
+    "title": "Обложка вертикального ролика",
+    "genre": "Аниме",
+    "prompt": "Vertical anime cover, original character [CHARACTER] looking at camera, [PRODUCT] from the reference, bold text \"[LINE]\". Bright, clear silhouette. No known series. 2K.",
+    "src": "/media/prototype/content/image/117.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:118",
+    "kind": "image",
+    "title": "Мягкий рисованный фон",
+    "genre": "Аниме",
+    "prompt": "Gentle original painted anime background of [PLACE], soft light, [PRODUCT] from the reference small in the scene. Do not imitate a specific studio's characters or films. 2K.",
+    "src": "/media/prototype/content/image/118.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:119",
+    "kind": "image",
+    "title": "Неоновая ночь",
+    "genre": "Аниме",
+    "prompt": "Original anime character [CHARACTER] in an original outfit, neon night, holding [PRODUCT] from the reference. No copied hero costumes. 2K.",
+    "src": "/media/prototype/content/image/119.jpg",
+    "ratio": "9:16"
+  },
+  {
+    "id": "image:120",
+    "kind": "image",
+    "title": "Сумка и путь в школу",
+    "genre": "Аниме",
+    "prompt": "Original student character [CHARACTER] with [BAG] from the reference, morning street, original uniform colors [COLORS]. Not a known school anime. 2K.",
+    "src": "/media/prototype/content/image/120.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:121",
+    "kind": "image",
+    "title": "Сцена в кафе",
+    "genre": "Аниме",
+    "prompt": "Original anime cafe scene, [CHARACTER] at a table, [PRODUCT] from the reference on the table, warm light, quiet mood. No franchise cameos. 2K.",
+    "src": "/media/prototype/content/image/121.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:122",
+    "kind": "image",
+    "title": "Спорт",
+    "genre": "Аниме",
+    "prompt": "Original anime athlete [CHARACTER] with [PRODUCT] from the reference, simple court or track, dynamic pose, no real team logos. 2K.",
+    "src": "/media/prototype/content/image/122.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:123",
+    "kind": "image",
+    "title": "Еда крупно",
+    "genre": "Аниме",
+    "prompt": "Anime food illustration of [DISH] matching the reference if given, steam, bold outline, original bowl design, no restaurant logo. 2K.",
+    "src": "/media/prototype/content/image/123.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:124",
+    "kind": "image",
+    "title": "Косметика как открытка",
+    "genre": "Аниме",
+    "prompt": "Original anime postcard: [PRODUCT] from the reference and a small original mascot [CHARACTER], pastel background, no beauty claims in the art. 2K.",
+    "src": "/media/prototype/content/image/124.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:125",
+    "kind": "image",
+    "title": "Фестиваль",
+    "genre": "Аниме",
+    "prompt": "Original anime festival scene for [SEASON], [CHARACTER] and [PRODUCT] from the reference, lanterns or blossoms as asked, no copied mascots. 2K.",
+    "src": "/media/prototype/content/image/125.jpg",
+    "ratio": "3:4"
+  },
+  {
+    "id": "image:126",
+    "kind": "image",
+    "title": "Стикер для мессенджера",
+    "genre": "Аниме",
+    "prompt": "Messenger sticker, original chibi [CHARACTER], gesture [GESTURE], thick outline, plain background. Not a known character. 2K.",
+    "src": "/media/prototype/content/image/126.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:127",
+    "kind": "image",
+    "title": "Обложка для соцсетей",
+    "genre": "Аниме",
+    "prompt": "Social cover, not a white-background marketplace main photo. Original anime scene with [PRODUCT] from the reference large and readable, text \"[LINE]\". 2K.",
+    "src": "/media/prototype/content/image/127.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:128",
+    "kind": "image",
+    "title": "Продавец за прилавком",
+    "genre": "Аниме",
+    "prompt": "Original shopkeeper [CHARACTER] behind a counter, [PRODUCT] from the reference on display, warm interior, no chain logos. 2K.",
+    "src": "/media/prototype/content/image/128.jpg",
+    "ratio": "4:5"
+  },
+  {
+    "id": "image:129",
+    "kind": "image",
+    "title": "Две панели, без эффекта",
+    "genre": "Аниме",
+    "prompt": "Two manga panels. Left: [PROBLEM] as a simple situation. Right: [PRODUCT] from the reference. No before-after body claims, no numbers. Original characters only. 2K.",
+    "src": "/media/prototype/content/image/129.jpg",
+    "ratio": "1:1"
+  },
+  {
+    "id": "image:130",
+    "kind": "image",
+    "title": "Широкий баннер сайта",
+    "genre": "Аниме",
+    "prompt": "Wide site banner, 16:9. Original anime character [CHARACTER] on the left, [PRODUCT] from the reference, title \"[TITLE]\" on the right. No existing series. 2K.",
+    "src": "/media/prototype/content/image/130.jpg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:startup",
+    "kind": "presentation",
+    "title": "Startup",
+    "genre": "Инвесторам",
+    "prompt": "Create a 10-slide minimal SaaS startup pitch deck. White background, electric blue #0066FF accent. Slide 1: bold product name + one-line tagline, logo placeholder top-left. Slide 2: Problem — 3 pain points with thin line icons. Slide 3: Solution — UI mockup placeholder, 3 labeled callouts. Slide 4: Market Opportunity — TAM/SAM/SOM nested circles with $ values. Slide 5: Business Model — 3-column pricing table, recommended tier highlighted with a badge. Slide 6: Traction — MoM active users line chart, milestone markers. Slide 7: Competitive Landscape — 2×2 positioning matrix vs 4 named competitors. Slide 8: Team — 4 headshot cards, name/title/one-line bio. Slide 9: 3-Year Revenue Forecast — grouped bar chart, CAGR annotation. Slide 10: Close — full-bleed CTA, funding ask amount, contact email. Font: Inter throughout. Consistent header bar with logo + slide number on every slide. Tone: confident, data-driven, investor-ready. Business Pitch Minimal",
+    "src": "/media/prototype/content/slides/startup.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:dev-tools",
+    "kind": "presentation",
+    "title": "Dev Tools",
+    "genre": "Продажи",
+    "prompt": "Design a 12-slide dark-mode developer tool launch keynote. Background #0D0D0D, neon green #00FF87 accent. Slide 1: full-bleed hero, product name in JetBrains Mono. Slide 2: Problem — terminal-style error messages as bullet points with red # markers. Slide 3: Product reveal — large screenshot with glowing border and subtle particle effect placeholder. Slides 4-7: four feature slides, alternating code-snippet left / result screenshot right layout. Slide 8: Architecture diagram — dark nodes, luminous connecting arrows, system labels in monospace. Slide 9: Benchmark bar chart — dark bg, green bars vs grey competitor bars. Slide 10: Pricing — 3 dark tier cards, Pro highlighted. Slide 11: GitHub star + Discord join CTA. Slide 12: Launch date countdown closer, full-screen gradient. Font: JetBrains Mono for code elements, Inter for prose. Tone: authoritative, technical, exciting.",
+    "src": "/media/prototype/content/slides/dev-tools.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:research",
+    "kind": "presentation",
+    "title": "Research",
+    "genre": "Отчёт",
+    "prompt": "Generate a 16-slide academic conference presentation for a machine learning paper. Clean white background, university navy #003087 + gold #C9A84C accents. Include: (1) Title, authors, affiliations, venue logo. (2) Motivation — why this problem matters, with a compelling statistic. (3) Related Work — timeline comparison table. (4) Our Approach — methodology flowchart with 4 numbered stages. (5) Theoretical Framework — key equations in a clean LaTeX-style typeset box. (6-9) Results slides with bar charts, line plots, and confusion matrix, each with a highlighted key finding callout. (10) Ablation Study — horizontal grouped bar chart. (11) Qualitative Examples — 2×3 image grid with captions. (12) Limitations. (13) Future Work — 3 bullet roadmap. (14) Conclusion — 4 takeaway bullets. (15) Acknowledgements. (16) Q&A closer. Font: Source Serif Pro headings, Source Sans Pro body. Tone: rigorous, scholarly.",
+    "src": "/media/prototype/content/slides/research.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:qbr",
+    "kind": "presentation",
+    "title": "QBR",
+    "genre": "Инвесторам",
+    "prompt": "Build a 14-slide Marketing Quarterly Business Review (QBR) deck. Corporate style: white background, bold teal #00BFA5 accents, dark grey header bars. Slide 1: Executive Summary — 6-KPI dashboard cards (MQL, SQL, CAC, LTV, Revenue, NPS). Slide 2: Channel Performance — heat map table, red/amber/green coding. Slide 3: Campaign ROI table sortable by spend. Slide 4: SEO & Organic Traffic — waterfall chart showing channel contributions. Slide 5: Social Media Engagement — dual-axis trend chart (reach vs. engagement rate). Slide 6: Paid Ads — ROAS by channel stacked horizontal bar. Slide 7: Email Funnel — conversion funnel diagram. Slide 8: Competitive Share-of-Voice — pie chart comparison. Slide 9: Wins & Learnings — 2-column table. Slides 10-11: Next Quarter OKRs with quarterly milestone timeline. Slide 12: Budget Request — waterfall bar. Slide 13: Team Highlights. Slide 14: Appendix placeholder. Font: Helvetica Neue. Tone: data-driven, executive-ready.",
+    "src": "/media/prototype/content/slides/qbr.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:pre-seed",
+    "kind": "presentation",
+    "title": "Pre-seed",
+    "genre": "Инвесторам",
+    "prompt": "Create a 9-slide pre-seed investor deck for a consumer app. Modern asymmetric layout: off-white #FAF9F6 background, deep forest green #1A3C2D accent. Slide 1: Full-bleed lifestyle hero image placeholder + tagline overlay. Slide 2: The Problem — relatable 30-word user story quote with large typography. Slide 3: Solution — 3-step user journey with phone mockup placeholders. Slide 4: Why Now — market timing slide with 3 macro trend icons + one-liner each. Slide 5: Business Model — single illustrated revenue stream diagram. Slide 6: Traction — key metrics in large-number cards (DAU, retention, NPS). Slide 7: The Ask — funding amount, use of funds donut chart, 12-month milestone timeline. Slide 8: Team — founder photos, 2-sentence bios, notable logos. Slide 9: Vision — inspirational closer with brand manifesto quote. Font: DM Serif Display headings, DM Sans body. Tone: warm, human, compelling.",
+    "src": "/media/prototype/content/slides/pre-seed.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:esg",
+    "kind": "presentation",
+    "title": "ESG",
+    "genre": "Отчёт",
+    "prompt": "Design a 20-slide ESG Annual Report executive summary presentation. Editorial style: warm ivory #FDFBF5 background, dark charcoal #1C1C1C text, forest green #2D6A4F and ocean blue #1565C0 for section dividers. Cover: company name, 'Sustainability Report 2024', hero landscape photo placeholder. Section dividers (3 total) for Environmental, Social, Governance. Environmental: carbon emissions line chart, energy mix donut, water usage bar. Social: employee diversity stacked bar, safety metrics KPIs, community impact infographic. Governance: board composition chart, ethics policy summary table. Highlights reel: 6 achievement cards with icons and numbers. Awards & certifications logos grid. Forward-looking targets timeline (2024–2030). Back cover: contact details. Fonts: Garamond headings, Gill Sans body. Print-quality with 10mm margin guidelines. Tone: transparent, accountable, optimistic.",
+    "src": "/media/prototype/content/slides/esg.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:brand",
+    "kind": "presentation",
+    "title": "Brand",
+    "genre": "Бренд",
+    "prompt": "Create a 15-slide brand identity guidelines deck. Vibrant style with a gradient cover (#FF6B6B → #4ECDC4). Each section has a strong color-block header. Sections: Brand Story (mission, vision, values cards); Logo Usage (correct vs incorrect usage examples grid); Color Palette (primary + secondary + neutral swatches with hex, RGB, CMYK codes); Typography (heading/body/accent type specimens with size scale); Iconography (icon set sample grid); Photography Style (mood board placeholder, do/don't examples); Illustration Style (placeholder); Brand Voice (tone adjectives wheel, writing examples); Social Media Templates (Instagram, LinkedIn, Twitter mockup placeholders); Merchandise mockups (tote bag, business card, mug placeholder); Co-branding rules; Brand in Motion (animation principles, easing guide); Digital UI snippet; Misuse examples gallery; Contact + Download links. Font: the brand's own typeface or Söhne. Tone: confident, inspiring, systematic.",
+    "src": "/media/prototype/content/slides/brand.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:growth",
+    "kind": "presentation",
+    "title": "Growth",
+    "genre": "Продажи",
+    "prompt": "Build a 12-slide growth marketing playbook presentation. Minimal style: white background, coral #FF4F4F accent, generous whitespace. Slide 1: title + subtitle 'From 0 to 100K Users'. Slide 2: The AARRR Funnel — illustrated funnel diagram with metric at each stage. Slide 3: ICP Definition — persona card with photo placeholder, demographics, pain points, goals. Slide 4: Channel Prioritization Matrix — effort vs. impact scatter plot with labeled channel bubbles. Slide 5: SEO Playbook — keyword strategy pyramid. Slide 6: Paid Acquisition — ad creative anatomy diagram. Slide 7: Referral Program Design — loop diagram. Slide 8: Email Nurture Sequence — horizontal timeline flow. Slide 9: Conversion Rate Optimization — before/after landing page annotated comparison. Slide 10: Analytics Stack — tool logos grid with data flow arrows. Slide 11: 90-Day Experiment Roadmap — Gantt-style timeline. Slide 12: Key Metrics Dashboard — 8 KPI cards with targets. Font: Inter. Tone: strategic, actionable, data-backed.",
+    "src": "/media/prototype/content/slides/growth.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:roadmap",
+    "kind": "presentation",
+    "title": "Roadmap",
+    "genre": "Стиль",
+    "prompt": "Generate a 13-slide product roadmap presentation for a mobile app. Modern style: deep navy #0B1E3D background with white text, cyan #00D4FF accent highlights. Slide 1: Vision statement — bold one-sentence manifesto. Slide 2: 2024 Achievements recap — 4 milestone cards with icons and dates. Slide 3: Strategic Pillars — 3 column icons with one-liner each. Slide 4: H1 2025 Roadmap — horizontal swim-lane timeline by product area. Slide 5: Feature Deep-dive #1 — problem/solution/impact layout. Slides 6-7: Two more feature deep-dives. Slide 8: Platform bets — mobile vs web vs API investment allocation donut. Slide 9: Dependency Map — linked node diagram. Slide 10: OKRs by Quarter — 2×4 grid with RAG status. Slide 11: Tech Debt Plan — stacked bar showing % allocation per sprint. Slide 12: Team Headcount Plan — current vs. planned org chart. Slide 13: How to Give Feedback — channels + calendar invite placeholder. Font: Space Grotesk. Tone: transparent, strategic, execution-focused.",
+    "src": "/media/prototype/content/slides/roadmap.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:university",
+    "kind": "presentation",
+    "title": "University",
+    "genre": "Обучение",
+    "prompt": "Create a 10-slide introductory course slides for a university computer science module. Friendly academic style: soft blue #EEF4FF background, warm navy #1A237E headings, yellow #FFC107 highlights. Slide 1: Course title, instructor name, photo placeholder, semester info. Slide 2: Why This Course Matters — real-world applications with 3 photo placeholders. Slide 3: Learning Objectives — numbered list with checkmark icons. Slide 4: Weekly Schedule — colorful table overview of topics. Slide 5: Assessment Breakdown — donut chart of grade weightings. Slide 6: Resources — textbook cover placeholder, online tools logos. Slide 7: How Office Hours Work — visual schedule calendar. Slide 8: Academic Integrity Policy — dos/don'ts two-column table. Slide 9: First Week Assignment — step-by-step card layout. Slide 10: Q&A + contact details. Font: Nunito for headings, Open Sans for body. Tone: welcoming, clear, encouraging.",
+    "src": "/media/prototype/content/slides/university.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:b2b",
+    "kind": "presentation",
+    "title": "B2B",
+    "genre": "Продажи",
+    "prompt": "Design a 10-slide B2B sales discovery and pitch deck. Corporate professional style: white + dark slate #1E293B + vibrant orange #F97316. Slide 1: Account name personalization slot + your company logo. Slide 2: We Heard You — mirror back the prospect's 3 stated pain points in their own language. Slide 3: Why Companies Like Yours Choose Us — 3 logos + one-sentence outcome each. Slide 4: Our Solution — value proposition in one sentence, 4 benefit icons below. Slide 5: How It Works — 3-step illustrated process. Slide 6: Case Study — metrics before/after comparison cards. Slide 7: ROI Calculator — simple input table with output highlight box. Slide 8: Implementation Timeline — 4-phase Gantt. Slide 9: Pricing Overview — simplified tier table (detailed in appendix). Slide 10: Next Steps — 3 clear action items with owner/date/emoji. Font: Inter. Tone: consultative, prospect-centric, action-oriented.",
+    "src": "/media/prototype/content/slides/b2b.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:series-b",
+    "kind": "presentation",
+    "title": "Series B",
+    "genre": "Инвесторам",
+    "prompt": "Build a 12-slide Series B investor update board deck. Ultra-minimal executive style: white background, thin black divider lines, single accent color — emerald #059669. Slide 1: Company name, Series B progress bar (raised vs. target), date. Slide 2: One-Page Business Summary — 6-cell grid covering product, market, model, traction, team, ask. Slide 3: KPI Dashboard — 8 large-number cards vs. last month and vs. plan. Slide 4: Revenue Waterfall — new / expansion / churn / net new MRR. Slide 5: Unit Economics — CAC, LTV, LTV:CAC, payback period in 2×2 metric cards. Slide 6: Sales Pipeline — funnel with conversion rates at each stage. Slide 7: Product Highlights — top 3 shipped features with impact metric. Slide 8: Competitive Win/Loss Analysis — bar chart by reason. Slide 9: Headcount — current org chart, open roles highlighted. Slide 10: Burn & Runway — monthly burn line chart, runway callout box. Slide 11: Risks & Mitigations — 2-column table. Slide 12: The Ask — use of funds allocation and 18-month milestone plan. Font: Inter. Tone: transparent, rigorous, investor-grade.",
+    "src": "/media/prototype/content/slides/series-b.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:architecture",
+    "kind": "presentation",
+    "title": "Architecture",
+    "genre": "Отчёт",
+    "prompt": "Create a 14-slide cloud-native microservices architecture deep-dive for a technical audience. Dark theme: #0A0E17 background, electric blue #3B82F6 and green #22C55E highlights, white text. Slide 1: Title + audience level indicator (Advanced). Slide 2: System Design Goals — CAP theorem recap, target SLAs table. Slide 3: High-Level Architecture Diagram — service boxes with labeled API gateways, message queues, databases, CDN. Slides 4-7: Four service deep-dives — each shows service interface contract, data model, key design decisions, latency budget. Slide 8: Event-Driven Communication — Kafka topic flow diagram. Slide 9: Observability Stack — metrics/logging/tracing three-pillar diagram with tool logos. Slide 10: Security Perimeter — mTLS, OAuth2, secrets management illustrated. Slide 11: Deployment Pipeline — CI/CD flow diagram with GitHub Actions stages. Slide 12: Failure Mode Analysis — runbook table. Slide 13: Performance Benchmarks — p50/p95/p99 latency bar charts. Slide 14: Future Roadmap — 3 architectural evolution phases. Font: JetBrains Mono + Inter. Tone: detailed, precise, engineering-grade.",
+    "src": "/media/prototype/content/slides/architecture.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:ted",
+    "kind": "presentation",
+    "title": "TED",
+    "genre": "Стиль",
+    "prompt": "Generate a 18-slide TED-style inspirational keynote presentation. Bold editorial design: black background #111111, single vivid accent color that changes per section (coral → gold → teal), giant typographic headlines. Opening: full-screen quote in 72pt white text. Problem framing: 4 slides with one arresting statistic per slide — huge number, small context text. Story arc: 3 slides for a personal narrative with photo placeholders. The Idea: 2 slides explaining the core insight in plain language. Evidence: 3 data slides — one chart each, labeled simply. Call to Action: 2 slides — the shift required, and 3 things the audience can do today. Closing: memorable one-sentence manifesto + speaker photo + social handles. No bullet points anywhere. Every slide communicates ONE idea. Font: Obviously or Druk for display, GT America for body. Tone: urgent, emotional, memorable.",
+    "src": "/media/prototype/content/slides/ted.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:market-research",
+    "kind": "presentation",
+    "title": "Market Research",
+    "genre": "Отчёт",
+    "prompt": "Create a 16-slide market research report presentation. Clean corporate style: white background, professional blue #0047AB, 12px grid layout. Slide 1: Report title, date, research methodology badge. Slide 2: Executive Summary — 4 key findings in large callout boxes. Slide 3: Research Methodology — survey sample, timeline, data sources table. Slide 4: Market Overview — total market size + CAGR chart. Slide 5: Market Segmentation — donut chart + description table. Slide 6: Growth Drivers — horizontal bar chart ranked by impact. Slide 7: Market Challenges — risk matrix 2×2. Slide 8: Competitive Landscape — bubble chart (market share vs. growth rate, bubble = revenue). Slide 9: Competitor Profiles — 4 mini-profile cards. Slide 10: Consumer Behavior Survey — bar chart top findings. Slide 11: Buying Journey Map — horizontal stage diagram with channel labels. Slide 12: Emerging Trends — 4 trend cards with 3-year projection sparklines. Slide 13: Regulatory Environment — summary table. Slide 14: Opportunities by Region — world heat map. Slide 15: Strategic Recommendations — numbered action list. Slide 16: Appendix — methodology detail, raw data tables. Font: Calibri headings, Arial body. Tone: objective, analytical, evidence-based.",
+    "src": "/media/prototype/content/slides/market-research.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:onboarding",
+    "kind": "presentation",
+    "title": "Onboarding",
+    "genre": "Обучение",
+    "prompt": "Build a 12-slide new employee onboarding deck. Warm and welcoming style: off-white #FFFEF7 background, warm teal #0D9488 + sunny yellow #FCD34D accents. Slide 1: Welcome message from CEO with photo placeholder and personal quote. Slide 2: Our Mission & Values — 4 value cards with icons and one-line descriptions. Slide 3: Company Milestones — illustrated horizontal timeline from founding to today. Slide 4: Meet Your Team — org chart section with headshots placeholder, showing new hire's position highlighted. Slide 5: Your First Week Schedule — day-by-day calendar card layout. Slide 6: Tools & Systems Setup Checklist — icon grid with checkboxes. Slide 7: How We Work — working norms (async-first, feedback culture) as a visual card set. Slide 8: Benefits Overview — 6 benefit category icons with one-line summary each. Slide 9: Learning Resources — 4 resource cards with QR placeholders. Slide 10: DEI & ERGs — group logos and join links. Slide 11: Key Contacts Directory — role-based contact cards. Slide 12: Your 30-60-90 Day Goals — tabbed milestone plan. Font: Nunito. Tone: warm, human, energizing.",
+    "src": "/media/prototype/content/slides/onboarding.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:earnings",
+    "kind": "presentation",
+    "title": "Earnings",
+    "genre": "Инвесторам",
+    "prompt": "Design a 14-slide Q1 2025 financial earnings results presentation for a public company. Formal corporate style: white background, deep navy #001F5B primary, gold #C8A951 accent. Slide 1: Quarter summary title, fiscal date, safe harbor statement. Slide 2: Q1 Highlights — 5 headline metrics in large number cards (Revenue, EPS, Gross Margin, FCF, Guidance). Slide 3: Revenue Bridge — waterfall chart from Q4 2024 to Q1 2025. Slide 4: Revenue by Segment — horizontal stacked bar with prior year comparison. Slide 5: Gross Margin Trend — dual-axis line+bar chart over 8 quarters. Slide 6: Operating Expenses — grouped bar chart by category. Slide 7: EBITDA Walk — waterfall chart. Slide 8: Cash Flow Statement Summary — 3-column table. Slide 9: Balance Sheet Highlights — asset/liability card summary. Slide 10: Geographic Revenue Split — regional pie chart + table. Slide 11: Customer Metrics — ARR, NRR, logo count trend charts. Slide 12: Q2 2025 Guidance — range table with consensus vs. guidance. Slide 13: Full-Year Outlook — updated annual guidance table. Slide 14: Appendix — reconciliation tables, non-GAAP definitions. Font: Times New Roman headings, Calibri body. Tone: precise, compliance-minded, investor-grade.",
+    "src": "/media/prototype/content/slides/earnings.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:design-system",
+    "kind": "presentation",
+    "title": "Design System",
+    "genre": "Бренд",
+    "prompt": "Create a 14-slide design system review and proposal presentation. Ultra-minimal design: pure white #FFFFFF background, 8px grid, jet black #111111 text, single electric purple #7C3AED accent for key elements. Slide 1: Design System name, version, team, date. Slide 2: Current State Audit — component inventory heat map showing coverage vs. gaps. Slide 3: Pain Points — developer survey results bar chart, top 5 complaints. Slide 4: Proposed Improvements — before/after component comparison grid (old vs. new). Slide 5: New Component Library Overview — categorized component thumbnail grid. Slide 6: Token System — color/spacing/typography token naming convention diagrams. Slide 7: Accessibility Upgrades — contrast ratio table, WCAG 2.2 AA compliance checklist. Slide 8: Motion & Animation Principles — easing curve examples with frame previews. Slide 9: Dark Mode Implementation — side-by-side light/dark component comparison. Slide 10: Documentation Site — screenshot mockup. Slide 11: Migration Guide — step-by-step numbered process. Slide 12: Adoption Roadmap — phased quarterly plan. Slide 13: Team Buy-in — stakeholder map + sign-off checklist. Slide 14: Success Metrics — KPIs for adoption tracking. Font: Inter. Tone: precise, collaborative, forward-looking.",
+    "src": "/media/prototype/content/slides/design-system.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:case-study",
+    "kind": "presentation",
+    "title": "Case Study",
+    "genre": "Бренд",
+    "prompt": "Build a 10-slide customer success story / case study presentation. Narrative storytelling style: warm white background, brand color of the featured customer, large pull quotes in 48pt type. Slide 1: Customer logo + headline result in one sentence ('How [Company] 3× revenue in 6 months'). Slide 2: Meet the Customer — company profile card, industry, size, key challenge. Slide 3: The Challenge — customer's words as a large testimonial quote, plus 3 pain points. Slide 4: Why They Chose Us — decision criteria table, competitive alternatives considered. Slide 5: The Solution — product areas used, implementation timeline. Slide 6: Results — 3 metric cards with before/after numbers and % improvement. Slide 7: Impact Deep-dive — supporting chart (revenue, time saved, etc.). Slide 8: Team Quote — full-page quote from their VP/Director with headshot. Slide 9: What's Next — customer's expansion plan and future goals. Slide 10: Your Turn — CTA to book a demo, contact details, next step button. Font: Georgia headings, Inter body. Tone: authentic, outcome-focused, persuasive.",
+    "src": "/media/prototype/content/slides/case-study.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:board-deck",
+    "kind": "presentation",
+    "title": "Board Deck",
+    "genre": "Инвесторам",
+    "prompt": "Design a 12-slide monthly board packet update presentation. Executive minimalist style: clean white, slate grey #475569 secondary, accent dot indicators in red/amber/green for status. Slide 1: Month/Year, company name, key metrics banner (3 large KPI numbers). Slide 2: CEO Summary — three bullet narrative: what went well, what didn't, what we're doing about it. Slide 3: Revenue Dashboard — actuals vs. plan bar chart + trend line, variance commentary box. Slide 4: Customer Metrics — NRR, churn rate, logo count vs. last month + plan. Slide 5: Product Velocity — shipped items table with business impact tags. Slide 6: Sales Pipeline — stage-by-stage funnel chart, weighted vs. unweighted. Slide 7: Burn Rate & Runway — monthly bar chart + months of runway callout. Slide 8: People — headcount table, open roles, attrition rate. Slide 9: Strategic Initiative Status — 5-row RAG status table. Slide 10: Risks & Issues — risk register top 5 with owner and ETA. Slide 11: Board Decision Required — clearly highlighted item with two-option framing. Slide 12: Appendix — detailed financial tables, cohort data. Font: Inter. Tone: concise, transparent, decision-facilitating.",
+    "src": "/media/prototype/content/slides/board-deck.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:leadership",
+    "kind": "presentation",
+    "title": "Leadership",
+    "genre": "Обучение",
+    "prompt": "Create a 14-slide corporate leadership training workshop presentation. Energetic modern style: gradient section headers (dark blue → purple), white content areas, large workshop activity icons. Slide 1: Workshop title, facilitator name, agenda overview timeline. Slide 2: Learning Objectives — 4 skill outcome cards with icons. Slides 3-4: Module 1 — Adaptive Leadership (theory overview, then interactive discussion prompt). Slides 5-6: Module 2 — Psychological Safety (research summary chart, team exercise instructions). Slides 7-8: Module 3 — Feedback Culture (SBI model diagram, role-play scenario cards). Slide 9: Reflection Activity — individual journaling prompt with timer graphic. Slide 10: Group Discussion Template — table format for capturing team norms. Slide 11: Key Takeaways — top 5 principles illustrated as icons with one-liners. Slide 12: 30-Day Action Plan template — personal commitment worksheet. Slide 13: Resources — book covers, article QR codes. Slide 14: Evaluation & Feedback QR code. Font: Raleway headings, Open Sans body. Tone: energizing, practical, participatory.",
+    "src": "/media/prototype/content/slides/leadership.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:gtm",
+    "kind": "presentation",
+    "title": "GTM",
+    "genre": "Продажи",
+    "prompt": "Build a 15-slide go-to-market (GTM) strategy presentation for a new product launch. Strategic style: dark charcoal #1C1C2E background, vibrant gradient accents, white text. Slide 1: Product name + GTM mission statement. Slide 2: Target Market — ICP definition table (firmographics + psychographics + technographics). Slide 3: Total Addressable Market — top-down and bottoms-up TAM/SAM/SOM comparison. Slide 4: Competitive Positioning — perceptual map with 6 competitors plotted. Slide 5: Value Proposition Canvas — customer jobs/pains/gains vs. product gains/pain relievers. Slide 6: Pricing Strategy — price positioning chart, tier rationale. Slide 7: Channel Strategy — direct vs. partner vs. self-serve allocation waterfall. Slide 8: Launch Phases — 3-phase horizontal timeline (Pre-launch, Launch, Post-launch) with milestones. Slide 9: Content & Demand Gen Plan — channel mix table with budget allocation. Slide 10: Sales Motion — land-and-expand diagram. Slide 11: Partner Ecosystem — partner type matrix. Slide 12: Success Metrics by Phase — KPI table per launch phase. Slide 13: Budget Overview — spend breakdown by function. Slide 14: Team RACI — responsibilities matrix. Slide 15: Risk Register — top 5 risks with mitigation. Font: Syne headings, Inter body. Tone: strategic, ambitious, cross-functional.",
+    "src": "/media/prototype/content/slides/gtm.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:microservices",
+    "kind": "presentation",
+    "title": "Microservices",
+    "genre": "Отчёт",
+    "prompt": "Generate a 16-slide technical deep-dive on migrating from monolith to microservices for senior engineers. Dark professional theme: #0F172A background, Tailwind-blue accent #38BDF8. Slide 1: Title + prerequisites (experience level badge). Slide 2: Monolith Pain Points — deployment coupling diagram, scale bottlenecks heatmap. Slide 3: Migration Strategies Overview — Big Bang vs. Strangler Fig vs. Branch by Abstraction comparison table. Slide 4: The Strangler Fig Pattern — step-by-step annotated diagram. Slide 5: Service Boundary Identification — DDD bounded context mapping diagram. Slide 6: API Contract Design — OpenAPI spec snippet, versioning strategy. Slide 7: Database Decomposition — shared DB → per-service DB migration phases. Slide 8: Saga Pattern for Distributed Transactions — choreography vs. orchestration comparison. Slide 9: Service Mesh Introduction — sidecar proxy diagram. Slide 10: Observability Requirements — distributed tracing flow with Jaeger example. Slide 11: Testing Strategy — test pyramid adapted for microservices, contract testing highlighted. Slide 12: CI/CD Pipeline Changes — monorepo vs. polyrepo pipeline comparison. Slide 13: Canary Deployment Strategy — traffic split diagram. Slide 14: Common Pitfalls — 6 anti-patterns with code smell examples. Slide 15: Migration Checklist — phased readiness checklist table. Slide 16: Q&A + further reading QR codes. Font: Fira Code + Inter. Tone: technical, pragmatic, battle-tested.",
+    "src": "/media/prototype/content/slides/microservices.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:performance-review",
+    "kind": "presentation",
+    "title": "Performance Review",
+    "genre": "Обучение",
+    "prompt": "Create a 10-slide annual performance review presentation template for managers. Clean professional style: white background, subtle grey sidebar, teal #0891B2 accents. Slide 1: Employee name (placeholder), role, review period, manager name. Slide 2: Role Expectations Overview — original job description key responsibilities in a table. Slide 3: Goal Achievement Review — goals set vs. results achieved table with RAG status and % complete. Slide 4: Competency Assessment — radar chart covering 6 core competencies with self-score vs. manager-score overlay. Slide 5: Key Accomplishments — 3 featured achievement cards with impact metric. Slide 6: Areas for Development — 2-column table: skill gap + recommended action. Slide 7: 360 Feedback Summary — anonymized theme cards from peers and reports (verbatim quotes in quote boxes). Slide 8: Compensation & Level Change Decision — current vs. proposed comp table with rationale. Slide 9: Goals for Next Year — SMART goal template table (3 rows). Slide 10: Career Development Plan — 12-month learning roadmap with milestones. Font: Inter. Tone: fair, constructive, growth-oriented.",
+    "src": "/media/prototype/content/slides/performance-review.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:ai-trends",
+    "kind": "presentation",
+    "title": "AI Trends",
+    "genre": "Отчёт",
+    "prompt": "Design a 20-slide 'State of AI in 2025' trend report presentation. Editorial magazine style: rich black #0C0C0C background, white text, gold #E9B96E data highlights, full-bleed section cover slides. Cover: oversized typography, 'STATE OF AI 2025', subtitle, publisher logo. Section 1 — Foundation Models (4 slides): model landscape timeline, capability benchmark radar chart, cost-per-token trend line, open vs. closed model market share. Section 2 — Enterprise Adoption (4 slides): adoption rate by industry heat map, ROI survey results bar chart, implementation barriers ranking, top use case leaderboard. Section 3 — Workforce Impact (4 slides): job augmentation vs. displacement research summary, skills gap analysis, training investment trends, new AI-native role taxonomy. Section 4 — Regulation & Safety (3 slides): global regulation tracker map, safety incident database chart, red-teaming maturity model. Section 5 — What's Next (3 slides): 3 expert predictions with confidence scores, technology readiness levels, '5 things to do in 2025' action list. Back cover: methodology, citations. Font: Editorial New Display + Neue Haas Grotesk. Tone: authoritative, insightful, forward-looking.",
+    "src": "/media/prototype/content/slides/ai-trends.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:accenture-style",
+    "kind": "presentation",
+    "title": "Accenture Style",
+    "genre": "Стиль",
+    "prompt": "Purple, black, and greater than",
+    "src": "/media/prototype/content/slides/accenture-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:arcade",
+    "kind": "presentation",
+    "title": "Arcade",
+    "genre": "Стиль",
+    "prompt": "Insert coin",
+    "src": "/media/prototype/content/slides/arcade.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:art-deco",
+    "kind": "presentation",
+    "title": "Art Deco",
+    "genre": "Стиль",
+    "prompt": "Gold geometry for the modern jazz age",
+    "src": "/media/prototype/content/slides/art-deco.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:atelier",
+    "kind": "presentation",
+    "title": "Atelier",
+    "genre": "Стиль",
+    "prompt": "Built like a blueprint",
+    "src": "/media/prototype/content/slides/atelier.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:atlas",
+    "kind": "presentation",
+    "title": "Atlas",
+    "genre": "Стиль",
+    "prompt": "The dependable one",
+    "src": "/media/prototype/content/slides/atlas.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:atrium",
+    "kind": "presentation",
+    "title": "Atrium",
+    "genre": "Стиль",
+    "prompt": "Calm, like a courtyard",
+    "src": "/media/prototype/content/slides/atrium.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:aurora",
+    "kind": "presentation",
+    "title": "Aurora",
+    "genre": "Стиль",
+    "prompt": "Gradient pitch deck for SaaS",
+    "src": "/media/prototype/content/slides/aurora.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:bain-style",
+    "kind": "presentation",
+    "title": "Bain Style",
+    "genre": "Стиль",
+    "prompt": "Answer first, red where it counts",
+    "src": "/media/prototype/content/slides/bain-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:basel",
+    "kind": "presentation",
+    "title": "Basel",
+    "genre": "Стиль",
+    "prompt": "Loud type, nothing else",
+    "src": "/media/prototype/content/slides/basel.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:bcg-style",
+    "kind": "presentation",
+    "title": "BCG Style",
+    "genre": "Стиль",
+    "prompt": "Strategy lives in a 2x2",
+    "src": "/media/prototype/content/slides/bcg-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:benchmark",
+    "kind": "presentation",
+    "title": "Benchmark",
+    "genre": "Стиль",
+    "prompt": "Us versus the field",
+    "src": "/media/prototype/content/slides/benchmark.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:billboard",
+    "kind": "presentation",
+    "title": "Billboard",
+    "genre": "Инвесторам",
+    "prompt": "One color, one line",
+    "src": "/media/prototype/content/slides/billboard.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:boardroom",
+    "kind": "presentation",
+    "title": "Boardroom",
+    "genre": "Инвесторам",
+    "prompt": "The slide is the argument",
+    "src": "/media/prototype/content/slides/boardroom.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:broadsheet",
+    "kind": "presentation",
+    "title": "Broadsheet",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/broadsheet.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:bubblegum",
+    "kind": "presentation",
+    "title": "Bubblegum",
+    "genre": "Стиль",
+    "prompt": "Y2K sparkle with a system",
+    "src": "/media/prototype/content/slides/bubblegum.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:chalkboard",
+    "kind": "presentation",
+    "title": "Chalkboard",
+    "genre": "Инвесторам",
+    "prompt": "Drawn up at halftime",
+    "src": "/media/prototype/content/slides/chalkboard.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:chevron",
+    "kind": "presentation",
+    "title": "Chevron",
+    "genre": "Стиль",
+    "prompt": "Four phases, one direction",
+    "src": "/media/prototype/content/slides/chevron.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:christmas",
+    "kind": "presentation",
+    "title": "Christmas",
+    "genre": "Стиль",
+    "prompt": "Festive polish, zero clipart kitsch",
+    "src": "/media/prototype/content/slides/christmas.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:cinema",
+    "kind": "presentation",
+    "title": "Cinema",
+    "genre": "Стиль",
+    "prompt": "Quiet on set",
+    "src": "/media/prototype/content/slides/cinema.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:circuit",
+    "kind": "presentation",
+    "title": "Circuit",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/circuit.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:collage",
+    "kind": "presentation",
+    "title": "Collage",
+    "genre": "Стиль",
+    "prompt": "Scissors first, layout second",
+    "src": "/media/prototype/content/slides/collage.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:coquette",
+    "kind": "presentation",
+    "title": "Coquette",
+    "genre": "Стиль",
+    "prompt": "Ribbons, blush and a cherry kiss",
+    "src": "/media/prototype/content/slides/coquette.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:dark-academia",
+    "kind": "presentation",
+    "title": "Dark Academia",
+    "genre": "Стиль",
+    "prompt": "Candlelit library, rare-books society",
+    "src": "/media/prototype/content/slides/dark-academia.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:deloitte-style",
+    "kind": "presentation",
+    "title": "Deloitte Style",
+    "genre": "Стиль",
+    "prompt": "Black, white and one green dot",
+    "src": "/media/prototype/content/slides/deloitte-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:demo-day",
+    "kind": "presentation",
+    "title": "Demo Day",
+    "genre": "Стиль",
+    "prompt": "Three minutes, one idea per slide",
+    "src": "/media/prototype/content/slides/demo-day.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:drafting-room",
+    "kind": "presentation",
+    "title": "Drafting Room",
+    "genre": "Стиль",
+    "prompt": "Measure twice, present once",
+    "src": "/media/prototype/content/slides/drafting-room.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:expedition",
+    "kind": "presentation",
+    "title": "Expedition",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/expedition.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:ey-style",
+    "kind": "presentation",
+    "title": "EY Style",
+    "genre": "Стиль",
+    "prompt": "Dark slate, one decisive yellow beam",
+    "src": "/media/prototype/content/slides/ey-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:field-notes",
+    "kind": "presentation",
+    "title": "Field Notes",
+    "genre": "Стиль",
+    "prompt": "Taped to the folder",
+    "src": "/media/prototype/content/slides/field-notes.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:halloween",
+    "kind": "presentation",
+    "title": "Halloween",
+    "genre": "Стиль",
+    "prompt": "Spooky season, classroom approved",
+    "src": "/media/prototype/content/slides/halloween.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:harvey",
+    "kind": "presentation",
+    "title": "Harvey",
+    "genre": "Стиль",
+    "prompt": "Maturity in quarter turns",
+    "src": "/media/prototype/content/slides/harvey.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:hearth",
+    "kind": "presentation",
+    "title": "Hearth",
+    "genre": "Стиль",
+    "prompt": "Warm, story-led brand pitch",
+    "src": "/media/prototype/content/slides/hearth.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:herbarium",
+    "kind": "presentation",
+    "title": "Herbarium",
+    "genre": "Стиль",
+    "prompt": "Pressed, labeled, filed",
+    "src": "/media/prototype/content/slides/herbarium.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:holo",
+    "kind": "presentation",
+    "title": "Holo",
+    "genre": "Стиль",
+    "prompt": "Iridescent, but disciplined",
+    "src": "/media/prototype/content/slides/holo.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:keynote-minimal",
+    "kind": "presentation",
+    "title": "Keynote Minimal",
+    "genre": "Стиль",
+    "prompt": "One slide, one idea, zero clutter Business Pitch Minimal",
+    "src": "/media/prototype/content/slides/keynote-minimal.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:kpmg-style",
+    "kind": "presentation",
+    "title": "KPMG Style",
+    "genre": "Стиль",
+    "prompt": "Audit-grade clarity in KPMG blue",
+    "src": "/media/prototype/content/slides/kpmg-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:ledger",
+    "kind": "presentation",
+    "title": "Ledger",
+    "genre": "Стиль",
+    "prompt": "Every number reconciled",
+    "src": "/media/prototype/content/slides/ledger.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:letterhead",
+    "kind": "presentation",
+    "title": "Letterhead",
+    "genre": "Стиль",
+    "prompt": "Engraved, not printed",
+    "src": "/media/prototype/content/slides/letterhead.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:level-up",
+    "kind": "presentation",
+    "title": "Level Up",
+    "genre": "Стиль",
+    "prompt": "Earn the XP",
+    "src": "/media/prototype/content/slides/level-up.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:logline",
+    "kind": "presentation",
+    "title": "Logline",
+    "genre": "Стиль",
+    "prompt": "The pitch in one page",
+    "src": "/media/prototype/content/slides/logline.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:lookbook",
+    "kind": "presentation",
+    "title": "Lookbook",
+    "genre": "Стиль",
+    "prompt": "Mood, tone and frame",
+    "src": "/media/prototype/content/slides/lookbook.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:mainframe",
+    "kind": "presentation",
+    "title": "Mainframe",
+    "genre": "Стиль",
+    "prompt": "Straight from the machine room",
+    "src": "/media/prototype/content/slides/mainframe.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:manuscript",
+    "kind": "presentation",
+    "title": "Manuscript",
+    "genre": "Стиль",
+    "prompt": "Slides before print",
+    "src": "/media/prototype/content/slides/manuscript.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:marquee",
+    "kind": "presentation",
+    "title": "Marquee",
+    "genre": "Стиль",
+    "prompt": "Make it an occasion",
+    "src": "/media/prototype/content/slides/marquee.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:mckinsey-style",
+    "kind": "presentation",
+    "title": "McKinsey Style",
+    "genre": "Стиль",
+    "prompt": "Answer first, always",
+    "src": "/media/prototype/content/slides/mckinsey-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:memo",
+    "kind": "presentation",
+    "title": "Memo",
+    "genre": "Стиль",
+    "prompt": "Per my last memo",
+    "src": "/media/prototype/content/slides/memo.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:memphis",
+    "kind": "presentation",
+    "title": "Memphis",
+    "genre": "Стиль",
+    "prompt": "Serious work, unserious style",
+    "src": "/media/prototype/content/slides/memphis.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:metro",
+    "kind": "presentation",
+    "title": "Metro",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/metro.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:midnight-pitch",
+    "kind": "presentation",
+    "title": "Midnight Pitch",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/midnight-pitch.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:monolith",
+    "kind": "presentation",
+    "title": "Monolith",
+    "genre": "Стиль",
+    "prompt": "Expensive silence",
+    "src": "/media/prototype/content/slides/monolith.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:notebook",
+    "kind": "presentation",
+    "title": "Notebook",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/notebook.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:oat",
+    "kind": "presentation",
+    "title": "Oat",
+    "genre": "Стиль",
+    "prompt": "Warm neutrals, quiet arches, expensive calm",
+    "src": "/media/prototype/content/slides/oat.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:observatory",
+    "kind": "presentation",
+    "title": "Observatory",
+    "genre": "Стиль",
+    "prompt": "Data as constellations",
+    "src": "/media/prototype/content/slides/observatory.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:one-sheet",
+    "kind": "presentation",
+    "title": "One Sheet",
+    "genre": "Стиль",
+    "prompt": "Top of the billing",
+    "src": "/media/prototype/content/slides/one-sheet.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:operator",
+    "kind": "presentation",
+    "title": "Operator",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/operator.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:origami",
+    "kind": "presentation",
+    "title": "Origami",
+    "genre": "Стиль",
+    "prompt": "Folded, not decorated",
+    "src": "/media/prototype/content/slides/origami.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:outrun",
+    "kind": "presentation",
+    "title": "Outrun",
+    "genre": "Стиль",
+    "prompt": "Straight out of 1986",
+    "src": "/media/prototype/content/slides/outrun.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:passepartout",
+    "kind": "presentation",
+    "title": "Passepartout",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/passepartout.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:pitch-book",
+    "kind": "presentation",
+    "title": "Pitch Book",
+    "genre": "Стиль",
+    "prompt": "Navy rigor, gold rules, dense conviction",
+    "src": "/media/prototype/content/slides/pitch-book.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:polaroid",
+    "kind": "presentation",
+    "title": "Polaroid",
+    "genre": "Стиль",
+    "prompt": "Presentation deck in this visual style. No invented client names or metrics.",
+    "src": "/media/prototype/content/slides/polaroid.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:pwc-style",
+    "kind": "presentation",
+    "title": "PwC Style",
+    "genre": "Стиль",
+    "prompt": "Serif headlines, five warm colors",
+    "src": "/media/prototype/content/slides/pwc-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:qbr-2",
+    "kind": "presentation",
+    "title": "QBR",
+    "genre": "Инвесторам",
+    "prompt": "Targets, actuals, and the renewal story",
+    "src": "/media/prototype/content/slides/qbr-2.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:quiz-night",
+    "kind": "presentation",
+    "title": "Quiz Night",
+    "genre": "Стиль",
+    "prompt": "Training, but with buzzers",
+    "src": "/media/prototype/content/slides/quiz-night.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:runway",
+    "kind": "presentation",
+    "title": "Runway",
+    "genre": "Стиль",
+    "prompt": "Clean, light investor pitch deck",
+    "src": "/media/prototype/content/slides/runway.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:scrapbook",
+    "kind": "presentation",
+    "title": "Scrapbook",
+    "genre": "Стиль",
+    "prompt": "Paper, tape, and handwritten charm",
+    "src": "/media/prototype/content/slides/scrapbook.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:seminar",
+    "kind": "presentation",
+    "title": "Seminar",
+    "genre": "Стиль",
+    "prompt": "Beamer, but nicer",
+    "src": "/media/prototype/content/slides/seminar.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:six-pager",
+    "kind": "presentation",
+    "title": "Six-Pager",
+    "genre": "Стиль",
+    "prompt": "The memo that runs the meeting",
+    "src": "/media/prototype/content/slides/six-pager.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:sorbet",
+    "kind": "presentation",
+    "title": "Sorbet",
+    "genre": "Стиль",
+    "prompt": "Soft pastels, kept tasteful Marketing Playful",
+    "src": "/media/prototype/content/slides/sorbet.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:spark",
+    "kind": "presentation",
+    "title": "Spark",
+    "genre": "Стиль",
+    "prompt": "Bold pink pitch for consumer apps",
+    "src": "/media/prototype/content/slides/spark.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:syllabus",
+    "kind": "presentation",
+    "title": "Syllabus",
+    "genre": "Стиль",
+    "prompt": "The outline is the design Education Calm",
+    "src": "/media/prototype/content/slides/syllabus.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:ted-style",
+    "kind": "presentation",
+    "title": "TED Style",
+    "genre": "Стиль",
+    "prompt": "Say it huge, keep it dark",
+    "src": "/media/prototype/content/slides/ted-style.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:telemetry",
+    "kind": "presentation",
+    "title": "Telemetry",
+    "genre": "Стиль",
+    "prompt": "Your deck as a dashboard",
+    "src": "/media/prototype/content/slides/telemetry.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:term-sheet",
+    "kind": "presentation",
+    "title": "Term Sheet",
+    "genre": "Стиль",
+    "prompt": "The institutional VC framework deck",
+    "src": "/media/prototype/content/slides/term-sheet.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:ticker",
+    "kind": "presentation",
+    "title": "Ticker",
+    "genre": "Стиль",
+    "prompt": "Amber on black",
+    "src": "/media/prototype/content/slides/ticker.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:traction",
+    "kind": "presentation",
+    "title": "Traction",
+    "genre": "Стиль",
+    "prompt": "Let the numbers pitch",
+    "src": "/media/prototype/content/slides/traction.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:trailhead",
+    "kind": "presentation",
+    "title": "Trailhead",
+    "genre": "Стиль",
+    "prompt": "Learning, one mile at a time",
+    "src": "/media/prototype/content/slides/trailhead.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:varsity",
+    "kind": "presentation",
+    "title": "Varsity",
+    "genre": "Стиль",
+    "prompt": "Wear the colors",
+    "src": "/media/prototype/content/slides/varsity.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:whiteboard",
+    "kind": "presentation",
+    "title": "Whiteboard",
+    "genre": "Инвесторам",
+    "prompt": "Fresh from the workshop",
+    "src": "/media/prototype/content/slides/whiteboard.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:wildflower",
+    "kind": "presentation",
+    "title": "Wildflower",
+    "genre": "Стиль",
+    "prompt": "Hand-gathered, loosely arranged",
+    "src": "/media/prototype/content/slides/wildflower.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:wireframe",
+    "kind": "presentation",
+    "title": "Wireframe",
+    "genre": "Стиль",
+    "prompt": "Shipped before the visual design",
+    "src": "/media/prototype/content/slides/wireframe.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:y2k",
+    "kind": "presentation",
+    "title": "Y2K",
+    "genre": "Стиль",
+    "prompt": "Chrome dreams from the year 2000",
+    "src": "/media/prototype/content/slides/y2k.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:acid-graphics-y2k",
+    "kind": "presentation",
+    "title": "Acid Graphics Y2K (酸性设计)",
+    "genre": "Стиль",
+    "prompt": "Acid graphics Y2K style PPT slide, Light gray background, title text, subtitle below, key stats in stylized cards, Metallic chrome elements, holographic accents, Colors: purple #B185FF, pink #FF6EC7, mint #7BFFCB, gold #FFD700, Liquid shapes, star sparkles, mesh gradients, Y2K aesthetic, futuristic design, 16:9",
+    "src": "/media/prototype/content/slides/acid-graphics-y2k.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:swiss-international",
+    "kind": "presentation",
+    "title": "Swiss International (瑞士国际主义)",
+    "genre": "Стиль",
+    "prompt": "Swiss international style PPT slide, brutalist graphic design, Light gray background, bold title text, subtitle with diagonal layout, key stats in geometric blocks, High saturation colors: blue #007AFF, green #00994D, yellow #FFF066, purple #9966FF, pink #FF3399, orange #FF8800, Helvetica font, Asymmetric composition, 16:9",
+    "src": "/media/prototype/content/slides/swiss-international.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:neo-brutalism",
+    "kind": "presentation",
+    "title": "Neo-Brutalism (新粗野主义)",
+    "genre": "Стиль",
+    "prompt": "Neo-brutalism style PPT slide, raw design, Cream background, bold title text, subtitle below, key stats displayed, Bold primary colors: red #FF4D4D, blue #4D94FF, yellow #FFD93D, Thick 4px black outlines, hard shadows, Brutalist frames, bold typography, Stark contrast, 16:9",
+    "src": "/media/prototype/content/slides/neo-brutalism.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:minimalist-clean",
+    "kind": "presentation",
+    "title": "Minimalist Clean (极简主义)",
+    "genre": "Стиль",
+    "prompt": "Minimalist clean design PPT slide, White background, generous whitespace, centered title text, subtitle below, key stats in simple cards, Subtle gray and blue accents, Thin elegant lines, Inter Helvetica font, Professional corporate presentation, Simple elegant layout, 16:9",
+    "src": "/media/prototype/content/slides/minimalist-clean.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:claymorphism",
+    "kind": "presentation",
+    "title": "Claymorphism (黏土拟态)",
+    "genre": "Стиль",
+    "prompt": "Claymorphism style PPT slide, soft chunky 3D clay interface, thick toy-like rounded cards, inflated pill buttons, tactile depth with bright top-left inner highlights and soft bottom-right shadows, creamy warm background, bold title text, subtitle below, 3 to 5 key statistics in colorful chunky cards, candy palette with coral #FF7A59, sky blue #6EC5FF, lemon yellow #FFD85E, mint #7EE2B8, lavender #B79CFF, bubbly icons, smooth plastic texture, friendly high-contrast presentation design, clean single-slide composition, 16:9",
+    "src": "/media/prototype/content/slides/claymorphism.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:design-blueprint",
+    "kind": "presentation",
+    "title": "Design Blueprint (设计蓝图)",
+    "genre": "Бренд",
+    "prompt": "Design blueprint PPT slide, Figma documentation style, White background with cyan grid lines #66B8CC, title text, subtitle below, Figma selection boxes with control points, Annotation lines, numbered labels, Technical UI mockup aesthetic, Clean sans-serif Inter font, 16:9",
+    "src": "/media/prototype/content/slides/design-blueprint.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:cyberpunk-neon",
+    "kind": "presentation",
+    "title": "Cyberpunk Neon (赛博朋克)",
+    "genre": "Стиль",
+    "prompt": "Cyberpunk neon style PPT slide, Dark charcoal background, title text with neon glow effect, subtitle below, Neon colors: magenta #FF00FF, cyan #00FFFF, yellow #FFFF00, Tech grid patterns, circuit decorations, Holographic data panels, glow effects, Futuristic UI elements, Digital presentation, 16:9",
+    "src": "/media/prototype/content/slides/cyberpunk-neon.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:modern-minimal-pop",
+    "kind": "presentation",
+    "title": "Modern Minimal Pop (现代极简波普)",
+    "genre": "Стиль",
+    "prompt": "Modern minimal pop art PPT slide, Instagram aesthetic, Pastel background, title text, subtitle below, key stats displayed, Pastel colors: mint #A8E6C8, cream #FFF4BD, coral #FF8B7A, purple #8B7AFF, Star burst graphics, thin line circles, Tilted color blocks, small arrows, Clean sans-serif typography, Swiss design influence, 16:9",
+    "src": "/media/prototype/content/slides/modern-minimal-pop.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:retro-pop-art",
+    "kind": "presentation",
+    "title": "Retro Pop Art (复古波普)",
+    "genre": "Стиль",
+    "prompt": "Retro pop art style PPT slide, 1970s magazine aesthetic, flat design with thick black outlines, cream beige background, bold title text, subtitle below, key statistics displayed as cards, Salmon pink #FF6B6B, sky blue #4ECDC4, mustard yellow #FFD93D, mint green #6BCB77 accents, Geometric decorations: quarter circles, concentric rings, star bursts, Bold sans-serif typography, Professional presentation design, 16:9",
+    "src": "/media/prototype/content/slides/retro-pop-art.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:scrapbook-diy-vibe",
+    "kind": "presentation",
+    "title": "Scrapbook DIY Vibe (剪贴板手作风格)",
+    "genre": "Стиль",
+    "prompt": "Scrapbook DIY vibe PPT slide, poster-like handmade collage composition, off-white paper board background with subtle paper grain, hand-cut paper blocks with torn edges, transparent tape corners, sticker badges, doodled arrows, handwritten marker notes, layered polaroid-style photo cutouts, bold title on a pasted headline card, subtitle below on a small note strip, 3 to 5 key stats shown as clipped paper labels, saturated youth accents: tomato orange #FF7A59, butter yellow #FFD766, sky blue #6EC5FF, grass green #72D572, hot pink #FF5FA2, anti-grid layout, messy but readable hierarchy, social app launch poster energy, authentic DIY mood, bold sans-serif typography mixed with handwritten highlights, creative editorial presentation design, 16:9",
+    "src": "/media/prototype/content/slides/scrapbook-diy-vibe.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:neo-brutalist-ui-ui",
+    "kind": "presentation",
+    "title": "Neo-Brutalist UI (粗野主义 UI)",
+    "genre": "Стиль",
+    "prompt": "Neo-brutalist UI PPT slide, dashboard interface design, Cream background, title text, subtitle below, stats in cards, Pastel panels: mint #A8E4CF, yellow #FFD93D, lavender #E5B3FF, Thick 3px black outlines, Card-based layout, flat colors, Bold typography, Contemporary SaaS dashboard aesthetic, 16:9",
+    "src": "/media/prototype/content/slides/neo-brutalist-ui-ui.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:y2k-pixel-retro-y2k",
+    "kind": "presentation",
+    "title": "Y2K Pixel Retro (Y2K 像素复古)",
+    "genre": "Стиль",
+    "prompt": "Y2K pixel retro PPT slide, 1990s aesthetic, Dark background with noise texture, title text in pixel font, subtitle below, Bright colors: yellow #FFD700, orange #FF8C00, green #4A7C4E, Pixel art computer icons, CRT monitor graphics, Isometric tech illustrations, VT323 pixel font style, Vintage 1990s design, 16:9",
+    "src": "/media/prototype/content/slides/y2k-pixel-retro-y2k.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:frutiger-aero",
+    "kind": "presentation",
+    "title": "Frutiger Aero (乐观科技风)",
+    "genre": "Стиль",
+    "prompt": "Frutiger Aero style PPT slide, optimistic 2000s tech-utopia aesthetic, glossy translucent glass panels floating over an aqua sky and fresh green field background, bold title text, subtitle below, 3 to 5 key statistics displayed in rounded glossy cards, bright clean colors: aqua blue #7FD8FF, sky cyan #BFEFFF, grass green #7ED957, leaf green #B7F07A, pure white #FFFFFF, soft lens flare, bokeh light circles, water bubbles, gentle wave swooshes, cloudlike highlights, humanist sans-serif typography, polished corporate technology presentation, clean depth, cheerful and futuristic but friendly, Windows Vista Aero and early eco-tech ad mood, 16:9",
+    "src": "/media/prototype/content/slides/frutiger-aero.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:dark-glassmorphism",
+    "kind": "presentation",
+    "title": "Dark Glassmorphism (暗黑玻璃拟态)",
+    "genre": "Стиль",
+    "prompt": "Dark glassmorphism PPT slide, premium AI control-plane aesthetic, deep obsidian background with blurred aurora glow under smoked frosted glass panels, bold title text, subtitle below, 3 to 5 KPI cards in translucent dashboard modules, thin luminous white borders, subtle cyan and violet highlights, soft reflections, layered depth, high-contrast modern sans-serif typography, elegant enterprise SaaS and copilot interface design, cinematic yet clean, 16:9",
+    "src": "/media/prototype/content/slides/dark-glassmorphism.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:what-is-an-ai-ppt-prompt",
+    "kind": "presentation",
+    "title": "What is an AI PPT prompt?",
+    "genre": "Стиль",
+    "prompt": "An AI PPT prompt is a ready-made text instruction that tells an AI presentation tool exactly what slides to build — the topic, structure, tone and visual style. Instead of starting from a blank deck, you paste a prompt and get a professional, editable presentation in seconds.",
+    "src": "/media/prototype/content/slides/what-is-an-ai-ppt-prompt.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:how-do-i-use-these-prompts-to-make-a-pre",
+    "kind": "presentation",
+    "title": "How do I use these prompts to make a presentation?",
+    "genre": "Стиль",
+    "prompt": "Pick a prompt that matches your use case, copy it, then open SurgePix and choose the Presentation tool. Paste the prompt, adjust the topic to your needs, and generate. You can keep refining the wording to control layout, length and design.",
+    "src": "/media/prototype/content/slides/how-do-i-use-these-prompts-to-make-a-pre.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:are-these-ppt-prompts-free-to-use",
+    "kind": "presentation",
+    "title": "Are these PPT prompts free to use?",
+    "genre": "Стиль",
+    "prompt": "Yes. Every prompt in the library is free to copy and reuse. They are curated from high-quality creator communities and updated regularly, so you can always find fresh, presentation-ready ideas at no cost.",
+    "src": "/media/prototype/content/slides/are-these-ppt-prompts-free-to-use.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:which-ai-tools-work-with-these-prompts",
+    "kind": "presentation",
+    "title": "Which AI tools work with these prompts?",
+    "genre": "Стиль",
+    "prompt": "The prompts are written to work with SurgePix and most modern AI presentation and slide generators. Because they are plain text, you can also adapt them for tools like ChatGPT, Gemini or Gamma to draft outlines and speaker notes.",
+    "src": "/media/prototype/content/slides/which-ai-tools-work-with-these-prompts.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:can-i-filter-by-use-case-and-visual-styl",
+    "kind": "presentation",
+    "title": "Can I filter by use case and visual style?",
+    "genre": "Бренд",
+    "prompt": "Absolutely. Use the Use Cases and Styles filters to narrow the library to exactly what you need — pitch decks, reports, education, marketing and more — each paired with a real slide preview so you know what you are getting before you generate.",
+    "src": "/media/prototype/content/slides/can-i-filter-by-use-case-and-visual-styl.svg",
+    "ratio": "16:9"
+  },
+  {
+    "id": "presentation:how-often-is-the-prompt-library-updated",
+    "kind": "presentation",
+    "title": "How often is the prompt library updated?",
+    "genre": "Стиль",
+    "prompt": "We add new prompts on a rolling basis, sourcing the best ideas from Reddit, X, GitHub and the SurgePix community. Bookmark the page or join our Discord to catch every update as the collection grows. Contact Us X Discord GitHub [email protected]",
+    "src": "/media/prototype/content/slides/how-often-is-the-prompt-library-updated.svg",
+    "ratio": "16:9"
+  }
+]

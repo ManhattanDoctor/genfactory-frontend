@@ -1,0 +1,34 @@
+.template-editor {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.template-editor > img,
+.template-editor > video {
+  max-height: 240px;
+  width: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.template-editor label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.template-editor input,
+.template-editor textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.template-editor fieldset {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  border: 1px solid #35363c;
+  border-radius: 12px;
+}
+.template-prompt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

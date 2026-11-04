@@ -13,7 +13,7 @@ export function WorkspaceNav({
     <nav className="workspace-modes" aria-label="Режим работы">
       {(
         [
-          ['chat', 'Обсудить'],
+          ['agent', 'Обсудить'],
           ['prompt', 'Подготовить промпт'],
           ['script', 'Сценарий'],
           ['image', 'Изображение'],

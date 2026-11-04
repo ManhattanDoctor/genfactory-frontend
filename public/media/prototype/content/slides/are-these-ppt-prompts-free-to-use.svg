@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img">
+<rect width="640" height="360" fill="#111111"/>
+<rect width="8" height="360" fill="#d1fe17"/>
+<rect x="300" y="120" width="92" height="120" rx="14" fill="#d1fe17" opacity="0.55"/>
+<rect x="408" y="136" width="92" height="120" rx="14" fill="#d1fe17" opacity="0.7000000000000001"/>
+<rect x="516" y="120" width="92" height="120" rx="14" fill="#d1fe17" opacity="0.8500000000000001"/>
+<text x="36" y="78" fill="#f5f5f5" font-family="Arial, sans-serif" font-size="32" font-weight="700">Are these PPT</text><text x="36" y="118" fill="#f5f5f5" font-family="Arial, sans-serif" font-size="32" font-weight="700">prompts free to</text>
+<text x="36" y="166" fill="#d1fe17" font-family="Arial, sans-serif" font-size="16" font-weight="700">Стиль</text>
+</svg>

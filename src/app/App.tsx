@@ -1,29 +1,16 @@
 import { AppUpdateNotice } from '../components/AppUpdateNotice';
 import { ActiveJobs } from '../components/ActiveJobs';
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { NavLink, Route, Routes, Link, useLocation } from 'react-router-dom';
+import { Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  AudioLines,
-  Compass,
-  Wallet,
-  MessageSquare,
-  LayoutTemplate,
-  Palette,
-  ImagePlus,
-  Clapperboard,
-  FolderOpen,
-  History,
-  ArrowUpRight,
-  Menu,
-  X,
-  ChevronDown,
-  Sparkles,
-  PanelLeftClose,
-  UserRound,
-} from 'lucide-react';
+import { Menu } from 'lucide-react';
+import { AppNavigation } from './AppNavigation';
+import { Modal } from '../components/Modal';
 import { formatBalance } from '../lib/money';
 import { Home } from './Home';
+const ContentStudio = lazy(() =>
+  import('../features/content-studio/ContentStudio').then((m) => ({ default: m.ContentStudio })),
+);
 const Studio = lazy(() => import('../features/studio/Studio').then((m) => ({ default: m.Studio })));
 const TextStudio = lazy(() =>
   import('../features/workspace/TextStudio').then((m) => ({ default: m.TextStudio })),
@@ -43,18 +30,6 @@ const AuthCallback = lazy(() =>
   import('../features/auth/AuthCallback').then((m) => ({ default: m.AuthCallback })),
 );
 import { LoginDialog } from '../components/LoginDialog';
-const navigation = [
-  { to: '/', label: 'Обзор', Icon: Compass },
-  { to: '/chat', label: 'AI-студия', Icon: MessageSquare },
-  { to: '/templates', label: 'Шаблоны', Icon: LayoutTemplate },
-  { to: '/image', label: 'Изображения', Icon: ImagePlus },
-  { to: '/video', label: 'Видео', Icon: Clapperboard },
-  { to: '/audio', label: 'Аудио', Icon: AudioLines },
-  { to: '/library', label: 'Библиотека', Icon: FolderOpen },
-  { to: '/history', label: 'История', Icon: History },
-  { to: '/account', label: 'Баланс', Icon: Wallet },
-  { to: '/brand', label: 'Правила бренда', Icon: Palette },
-];
 export function App() {
   const auth = useAuth();
   const client = useQueryClient();
@@ -65,7 +40,7 @@ export function App() {
   useEffect(() => {
     setMobileNav(false);
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
   useEffect(() => {
     const finish = () => {
       void client.invalidateQueries({ queryKey: ['account'] });
@@ -75,123 +50,97 @@ export function App() {
     return () => window.removeEventListener('genfactory:generation-finished', finish);
   }, [client]);
   return (
-    <div className={`app ${collapsed ? 'nav-collapsed' : ''}`}>
+    <div className={`app studio-shell ${collapsed ? 'nav-collapsed' : ''}`}>
       <a href="#main" className="skip-link">
         К содержимому
       </a>
-      <header className="topbar">
+      <header className="shell-mobile-header">
         <button
-          className="icon-button mobile-menu"
-          onClick={() => setMobileNav(!mobileNav)}
+          className="icon-button"
+          onClick={() => setMobileNav(true)}
           aria-label="Открыть меню"
           aria-expanded={mobileNav}
         >
           <Menu size={22} />
         </button>
         <Link to="/" className="brand" aria-label="Genfactory — главная">
-          <img src="/favicon.svg" alt="" />
-          <span>
-            GENFACTORY<span className="brand-dot">®</span>
-          </span>
+          GENFACTORY
         </Link>
-        <div className="topbar-divider" />
-        <span className="workspace-label">
-          Творческая студия <ChevronDown size={13} />
-        </span>
-        <div className="topbar-right">
-          {auth.loading ? (
-            <span className="small muted">Подключаем аккаунт…</span>
-          ) : auth.user ? (
+      </header>
+      <aside className="shell-sidebar" aria-label="Навигация студии">
+        <button
+          className="icon-button shell-collapse"
+          onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
+          aria-expanded={!collapsed}
+        >
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+        </button>
+        <AppNavigation />
+        <div className="shell-account" aria-label="Аккаунт и работы">
+          {auth.user ? (
             <>
               <ActiveJobs />
-              <Link to="/account" className="balance-pill">
-                <span className="live-dot" />
-                {formatBalance(auth.balances.RUB, 'RUB')} ₽
-              </Link>
-              <Link to="/account" className="avatar" aria-label="Открыть аккаунт">
-                {auth.user.preferences?.name?.slice(0, 1).toUpperCase() || <UserRound size={18} />}
+              <Link to="/account" className="shell-account-link" aria-label="Открыть аккаунт">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="8" r="3.25" />
+                  <path d="M5.2 19.4a6.8 6.8 0 0 1 13.6 0" />
+                </svg>
+                <span>
+                  <b>Мой аккаунт</b>
+                  <small>
+                    {auth.balances.RUB === undefined
+                      ? 'Баланс недоступен'
+                      : `${formatBalance(auth.balances.RUB, 'RUB')} ₽`}
+                  </small>
+                </span>
               </Link>
             </>
           ) : (
-            <button className="button primary top-login" onClick={() => setLogin(true)}>
-              Начать создавать <ArrowUpRight size={16} />
+            <button
+              className="shell-account-link"
+              aria-label="Войти в аккаунт"
+              aria-busy={auth.loading}
+              onClick={() => setLogin(true)}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="8" r="3.25" />
+                <path d="M5.2 19.4a6.8 6.8 0 0 1 13.6 0" />
+              </svg>
+              <span>Войти</span>
             </button>
           )}
-        </div>
-      </header>
-      {mobileNav && (
-        <button className="nav-scrim" aria-label="Закрыть меню" onClick={() => setMobileNav(false)} />
-      )}
-      <aside className={`sidebar ${mobileNav ? 'open' : ''}`}>
-        <div className="sidebar-label">
-          WORKSPACE
-          <button
-            className="icon-button close-mobile"
-            onClick={() => setMobileNav(false)}
-            aria-label="Закрыть меню"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <nav aria-label="Основное меню">
-          {navigation.map(({ to, label, Icon }, i) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `nav-item ${isActive ? 'active' : ''} ${i === 3 ? 'nav-separated' : ''}`
-              }
-              title={label}
-              aria-label={label}
-            >
-              <Icon size={19} strokeWidth={1.6} />
-              <span>{label}</span>
-              {to === '/video' && (
-                <span className="nav-badge" aria-hidden="true">
-                  AI
-                </span>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <Sparkles size={22} />
-            <b>
-              От идеи до
-              <br />
-              вашего кадра.
-            </b>
-            <p>
-              Всё для следующего
-              <br />
-              творческого шага.
-            </p>
-            <Link to="/image">
-              Создать <ArrowUpRight size={15} />
-            </Link>
-          </div>
-          <button
-            className="collapse-nav"
-            onClick={() => setCollapsed(!collapsed)}
-            aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
-          >
-            <PanelLeftClose size={18} />
-            <span>Свернуть меню</span>
-          </button>
-          <span className="sidebar-copyright">© Genfactory · 2026</span>
+          <Link to="/company" className="shell-account-link shell-company-link" title="О компании">
+            <img src="/media/prototype/nav/company.webp" alt="" width={18} height={18} />
+            <span>О компании</span>
+          </Link>
         </div>
       </aside>
+      {mobileNav && (
+        <Modal title="Меню" onClose={() => setMobileNav(false)}>
+          <AppNavigation onNavigate={() => setMobileNav(false)} />
+        </Modal>
+      )}
       <main id="main" className="main">
-        {auth.error && (
-          <div className="connection-banner" role="alert">
-            Не удалось подключить аккаунт.{' '}
-            <button className="text-button" onClick={auth.refresh}>
-              Повторить
-            </button>
-          </div>
-        )}
         <Suspense
           fallback={
             <div className="empty-state" role="status">
@@ -201,7 +150,16 @@ export function App() {
         >
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/chat" element={<TextStudio mode="chat" />} />
+            <Route
+              path="/company"
+              element={
+                <section className="page-content">
+                  <h2>О компании</h2>
+                </section>
+              }
+            />
+            <Route path="/chat" element={<ContentStudio key={auth.user?.id} />} />
+            <Route path="/agent" element={<TextStudio mode="chat" />} />
             <Route path="/prompt" element={<TextStudio mode="prompt" />} />
             <Route path="/script" element={<TextStudio mode="script" />} />
             <Route path="/templates" element={<Templates />} />

@@ -1,3 +1,4 @@
+import { GenerationDetails } from './FileGeneration';
 import { FilePlaceholder } from './FilePlaceholder';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
@@ -375,6 +376,7 @@ export function MediaPreview({
           </span>
         </div>
       )}
+      <GenerationDetails key={current.id} file={current} />
       {current.origin?.directoryFallback && (
         <p role="status">Папка результатов стала недоступна. Файл сохранён в корне библиотеки.</p>
       )}

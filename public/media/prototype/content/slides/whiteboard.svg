@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img">
+<rect width="640" height="360" fill="#f4f7fb"/>
+<rect width="8" height="360" fill="#0b3a75"/>
+<circle cx="470" cy="200" r="70" fill="none" stroke="#0b3a75" stroke-width="22" stroke-dasharray="280 160" stroke-linecap="round"/>
+<circle cx="470" cy="200" r="34" fill="#0b3a75" opacity="0.25"/>
+<text x="36" y="78" fill="#141414" font-family="Arial, sans-serif" font-size="32" font-weight="700">Whiteboard</text>
+<text x="36" y="126" fill="#0b3a75" font-family="Arial, sans-serif" font-size="16" font-weight="700">Инвесторам</text>
+</svg>

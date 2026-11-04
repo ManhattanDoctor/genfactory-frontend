@@ -335,7 +335,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
         void client.invalidateQueries({ queryKey: ['conversations', userId] });
         if (!isCurrent(sid)) return;
         client.setQueryData(['conversation', userId, active.id], active);
-        navigate(`/${mode}?conversation=${active.id}`, { replace: true });
+        navigate(`/${mode === 'chat' ? 'agent' : mode}?conversation=${active.id}`, { replace: true });
       }
       client.setQueryData(['send-error', userId, active.id], null);
       await send.mutateAsync({ id: active.id, body, sid });
@@ -381,7 +381,11 @@ function TextEditor({ mode }: { mode: TextMode }) {
         <span className="muted small">
           {conversation ? `Работа: ${conversation.name}` : 'Новая рабочая беседа'}
         </span>
-        <button className="button" disabled={creating} onClick={() => navigate(`/${mode}`)}>
+        <button
+          className="button"
+          disabled={creating}
+          onClick={() => navigate(`/${mode === 'chat' ? 'agent' : mode}`)}
+        >
           Новая работа
         </button>
       </div>

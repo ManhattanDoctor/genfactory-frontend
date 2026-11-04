@@ -1,0 +1,51 @@
+.file-generation-summary {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  color: #b5b5bd;
+}
+.file-generation {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #35363c;
+  border-radius: 12px;
+  min-width: 0;
+}
+.file-generation summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.file-generation dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8px 16px;
+}
+.file-generation-row {
+  display: contents;
+}
+.file-generation dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.file-generation dt {
+  color: #b5b5bd;
+}
+.file-generation-prompt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.file-generation li {
+  overflow-wrap: anywhere;
+}
+.file-generation dt {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+@media (max-width: 540px) {
+  .file-generation dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .file-generation dd {
+    margin-bottom: 10px;
+  }
+}

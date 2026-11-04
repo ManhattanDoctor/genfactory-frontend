@@ -59,3 +59,5 @@ npm run test:e2e
 Планы переноса временных клиентских решений в gnosis ведутся в [списке доработок backend](docs/BACKEND-BACKLOG.md). Это предложения для отдельного обсуждения; текущие frontend-доработки не меняют серверный API.
 
 CI/CD: [сборка, публикация образа, SSH-деплой и откат](docs/CICD.md).
+
+План переноса интерфейса по прототипу и документу заказчика: [PROTOTYPE-MIGRATION.md](docs/PROTOTYPE-MIGRATION.md).

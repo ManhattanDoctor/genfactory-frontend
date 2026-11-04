@@ -4,6 +4,7 @@ import type { IModelDescription } from '../../lib/types';
 import { referenceLimit, referenceMinimum, supportsReferences } from './schema';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { useAuth } from '../auth/AuthProvider';
+import { modelKey as key } from './presentation';
 export function ModelBrowser({
   models,
   value,
@@ -19,7 +20,6 @@ export function ModelBrowser({
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const key = (m: IModelDescription) => `${m.reference.provider}:${m.reference.model}`;
   const matches = models.filter(
     (m) =>
       `${m.name} ${m.reference.model} ${m.reference.provider}`.toLowerCase().includes(search.toLowerCase()) &&

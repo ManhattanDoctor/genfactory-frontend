@@ -1,5 +1,5 @@
 /** Local visual sampling only; no audio analysis or upload of the source video. */
-export async function videoFrames(file: File): Promise<File[]> {
+export async function videoFrames(file: File, fractions: number[] = [0.1, 0.5, 0.9]): Promise<File[]> {
   const video = document.createElement('video');
   video.preload = 'auto';
   video.muted = true;
@@ -30,11 +30,15 @@ export async function videoFrames(file: File): Promise<File[]> {
     canvas.width = Math.round(video.videoWidth * scale);
     canvas.height = Math.round(video.videoHeight * scale);
     const output: File[] = [];
-    for (const fraction of [0.1, 0.5, 0.9]) {
-      const at = video.duration * fraction;
-      const seek = wait('seeked');
-      video.currentTime = at;
-      await seek;
+    for (const fraction of fractions) {
+      if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1)
+        throw new Error('Некорректная позиция кадра.');
+      const at = Math.min(video.duration * fraction, Math.max(0, video.duration - 0.05));
+      if (Math.abs(video.currentTime - at) > 0.001) {
+        const seek = wait('seeked');
+        video.currentTime = at;
+        await seek;
+      }
       canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height);
       const blob = await new Promise<Blob>((resolve, reject) =>
         canvas.toBlob(

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img">
+<rect width="640" height="360" fill="#ffffff"/>
+<rect width="8" height="360" fill="#C9A84C"/>
+<line x1="300" y1="190" x2="610" y2="190" stroke="#C9A84C" stroke-width="4"/>
+<circle cx="300" cy="190" r="12" fill="#C9A84C"/>
+<rect x="284" y="214" width="32" height="8" rx="4" fill="#C9A84C" opacity="0.7"/>
+<circle cx="400" cy="190" r="12" fill="#C9A84C"/>
+<rect x="384" y="214" width="32" height="8" rx="4" fill="#C9A84C" opacity="0.7"/>
+<circle cx="500" cy="190" r="12" fill="#C9A84C"/>
+<rect x="484" y="214" width="32" height="8" rx="4" fill="#C9A84C" opacity="0.7"/>
+<circle cx="600" cy="190" r="12" fill="#C9A84C"/>
+<rect x="584" y="214" width="32" height="8" rx="4" fill="#C9A84C" opacity="0.7"/>
+<text x="36" y="78" fill="#141414" font-family="Arial, sans-serif" font-size="32" font-weight="700">Research</text>
+<text x="36" y="126" fill="#C9A84C" font-family="Arial, sans-serif" font-size="16" font-weight="700">Отчёт</text>
+</svg>

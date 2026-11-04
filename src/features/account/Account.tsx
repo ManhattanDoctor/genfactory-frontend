@@ -17,6 +17,14 @@ export function Account() {
           <p>Единый профиль и баланс gnosis.</p>
         </div>
       </div>
+      {auth.error && (
+        <div className="account-card" role="alert">
+          <p>Не удалось загрузить данные аккаунта.</p>
+          <button className="button" onClick={auth.refresh} disabled={auth.loading}>
+            <RefreshCw size={16} /> Повторить
+          </button>
+        </div>
+      )}
       {auth.user ? (
         <div className="account-grid">
           <section className="account-card">

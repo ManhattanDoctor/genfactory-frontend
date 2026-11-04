@@ -1,3 +1,4 @@
+import { GenerationSummary } from './FileGeneration';
 import { UploadButtonContent } from './UploadButtonContent';
 import type { IUploadProgress } from '../lib/api';
 import { FileTagFilter } from './FileTagFilter';
@@ -314,6 +315,7 @@ export function FileBrowser({
                       new Date(file.createdDate).toLocaleDateString('ru-RU')
                     )}
                   </span>
+                  <GenerationSummary file={file} />
                   {already && <span>Уже добавлен</span>}
                   {incompatible && <span>Не подходит для этой задачи</span>}
                 </div>
