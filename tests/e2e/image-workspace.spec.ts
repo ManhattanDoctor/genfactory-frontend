@@ -262,9 +262,22 @@ test('inline template validates before sending, survives reload and combines wit
   await page.locator('#img-draft').fill('Мягкий вечерний свет');
   await page.locator('.ds-template-card').first().click();
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Заполните');
+  await expect(page.getByRole('alert')).toContainText('Замените в тексте шаблона: [PRODUCT] (Продукт)');
   expect(state.sends).toHaveLength(0);
   const input = page.getByRole('textbox', { name: 'Текст шаблона', exact: true });
+  await expect(input).toBeFocused();
+  await expect
+    .poll(() =>
+      input.evaluate((area: HTMLTextAreaElement) => area.value.slice(area.selectionStart, area.selectionEnd)),
+    )
+    .toBe('[PRODUCT]');
+  await input.press('ArrowRight');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect
+    .poll(() =>
+      input.evaluate((area: HTMLTextAreaElement) => area.value.slice(area.selectionStart, area.selectionEnd)),
+    )
+    .toBe('[PRODUCT]');
   const filled = (await input.inputValue()).replace(/\[([A-Za-z][A-Za-z_0-9 ]*)\]/g, 'Красная чашка');
   await input.fill(filled);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();

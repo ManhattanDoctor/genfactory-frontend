@@ -94,18 +94,28 @@ export function ImageWorkspace({
   const selected = imageTemplates.find((item) => item.id === templateId);
   const [editing, setEditing] = useState(false);
   const templateInput = useRef<HTMLTextAreaElement>(null);
+  const pendingTemplateVariable = useRef<string | undefined>(undefined);
+  const focusTemplateInput = (variable?: string) => {
+    const area = templateInput.current;
+    if (!area) return;
+    const token = variable ? `[${variable}]` : '';
+    const start = token ? area.value.indexOf(token) : -1;
+    area.blur();
+    area.setSelectionRange(
+      start < 0 ? area.value.length : start,
+      start < 0 ? area.value.length : start + token.length,
+    );
+    area.focus();
+    if (start < 0) area.scrollTop = area.scrollHeight;
+    pendingTemplateVariable.current = undefined;
+  };
   const [templateError, setTemplateError] = useState('');
   useEffect(() => {
     setEditing(false);
     setTemplateError('');
   }, [templateId]);
   useEffect(() => {
-    const area = templateInput.current;
-    if (editing && area) {
-      area.focus();
-      area.setSelectionRange(area.value.length, area.value.length);
-      area.scrollTop = area.scrollHeight;
-    }
+    if (editing) focusTemplateInput(pendingTemplateVariable.current);
   }, [editing]);
   useEffect(() => {
     setTemplateError('');
@@ -212,8 +222,12 @@ export function ImageWorkspace({
     if (selected) {
       const missing = templateVariables(templateText);
       if (missing.length) {
-        setTemplateError(`Заполните в тексте шаблона: ${missing.map(templateVariableLabel).join(', ')}.`);
+        setTemplateError(
+          `Замените в тексте шаблона: ${missing.map((key) => `[${key}] (${templateVariableLabel(key)})`).join(', ')}. Поле «Идея» дополняет шаблон, но не заполняет эти места.`,
+        );
+        pendingTemplateVariable.current = missing[0];
         setEditing(true);
+        if (templateInput.current) focusTemplateInput(missing[0]);
         return;
       }
       if (!templateText.trim()) {
