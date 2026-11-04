@@ -351,12 +351,13 @@ export function Studio({ kind }: { kind: MediaKind }) {
     }
     restored.current = key;
   }, [conversation, conversationId, kind, models, currentKey, auth.user?.id]);
-  const referenceScope = `${auth.user?.id}:${kind}:${currentKey}`;
+  const referenceScope = `${auth.user?.id}:${kind}`;
   const previousReference = useRef({ scope: referenceScope, conversationId });
   useEffect(() => {
     const previous = previousReference.current;
     // Mount effect replay is not a change of editor. Creating the first
-    // conversation also keeps the draft's references.
+    // conversation also keeps the draft's references. Changing a model keeps them
+    // too: incompatible references must be reported by validation, never silently removed.
     if (
       previous.scope !== referenceScope ||
       (previous.conversationId !== undefined && previous.conversationId !== conversationId)

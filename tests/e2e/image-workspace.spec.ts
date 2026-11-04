@@ -346,3 +346,57 @@ test('image translates an insufficient funds response and keeps the draft withou
   expect(sends).toBe(1);
   expect(state.creates).toHaveLength(1);
 });
+
+test('image keeps a library reference when the user changes model before sending', async ({ page }) => {
+  const state = await setup(page);
+  await page.goto('/image');
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  await page
+    .getByRole('button', { name: /Закат.png/ })
+    .first()
+    .click();
+  await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Модель', exact: true }).click();
+  await page.getByRole('option', { name: 'Qwen: Qwen Image 2.1 Turbo', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
+  await page.locator('#img-draft').fill('Пусть пьют вино, сохрани людей с исходного изображения');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].text).toContain('Референсы (fileIds, порядок важен): 12.');
+  expect(state.sends[0].text).not.toContain('Создай с нуля');
+  expect(state.uploads).toBe(0);
+});
+
+test('image keeps incompatible references and blocks generation instead of switching to from scratch', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  const noReferences = structuredClone(catalog[0]);
+  noReferences.name = 'Без референсов';
+  noReferences.reference.model = 'test-no-references';
+  delete noReferences.schema.properties!.task.properties!.fileIds;
+  await page.route('**/api/aimodels?*', (route) => {
+    const provider = new URL(route.request().url()).searchParams.get('provider');
+    return provider === catalog[0].reference.provider
+      ? route.fulfill({ json: [catalog[0], noReferences] })
+      : route.fallback();
+  });
+  await page.goto('/image');
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  await page
+    .getByRole('button', { name: /Закат.png/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Модель', exact: true }).click();
+  await page.getByRole('option', { name: 'Без референсов', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
+  await page.locator('#img-draft').fill('Измени исходное изображение');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Выберите модель с поддержкой выбранных референсов');
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+  await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
+});
