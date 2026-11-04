@@ -72,7 +72,7 @@ test.afterAll(async () => {
 test.beforeEach(() => {
   updated = false;
 });
-async function setup(page: Page, running = false) {
+async function setup(page: Page, running = false, path = '/agent') {
   let writes = 0;
   await page.addInitScript(() => localStorage.setItem('genfactory.session', 'test-session'));
   await page.route('**/api/**', (route) => {
@@ -90,7 +90,7 @@ async function setup(page: Page, running = false) {
       };
     return route.fulfill({ json: body });
   });
-  await page.goto('/chat');
+  await page.goto(path);
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
   await expect(page.getByRole('button', { name: 'Обновить приложение' })).toHaveCount(0);
   return () => writes;
@@ -181,4 +181,43 @@ test('a pending POST blocks reload even before the server reports a running job'
     finish();
   }
   await expect(page.getByRole('button', { name: 'Обновить приложение' })).toBeEnabled();
+});
+
+test('content studio preserves its draft and controls across a worker update without sending', async ({
+  page,
+}) => {
+  const writes = await setup(page, false, '/chat');
+  await page.getByLabel('Запрос', { exact: true }).fill('Сохранить идею студии при обновлении');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await release(page);
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.getByRole('button', { name: 'Обновить приложение' }).click(),
+  ]);
+  await expect(page.getByLabel('Запрос', { exact: true })).toHaveValue(
+    'Сохранить идею студии при обновлении',
+  );
+  await expect(page.getByRole('button', { name: 'Изображение', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Обновить приложение' })).toHaveCount(0);
+  expect(writes()).toBe(0);
+});
+
+test('content studio refuses a worker update when its draft cannot be saved', async ({ page }) => {
+  const writes = await setup(page, false, '/chat');
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key.startsWith('genfactory.draft.')) throw new Error('Quota exceeded');
+      original.call(this, key, value);
+    };
+  });
+  await page.getByLabel('Запрос', { exact: true }).fill('Не потерять черновик студии');
+  await release(page);
+  await page.getByRole('button', { name: 'Обновить приложение' }).click();
+  await expect(page.getByRole('alert')).toContainText('Не удалось сохранить черновик');
+  await expect(page.getByLabel('Запрос', { exact: true })).toHaveValue('Не потерять черновик студии');
+  expect(writes()).toBe(0);
 });
