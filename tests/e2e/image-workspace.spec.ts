@@ -119,6 +119,7 @@ test('image model controls send actual settings, show result and recover it on r
   expect(state.sends[0].files).toEqual([]);
   await page.reload();
   await expect(page.locator('.image-result')).toHaveCount(1);
+  await page.locator('.image-result').hover();
   await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
   await expect(page.locator('#img-draft')).toHaveValue('Закат над лесом');
   expect(state.sends).toHaveLength(1);
@@ -399,4 +400,75 @@ test('image keeps incompatible references and blocks generation instead of switc
   expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
+});
+
+test('image viewer reports a failed original and returns focus without retrying generation', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await page.route('**/api/conversation/101/message', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    state.sends.push(route.request().postDataJSON());
+    const result = {
+      id: 1,
+      role: 'ASSISTANT',
+      text: 'Готово',
+      createdDate: file.createdDate,
+      files: [{ ...file, preview: { image: { status: 'READY', url: '/media/gallery-2.jpg' } } }],
+    };
+    state.messages = [result];
+    await route.fulfill({ json: result });
+  });
+  let failImage!: () => void;
+  const imageResponse = new Promise<void>((resolve) => {
+    failImage = resolve;
+  });
+  await page.route('**/media/gallery-1.jpg', async (route) => {
+    await imageResponse;
+    await route.abort();
+  });
+  await page.goto('/image');
+  await page.locator('#img-draft').fill('Закат');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  const opener = page.locator('.image-result-open');
+  await expect(opener).toBeVisible();
+  await opener.click();
+  const viewer = page.getByRole('dialog', { name: 'Закат.png' });
+  await expect(viewer.getByRole('status')).toHaveText('Открывается');
+  failImage();
+  await expect(viewer.getByRole('alert')).toHaveText('Изображение не открылось.');
+  await page.keyboard.press('Escape');
+  await expect(viewer).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  expect(state.sends).toHaveLength(1);
+});
+
+test('image loading uses the selected frame and does not submit on reload', async ({ page }) => {
+  const state = await setup(page);
+  state.conversation = {
+    id: 101,
+    userId: 7,
+    status: 'LOADING',
+    model: agent.reference.provider,
+    options: {
+      model: agent.reference.model,
+      tools: [
+        {
+          uid: 'IMAGE',
+          settings: {
+            model: catalog[0].reference,
+            options: { size: '1536x1024', quality: 'high' },
+          },
+        },
+      ],
+    },
+  };
+  await page.goto('/image?conversation=101');
+  const pending = page.locator('.image-result-pending');
+  await expect(pending).toBeVisible({ timeout: 15_000 });
+  await expect(pending).toHaveCSS('aspect-ratio', '3 / 2');
+  await expect(pending.locator('.img-spin')).toBeVisible();
+  await page.reload();
+  await expect(pending).toBeVisible({ timeout: 15_000 });
+  expect(state.sends).toHaveLength(0);
 });

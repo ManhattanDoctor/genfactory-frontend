@@ -100,7 +100,12 @@ export function ImageWorkspace({
     setTemplateError('');
   }, [templateId]);
   useEffect(() => {
-    if (editing) templateInput.current?.focus();
+    const area = templateInput.current;
+    if (editing && area) {
+      area.focus();
+      area.setSelectionRange(area.value.length, area.value.length);
+      area.scrollTop = area.scrollHeight;
+    }
   }, [editing]);
   useEffect(() => {
     setTemplateError('');
@@ -239,8 +244,13 @@ export function ImageWorkspace({
   const cards: ReactNode[] = [
     ...(busy
       ? [
-          <div key="pending" className="image-result-pending" role="status">
-            <span className="spinner" />
+          <div
+            key="pending"
+            className="image-result-pending"
+            role="status"
+            style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
+          >
+            <span className="img-spin" aria-hidden="true" />
             {conversation ? <ImageProgress conversation={conversation} /> : 'Создаём изображение…'}
           </div>,
         ]

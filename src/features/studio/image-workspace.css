@@ -1,4 +1,10 @@
 /* Image canvas and controls measured against prototype/images-wall.js and krea.css. */
+.studio-shell:has(.image-workspace) {
+  -webkit-font-smoothing: antialiased;
+}
+.studio-shell:has(.image-workspace) .shell-nav-heading {
+  margin-top: 36px;
+}
 .studio-shell .main:has(.image-workspace) {
   padding: 0;
 }
@@ -9,6 +15,7 @@
   background: #121416;
   color: #f4f4f5;
   font-family: 'Inter Variable', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 17px;
 }
 .image-workspace button,
 .image-workspace textarea,
@@ -437,36 +444,89 @@
 }
 .image-workspace .img-actions {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
+  z-index: 3;
+  bottom: 15%;
+  left: 8px;
+  right: 8px;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
   gap: 8px;
   opacity: 0;
-  transition: opacity 180ms ease;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition:
+    opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .image-workspace .image-result:hover .img-actions,
 .image-workspace .image-result:focus-within .img-actions {
   opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
 }
 .image-workspace .img-actions button {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 50%;
   background: rgba(18, 19, 20, 0.88);
   color: #f4f4f5;
 }
 .image-workspace .image-result-pending {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  aspect-ratio: 1;
+  gap: 14px;
+  padding: 16px;
   border-radius: 16px;
   background: #161618;
+  color: #d4d4d8;
+  text-align: center;
   font-size: 14px;
+  line-height: 1.35;
+}
+.image-workspace .image-result-pending > span:last-child {
+  max-width: 92%;
+}
+.image-workspace .img-spin {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #d1fe17;
+  border-radius: 50%;
+  animation: image-wait-spin 800ms linear infinite;
+}
+@keyframes image-wait-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .image-workspace .img-spin {
+    animation: none;
+  }
+  .image-workspace .img-actions {
+    transition: none;
+  }
+}
+@media (pointer: coarse) {
+  .image-workspace .img-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+  }
+  .image-workspace .img-actions button {
+    width: 44px;
+    height: 44px;
+  }
 }
 .image-workspace .image-conversation-note {
   margin: 16px;

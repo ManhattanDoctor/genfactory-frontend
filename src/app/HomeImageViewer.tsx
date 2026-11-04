@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-/** The homepage example viewer follows prototype/home-board.js and krea.css. */
+/** Shared image viewer follows prototype/home-board.js, images-wall.js and krea.css. */
 export function HomeImageViewer({
   image,
   from,
@@ -16,6 +16,8 @@ export function HomeImageViewer({
   const closeButton = useRef<HTMLButtonElement>(null);
   const frames = useRef<number[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const closingRef = useRef(false);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [active, setActive] = useState(false);
   const [closing, setClosing] = useState(false);
   const [rect, setRect] = useState({
@@ -26,7 +28,7 @@ export function HomeImageViewer({
   });
   function fit() {
     const node = shot.current;
-    if (!node?.naturalWidth) return;
+    if (!node?.naturalWidth || closingRef.current) return;
     const scale = Math.min(
       Math.min(innerWidth * 0.86, 1200) / node.naturalWidth,
       (innerHeight * 0.86) / node.naturalHeight,
@@ -36,10 +38,13 @@ export function HomeImageViewer({
     setRect({ left: (innerWidth - width) / 2, top: (innerHeight - height) / 2, width, height });
   }
   function grow() {
+    if (closingRef.current) return;
+    setLoadState('ready');
     frames.current.push(
       requestAnimationFrame(() => {
         frames.current.push(
           requestAnimationFrame(() => {
+            if (closingRef.current) return;
             setActive(true);
             fit();
           }),
@@ -48,8 +53,15 @@ export function HomeImageViewer({
     );
   }
   function close() {
-    if (closing) return;
+    if (closingRef.current) return;
+    closingRef.current = true;
+    frames.current.forEach(cancelAnimationFrame);
     setClosing(true);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onClose();
+      return;
+    }
+    setRect({ left: from.left, top: from.top, width: from.width, height: from.height });
     timer.current = setTimeout(onClose, 240);
   }
   useEffect(() => {
@@ -85,8 +97,19 @@ export function HomeImageViewer({
         src={image.src}
         alt={image.alt}
         onLoad={grow}
-        style={{ ...rect, objectFit: active ? 'contain' : 'cover' }}
+        onError={() => {
+          if (closingRef.current) return;
+          setLoadState('error');
+          setActive(true);
+        }}
+        hidden={loadState === 'error'}
+        style={{ ...rect, objectFit: active && !closing ? 'contain' : 'cover' }}
       />
+      {loadState !== 'ready' && (
+        <p className="home-image-view-note" role={loadState === 'error' ? 'alert' : 'status'}>
+          {loadState === 'error' ? 'Изображение не открылось.' : 'Открывается'}
+        </p>
+      )}
       <button
         ref={closeButton}
         className="home-image-view-close"

@@ -802,6 +802,17 @@
   overflow: hidden;
   transition: background 220ms var(--ds-ease, ease);
 }
+.home-image-view-note {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 82;
+  margin: 0;
+  color: #fff;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  transform: translate(-50%, -50%);
+}
 .home-image-view::backdrop {
   background: transparent;
 }
