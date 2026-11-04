@@ -580,7 +580,7 @@ test('login persists in a new tab and logout clears both tabs immediately', asyn
   await second.getByRole('button', { name: 'Выйти из студии' }).click();
   await expect(page.getByRole('button', { name: 'Выйти из студии' })).not.toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBeNull();
-  await second.close();
+  // The test context owns both tabs and closes them during fixture teardown.
 });
 
 test('socket tool progress is scoped to the conversation and errors remain visible', async ({ page }) => {

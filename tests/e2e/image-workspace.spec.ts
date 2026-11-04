@@ -119,7 +119,15 @@ test('image model controls send actual settings, show result and recover it on r
   expect(state.sends[0].files).toEqual([]);
   await page.reload();
   await expect(page.locator('.image-result')).toHaveCount(1);
-  await page.locator('.image-result').hover();
+  const restoredResult = page.locator('.image-result');
+  await expect
+    .poll(() =>
+      restoredResult.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+    )
+    .toBe(true);
+  await restoredResult.hover();
+  await expect(restoredResult.locator('.img-actions')).toHaveCSS('transform', 'none');
+  await expect(restoredResult.locator('.img-actions')).toHaveCSS('opacity', '1');
   await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
   await expect(page.locator('#img-draft')).toHaveValue('Закат над лесом');
   expect(state.sends).toHaveLength(1);
