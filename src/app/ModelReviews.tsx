@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { Modal } from '../components/Modal';
+import { HomeImageViewer } from './HomeImageViewer';
 import { modelReviews } from './modelReviewData';
 
 export function ModelReviews() {
@@ -10,7 +10,9 @@ export function ModelReviews() {
 function ModelReview({ review }: { review: (typeof modelReviews)[number] }) {
   const [tab, setTab] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  const [selected, setSelected] = useState<(typeof review.images)[number] | null>(null);
+  const [selected, setSelected] = useState<{ image: (typeof review.images)[number]; from: DOMRect } | null>(
+    null,
+  );
   return (
     <section
       className={`model-review ${expanded ? 'is-expanded' : ''}`}
@@ -68,7 +70,12 @@ function ModelReview({ review }: { review: (typeof modelReviews)[number] }) {
             key={item.src}
             className="model-review-frame"
             aria-label={`Открыть: ${item.alt}`}
-            onClick={() => setSelected(item)}
+            onClick={(event) =>
+              setSelected({
+                image: item,
+                from: event.currentTarget.querySelector('img')!.getBoundingClientRect(),
+              })
+            }
           >
             <img src={item.src} alt={item.alt} width={item.width} height={item.height} loading="lazy" />
             {item.note && <span>{item.note}</span>}
@@ -85,9 +92,7 @@ function ModelReview({ review }: { review: (typeof modelReviews)[number] }) {
         <ChevronDown size={22} aria-hidden="true" />
       </button>
       {selected && (
-        <Modal title={selected.alt} onClose={() => setSelected(null)} wide>
-          <img className="model-review-preview" src={selected.src} alt={selected.alt} />
-        </Modal>
+        <HomeImageViewer image={selected.image} from={selected.from} onClose={() => setSelected(null)} />
       )}
     </section>
   );

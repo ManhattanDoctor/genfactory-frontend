@@ -637,6 +637,9 @@ test('home model reviews switch tabs, expand examples and open the viewer', asyn
   await expect(review.locator('.model-review-frame')).toHaveCount(27);
   await review.locator('.model-review-frame').first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('heading')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0.82)');
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Закрыть' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(review.locator('.model-review-frame').first()).toBeFocused();
