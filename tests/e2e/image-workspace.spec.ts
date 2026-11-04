@@ -287,3 +287,62 @@ test('inline template validates before sending, survives reload and combines wit
   expect(state.sends[0].text).toContain(filled + '\n\nМягкий вечерний свет');
   expect(state.sends[0].files).toEqual([12]);
 });
+
+test('image blocks a nonpositive balance without creating or submitting a conversation', async ({ page }) => {
+  const state = await setup(page);
+  await page.route('**/api/init', (route) =>
+    route.fulfill({ json: { user: { id: 7 }, balances: { RUB: '-3647.754500' } } }),
+  );
+  await page.goto('/image');
+  await page.locator('#img-draft').fill('Моё задание');
+  await expect(page.getByRole('alert')).toContainText('Недостаточно средств на балансе Gnosis');
+  await expect(page.getByRole('button', { name: 'Собрать изображение', exact: true })).toBeDisabled();
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+  await expect(page.locator('#img-draft')).toHaveValue('Моё задание');
+});
+
+test('image lets the user explicitly continue a failed conversation without an automatic retry', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  state.conversation = {
+    id: 101,
+    userId: 7,
+    status: 'ERROR',
+    model: agent.reference.provider,
+    options: {
+      model: agent.reference.model,
+      tools: [{ uid: 'IMAGE', settings: { model: catalog[0].reference } }],
+    },
+  };
+  await page.goto('/image?conversation=101');
+  await page.locator('#img-draft').fill('Сохранить моё задание');
+  await expect(page.getByRole('alert')).toContainText('Предыдущий запрос завершился с ошибкой');
+  await expect(page.getByRole('button', { name: 'Собрать изображение', exact: true })).toBeEnabled();
+  expect(state.sends).toHaveLength(0);
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends[0].text).toContain('Сохранить моё задание');
+});
+
+test('image translates an insufficient funds response and keeps the draft without retry', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  let sends = 0;
+  await page.route('**/api/conversation/101/message', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    sends++;
+    await route.fulfill({ status: 400, json: { message: 'InsufficientFundsError' } });
+  });
+  await page.goto('/image');
+  await page.locator('#img-draft').fill('Сохранить мой промпт');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Недостаточно средств на балансе Gnosis');
+  await expect(page.getByRole('alert')).not.toContainText('InsufficientFundsError');
+  await expect(page.locator('#img-draft')).toHaveValue('Сохранить мой промпт');
+  expect(sends).toBe(1);
+  expect(state.creates).toHaveLength(1);
+});

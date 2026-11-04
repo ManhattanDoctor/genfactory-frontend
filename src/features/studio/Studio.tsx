@@ -531,12 +531,31 @@ export function Studio({ kind }: { kind: MediaKind }) {
       }
     }
   };
+  const insufficientFundsMessage =
+    'Недостаточно средств на балансе Gnosis. Пополните баланс перед новым запуском. Задание сохранено.';
+  const failedConversationMessage =
+    'Беседа завершилась с ошибкой и пока не принимает новые сообщения. Задание сохранено.';
+  const imageSendError = (value: unknown) => {
+    const message = value instanceof Error ? value.message : 'Ответ не получен.';
+    if (message.includes('InsufficientFundsError')) return insufficientFundsMessage;
+    if (message.includes('ConversationForbiddenError') && conversation?.status === 'ERROR')
+      return failedConversationMessage;
+    return `${message}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`;
+  };
+  const imageBlockedReason =
+    kind === 'image' && !specialized && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
+      ? insufficientFundsMessage
+      : '';
   const submit = async () => {
     if (!auth.user || !auth.session) {
       setLogin(true);
       return;
     }
     if (!model || busy || uploading || submitting.current) return;
+    if (imageBlockedReason) {
+      setError(imageBlockedReason);
+      return;
+    }
     if (idParam && !conversation) {
       setError('Дождитесь загрузки беседы или откройте новую работу.');
       return;
@@ -683,7 +702,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
     } catch (e) {
       if (mounted.current && !messageSent && scopeRef.current === activeScope)
         setError(
-          `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
+          kind === 'image' && !specialized
+            ? imageSendError(e)
+            : `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
         );
     } finally {
       submitting.current = false;
@@ -713,7 +734,8 @@ export function Studio({ kind }: { kind: MediaKind }) {
         busy={busy || uploading}
         unavailable={
           !!auth.user &&
-          (!model ||
+          (!!imageBlockedReason ||
+            !model ||
             (!conversationId && !agent) ||
             (!!idParam && (!conversation || !connection(conversation, kind))))
         }
@@ -731,10 +753,12 @@ export function Studio({ kind }: { kind: MediaKind }) {
           (conversation && !connection(conversation, kind)
             ? 'В этой беседе не подключён инструмент изображений.'
             : '') ||
+          imageBlockedReason ||
           error ||
           (draft.status.startsWith('Не удалось') ? draft.status : '') ||
-          (send.error instanceof Error
-            ? `${send.error.message}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`
+          (send.error instanceof Error ? imageSendError(send.error) : '') ||
+          (conversation?.status === 'ERROR'
+            ? 'Предыдущий запрос завершился с ошибкой. Проверьте результаты перед новым запуском.'
             : '') ||
           (catalog.error instanceof Error ? catalog.error.message : '') ||
           (conversationQuery.error instanceof Error ? conversationQuery.error.message : '')
