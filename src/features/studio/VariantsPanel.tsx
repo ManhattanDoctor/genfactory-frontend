@@ -52,32 +52,35 @@ export function VariantsPanel({
               const restored = await restoreDraftFiles(value.references, conversation.userId, sid);
               if (!mounted.current || getSession() !== sid || window.location.href !== route) return;
               setRepeating(false);
-              navigate(`/${value.kind}`, {
-                state: {
-                  userId: conversation.userId,
-                  prompt: value.prompt,
-                  references: restored.files,
-                  repeat: true,
-                  notice:
-                    (restored.missing ? 'Недоступные вложения пропущены. ' : '') +
-                    (recipe
-                      ? 'Параметры запуска открыты в новой работе. Проверьте их перед отправкой.'
-                      : 'Исходные параметры запуска неизвестны. Перенесены запрос и вложения; модель и настройки нужно проверить.'),
-                  ...(recipe
-                    ? {
-                        preset: {
-                          id: `repeat-${group.request.id}`,
-                          name: 'Повтор запуска',
-                          category: 'Повтор',
-                          kind: recipe.kind,
-                          prompt: recipe.prompt,
-                          model: recipe.model,
-                          options: recipe.options,
-                        },
-                      }
-                    : {}),
+              navigate(
+                `/${value.kind}${value.kind === 'image' && new URLSearchParams(window.location.search).get('studio') === 'advanced' ? '?studio=advanced' : ''}`,
+                {
+                  state: {
+                    userId: conversation.userId,
+                    prompt: value.prompt,
+                    references: restored.files,
+                    repeat: true,
+                    notice:
+                      (restored.missing ? 'Недоступные вложения пропущены. ' : '') +
+                      (recipe
+                        ? 'Параметры запуска открыты в новой работе. Проверьте их перед отправкой.'
+                        : 'Исходные параметры запуска неизвестны. Перенесены запрос и вложения; модель и настройки нужно проверить.'),
+                    ...(recipe
+                      ? {
+                          preset: {
+                            id: `repeat-${group.request.id}`,
+                            name: 'Повтор запуска',
+                            category: 'Повтор',
+                            kind: recipe.kind,
+                            prompt: recipe.prompt,
+                            model: recipe.model,
+                            options: recipe.options,
+                          },
+                        }
+                      : {}),
+                  },
                 },
-              });
+              );
             };
             return (
               <li key={group.request.id} className="variant-card">

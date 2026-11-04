@@ -1,3 +1,4 @@
+import { ImageWorkspace } from './ImageWorkspace';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import type { IUploadProgress } from '../../lib/api';
 import { ModelField as Field } from '../catalog/ModelField';
@@ -132,6 +133,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       void client.invalidateQueries({ queryKey: ['conversation', auth.user?.id, variables.id] });
       void client.invalidateQueries({ queryKey: ['messages', auth.user?.id, variables.id] });
       void client.invalidateQueries({ queryKey: ['conversations', auth.user?.id] });
+      void client.invalidateQueries({ queryKey: ['files', auth.user?.id] });
       window.dispatchEvent(new Event('genfactory:generation-finished'));
     },
   });
@@ -142,6 +144,8 @@ export function Studio({ kind }: { kind: MediaKind }) {
   });
   const [login, setLogin] = useState(false);
   const [prompt, setPrompt] = useState('');
+  const [imageTemplateId, setImageTemplateId] = useState('');
+  const [imageTemplateText, setImageTemplateText] = useState('');
   const [selected, setSelected] = useState('');
   const [options, setOptions] = useState<Record<string, unknown>>({});
   const [references, setReferences] = useState<IGnosisFile[]>([]);
@@ -247,11 +251,15 @@ export function Studio({ kind }: { kind: MediaKind }) {
     previousUser.current = auth.user?.id;
     previousKind.current = kind;
     setAgentKey('');
+    setImageTemplateId('');
+    setImageTemplateText('');
   }, [kind, auth.user?.id]);
   const previousConversation = useRef(conversationId);
   useLayoutEffect(() => {
     if (previousConversation.current !== undefined && previousConversation.current !== conversationId) {
       setPrompt('');
+      setImageTemplateId('');
+      setImageTemplateText('');
       setError('');
     }
     previousConversation.current = conversationId;
@@ -402,11 +410,22 @@ export function Studio({ kind }: { kind: MediaKind }) {
     referenceKey.current = location.key;
     setFocusPrompt((value) => value + 1);
   }, [models, currentKey, location.key, location.state, auth.user?.id, conversation, conversationId, kind]);
-  const maxRefs = Math.min(4, referenceLimit(model));
+  const maxRefs =
+    kind === 'image' && !specialized ? referenceLimit(model) : Math.min(4, referenceLimit(model));
   const minRefs = referenceMinimum(model);
   const draft = useDraft(
     `${kind}:${conversationId || 'new'}:${specialized || 'all'}`,
-    { prompt, selected: currentKey, options, references, shot, useBrand, agentKey },
+    {
+      prompt,
+      selected: currentKey,
+      options,
+      references,
+      shot,
+      useBrand,
+      agentKey,
+      imageTemplateId,
+      imageTemplateText,
+    },
     !!currentKey,
   );
   const pendingDraft = useRef<{
@@ -419,6 +438,8 @@ export function Studio({ kind }: { kind: MediaKind }) {
     if (!pending || pending.key !== currentKey) return;
     pendingDraft.current = null;
     setPrompt(pending.value.prompt);
+    setImageTemplateId(pending.value.imageTemplateId || '');
+    setImageTemplateText(pending.value.imageTemplateText || '');
     setOptions(pending.value.options);
     setReferences(pending.files.slice(0, maxRefs));
     setShot(pending.value.shot || {});
@@ -460,6 +481,14 @@ export function Studio({ kind }: { kind: MediaKind }) {
     setUploading(false);
     setUploadProgress(undefined);
   };
+  const imageDraftRestored = useRef('');
+  useEffect(() => {
+    if (kind !== 'image' || specialized || !auth.user || !models.length || busy || uploading) return;
+    if (conversationId && !conversation) return;
+    if (imageDraftRestored.current === sourceScope) return;
+    imageDraftRestored.current = sourceScope;
+    if (draft.available && !location.state) void restoreDraft(draft.available.value);
+  }, [sourceScope, models.length, conversation, draft.available, busy, uploading]);
   const upload = async (files: FileList | File[] | null) => {
     if (!auth.user) {
       setLogin(true);
@@ -520,7 +549,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setError('Не удалось выбрать модель ассистента. Обновите каталог.');
       return;
     }
-    if (conversation && !references.length && !fromScratch) {
+    if ((kind !== 'image' || specialized) && conversation && !references.length && !fromScratch) {
       setReferenceChoice(true);
       return;
     }
@@ -536,7 +565,11 @@ export function Studio({ kind }: { kind: MediaKind }) {
     const cleanOptions = Object.fromEntries(
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
     );
-    const preparedPrompt = creativePrompt(prompt, useBrand ? prefs.value.brand : '', shot);
+    const combinedPrompt =
+      kind === 'image' && !specialized && imageTemplateId
+        ? [imageTemplateText.trim(), prompt.trim()].filter(Boolean).join('\n\n')
+        : prompt;
+    const preparedPrompt = creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
     const body: ITaskRequest = {
       model: model.reference.provider,
       task: { prompt: preparedPrompt, session: crypto.randomUUID() },
@@ -593,7 +626,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
         setCreating(true);
         const created = await api.createConversation(
           {
-            ...createConversationBody(prompt, kind, agent!, tool),
+            ...createConversationBody(combinedPrompt, kind, agent!, tool),
             ...(fileOutput.changed ? { fileOutput: fileOutput.value } : {}),
           },
           sid,
@@ -608,9 +641,10 @@ export function Studio({ kind }: { kind: MediaKind }) {
           return;
         id = created.id;
         client.setQueryData(['conversation', userId, id], created);
-        activeScope = `${userId}:/${kind}:?conversation=${id}`;
+        const nextSearch = `?conversation=${id}${specialized === 'advanced' ? '&studio=advanced' : ''}`;
+        activeScope = `${userId}:/${kind}:${nextSearch}`;
         scopeRef.current = activeScope;
-        navigate(`/${kind}?conversation=${id}`, { replace: true });
+        navigate(`/${kind}${nextSearch}`, { replace: true });
       }
       messageSent = true;
       const response = await send.mutateAsync({
@@ -620,7 +654,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           kind,
           tool,
           references.map((f) => f.id),
-          fromScratch || !conversationId,
+          fromScratch || !conversationId || (kind === 'image' && !specialized && !references.length),
         ),
         sid,
       });
@@ -641,8 +675,11 @@ export function Studio({ kind }: { kind: MediaKind }) {
         getSession() === sid &&
         window.location.pathname === `/${kind}` &&
         new URLSearchParams(window.location.search).get('conversation') === String(id)
-      )
+      ) {
         setPrompt('');
+        setImageTemplateId('');
+        setImageTemplateText('');
+      }
     } catch (e) {
       if (mounted.current && !messageSent && scopeRef.current === activeScope)
         setError(
@@ -653,6 +690,165 @@ export function Studio({ kind }: { kind: MediaKind }) {
       if (mounted.current) setCreating(false);
     }
   };
+  if (kind === 'image' && !specialized)
+    return (
+      <ImageWorkspace
+        key={`${auth.user?.id}:image`}
+        models={models}
+        model={model}
+        options={options}
+        prompt={prompt}
+        templateId={imageTemplateId}
+        templateText={imageTemplateText}
+        onTemplateText={(value) => {
+          draft.changed();
+          setImageTemplateText(value);
+        }}
+        onTemplate={(value) => {
+          draft.changed();
+          setImageTemplateId(value);
+        }}
+        references={references}
+        conversation={conversation}
+        busy={busy || uploading}
+        unavailable={
+          !!auth.user &&
+          (!model ||
+            (!conversationId && !agent) ||
+            (!!idParam && (!conversation || !connection(conversation, kind))))
+        }
+        retryCatalog={
+          catalog.error || agents.error
+            ? () => {
+                void catalog.refetch();
+                void agents.refetch();
+              }
+            : undefined
+        }
+        promptInput={promptInput}
+        error={
+          (idParam && !conversationId ? 'Некорректный адрес беседы.' : '') ||
+          (conversation && !connection(conversation, kind)
+            ? 'В этой беседе не подключён инструмент изображений.'
+            : '') ||
+          error ||
+          (draft.status.startsWith('Не удалось') ? draft.status : '') ||
+          (send.error instanceof Error
+            ? `${send.error.message}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`
+            : '') ||
+          (catalog.error instanceof Error ? catalog.error.message : '') ||
+          (conversationQuery.error instanceof Error ? conversationQuery.error.message : '')
+        }
+        onPrompt={(value) => {
+          draft.changed();
+          setPrompt(value);
+        }}
+        onModel={(value) => {
+          draft.changed();
+          setSelected(modelKey(value));
+        }}
+        onOptions={(value) => {
+          draft.changed();
+          setOptions(value);
+        }}
+        onReferences={(value) => {
+          draft.changed();
+          setReferences(value.slice(0, maxRefs));
+        }}
+        onLibrary={() => {
+          if (!auth.user) {
+            setLogin(true);
+            return;
+          }
+          if (!supportsReferences(model)) {
+            setError('Выбранная модель не поддерживает референсы. Выберите другую модель.');
+            return;
+          }
+          if (references.length >= maxRefs) {
+            setError(`Для выбранной модели можно добавить до ${maxRefs} референсов.`);
+            return;
+          }
+          setReplaceReference(false);
+          setPicker(true);
+        }}
+        onSubmit={() => void submit()}
+        onRepeat={async (file) => {
+          const generation = file.origin?.generation;
+          if (!generation) {
+            setError(
+              'У этого результата не сохранены параметры запуска. Выберите его в библиотеке для правки.',
+            );
+            return;
+          }
+          const chosen = models.find(
+            (m) => modelKey(m) === `${generation.model.provider}:${generation.model.model}`,
+          );
+          if (!chosen) {
+            setError('Модель результата сейчас недоступна. Выберите модель из каталога.');
+            return;
+          }
+          const sid = auth.session,
+            activeScope = scopeRef.current;
+          try {
+            const sources = await Promise.all(
+              (file.origin?.sourceFileIds || []).map((id) => api.file(id, sid!)),
+            );
+            if (getSession() !== sid || scopeRef.current !== activeScope || !mounted.current) return;
+            if (sources.some((f) => f.userId !== auth.user?.id || f.type !== 'IMAGE'))
+              throw new Error('Исходные изображения недоступны.');
+            if (sources.length > referenceLimit(chosen))
+              throw new Error('Количество референсов не поддерживается текущей моделью.');
+            const values = {
+              ...defaults(chosen.schema.properties?.options),
+              ...generation.options,
+              model: chosen.reference.model,
+            };
+            // Restore sources after the model switch resets the old reference scope.
+            pendingDraft.current = {
+              key: modelKey(chosen),
+              files: sources,
+              value: {
+                prompt: generation.prompt,
+                selected: modelKey(chosen),
+                options: values,
+                references: sources,
+                shot: {},
+                useBrand: false,
+                agentKey,
+                imageTemplateId: '',
+                imageTemplateText: '',
+              },
+            };
+            if (modelKey(chosen) !== currentKey)
+              repeatRequest.current = {
+                model: chosen.reference.provider,
+                options: values,
+                task: { prompt: generation.prompt },
+              };
+            setSelected(modelKey(chosen));
+            setNotice(`Параметры восстановлены: ${Date.now()}`);
+            setError('');
+            setFocusPrompt((v) => v + 1);
+          } catch {
+            setError('Не удалось восстановить исходные файлы. Задание не изменено.');
+          }
+        }}
+      >
+        {picker && (
+          <LibraryPicker
+            selected={references.map((f) => f.id)}
+            onClose={() => setPicker(false)}
+            onPick={(file) => {
+              draft.changed();
+              setReferences((current) =>
+                current.some((f) => f.id === file.id) ? current : [...current, file].slice(0, maxRefs),
+              );
+            }}
+          />
+        )}
+        {login && <LoginDialog onClose={() => setLogin(false)} />}
+      </ImageWorkspace>
+    );
   return (
     <div className="studio page-enter">
       <header className="studio-heading">
@@ -700,7 +896,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
             setUploading(false);
             setUploadProgress(undefined);
             if (input.current) input.current.value = '';
-            navigate(`/${kind}`);
+            navigate(`/${kind}${specialized === 'advanced' ? '?studio=advanced' : ''}`);
             setPrompt('');
             setReferences([]);
             setFreshScope(undefined);
