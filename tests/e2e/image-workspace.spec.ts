@@ -485,3 +485,38 @@ test('image loading uses the selected frame and does not submit on reload', asyn
   await expect(pending).toBeVisible({ timeout: 15_000 });
   expect(state.sends).toHaveLength(0);
 });
+
+test('image result reserves its frame while loading and keeps actions under the pointer', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  let showImage!: () => void;
+  const imageReady = new Promise<void>((resolve) => {
+    showImage = resolve;
+  });
+  await page.route('**/media/gallery-1.jpg', async (route) => {
+    await imageReady;
+    await route.continue();
+  });
+  await page.goto('/image');
+  await page.locator('#img-draft').fill('Закат');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  const result = page.locator('.image-result');
+  await expect(result).toBeVisible();
+  const before = await result.boundingBox();
+  expect(before!.height).toBeGreaterThan(100);
+  await result.hover();
+  const repeat = result.getByRole('button', { name: 'Переделать Закат.png', exact: true });
+  await expect(repeat).toBeVisible();
+  showImage();
+  await expect
+    .poll(() =>
+      result.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+    )
+    .toBe(true);
+  await expect(repeat).toBeVisible();
+  expect(await result.boundingBox()).toEqual(before);
+  await repeat.click();
+  await expect(page.locator('#img-draft')).toHaveValue('Закат над лесом');
+  expect(state.sends).toHaveLength(1);
+});

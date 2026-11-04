@@ -33,6 +33,7 @@
   inset: 0;
   overflow: auto;
   scrollbar-width: none;
+  overflow-anchor: none;
 }
 .image-workspace .img-wall::-webkit-scrollbar {
   display: none;
@@ -438,6 +439,7 @@
   background: #161618;
 }
 .image-workspace .image-result-open img {
+  aspect-ratio: auto 1;
   display: block;
   width: 100%;
   height: auto;
