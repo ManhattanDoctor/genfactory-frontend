@@ -1296,9 +1296,13 @@ test('workspace local brand and templates remain isolated between accounts', asy
   );
   await page.goto('/brand');
   await expect(page.getByLabel('Правила оформления')).toHaveValue('PRIVATE BRAND');
-  await page.route('**/api/init', (route) =>
-    route.fulfill({ json: { user: { id: 8, preferences: { name: 'Other user' } }, balances: { RUB: '0' } } }),
-  );
+  await page.route('**/api/init', (route) => {
+    // An in-flight refresh for the first session must still return its own account.
+    if (route.request().headers().authorization !== 'Bearer second-user') return route.fallback();
+    return route.fulfill({
+      json: { user: { id: 8, preferences: { name: 'Other user' } }, balances: { RUB: '0' } },
+    });
+  });
   await page.evaluate(() => {
     localStorage.setItem('genfactory.session', 'second-user');
     window.dispatchEvent(
