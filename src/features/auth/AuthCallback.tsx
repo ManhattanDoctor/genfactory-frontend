@@ -13,14 +13,25 @@ export function AuthCallback() {
     void (async () => {
       try {
         const params = new URLSearchParams(location.search);
-        const stored = JSON.parse(sessionStorage.getItem('genfactory.oauth') || 'null');
+        const raw = sessionStorage.getItem('genfactory.oauth');
         sessionStorage.removeItem('genfactory.oauth');
         history.replaceState(null, '', '/auth/callback');
-        if (!stored || params.get('state') !== stored.state || Date.now() - stored.createdAt > 10 * 60_000)
+        const stored = JSON.parse(raw || 'null');
+        if (
+          !stored ||
+          typeof stored.state !== 'string' ||
+          !stored.state ||
+          params.get('state') !== stored.state ||
+          !Number.isFinite(stored.createdAt) ||
+          stored.createdAt > Date.now() ||
+          Date.now() - stored.createdAt >= 10 * 60_000 ||
+          stored.redirectUri !== `${location.origin}/auth/callback`
+        )
           throw new Error('Сессия входа истекла. Начните вход заново.');
         if (params.has('error') || !params.get('code'))
           throw new Error('Вход не завершён. Попробуйте ещё раз.');
         const result = await api.login(params.get('code')!, stored.redirectUri);
+        if (typeof result.sid !== 'string' || !result.sid) throw new Error('Не удалось завершить вход.');
         auth.acceptSession(result.sid);
         if (result.idToken) sessionStorage.setItem('genfactory.idToken', result.idToken);
         navigate('/image', { replace: true });

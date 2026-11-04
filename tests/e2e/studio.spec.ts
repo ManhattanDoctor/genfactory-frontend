@@ -2619,6 +2619,86 @@ for (const path of ['/audio?mode=stt', '/library', '/image', '/prompt']) {
   });
 }
 
+for (const invalid of [
+  'missing-state',
+  'missing-date',
+  'future-date',
+  'foreign-redirect',
+  'malformed-json',
+]) {
+  test(`OAuth callback rejects ${invalid} and consumes the attempt`, async ({ page }) => {
+    await mockApi(page, false);
+    let exchanges = 0;
+    await page.route('**/api/login', async (route) => {
+      exchanges++;
+      await route.fulfill({ json: { sid: 'must-not-login' } });
+    });
+    await page.goto('/');
+    await page.evaluate((invalid) => {
+      const attempt: Record<string, unknown> = {
+        state: 'expected',
+        createdAt: Date.now(),
+        redirectUri: `${location.origin}/auth/callback`,
+      };
+      if (invalid === 'missing-state') delete attempt.state;
+      if (invalid === 'missing-date') delete attempt.createdAt;
+      if (invalid === 'future-date') attempt.createdAt = Date.now() + 60_000;
+      if (invalid === 'foreign-redirect') attempt.redirectUri = 'https://other.example/auth/callback';
+      sessionStorage.setItem(
+        'genfactory.oauth',
+        invalid === 'malformed-json' ? '{broken' : JSON.stringify(attempt),
+      );
+    }, invalid);
+    await page.goto('/auth/callback?state=expected&code=must-not-exchange');
+    await expect(page.getByRole('heading', { name: 'Не удалось войти' })).toBeVisible();
+    expect(exchanges).toBe(0);
+    expect(await page.evaluate(() => sessionStorage.getItem('genfactory.oauth'))).toBeNull();
+    await expect(page).toHaveURL(/\/auth\/callback$/);
+  });
+}
+
+test('OAuth redirect login does not use popup windows', async ({ page }) => {
+  await mockApi(page, false);
+  await page.goto('/account');
+  await page.evaluate(() => {
+    window.open = () => {
+      throw new Error('Popup prohibited');
+    };
+  });
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Войти в аккаунт' }).click();
+  await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
+  const url = new URL(page.url());
+  expect(url.searchParams.get('state')).toBeTruthy();
+  expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:5173/auth/callback');
+});
+
+test('OAuth callback cannot exchange the same attempt twice', async ({ page }) => {
+  await mockApi(page, false);
+  let exchanges = 0;
+  await page.route('**/api/login', async (route) => {
+    exchanges++;
+    await route.fulfill({ json: { sid: 'new-session' } });
+  });
+  await page.goto('/');
+  await page.evaluate(() =>
+    sessionStorage.setItem(
+      'genfactory.oauth',
+      JSON.stringify({
+        state: 'single-use',
+        createdAt: Date.now(),
+        redirectUri: `${location.origin}/auth/callback`,
+      }),
+    ),
+  );
+  await page.goto('/auth/callback?state=single-use&code=test-code');
+  await expect(page).toHaveURL(/\/image$/);
+  await page.goto('/auth/callback?state=single-use&code=test-code');
+  await expect(page.getByRole('heading', { name: 'Не удалось войти' })).toBeVisible();
+  expect(exchanges).toBe(1);
+});
+
 test('home task opens the studio with its text and never starts a paid request', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const state = await mockApi(page);

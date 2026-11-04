@@ -60,4 +60,8 @@ npm run test:e2e
 
 CI/CD: [сборка, публикация образа, SSH-деплой и откат](docs/CICD.md).
 
+Проверки входа и выхода: `npm run test:auth` (Chromium) и
+`npm run test:auth:webkit` (WebKit; предварительно `npx playwright install webkit`).
+Провайдер SSO и API в этих тестах подменяются: реальные аккаунты не используются.
+
 План переноса интерфейса по прототипу и документу заказчика: [PROTOTYPE-MIGRATION.md](docs/PROTOTYPE-MIGRATION.md).
