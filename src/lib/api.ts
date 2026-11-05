@@ -221,13 +221,23 @@ export const api = {
       throw error;
     }
   },
-  conversations: (userId: number, page: number, signal?: AbortSignal, status?: string) =>
+  conversations: (
+    userId: number,
+    page: number,
+    signal?: AbortSignal,
+    status?: string,
+    tags?: Array<string>,
+  ) =>
     request<IPagination<IConversation>>(
       `/conversation?${new URLSearchParams({
         pageSize: '24',
         pageIndex: String(page),
         sort: JSON.stringify({ createdDate: false, id: false }),
-        conditions: JSON.stringify({ userId, ...(status ? { status } : {}) }),
+        conditions: JSON.stringify({
+          userId,
+          ...(status ? { status } : {}),
+          ...(tags?.length ? { tags: { condition: 'INCLUDES_ALL', value: tags } } : {}),
+        }),
       })}`,
       { signal },
     ),

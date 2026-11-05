@@ -11,10 +11,10 @@ export function AppNavigation({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
   const [expanded, setExpanded] = useState(true);
   const dialogs = useInfiniteQuery({
-    queryKey: ['conversations', user?.id, 'agent-navigation'],
+    queryKey: ['conversations', user?.id, 'agent-navigation', 'chat'],
     enabled: !!user,
     initialPageParam: 0,
-    queryFn: ({ pageParam, signal }) => api.conversations(user!.id, pageParam, signal),
+    queryFn: ({ pageParam, signal }) => api.conversations(user!.id, pageParam, signal, undefined, ['chat']),
     getNextPageParam: (last) => (last.pageIndex + 1 < last.pages ? last.pageIndex + 1 : undefined),
   });
   const chats =
