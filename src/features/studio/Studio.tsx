@@ -351,7 +351,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
       );
       if (found) {
         const values = {
-          ...defaults(found.schema.properties?.options),
+          ...(kind === 'video' && specialized === 'seedance'
+            ? videoDefaults(found)
+            : defaults(found.schema.properties?.options)),
           ...saved.options,
           model: found.reference.model,
         };

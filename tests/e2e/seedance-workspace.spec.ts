@@ -119,7 +119,7 @@ test('seedance preserves selected settings, start frame and route through send a
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].settings.tools[0]).toMatchObject({
     uid: 'VIDEO',
-    settings: { model: catalog[0].reference, options: { duration: 4 } },
+    settings: { model: catalog[0].reference, options: { duration: 4, resolution: '480p' } },
   });
   await page.locator('.image-result').hover();
   await page.getByRole('button', { name: 'Переделать Чашка.png', exact: true }).click();

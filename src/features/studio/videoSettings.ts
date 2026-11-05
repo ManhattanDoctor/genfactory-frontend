@@ -13,5 +13,13 @@ export function videoDefaults(model?: IModelDescription): Record<string, unknown
     result.duration = durations.includes(8) ? 8 : durations[0];
   if (result.generateAudio === undefined && fields.generateAudio)
     result.generateAudio = choices(fields.generateAudio, [false, true])[0];
+  // Seedance's provider default is a larger render; the studio starts at the
+  // supported economical tier unless the catalog explicitly specifies another default.
+  if (
+    model?.reference.model.includes('seedance') &&
+    result.resolution === undefined &&
+    fields.resolution?.enum?.includes('480p')
+  )
+    result.resolution = '480p';
   return result;
 }

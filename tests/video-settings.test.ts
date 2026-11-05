@@ -49,3 +49,14 @@ describe('Video canvas settings', () => {
     expect(displayMessageText(body.text)).toBe('Идея:\nЧашка\n\nШаблон:\nПоворот [PRODUCT]');
   });
 });
+
+it('selects supported Seedance 480p explicitly while preserving catalog defaults and other models', () => {
+  const seedance = model({ resolution: { type: 'string', enum: ['480p', '720p'] } });
+  seedance.reference.model = 'bytedance/seedance-2.5';
+  expect(videoDefaults(seedance).resolution).toBe('480p');
+  seedance.schema.properties!.options.properties!.resolution.default = '720p';
+  expect(videoDefaults(seedance).resolution).toBe('720p');
+  expect(
+    videoDefaults(model({ resolution: { type: 'string', enum: ['480p', '720p'] } })).resolution,
+  ).toBeUndefined();
+});
