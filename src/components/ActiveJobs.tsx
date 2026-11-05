@@ -1,5 +1,5 @@
 import './active-jobs.css';
-import { RefreshCw } from 'lucide-react';
+import { History, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -90,14 +90,25 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
           hideTitle
           onClose={() => setOpen(false)}
           headerActions={
-            <button
-              className="icon-button"
-              aria-label="Обновить статусы"
-              onClick={() => void query.refetch()}
-              disabled={query.isFetching}
-            >
-              <RefreshCw size={18} />
-            </button>
+            <>
+              <Link
+                to="/history"
+                className="icon-button"
+                aria-label="Вся история"
+                title="Вся история"
+                onClick={() => setOpen(false)}
+              >
+                <History size={18} />
+              </Link>
+              <button
+                className="icon-button"
+                aria-label="Обновить статусы"
+                onClick={() => void query.refetch()}
+                disabled={query.isFetching}
+              >
+                <RefreshCw size={18} />
+              </button>
+            </>
           }
         >
           <div className="active-jobs-content">
@@ -122,9 +133,6 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
             {!!query.data && query.data.total > running.length && (
               <p>Всего в работе: {query.data.total}. Здесь показана первая страница.</p>
             )}
-            <Link to="/history" className="button" onClick={() => setOpen(false)}>
-              Вся история
-            </Link>
           </div>
         </Modal>
       )}
