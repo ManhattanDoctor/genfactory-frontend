@@ -193,10 +193,19 @@ async function mockApi(page: Page, signedIn = true) {
         body = {
           id: messages.length + 1,
           role: 'ASSISTANT',
-          text: data.text.startsWith('[Genfactory:')
-            ? (data.text.startsWith('[Genfactory:script]') && state.scriptReply) ||
-              'Точный промпт для генерации.'
-            : 'Готово: результат сохранён.',
+          text: data.text.includes('[Genfactory:prompt-input] ')
+            ? JSON.stringify({
+                status: 'ready',
+                title: 'Готовый промпт',
+                prompt: 'Точный промпт для генерации.',
+                observations: [],
+                clarifications: [],
+                limitations: [],
+              })
+            : data.text.startsWith('[Genfactory:')
+              ? (data.text.startsWith('[Genfactory:script]') && state.scriptReply) ||
+                'Точный промпт для генерации.'
+              : 'Готово: результат сохранён.',
           files: data.text.startsWith('[Genfactory:') ? [] : [result],
           createdDate: file.createdDate,
         };
@@ -1088,19 +1097,18 @@ test('workspace Generate Prompt transfers its answer and reference into image ge
 }) => {
   const state = await mockApi(page);
   await page.goto('/prompt');
-  await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /Test result/ })
     .click();
-  await page.getByLabel('Язык промпта').selectOption('English');
-  await page.getByLabel('Ваш запрос', { exact: true }).fill('Сохрани объект и замени фон');
-  await openViewerActions(page);
-  await page.getByRole('button', { name: 'Подготовить промпт', exact: true }).click();
+  await page.locator('#gp-note').fill('Сохрани объект и замени фон');
+  await page.getByRole('button', { name: 'Собрать промпт', exact: true }).click();
   await expect(page.getByText('Точный промпт для генерации.', { exact: true })).toBeVisible();
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].text).toContain('English');
-  await page.getByRole('button', { name: 'В задачу изображения', exact: true }).last().click();
+  await page.locator('.prompt-card').hover();
+  await page.getByRole('button', { name: 'В генератор', exact: true }).last().click();
   await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue(
     'Точный промпт для генерации.',
   );
@@ -1227,9 +1235,11 @@ test('workspace history supports rename favorites local archive and a running fi
   await request;
 });
 
-test('workspace video prompt extracts three frames without uploading the source video', async ({ page }) => {
+test('workspace agent video analysis extracts three frames without uploading the source video', async ({
+  page,
+}) => {
   const state = await mockApi(page);
-  await page.goto('/prompt');
+  await page.goto('/agent');
   await expect(page.getByLabel('Ассистент', { exact: true })).toBeEnabled();
   await page
     .locator('input[type=file]')
@@ -1242,8 +1252,7 @@ test('workspace video prompt extracts three frames without uploading the source 
   expect(state.uploads).toBe(3);
   await expect(page.locator('.reference')).toHaveCount(3);
   await page.getByLabel('Ваш запрос', { exact: true }).fill('Опиши визуальный стиль');
-  await openViewerActions(page);
-  await page.getByRole('button', { name: 'Подготовить промпт', exact: true }).click();
+  await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].files).toEqual([12, 13, 14]);
 });
@@ -1356,11 +1365,11 @@ test('advanced editor: persists and restores media drafts with account-owned ref
 test('restores text draft after navigation without sending a message', async ({ page }) => {
   const state = await mockApi(page);
   await page.goto('/prompt');
-  await page.locator('.composer textarea').fill('Черновик промпта');
+  await page.locator('#gp-note').fill('Черновик промпта');
   await navigateLegacyRoute(page, '/library');
   await page.goto('/prompt');
   await page.getByRole('button', { name: 'Восстановить черновик' }).click();
-  await expect(page.locator('.composer textarea')).toHaveValue('Черновик промпта');
+  await expect(page.locator('#gp-note')).toHaveValue('Черновик промпта');
   expect(state.sends).toHaveLength(0);
 });
 

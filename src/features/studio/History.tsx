@@ -288,7 +288,11 @@ export function History() {
                     </Link>
                   )}
                   {!connection(c, 'image') && !connection(c, 'video') && (
-                    <Link className="button" aria-label="Открыть беседу" to={`/chat?conversation=${c.id}`}>
+                    <Link
+                      className="button"
+                      aria-label="Открыть беседу"
+                      to={`/${c.tags?.includes('prompt') ? 'prompt' : 'chat'}?conversation=${c.id}`}
+                    >
                       Беседа
                     </Link>
                   )}

@@ -705,7 +705,7 @@ export function MediaWorkspace({
   );
 }
 
-function ImageMenu({
+export function ImageMenu({
   label,
   name,
   values = [],
@@ -722,6 +722,7 @@ function ImageMenu({
   infoKind,
   describeModel,
   onFavorite,
+  autoOption,
 }: {
   label: string;
   name: string;
@@ -739,6 +740,7 @@ function ImageMenu({
   infoKind?: MediaKind;
   describeModel?: (model: IModelDescription) => string;
   onFavorite?: (value: string) => void;
+  autoOption?: { selected: boolean; onSelect: () => void };
 }) {
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState<IModelDescription>();
@@ -819,6 +821,20 @@ function ImageMenu({
               onClick={() => setOnlyFavorites(!onlyFavorites)}
             >
               Избранные
+            </button>
+          )}
+          {autoOption && (
+            <button
+              type="button"
+              className="image-option"
+              role="option"
+              aria-selected={autoOption.selected}
+              onClick={() => {
+                autoOption.onSelect();
+                setOpen(false);
+              }}
+            >
+              Авто
             </button>
           )}
           {visible?.map((model) => (

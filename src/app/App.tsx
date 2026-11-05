@@ -12,6 +12,9 @@ const ContentStudio = lazy(() =>
   import('../features/content-studio/ContentStudio').then((m) => ({ default: m.ContentStudio })),
 );
 const Studio = lazy(() => import('../features/studio/Studio').then((m) => ({ default: m.Studio })));
+const PromptStudio = lazy(() =>
+  import('../features/prompt/PromptStudio').then((m) => ({ default: m.PromptStudio })),
+);
 const TextStudio = lazy(() =>
   import('../features/workspace/TextStudio').then((m) => ({ default: m.TextStudio })),
 );
@@ -160,7 +163,7 @@ export function App() {
             />
             <Route path="/chat" element={<ContentStudio key={auth.user?.id} />} />
             <Route path="/agent" element={<TextStudio mode="chat" />} />
-            <Route path="/prompt" element={<TextStudio mode="prompt" />} />
+            <Route path="/prompt" element={<PromptStudio />} />
             <Route path="/script" element={<TextStudio mode="script" />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/brand" element={<Brand />} />
