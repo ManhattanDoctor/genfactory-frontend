@@ -65,8 +65,22 @@ async function setup(page: Page, guest = false) {
     } else if (p === '/api/conversation') body = pagination(state.conversation ? [state.conversation] : []);
     else if (p === '/api/conversation/101/message' && request.method() === 'POST') {
       state.sends.push(request.postDataJSON());
-      body = { id: 1, role: 'ASSISTANT', text: 'Готово', files: [file], createdDate: file.createdDate };
-      state.messages = [body];
+      body = {
+        ...request.postDataJSON(),
+        id: state.sends.length * 2 - 1,
+        files: [],
+        createdDate: file.createdDate,
+      };
+      state.messages = [
+        {
+          id: state.sends.length * 2,
+          role: 'ASSISTANT',
+          text: 'Готово',
+          files: [file],
+          createdDate: file.createdDate,
+        },
+        body,
+      ];
     } else if (p === '/api/conversation/101/message') body = pagination(state.messages);
     else if (p === '/api/conversation/101') body = state.conversation;
     else if (p === '/api/file/12') body = file;
@@ -129,12 +143,12 @@ test('image model controls send actual settings, show result and recover it on r
   await expect(restoredResult.locator('.img-actions')).toHaveCSS('transform', 'none');
   await expect(restoredResult.locator('.img-actions')).toHaveCSS('opacity', '1');
   await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
-  await expect(page.locator('#img-draft')).toHaveValue('Закат над лесом');
+  await expect(page.locator('#img-draft')).toHaveValue(/Закат над лесом[\s\S]*Последний референс/);
   expect(state.sends).toHaveLength(1);
-  await expect(page.locator('.img-files .img-file')).toHaveCount(0);
+  await expect(page.locator('.img-files .img-file')).toHaveCount(1);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(2);
-  expect(state.sends[1].files).toEqual([]);
+  expect(state.sends[1].files).toEqual([12]);
 });
 test('image library reuses a saved file without reupload or sending on selection', async ({ page }) => {
   const state = await setup(page);
@@ -173,7 +187,13 @@ test('image model favorites preserve actual catalog selection', async ({ page })
   await setup(page);
   await page.goto('/image');
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
-  await page.getByRole('button', { name: 'В избранное: GPT Image 1 Mini', exact: true }).click();
+  await page.getByRole('button', { name: 'В избранные: GPT Image 1 Mini', exact: true }).click();
+  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
+  await expect(page.getByRole('option')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Убрать из избранных: GPT Image 1 Mini', exact: true }).click();
+  await expect(page.getByRole('option')).toHaveCount(0);
+  await expect(page.getByText('Нет избранных моделей.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
   await page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 1 Mini');
 });
@@ -261,53 +281,28 @@ test('image wall paginates across folders and excludes uploads and foreign files
   expect(pages).toContain(1);
 });
 
-test('inline template validates before sending, survives reload and combines with the brief', async ({
+test('template placeholders survive reload and are sent separately from the idea without a reference gate', async ({
   page,
 }) => {
   const state = await setup(page);
   await page.goto('/image');
-  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
-  await page.locator('#img-draft').fill('Мягкий вечерний свет');
+  await page.locator('#img-draft').fill('Красная чашка, мягкий вечерний свет');
   await page.locator('.ds-template-card').first().click();
-  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Замените в тексте шаблона: [PRODUCT] (Продукт)');
-  expect(state.sends).toHaveLength(0);
+  await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
   const input = page.getByRole('textbox', { name: 'Текст шаблона', exact: true });
-  await expect(input).toBeFocused();
-  await expect
-    .poll(() =>
-      input.evaluate((area: HTMLTextAreaElement) => area.value.slice(area.selectionStart, area.selectionEnd)),
-    )
-    .toBe('[PRODUCT]');
-  await input.press('ArrowRight');
-  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect
-    .poll(() =>
-      input.evaluate((area: HTMLTextAreaElement) => area.value.slice(area.selectionStart, area.selectionEnd)),
-    )
-    .toBe('[PRODUCT]');
-  const filled = (await input.inputValue()).replace(/\[([A-Za-z][A-Za-z_0-9 ]*)\]/g, 'Красная чашка');
-  await input.fill(filled);
-  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('референс');
-  expect(state.creates).toHaveLength(0);
-  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
-  await page
-    .getByRole('dialog', { name: 'Выбрать референс' })
-    .getByText('Закат.png', { exact: true })
-    .click();
+  const template = await input.inputValue();
+  expect(template).toContain('[PRODUCT]');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.image:new:all')))
-    .toContain('Красная чашка');
+    .toContain('[PRODUCT]');
   await page.reload();
   await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
-  await expect(input).toHaveValue(filled);
-  await expect(page.locator('#img-draft')).toHaveValue('Мягкий вечерний свет');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].text).toContain(filled + '\n\nМягкий вечерний свет');
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].text).toContain('Идея:\nКрасная чашка, мягкий вечерний свет');
+  expect(state.sends[0].text).toContain('Шаблон:\n' + template);
+  expect(state.sends[0].text).toContain('НЕ вызывай IMAGE');
+  expect(state.sends[0].files).toEqual([]);
 });
 
 test('image blocks a nonpositive balance without creating or submitting a conversation', async ({ page }) => {
@@ -455,9 +450,11 @@ test('image viewer reports a failed original and returns focus without retrying 
   await expect(opener).toBeVisible();
   await opener.click();
   const viewer = page.getByRole('dialog', { name: 'Закат.png' });
-  await expect(viewer.getByRole('status')).toHaveText('Открывается');
+  await expect(viewer.locator('img[aria-hidden=true]')).toBeVisible();
+  await expect(viewer.getByRole('status')).toHaveCount(0);
   failImage();
-  await expect(viewer.getByRole('alert')).toHaveText('Изображение не открылось.');
+  await expect(viewer.getByRole('alert')).toHaveText('Оригинал не открылся.');
+  await expect(viewer.locator('img[aria-hidden=true]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(viewer).toHaveCount(0);
   await expect(opener).toBeFocused();
@@ -525,6 +522,76 @@ test('image result reserves its frame while loading and keeps actions under the 
   await expect(repeat).toBeVisible();
   expect(await result.boundingBox()).toEqual(before);
   await repeat.click();
-  await expect(page.locator('#img-draft')).toHaveValue('Закат над лесом');
+  await expect(page.locator('#img-draft')).toHaveValue(/^Закат\n\nПоследний референс/);
   expect(state.sends).toHaveLength(1);
+});
+
+test('redo restores the original idea and template of a new request and attaches the result', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await page.goto('/image');
+  await page.locator('#img-draft').fill('Моя исходная идея');
+  await page.locator('.ds-template-card').first().click();
+  await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
+  const template = await page.getByRole('textbox', { name: 'Текст шаблона', exact: true }).inputValue();
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  await page.reload();
+  const result = page.locator('.image-result');
+  await expect
+    .poll(() =>
+      result.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+    )
+    .toBe(true);
+  await result.hover();
+  await expect(result.locator('.img-actions')).toHaveCSS('transform', 'none');
+  await expect(result.locator('.img-actions')).toHaveCSS('opacity', '1');
+  await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
+  await expect(page.locator('#img-draft')).toHaveValue(/Моя исходная идея[\s\S]*Последний референс/);
+  await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Текст шаблона', exact: true })).toHaveValue(template);
+  expect(state.sends).toHaveLength(1);
+});
+
+test('image viewer shows the thumbnail while the original loads and replaces it when ready', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  const previewFile = { ...file, preview: { image: { status: 'READY', url: '/media/gallery-2.jpg' } } };
+  await page.route('**/api/file?**', (route) => route.fulfill({ json: pagination([previewFile]) }));
+  let release!: () => void;
+  const original = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/media/gallery-1.jpg', async (route) => {
+    await original;
+    await route.continue();
+  });
+  await page.clock.install();
+  await page.goto('/image');
+  const opener = page.locator('.image-result-open');
+  await expect
+    .poll(() =>
+      opener.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+    )
+    .toBe(true);
+  await opener.click();
+  const viewer = page.getByRole('dialog', { name: 'Закат.png' });
+  await expect(viewer.locator('img[aria-hidden=true]')).toBeVisible();
+  await expect(viewer.getByRole('status')).toHaveCount(0);
+  await expect(viewer.locator('img:not([aria-hidden])')).toHaveCSS('opacity', '0');
+  await page.clock.fastForward(30001);
+  await expect(viewer.getByRole('alert')).toHaveText('Оригинал не открылся.');
+  await expect(viewer.locator('img[aria-hidden=true]')).toBeVisible();
+  release();
+  await expect(viewer.locator('img:not([aria-hidden])')).toHaveCSS('opacity', '1');
+  await expect(viewer.locator('img[aria-hidden=true]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(viewer).toHaveCount(0);
+  await opener.click();
+  await expect(viewer.locator('img:not([aria-hidden])')).toHaveCSS('opacity', '1');
+  await expect(viewer.getByRole('status')).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
 });

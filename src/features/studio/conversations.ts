@@ -82,6 +82,7 @@ export function displayMessageText(text: string): string {
     /^(Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.|Продолжи беседу с учётом контекста\. Если исходное изображение неоднозначно, уточни выбор до генерации\.)\n\n/;
   return text
     .replace(prefix, '')
+    .replace(/^\[Genfactory:image\]\n[\s\S]*?\n\nИдея:\n/, 'Идея:\n')
     .replace(
       /^\[Genfactory:tts\]\nОзвучь с помощью TTS следующий текст дословно, без вступления и дополнений\.\n\nТекст для озвучки:\n/,
       '',
@@ -94,4 +95,21 @@ export function migratedReferenceSystem(conversation: IConversation): string | u
   if (!conversation.tags?.includes('genfactory') || !conversation.system?.includes(legacyReferencePolicy))
     return;
   return conversation.system.replace(legacyReferencePolicy, referencePolicy);
+}
+
+// Image-page preparation uses the existing assistant, not a server-side planner.
+export function imageRequest(idea: string, template: string): string {
+  return (
+    '[Genfactory:image]\n' +
+    'Подготовь задачу по идее, шаблону и приложенным референсам. ' +
+    'Идея имеет приоритет над общими указаниями шаблона. ' +
+    'Метки в квадратных скобках — места для данных, а не надписи для изображения. ' +
+    'Используй доступные данные; не спрашивай необязательные декоративные детали. ' +
+    'Если не хватает важной информации или необходимого исходного фото, задай краткий вопрос и НЕ вызывай IMAGE. ' +
+    'Если задача понятна, вызови IMAGE один раз. Сохрани выбранную модель и настройки инструмента; ' +
+    'при конфликте запроса с настройками сначала уточни выбор. Сохраняй язык пользовательских надписей.\n\n' +
+    'Идея:\n' +
+    (idea.trim() || '(не указана)') +
+    (template.trim() ? '\n\nШаблон:\n' + template.trim() : '')
+  );
 }

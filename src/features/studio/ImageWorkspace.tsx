@@ -1,3 +1,5 @@
+import '../catalog/model-favorites.css';
+import { readRecipes, variantGroups, type IGenerationRecipe } from './variants';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
@@ -18,11 +20,7 @@ import { modelKey, modelTitle, modelSummary } from '../catalog/presentation';
 import { choices, ratioSizes, sizeRatio, suggestedRatios } from '../content-studio/controls';
 import templates from '../content-studio/templates.json';
 import type { ITemplate } from '../content-studio/materials';
-import {
-  templateVariables,
-  templateReference,
-  templateVariableLabel,
-} from '../content-studio/templateRecipe';
+
 import { ModelMark } from '../content-studio/ModelMark';
 import { useAuth } from '../auth/AuthProvider';
 import { usePreferences, toggleItem } from '../workspace/preferences';
@@ -80,7 +78,7 @@ export function ImageWorkspace({
   onReferences: (value: IGnosisFile[]) => void;
   onLibrary: () => void;
   onSubmit: () => void;
-  onRepeat: (file: IGnosisFile) => void;
+  onRepeat: (file: IGnosisFile, input?: IGenerationRecipe['imageInput']) => void;
   promptInput: RefObject<HTMLTextAreaElement | null>;
   children?: ReactNode;
 }) {
@@ -94,20 +92,12 @@ export function ImageWorkspace({
   const selected = imageTemplates.find((item) => item.id === templateId);
   const [editing, setEditing] = useState(false);
   const templateInput = useRef<HTMLTextAreaElement>(null);
-  const pendingTemplateVariable = useRef<string | undefined>(undefined);
-  const focusTemplateInput = (variable?: string) => {
+  const focusTemplateInput = () => {
     const area = templateInput.current;
     if (!area) return;
-    const token = variable ? `[${variable}]` : '';
-    const start = token ? area.value.indexOf(token) : -1;
-    area.blur();
-    area.setSelectionRange(
-      start < 0 ? area.value.length : start,
-      start < 0 ? area.value.length : start + token.length,
-    );
+    area.setSelectionRange(area.value.length, area.value.length);
     area.focus();
-    if (start < 0) area.scrollTop = area.scrollHeight;
-    pendingTemplateVariable.current = undefined;
+    area.scrollTop = area.scrollHeight;
   };
   const [templateError, setTemplateError] = useState('');
   useEffect(() => {
@@ -115,7 +105,7 @@ export function ImageWorkspace({
     setTemplateError('');
   }, [templateId]);
   useEffect(() => {
-    if (editing) focusTemplateInput(pendingTemplateVariable.current);
+    if (editing) focusTemplateInput();
   }, [editing]);
   useEffect(() => {
     setTemplateError('');
@@ -156,6 +146,21 @@ export function ImageWorkspace({
       ].map((file) => [file.id, file]),
     ).values(),
   ].sort((a, b) => Date.parse(b.createdDate) - Date.parse(a.createdDate) || b.id - a.id);
+  const repeatInput = (file: IGnosisFile) => {
+    if (!user || !conversation) return;
+    const group = variantGroups(
+      [...(messages.data?.items || [])].sort((a, b) => a.id - b.id),
+      user.id,
+    ).find((group) => group.outputs.some((output) => output.id === file.id));
+    if (!group) return;
+    const input = readRecipes(user.id, conversation.id)[group.request.id]?.imageInput;
+    return input &&
+      typeof input.idea === 'string' &&
+      typeof input.templateId === 'string' &&
+      typeof input.templateText === 'string'
+      ? input
+      : undefined;
+  };
   const nextPage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const marker = nextPage.current;
@@ -220,23 +225,9 @@ export function ImageWorkspace({
   };
   const submitTemplate = () => {
     if (selected) {
-      const missing = templateVariables(templateText);
-      if (missing.length) {
-        setTemplateError(
-          `Замените в тексте шаблона: ${missing.map((key) => `[${key}] (${templateVariableLabel(key)})`).join(', ')}. Поле «Идея» дополняет шаблон, но не заполняет эти места.`,
-        );
-        pendingTemplateVariable.current = missing[0];
-        setEditing(true);
-        if (templateInput.current) focusTemplateInput(missing[0]);
-        return;
-      }
       if (!templateText.trim()) {
         setTemplateError('Введите текст шаблона или уберите его.');
         setEditing(true);
-        return;
-      }
-      if (templateReference({ ...selected, prompt: templateText }) === 'required' && !references.length) {
-        setTemplateError('Добавьте изображение-референс через библиотеку.');
         return;
       }
     }
@@ -292,7 +283,11 @@ export function ImageWorkspace({
           <button type="button" aria-label={`Скачать ${file.name}`} onClick={() => void download(file)}>
             <Download size={18} />
           </button>
-          <button type="button" aria-label={`Переделать ${file.name}`} onClick={() => onRepeat(file)}>
+          <button
+            type="button"
+            aria-label={`Переделать ${file.name}`}
+            onClick={() => onRepeat(file, repeatInput(file))}
+          >
             <RotateCcw size={18} />
           </button>
         </div>
@@ -526,7 +521,14 @@ export function ImageWorkspace({
       </form>
       {preview && safeMediaUrl(preview.file.path) && (
         <HomeImageViewer
-          image={{ src: safeMediaUrl(preview.file.path)!, alt: preview.file.name }}
+          image={{
+            src: safeMediaUrl(preview.file.path)!,
+            alt: preview.file.name,
+            preview:
+              preview.file.preview?.image?.status === 'READY'
+                ? safeMediaUrl(preview.file.preview.image.url)
+                : undefined,
+          }}
           from={preview.rect}
           onClose={() => setPreview(undefined)}
         />
@@ -572,11 +574,8 @@ function ImageMenu({
     setOpen(false);
     root.current?.querySelector('button')?.focus();
   };
-  const visible = models
-    ? [...models].sort(
-        (a, b) => Number(favorites.includes(modelKey(b))) - Number(favorites.includes(modelKey(a))),
-      )
-    : undefined;
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const visible = models?.filter((model) => !onlyFavorites || favorites.includes(modelKey(model)));
   return (
     <div
       className={`image-menu ${models ? 'image-model-menu' : ''}`}
@@ -605,14 +604,26 @@ function ImageMenu({
         aria-expanded={open}
         aria-haspopup="listbox"
         disabled={disabled}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setOpen(!open);
+          setOnlyFavorites(false);
+        }}
       >
         {label}
         {models && <ChevronDown size={12} />}
       </button>
       {open && (
         <div className="cw-model-menu" role="listbox" aria-label={name}>
-          {models && <p className="image-menu-note">Выберите модель</p>}
+          {models && (
+            <button
+              type="button"
+              className="content-model-filter"
+              aria-pressed={onlyFavorites}
+              onClick={() => setOnlyFavorites(!onlyFavorites)}
+            >
+              Избранные
+            </button>
+          )}
           {visible?.map((model) => (
             <div
               className="image-model-row"
@@ -639,7 +650,7 @@ function ImageMenu({
               <button
                 className="image-favorite"
                 type="button"
-                aria-label={`В избранное: ${modelTitle(model)}`}
+                aria-label={`${favorites.includes(modelKey(model)) ? 'Убрать из избранных' : 'В избранные'}: ${modelTitle(model)}`}
                 aria-pressed={favorites.includes(modelKey(model))}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -651,7 +662,11 @@ function ImageMenu({
               <i className="image-choice-mark" aria-hidden="true" />
             </div>
           ))}
-          {models && !visible?.length && <p className="image-menu-note">Модели недоступны</p>}
+          {models && !visible?.length && (
+            <p className="image-menu-note">
+              {onlyFavorites ? 'Нет избранных моделей.' : 'Модели недоступны'}
+            </p>
+          )}
           {!models &&
             values.map((value) => (
               <button

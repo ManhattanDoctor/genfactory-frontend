@@ -37,6 +37,7 @@ import {
   connection,
   createConversationBody,
   createMessageBody,
+  imageRequest,
   migratedReferenceSystem,
   toolSettings,
 } from './conversations';
@@ -589,7 +590,10 @@ export function Studio({ kind }: { kind: MediaKind }) {
       kind === 'image' && !specialized && imageTemplateId
         ? [imageTemplateText.trim(), prompt.trim()].filter(Boolean).join('\n\n')
         : prompt;
-    const preparedPrompt = creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
+    const preparedPrompt =
+      kind === 'image' && !specialized
+        ? imageRequest(prompt, imageTemplateId ? imageTemplateText : '')
+        : creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
     const body: ITaskRequest = {
       model: model.reference.provider,
       task: { prompt: preparedPrompt, session: crypto.randomUUID() },
@@ -682,6 +686,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
         const saved = saveRecipe(userId, id, response.id, {
           kind,
           prompt: preparedPrompt,
+          ...(kind === 'image' && !specialized
+            ? { imageInput: { idea: prompt, templateId: imageTemplateId, templateText: imageTemplateText } }
+            : {}),
           model: model.reference,
           options: cleanOptions,
           references,
@@ -797,7 +804,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           setPicker(true);
         }}
         onSubmit={() => void submit()}
-        onRepeat={async (file) => {
+        onRepeat={async (file, input) => {
           const generation = file.origin?.generation;
           if (!generation) {
             setError(
@@ -816,12 +823,12 @@ export function Studio({ kind }: { kind: MediaKind }) {
             activeScope = scopeRef.current;
           try {
             const sources = await Promise.all(
-              (file.origin?.sourceFileIds || []).map((id) => api.file(id, sid!)),
+              [...new Set([...(file.origin?.sourceFileIds || []), file.id])].map((id) => api.file(id, sid!)),
             );
             if (getSession() !== sid || scopeRef.current !== activeScope || !mounted.current) return;
             if (sources.some((f) => f.userId !== auth.user?.id || f.type !== 'IMAGE'))
               throw new Error('Исходные изображения недоступны.');
-            if (sources.length > referenceLimit(chosen))
+            if (!supportsReferences(chosen) || sources.length > referenceLimit(chosen))
               throw new Error('Количество референсов не поддерживается текущей моделью.');
             const values = {
               ...defaults(chosen.schema.properties?.options),
@@ -833,15 +840,15 @@ export function Studio({ kind }: { kind: MediaKind }) {
               key: modelKey(chosen),
               files: sources,
               value: {
-                prompt: generation.prompt,
+                prompt: `${input?.idea ?? generation.prompt}\n\nПоследний референс — полученный результат. Исправь его с учётом моих уточнений.`,
                 selected: modelKey(chosen),
                 options: values,
                 references: sources,
                 shot: {},
                 useBrand: false,
                 agentKey,
-                imageTemplateId: '',
-                imageTemplateText: '',
+                imageTemplateId: input?.templateId || '',
+                imageTemplateText: input?.templateText || '',
               },
             };
             if (modelKey(chosen) !== currentKey)
@@ -854,8 +861,12 @@ export function Studio({ kind }: { kind: MediaKind }) {
             setNotice(`Параметры восстановлены: ${Date.now()}`);
             setError('');
             setFocusPrompt((v) => v + 1);
-          } catch {
-            setError('Не удалось восстановить исходные файлы. Задание не изменено.');
+          } catch (error) {
+            setError(
+              error instanceof Error
+                ? error.message
+                : 'Не удалось восстановить исходные файлы. Задание не изменено.',
+            );
           }
         }}
       >

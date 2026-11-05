@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   connection,
+  imageRequest,
   migratedReferenceSystem,
   displayMessageText,
   createConversationBody,
@@ -82,4 +83,11 @@ it('migrates only the legacy instruction in Genfactory conversations', () => {
   expect(system).toMatch(/Custom suffix\.$/);
   expect(migratedReferenceSystem({ ...conversation, system })).toBeUndefined();
   expect(migratedReferenceSystem({ ...conversation, tags: [] })).toBeUndefined();
+});
+
+it('shows image idea and template while hiding preparation instructions', () => {
+  const request = createMessageBody(imageRequest('Чашка', 'Фото [PRODUCT]'), 'image', { uid: 'IMAGE' }, [12]);
+  expect(request.files).toEqual([12]);
+  expect(displayMessageText(request.text)).toBe('Идея:\nЧашка\n\nШаблон:\nФото [PRODUCT]');
+  expect(displayMessageText('Чужое сообщение')).toBe('Чужое сообщение');
 });

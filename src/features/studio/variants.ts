@@ -2,6 +2,7 @@ import type { IConversationMessage, IGnosisFile, MediaKind, IModelDescription } 
 import { displayMessageText } from './conversations';
 export interface IGenerationRecipe {
   kind: MediaKind;
+  imageInput?: { idea: string; templateId: string; templateText: string };
   prompt: string;
   model: IModelDescription['reference'];
   options: Record<string, unknown>;

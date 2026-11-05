@@ -7,12 +7,15 @@ export function HomeImageViewer({
   from,
   onClose,
 }: {
-  image: { src: string; alt: string };
+  image: { src: string; alt: string; preview?: string };
   from: DOMRect;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const shot = useRef<HTMLImageElement>(null);
+  const thumbnail = useRef<HTMLImageElement>(null);
+  const loadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [previewReady, setPreviewReady] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
   const frames = useRef<number[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -27,7 +30,7 @@ export function HomeImageViewer({
     height: from.height,
   });
   function fit() {
-    const node = shot.current;
+    const node = shot.current?.naturalWidth ? shot.current : thumbnail.current;
     if (!node?.naturalWidth || closingRef.current) return;
     const scale = Math.min(
       Math.min(innerWidth * 0.86, 1200) / node.naturalWidth,
@@ -39,6 +42,7 @@ export function HomeImageViewer({
   }
   function grow() {
     if (closingRef.current) return;
+    clearTimeout(loadTimer.current);
     setLoadState('ready');
     frames.current.push(
       requestAnimationFrame(() => {
@@ -52,10 +56,23 @@ export function HomeImageViewer({
       }),
     );
   }
+  function showPreview() {
+    if (closingRef.current || !thumbnail.current?.naturalWidth) return;
+    setPreviewReady(true);
+    setActive(true);
+    fit();
+  }
+  function fail() {
+    if (closingRef.current) return;
+    clearTimeout(loadTimer.current);
+    setLoadState('error');
+    setActive(true);
+  }
   function close() {
     if (closingRef.current) return;
     closingRef.current = true;
     frames.current.forEach(cancelAnimationFrame);
+    clearTimeout(loadTimer.current);
     setClosing(true);
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       onClose();
@@ -70,9 +87,13 @@ export function HomeImageViewer({
     node?.showModal();
     closeButton.current?.focus();
     window.addEventListener('resize', fit);
+    loadTimer.current = setTimeout(fail, 30000);
+    if (thumbnail.current?.complete) showPreview();
+    if (shot.current?.complete && shot.current.naturalWidth) grow();
     return () => {
       frames.current.forEach(cancelAnimationFrame);
       clearTimeout(timer.current);
+      clearTimeout(loadTimer.current);
       window.removeEventListener('resize', fit);
       node?.close();
       if (trigger?.isConnected) trigger.focus({ preventScroll: true });
@@ -91,23 +112,40 @@ export function HomeImageViewer({
         if (event.target === event.currentTarget) close();
       }}
     >
+      {image.preview && image.preview !== image.src && loadState !== 'ready' && (
+        <img
+          ref={thumbnail}
+          className="home-image-view-shot"
+          src={image.preview}
+          alt=""
+          aria-hidden="true"
+          onLoad={showPreview}
+          onError={() => setPreviewReady(false)}
+          hidden={!previewReady}
+          style={{ ...rect, objectFit: active && !closing ? 'contain' : 'cover' }}
+        />
+      )}
       <img
         ref={shot}
         className="home-image-view-shot"
         src={image.src}
         alt={image.alt}
         onLoad={grow}
-        onError={() => {
-          if (closingRef.current) return;
-          setLoadState('error');
-          setActive(true);
-        }}
+        onError={fail}
         hidden={loadState === 'error'}
-        style={{ ...rect, objectFit: active && !closing ? 'contain' : 'cover' }}
+        style={{
+          ...rect,
+          opacity: loadState === 'ready' ? 1 : 0,
+          objectFit: active && !closing ? 'contain' : 'cover',
+        }}
       />
-      {loadState !== 'ready' && (
+      {(loadState === 'error' || (loadState === 'loading' && !previewReady)) && (
         <p className="home-image-view-note" role={loadState === 'error' ? 'alert' : 'status'}>
-          {loadState === 'error' ? 'Изображение не открылось.' : 'Открывается'}
+          {loadState === 'error'
+            ? previewReady
+              ? 'Оригинал не открылся.'
+              : 'Изображение не открылось.'
+            : 'Открывается'}
         </p>
       )}
       <button

@@ -1,0 +1,20 @@
+.content-studio .content-model-filter,
+.image-workspace .content-model-filter {
+  min-height: 32px;
+  align-self: flex-start;
+  padding: 0 12px;
+  margin: 0 0 4px;
+  border: 0;
+  border-radius: 16px;
+  background: #2a2b30;
+  color: #c8c8ce;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.content-studio .content-model-filter[aria-pressed='true'],
+.image-workspace .content-model-filter[aria-pressed='true'] {
+  background: #d1fe17;
+  color: #17180a;
+}

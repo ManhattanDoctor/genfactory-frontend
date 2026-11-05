@@ -1,3 +1,4 @@
+import '../catalog/model-favorites.css';
 import { TemplateEditor } from './TemplateEditor';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
