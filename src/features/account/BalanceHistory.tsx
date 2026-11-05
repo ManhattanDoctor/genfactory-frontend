@@ -38,7 +38,6 @@ function History({ userId }: { userId: number }) {
     <section id="balance-history" className="balance-history account-card">
       <div className="transaction-filters">
         <label className="setting-field">
-          <span>Операции</span>
           <SelectControl
             aria-label="Операции"
             value={kind}
@@ -53,7 +52,6 @@ function History({ userId }: { userId: number }) {
           </SelectControl>
         </label>
         <label className="setting-field">
-          <span>Валюта</span>
           <SelectControl
             aria-label="Валюта"
             value={currency}
@@ -69,7 +67,6 @@ function History({ userId }: { userId: number }) {
           </SelectControl>
         </label>
         <label className="setting-field">
-          <span>Период</span>
           <SelectControl
             aria-label="Период"
             value={period}
