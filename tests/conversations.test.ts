@@ -91,3 +91,22 @@ it('shows image idea and template while hiding preparation instructions', () => 
   expect(displayMessageText(request.text)).toBe('Идея:\nЧашка\n\nШаблон:\nФото [PRODUCT]');
   expect(displayMessageText('Чужое сообщение')).toBe('Чужое сообщение');
 });
+
+it('binds the displayed model alias to its exact ID without exposing the instruction in the thread', () => {
+  const lite = {
+    ...model,
+    reference: { provider: 'OPEN_ROUTER_IMAGE', model: 'google/gemini-3.1-flash-lite-image' },
+  } as IModelDescription;
+  const tool = toolSettings('image', lite, { resolution: '1K' });
+  const body = createMessageBody(
+    imageRequest('Создай чашку на Nano Banana 2 Lite', ''),
+    'image',
+    tool,
+    [],
+    true,
+    'Nano Banana 2 Lite',
+  );
+  expect(body.text).toContain(JSON.stringify({ name: 'Nano Banana 2 Lite', ...lite.reference }));
+  expect(body.settings.tools).toEqual([tool]);
+  expect(displayMessageText(body.text)).toBe('Идея:\nСоздай чашку на Nano Banana 2 Lite');
+});

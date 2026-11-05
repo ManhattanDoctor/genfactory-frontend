@@ -60,6 +60,7 @@ export function createMessageBody(
   tool: IToolConnection,
   fileIds: number[],
   fromScratch = false,
+  modelLabel?: string,
 ): IMessageCreate {
   const instruction =
     kind === 'image' ? 'Создай изображение с помощью IMAGE.' : 'Создай видео с помощью VIDEO.';
@@ -68,9 +69,13 @@ export function createMessageBody(
     : fromScratch
       ? 'Создай с нуля, без референсов из предыдущих сообщений.'
       : 'Продолжи беседу с учётом контекста. Если исходное изображение неоднозначно, уточни выбор до генерации.';
+  const selectedModel =
+    modelLabel && tool.settings?.model
+      ? `[Genfactory:model]\n${JSON.stringify({ name: modelLabel, ...tool.settings.model })}\nНазвание в интерфейсе и технический идентификатор выше обозначают одну выбранную модель. Используй её и сохранённые настройки инструмента; не выбирай похожую модель по названию. Не уточняй выбор из-за различия этих двух названий.\n[/Genfactory:model]\n\n`
+      : '';
   return {
     role: 'USER',
-    text: `${instruction}\n${references}\n\n${prompt.trim()}`,
+    text: `${instruction}\n${references}\n\n${selectedModel}${prompt.trim()}`,
     files: fileIds,
     settings: { tools: [tool] },
   };
@@ -82,6 +87,7 @@ export function displayMessageText(text: string): string {
     /^(Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.|Продолжи беседу с учётом контекста\. Если исходное изображение неоднозначно, уточни выбор до генерации\.)\n\n/;
   return text
     .replace(prefix, '')
+    .replace(/^\[Genfactory:model\]\n[^\n]*\n[^\n]*\n\[\/Genfactory:model\]\n\n/, '')
     .replace(/^\[Genfactory:(?:image|video)\]\n[\s\S]*?\n\nИдея:\n/, 'Идея:\n')
     .replace(
       /^\[Genfactory:tts\]\nОзвучь с помощью TTS следующий текст дословно, без вступления и дополнений\.\n\nТекст для озвучки:\n/,

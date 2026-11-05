@@ -208,7 +208,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     retry: 1,
   });
   const specialized = search.get('studio');
-  const legacy = !!specialized && specialized !== 'banana';
+  const legacy = !!specialized && !['banana', 'seedance'].includes(specialized);
   const models = (catalog.data || [])
     .filter((m) =>
       specialized === 'banana'
@@ -683,7 +683,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           return;
         id = created.id;
         client.setQueryData(['conversation', userId, id], created);
-        const nextSearch = `?conversation=${id}${specialized === 'advanced' || specialized === 'banana' ? `&studio=${specialized}` : ''}`;
+        const nextSearch = `?conversation=${id}${['advanced', 'banana', 'seedance'].includes(specialized || '') ? `&studio=${specialized}` : ''}`;
         activeScope = `${userId}:/${kind}:${nextSearch}`;
         scopeRef.current = activeScope;
         navigate(`/${kind}${nextSearch}`, { replace: true });
@@ -697,6 +697,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           tool,
           references.map((f) => f.id),
           fromScratch || !conversationId || (!legacy && !references.length),
+          model.name,
         ),
         sid,
       });
@@ -747,7 +748,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   if (!legacy)
     return (
       <MediaWorkspace
-        variant={specialized === 'banana' ? 'banana' : undefined}
+        variant={specialized === 'banana' || specialized === 'seedance' ? specialized : undefined}
         kind={kind}
         shape={shot.shape || 'single'}
         onShape={(shape) => {

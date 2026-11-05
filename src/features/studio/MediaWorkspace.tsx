@@ -1,5 +1,6 @@
 import { bananaRatios, bananaDescription } from './bananaSettings';
 import './banana-workspace.css';
+import './seedance-workspace.css';
 import { videoRatios, videoLengths, videoSound, videoShapes } from './videoMenus';
 import { VideoTemplateMedia, VideoViewer, VideoModelInfo } from './VideoMedia';
 import '../catalog/model-favorites.css';
@@ -67,7 +68,7 @@ export function MediaWorkspace({
   children,
 }: {
   kind: MediaKind;
-  variant?: 'banana';
+  variant?: 'banana' | 'seedance';
   shape?: string;
   onShape?: (value: string) => void;
   models: IModelDescription[];
@@ -96,6 +97,7 @@ export function MediaWorkspace({
 }) {
   const video = kind === 'video';
   const banana = variant === 'banana';
+  const seedance = variant === 'seedance';
   const outputType = video ? 'VIDEO' : 'IMAGE';
   const imageTemplates = templates.filter((item) => item.kind === kind);
   useConversationRoom(conversation?.id);
@@ -155,7 +157,8 @@ export function MediaWorkspace({
           file.userId === user?.id &&
           file.type === outputType &&
           file.origin?.kind === 'GENERATION' &&
-          (!banana || /gemini.*(image|banana)/i.test(file.origin.generation?.model.model || '')),
+          (!banana || /gemini.*(image|banana)/i.test(file.origin.generation?.model.model || '')) &&
+          (!seedance || /seedance/i.test(file.origin.generation?.model.model || '')),
       ) || [];
   const files = [
     ...new Map(
@@ -364,7 +367,7 @@ export function MediaWorkspace({
           </div>,
         ]
       : []),
-    ...(banana ? [] : imageTemplates).map((item, index) => (
+    ...(banana || seedance ? [] : imageTemplates).map((item, index) => (
       <button
         type="button"
         key={item.id}
@@ -400,18 +403,26 @@ export function MediaWorkspace({
   ];
   return (
     <section
-      className={`image-workspace ${video ? 'video-workspace' : ''} ${banana ? 'banana-workspace' : ''}`}
+      className={`image-workspace ${video ? 'video-workspace' : ''} ${banana ? 'banana-workspace' : seedance ? 'seedance-workspace' : ''}`}
       ref={root}
-      aria-label={banana ? 'Nano Banana' : video ? 'Видео' : 'Изображения'}
+      aria-label={seedance ? 'Seedance Studio' : banana ? 'Nano Banana' : video ? 'Видео' : 'Изображения'}
     >
       <div
         className="img-wall"
-        aria-label={banana ? 'Кадры Nano Banana' : video ? 'Шаблоны и видео' : 'Шаблоны и изображения'}
+        aria-label={
+          seedance
+            ? 'Ролики Seedance'
+            : banana
+              ? 'Кадры Nano Banana'
+              : video
+                ? 'Шаблоны и видео'
+                : 'Шаблоны и изображения'
+        }
       >
-        {banana && !files.length && !busy && (
-          <div className="banana-brand" aria-hidden="true">
-            <img src="/media/prototype/banana.webp" alt="" />
-            <span>Nano Banana</span>
+        {(banana || seedance) && !files.length && !busy && (
+          <div className={seedance ? 'banana-brand seedance-brand' : 'banana-brand'} aria-hidden="true">
+            <img src={seedance ? '/media/prototype/seedance.webp' : '/media/prototype/banana.webp'} alt="" />
+            <span>{seedance ? 'Seedance Studio' : 'Nano Banana'}</span>
           </div>
         )}
         {(text || messages.error || (messages.data?.pages || 0) > 1) && (
@@ -522,7 +533,7 @@ export function MediaWorkspace({
           )}
           <textarea
             ref={promptInput}
-            id={banana ? 'nb-draft' : video ? 'vd-draft' : 'img-draft'}
+            id={seedance ? 'sd-draft' : banana ? 'nb-draft' : video ? 'vd-draft' : 'img-draft'}
             aria-label={video ? 'Идея ролика' : 'Идея'}
             rows={3}
             value={prompt}
@@ -538,14 +549,24 @@ export function MediaWorkspace({
           <button
             className="cw-plus"
             type="button"
-            aria-label={video ? 'Добавить кадр' : 'Добавить изображение'}
+            aria-label={
+              seedance ? 'Добавить стартовый кадр' : video ? 'Добавить кадр' : 'Добавить изображение'
+            }
             disabled={busy || (!!user && !model)}
             onClick={onLibrary}
           >
             <Plus size={20} />
           </button>
           <ImageMenu
-            label={model ? modelTitle(model) : banana ? 'Nano Banana 2' : 'Выбрать модель'}
+            label={
+              model
+                ? modelTitle(model)
+                : banana
+                  ? 'Nano Banana 2'
+                  : seedance
+                    ? 'Seedance 2.5'
+                    : 'Выбрать модель'
+            }
             name="Модель"
             disabled={busy}
             models={models}
