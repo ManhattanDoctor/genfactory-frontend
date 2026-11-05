@@ -1,0 +1,201 @@
+.modal.library-picker {
+  width: min(1100px, calc(100vw - 32px));
+  height: min(780px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
+  padding: 24px;
+  border: 1px solid #2c2c31;
+  border-radius: 20px;
+  background: #17181b;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.library-picker .modal-head {
+  align-items: center;
+  margin-bottom: 20px;
+}
+.library-picker .modal-head h2 {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.3px;
+}
+.library-picker .file-browser {
+  gap: 16px;
+}
+.library-picker .file-breadcrumbs {
+  font-size: 13px;
+  color: #9a9aa0;
+}
+.library-picker .file-breadcrumbs .text-button {
+  color: #c8c8ce;
+  font-size: 13px;
+}
+.library-picker .file-toolbar {
+  gap: 8px;
+}
+.library-picker .file-toolbar input {
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid #2c2c31;
+  border-radius: 12px;
+  background: #1a1b1e;
+  color: #f4f4f5;
+  font-size: 14px;
+}
+.library-picker .button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: #2a2b30;
+  color: #f4f4f5;
+  font-size: 14px;
+  padding: 0 14px;
+  box-shadow: none;
+}
+.library-picker .button:hover:not(:disabled) {
+  background: #35363b;
+}
+.library-picker .chips {
+  gap: 8px;
+}
+.library-picker .chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #2a2b30;
+  color: #f4f4f5;
+  font-size: 14px;
+}
+.library-picker .chip.active {
+  background: #f4f4f5;
+  color: #111;
+}
+.library-picker .file-tag-filter .workspace-details {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.library-picker .file-tag-filter summary {
+  font-size: 13px;
+  color: #9a9aa0;
+  padding: 0;
+}
+.library-picker .library-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.library-picker .file-entry {
+  border: 1px solid #2c2c31;
+  border-radius: 16px;
+  background: #1a1b1e;
+}
+.library-picker .file-entry .library-card {
+  background: transparent;
+  border-radius: 15px;
+}
+.library-picker .library-media {
+  height: auto;
+  aspect-ratio: 1;
+  background: #111214;
+  overflow: hidden;
+}
+.library-picker .library-card > div:last-child {
+  padding: 12px;
+}
+.library-picker .library-card b {
+  font-size: 14px;
+  line-height: 20px;
+  color: #f4f4f5;
+}
+.library-picker .library-card span {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #9a9aa0;
+}
+.library-picker .file-generation-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.library-picker .file-tag-chips {
+  padding: 0 12px 12px;
+  gap: 4px;
+}
+.library-picker .file-tag-chips .chip {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+.library-picker .file-actions summary {
+  background: #232428e6;
+  border: 1px solid #3a3b40;
+  border-radius: 8px;
+  color: #f4f4f5;
+}
+.library-picker .empty-state {
+  border: 0;
+  background: transparent;
+  color: #9a9aa0;
+  font-size: 14px;
+}
+.library-picker :focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 3px;
+}
+@media (max-width: 800px) {
+  .library-picker .library-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .modal.library-picker {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 16px;
+    border-radius: 16px;
+  }
+  .library-picker .library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .library-picker .file-toolbar input {
+    flex-basis: 100%;
+  }
+  .library-picker .file-toolbar .button {
+    flex: 1 1 0;
+    white-space: nowrap;
+    padding: 0 10px;
+  }
+  .library-picker .library-card > div:last-child {
+    padding: 10px;
+  }
+  .library-picker .library-card b {
+    font-size: 13px;
+  }
+  .library-picker .chip {
+    font-size: 13px;
+    padding: 0 10px;
+  }
+}
+.library-picker.modal-title-hidden > .modal-head {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  margin: 0;
+}
+.library-picker .file-breadcrumbs {
+  min-height: 32px;
+  padding-right: 44px;
+}
+.modal.library-picker {
+  max-width: calc(100vw - 32px);
+}
+@media (max-width: 600px) {
+  .modal.library-picker {
+    max-width: calc(100vw - 16px);
+  }
+}

@@ -1,3 +1,5 @@
+import './active-jobs.css';
+import { RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -82,15 +84,23 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
         </div>
       )}
       {open && (
-        <Modal title="Активные работы" onClose={() => setOpen(false)}>
-          <div className="active-jobs-content">
-            <p className="muted">
-              Статусы обновляются, пока сайт открыт. Завершение беседы не гарантирует создание файла —
-              подробности в ответе ассистента.
-            </p>
-            <button className="button" onClick={() => void query.refetch()} disabled={query.isFetching}>
-              Обновить статусы
+        <Modal
+          title="Активные работы"
+          className="jobs-modal"
+          hideTitle
+          onClose={() => setOpen(false)}
+          headerActions={
+            <button
+              className="icon-button"
+              aria-label="Обновить статусы"
+              onClick={() => void query.refetch()}
+              disabled={query.isFetching}
+            >
+              <RefreshCw size={18} />
             </button>
+          }
+        >
+          <div className="active-jobs-content">
             {query.isPending ? (
               <p role="status">Загружаем работы…</p>
             ) : query.isError ? (

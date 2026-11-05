@@ -1,0 +1,77 @@
+.modal.modal-title-hidden > .modal-head {
+  justify-content: flex-end;
+  min-height: 32px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.modal.jobs-modal {
+  width: min(520px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid #2c2c31;
+  border-radius: 20px;
+  background: #17181b;
+}
+.jobs-modal .active-jobs-content {
+  display: grid;
+  gap: 16px;
+}
+.jobs-modal .active-jobs-content > p {
+  margin: 12px 0 20px;
+  text-align: center;
+  color: #9a9aa0;
+  font-size: 14px;
+}
+.jobs-modal .jobs-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 50dvh;
+  overflow: auto;
+}
+.jobs-modal .jobs-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #2c2c31;
+  border-radius: 12px;
+  background: #1a1b1e;
+}
+.jobs-modal .jobs-list a {
+  min-width: 0;
+  color: #f4f4f5;
+  text-decoration: none;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.jobs-modal .jobs-list span {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #2a2b30;
+  color: #c8c8ce;
+  font-size: 12px;
+}
+.jobs-modal .button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #2a2b30;
+  color: #f4f4f5;
+  font-size: 14px;
+}
+.jobs-modal .button:hover {
+  background: #35363b;
+}
+@media (max-width: 600px) {
+  .jobs-modal .jobs-list li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}

@@ -1,3 +1,4 @@
+import './account.css';
 import { BalanceHistory } from './BalanceHistory';
 import { formatBalance } from '../../lib/money';
 import { useState } from 'react';
@@ -9,14 +10,7 @@ export function Account() {
   const [login, setLogin] = useState(false);
   const [error, setError] = useState('');
   return (
-    <div className="page-content page-enter">
-      <div className="page-heading compact">
-        <div>
-          <span className="eyebrow">ВАШЕ ПРОСТРАНСТВО</span>
-          <h1>Аккаунт</h1>
-          <p>Единый профиль и баланс gnosis.</p>
-        </div>
-      </div>
+    <div className="page-content page-enter account-page">
       {auth.error && (
         <div className="account-card" role="alert">
           <p>Не удалось загрузить данные аккаунта.</p>
@@ -59,9 +53,7 @@ export function Account() {
             ) : (
               <p>Нет доступных балансов</p>
             )}
-            <p className="muted">
-              Генерации оплачиваются с этого баланса. Онлайн-пополнение в новой студии пока не подключено.
-            </p>
+            <p className="muted">Онлайн-пополнение пока недоступно.</p>
             <button className="button" onClick={auth.refresh}>
               <RefreshCw size={16} /> Обновить баланс
             </button>
@@ -70,8 +62,6 @@ export function Account() {
       ) : (
         <div className="empty-state">
           <UserRound size={36} />
-          <h2>Один аккаунт для всех идей</h2>
-          <p>Используйте существующий аккаунт gnosis.</p>
           <button className="button primary" onClick={() => setLogin(true)}>
             Войти
           </button>

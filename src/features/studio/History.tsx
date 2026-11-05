@@ -291,7 +291,7 @@ export function History() {
                     <Link
                       className="button"
                       aria-label="Открыть беседу"
-                      to={`/${c.tags?.includes('prompt') ? 'prompt' : 'chat'}?conversation=${c.id}`}
+                      to={`/${c.tags?.includes('prompt') ? 'prompt' : c.tags?.includes('chat') ? 'agent' : 'chat'}?conversation=${c.id}`}
                     >
                       Беседа
                     </Link>

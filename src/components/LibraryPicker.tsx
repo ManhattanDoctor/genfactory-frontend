@@ -1,3 +1,4 @@
+import './library-picker.css';
 import { useAuth } from '../features/auth/AuthProvider';
 import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
@@ -17,7 +18,7 @@ export function LibraryPicker({
 }) {
   const { user } = useAuth();
   return (
-    <Modal title={imagesOnly ? 'Выбрать референс' : 'Выбрать материал'} onClose={onClose} wide>
+    <Modal title="Библиотека" className="library-picker" hideTitle onClose={onClose} wide>
       <FileBrowser
         key={user?.id}
         selected={selected}

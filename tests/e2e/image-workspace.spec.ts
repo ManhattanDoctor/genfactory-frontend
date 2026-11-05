@@ -155,7 +155,7 @@ test('image library reuses a saved file without reupload or sending on selection
   await page.goto('/image');
   await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
   await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Выбрать референс' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Библиотека' })).toBeVisible();
   await page
     .getByRole('button', { name: /Закат.png/ })
     .first()

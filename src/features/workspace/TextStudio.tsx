@@ -1,3 +1,4 @@
+import { AgentWorkspace, agentRequest } from './AgentWorkspace';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import type { IUploadProgress } from '../../lib/api';
 import { FileOutputEditor, useFileOutputSettings } from '../../components/FileOutputEditor';
@@ -5,10 +6,10 @@ import { useDraft, DraftBar, restoreDraftFiles } from './drafts';
 import { UploadSurface } from '../../components/UploadSurface';
 import { ReferenceList } from '../../components/ReferenceList';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
-import type { IGnosisFile, MediaKind, IMessageCreate } from '../../lib/types';
+import type { IGnosisFile, MediaKind, IMessageCreate, IConversation } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { ConversationResults } from '../studio/ConversationResults';
 import { connection } from '../studio/conversations';
@@ -31,6 +32,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const modernAgent = mode === 'chat' && params.get('studio') !== 'advanced';
   const client = useQueryClient();
   const prefs = usePreferences();
   const rawId = params.get('conversation');
@@ -47,7 +49,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
   const [files, setFiles] = useState<IGnosisFile[]>(
     ownsIncoming
       ? (incoming?.references || (incoming?.reference ? [incoming.reference] : []))
-          .filter((f) => f.userId === auth.user?.id)
+          .filter((f) => f.userId === auth.user?.id && (!modernAgent || f.type === 'IMAGE'))
           .slice(0, 4)
       : [],
   );
@@ -80,10 +82,11 @@ function TextEditor({ mode }: { mode: TextMode }) {
     getSession() === sid &&
     window.location.pathname === location.pathname &&
     window.location.search === location.search;
-  const detail = useQuery({
+  const detail = useQuery<IConversation>({
     queryKey: ['conversation', auth.user?.id, id],
     enabled: !!auth.user && !!id,
     retry: false,
+    refetchInterval: (query) => (query.state.data?.status === 'LOADING' ? 2000 : false),
     queryFn: async ({ signal }) => {
       const c = await api.conversation(id!, signal);
       if (c.userId !== auth.user!.id) throw new Error('Эта беседа принадлежит другому аккаунту.');
@@ -102,7 +105,12 @@ function TextEditor({ mode }: { mode: TextMode }) {
     queryFn: ({ signal }) => api.catalog('OPEN_AI_CONVERSATION', signal),
   });
   const model =
-    models.data?.find((m) => m.reference.model === (conversation?.options.model || selected)) ||
+    models.data?.find(
+      (m) =>
+        m.reference.model ===
+        (modernAgent ? selected || conversation?.options.model : conversation?.options.model || selected),
+    ) ||
+    (modernAgent ? models.data?.find((m) => m.reference.model === 'gpt-5.4') : undefined) ||
     models.data?.[0];
   useEffect(() => {
     if (conversation && !restored.current) {
@@ -119,6 +127,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
       client.setQueryData(['send-error', auth.user?.id, v.id], failure?.message || null);
       void client.invalidateQueries({ queryKey: ['conversation', auth.user?.id, v.id] });
       void client.invalidateQueries({ queryKey: ['messages', auth.user?.id, v.id] });
+      void client.invalidateQueries({ queryKey: ['agent-messages', auth.user?.id, v.id] });
       void client.invalidateQueries({ queryKey: ['conversations', auth.user?.id] });
       window.dispatchEvent(new Event('genfactory:generation-finished'));
     },
@@ -185,7 +194,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
     const restored = await restoreDraftFiles(value.files, auth.user.id, sid);
     if (!isCurrent(sid)) return;
     setPrompt(value.prompt);
-    setFiles(restored.files);
+    setFiles(modernAgent ? restored.files.filter((f) => f.type === 'IMAGE').slice(0, 4) : restored.files);
     setSelected(value.selected);
     setToolIds(value.toolIds);
     setLanguage(value.language);
@@ -266,16 +275,21 @@ function TextEditor({ mode }: { mode: TextMode }) {
       setLogin(true);
       return;
     }
-    if (busy || uploading || submitting.current || !prompt.trim()) return;
+    if (busy || uploading || submitting.current || (!prompt.trim() && !(modernAgent && files.length))) return;
     if (rawId && !conversation) {
       setError('Откройте доступную беседу или начните новую.');
       return;
     }
-    if (!conversation && !model) {
+    if ((!conversation || modernAgent) && !model) {
       setError('Дождитесь загрузки моделей.');
       return;
     }
-    if (toolsChanged) {
+    const requestedModel = selected || conversation?.options.model;
+    if (modernAgent && requestedModel && !models.data?.some((m) => m.reference.model === requestedModel)) {
+      setError('Сохранённая модель недоступна. Выберите модель из списка.');
+      return;
+    }
+    if (toolsChanged && !modernAgent) {
       setError('Сохраните выбранные инструменты перед отправкой.');
       return;
     }
@@ -300,17 +314,44 @@ function TextEditor({ mode }: { mode: TextMode }) {
     const userId = auth.user.id;
     const body: IMessageCreate = {
       role: 'USER',
-      text: textInstruction(mode, prompt, {
-        language,
-        target,
-        aspects,
-        brand: useBrand ? prefs.value.brand : '',
-      }),
+      text: modernAgent
+        ? agentRequest(prompt, model!)
+        : textInstruction(mode, prompt, {
+            language,
+            target,
+            aspects,
+            brand: useBrand ? prefs.value.brand : '',
+          }),
       files: files.map((f) => f.id),
       settings: { tools: [] },
     };
     try {
       let active = conversation;
+      if (modernAgent) {
+        const checked = await Promise.all(files.map((f) => api.file(f.id, sid)));
+        if (checked.some((f) => f.userId !== userId || f.type !== 'IMAGE'))
+          throw Error('Исходное изображение недоступно.');
+        if (!isCurrent(sid)) return;
+        if (active) {
+          active = await api.conversation(active.id, undefined, sid);
+          if (!isCurrent(sid)) return;
+          if (active.userId !== userId || active.status === 'LOADING')
+            throw Error('Беседа занята или недоступна.');
+          if (active.options.tools?.length)
+            throw Error(
+              'В этой беседе подключены инструменты. Продолжите в расширенном режиме или начните новый диалог.',
+            );
+          if (active.model !== model!.reference.provider)
+            throw Error('Для этой модели начните новый диалог.');
+          if (active.options.model !== model!.reference.model)
+            active = await api.editConversation(
+              active,
+              { options: { ...active.options, model: model!.reference.model } },
+              sid,
+            );
+          client.setQueryData(['conversation', userId, active.id], active);
+        }
+      }
       if (active && fileOutput.changed) {
         active = await api.editFileOutput(active.id, fileOutput.value, sid);
         if (!isCurrent(sid)) return;
@@ -320,9 +361,17 @@ function TextEditor({ mode }: { mode: TextMode }) {
         setCreating(true);
         active = await api.createConversation(
           {
-            name: prompt.trim().length < 2 ? `Идея ${prompt.trim()}` : prompt.trim().slice(0, 64),
+            name:
+              prompt.trim().length < 2
+                ? modernAgent
+                  ? 'Обсуждение изображения'
+                  : `Идея ${prompt.trim()}`
+                : prompt.trim().slice(0, 64),
             model: model!.reference.provider,
-            options: { model: model!.reference.model, tools: toolIds.map((uid) => ({ uid })) },
+            options: {
+              model: model!.reference.model,
+              tools: modernAgent ? [] : toolIds.map((uid) => ({ uid })),
+            },
             tags: ['genfactory', mode],
             ...(fileOutput.changed ? { fileOutput: fileOutput.value } : {}),
             history: 32,
@@ -335,12 +384,18 @@ function TextEditor({ mode }: { mode: TextMode }) {
         void client.invalidateQueries({ queryKey: ['conversations', userId] });
         if (!isCurrent(sid)) return;
         client.setQueryData(['conversation', userId, active.id], active);
-        navigate(`/${mode === 'chat' ? 'agent' : mode}?conversation=${active.id}`, { replace: true });
+        navigate(
+          `/${mode === 'chat' ? 'agent' : mode}?conversation=${active.id}${params.get('studio') === 'advanced' ? '&studio=advanced' : ''}`,
+          { replace: true },
+        );
       }
       client.setQueryData(['send-error', userId, active.id], null);
       await send.mutateAsync({ id: active.id, body, sid });
       draft.clear();
-      if (isCurrent(sid)) setPrompt('');
+      if (isCurrent(sid)) {
+        setPrompt('');
+        if (modernAgent) setFiles([]);
+      }
     } catch (e) {
       if (isCurrent(sid))
         setError(
@@ -363,6 +418,71 @@ function TextEditor({ mode }: { mode: TextMode }) {
           userId: auth.user?.id,
         },
       },
+    );
+  if (modernAgent)
+    return (
+      <>
+        <AgentWorkspace
+          conversation={conversation}
+          models={models.data || []}
+          model={model}
+          prompt={prompt}
+          files={files}
+          busy={busy || uploading}
+          disabled={!!auth.user && (!model || (!!rawId && !conversation))}
+          error={
+            error ||
+            detail.error?.message ||
+            models.error?.message ||
+            (rawId && !id ? 'Некорректный адрес беседы.' : '') ||
+            (send.error?.message || sendError.data
+              ? `${send.error?.message || sendError.data} Проверьте историю перед повторной отправкой. Автоматического повтора нет.`
+              : '') ||
+            (conversation?.status === 'ERROR'
+              ? 'Предыдущий запрос завершился с ошибкой. Проверьте сообщения.'
+              : '')
+          }
+          notice={notice}
+          draft={
+            <>
+              {!!conversation?.options.tools?.length && (
+                <Link className="text-button" to={`/agent?conversation=${conversation.id}&studio=advanced`}>
+                  Расширенный режим
+                </Link>
+              )}
+              {draft.available && (
+                <DraftBar draft={draft} busy={busy || uploading} onRestore={(v) => void restoreDraft(v)} />
+              )}
+            </>
+          }
+          onPrompt={(v) => {
+            draft.changed();
+            setPrompt(v);
+          }}
+          onFiles={(v) => {
+            draft.changed();
+            setFiles(v);
+          }}
+          onModel={(m) => {
+            draft.changed();
+            setSelected(m.reference.model);
+          }}
+          onLibrary={() => (auth.user ? setPicker(true) : setLogin(true))}
+          onSubmit={() => void submit()}
+        />
+        {picker && (
+          <LibraryPicker
+            selected={files.map((f) => f.id)}
+            onClose={() => setPicker(false)}
+            onPick={(f) => {
+              if (f.userId !== auth.user?.id || f.type !== 'IMAGE') return;
+              draft.changed();
+              setFiles((v) => (v.some((x) => x.id === f.id) ? v : [...v, f].slice(0, 4)));
+            }}
+          />
+        )}
+        {login && <LoginDialog onClose={() => setLogin(false)} />}
+      </>
     );
   return (
     <div className="studio page-enter">

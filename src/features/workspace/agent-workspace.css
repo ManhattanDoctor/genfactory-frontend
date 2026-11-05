@@ -1,0 +1,151 @@
+.image-workspace.agent-workspace {
+  background: #101214;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.104) 1px, transparent 1px);
+  background-size: 32px 32px;
+  overflow: hidden;
+}
+.agent-workspace .agent-brand {
+  position: absolute;
+  inset: 0 0 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  pointer-events: none;
+}
+.agent-brand span {
+  line-height: 1.2;
+  padding: 0.08em 0.06em 0.14em;
+  background-image: linear-gradient(
+    100deg,
+    #fff 0%,
+    #f7f7f8 16%,
+    #dedae8 34%,
+    #fff 50%,
+    #c4b5fd 66%,
+    #fff 82%,
+    #eeeaf8 100%
+  );
+}
+.agent-workspace .img-dock {
+  width: min(720px, calc((100% - 24px) * 0.9));
+}
+.agent-workspace .img-tools {
+  flex-wrap: wrap;
+}
+.agent-workspace #agent-draft {
+  display: block;
+  width: 100%;
+  height: 72px;
+  min-height: 72px;
+  max-height: 220px;
+  resize: none;
+  padding: 4px 4px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #f4f4f5;
+  font-size: 16px;
+  line-height: 24px;
+}
+.agent-workspace #agent-draft::placeholder {
+  color: rgba(244, 244, 245, 0.32);
+}
+.agent-workspace .img-files {
+  display: flex;
+  gap: 8px;
+  padding: 0;
+}
+.agent-workspace .img-file,
+.agent-workspace .img-thumb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+.agent-workspace .img-thumb img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.agent-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #303136;
+  color: #fff;
+}
+.agent-thread {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(720px, calc(100% - 48px));
+  margin: 0 auto;
+  overflow: auto;
+}
+.agent-msg {
+  max-width: 100%;
+}
+.agent-msg p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.agent-msg.is-user {
+  align-self: end;
+}
+.agent-msg.is-user p {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #2a2b30;
+  color: #f4f4f5;
+}
+.agent-msg.is-assistant p {
+  color: #f4f4f5;
+  font-size: 16px;
+  line-height: 24px;
+}
+.agent-who {
+  margin: 0 0 4px;
+  color: #9a9aa0;
+  font-size: 13px;
+}
+.agent-pics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.agent-pics img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.agent-wait,
+.agent-note {
+  font-size: 13px;
+  color: #9a9aa0;
+}
+@media (max-width: 600px) {
+  .agent-brand span {
+    font-size: 36px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-brand span {
+    animation: none;
+    background-image: none;
+    color: #eeeaf8;
+  }
+}

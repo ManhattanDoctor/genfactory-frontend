@@ -234,7 +234,6 @@ export function FileBrowser({
           />
         </div>
       )}
-      {acceptedTypes && <p className="muted">Выберите подходящий материал. Папки открываются нажатием.</p>}
       {!foldersOnly && (
         <div className="chips" aria-label="Тип файлов">
           {[
@@ -248,6 +247,7 @@ export function FileBrowser({
               type="button"
               key={value}
               className={`chip ${type === value ? 'active' : ''}`}
+              aria-pressed={type === value}
               onClick={() => {
                 setType(value);
                 setPage(0);

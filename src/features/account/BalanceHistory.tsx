@@ -1,3 +1,5 @@
+import { ChevronDown } from 'lucide-react';
+import { modelTitle } from '../catalog/presentation';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -11,6 +13,7 @@ export function BalanceHistory() {
 }
 function History({ userId }: { userId: number }) {
   const auth = useAuth();
+  const [expanded, setExpanded] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [kind, setKind] = useState('all');
   const [currency, setCurrency] = useState('');
@@ -33,22 +36,6 @@ function History({ userId }: { userId: number }) {
   }, [userId, page, kind, currency, since]);
   return (
     <section id="balance-history" className="balance-history account-card">
-      <div className="history-heading">
-        <div>
-          <h2>История баланса</h2>
-          <p className="muted">Операции личного баланса gnosis, включая работу в других клиентах.</p>
-        </div>
-        <button
-          className="button"
-          disabled={query.isFetching}
-          onClick={() => {
-            void query.refetch();
-            auth.refresh();
-          }}
-        >
-          Обновить историю
-        </button>
-      </div>
       <div className="transaction-filters">
         <label className="setting-field">
           <span>Операции</span>
@@ -102,10 +89,6 @@ function History({ userId }: { userId: number }) {
           </SelectControl>
         </label>
       </div>
-      <p className="small muted">
-        Работа ассистента может оплачиваться и без готового изображения. Запись о списании сама по себе не
-        означает успешную генерацию.
-      </p>
       {query.isPending ? (
         <p role="status">Загружаем операции…</p>
       ) : query.error ? (
@@ -119,7 +102,6 @@ function History({ userId }: { userId: number }) {
         <p className="transaction-empty">Операций по выбранным условиям пока нет.</p>
       ) : (
         <>
-          <p className="small muted">Найдено операций: {query.data.total}</p>
           <ol className="transaction-list">
             {query.data.items.map((t) => {
               const link = conversationLink(t);
@@ -133,25 +115,6 @@ function History({ userId }: { userId: number }) {
                       <p className="small muted">
                         <time>{new Date(t.createdDate).toLocaleString('ru-RU')}</time> · №{t.id}
                       </p>
-                      {t.details?.options?.model && (
-                        <p className="transaction-model">{t.details.options.model}</p>
-                      )}
-                      {link ? (
-                        <Link className="text-button" to={link}>
-                          Беседа №{t.details!.source!.id}
-                        </Link>
-                      ) : t.details?.source ? (
-                        <p className="small muted">
-                          {t.details.source.type === 'FILE'
-                            ? 'Файл'
-                            : t.details.source.type === 'AGENT_GRAPH_RUN'
-                              ? 'Запуск агента'
-                              : t.details.source.type}
-                          : {t.details.source.id}
-                        </p>
-                      ) : (
-                        <p className="small muted">Связь с беседой не указана</p>
-                      )}
                       {t.groupId && <p className="small muted">Группа №{t.groupId}</p>}
                     </div>
                     <div className={`transaction-amount ${expense ? 'expense' : 'income'}`}>
@@ -164,8 +127,28 @@ function History({ userId }: { userId: number }) {
                       </span>
                     </div>
                   </div>
-                  <details className="transaction-details">
-                    <summary>Детализация операции</summary>
+                  <div className="transaction-actions">
+                    {link && (
+                      <Link className="transaction-conversation" to={link}>
+                        Беседа №{t.details!.source!.id}
+                      </Link>
+                    )}
+                    <button
+                      className="transaction-conversation transaction-toggle"
+                      aria-expanded={expanded.includes(t.id)}
+                      aria-controls={`transaction-detail-${t.id}`}
+                      onClick={() =>
+                        setExpanded((v) => (v.includes(t.id) ? v.filter((id) => id !== t.id) : [...v, t.id]))
+                      }
+                    >
+                      Детали операции <ChevronDown size={14} />
+                    </button>
+                  </div>
+                  <div
+                    id={`transaction-detail-${t.id}`}
+                    className="transaction-details"
+                    hidden={!expanded.includes(t.id)}
+                  >
                     <div className="details-content">
                       <div className="cost-line">
                         <span>Точная сумма {t.activatedDate ? 'операции' : 'к проведению'}</span>
@@ -181,24 +164,64 @@ function History({ userId }: { userId: number }) {
                               </div>
                             ))}
                           </div>
-                          <p className="small muted">
-                            Разбивка рассчитана из сохранённых расходов и курса этой операции. Она входит в
-                            сумму выше, а не списывается дополнительно.
-                          </p>
+                          <p className="small muted">Входит в общую сумму.</p>
                         </>
                       ) : (
                         <p className="small muted">
-                          Подтверждённая разбивка стоимости недоступна для этой записи.
+                          Разбивка для этой операции не сохранена или не подтверждена.
                         </p>
                       )}
-                      {t.details?.consumption?.model && (
-                        <p className="small muted">
-                          Токены ассистента: вход — {t.details.consumption.model.input ?? '—'}, выход —{' '}
-                          {t.details.consumption.model.output ?? '—'}.
-                        </p>
-                      )}
+                      <dl className="transaction-facts">
+                        {t.details?.options?.model && (
+                          <div>
+                            <dt>
+                              {t.details.model?.includes('CONVERSATION') ? 'Модель ассистента' : 'Модель'}
+                            </dt>
+                            <dd>
+                              {modelTitle({
+                                reference: {
+                                  provider: t.details.model || '',
+                                  model: t.details.options.model,
+                                },
+                                name: t.details.options.model,
+                              })}
+                            </dd>
+                          </div>
+                        )}
+                        {t.details?.consumption?.model && (
+                          <>
+                            <div>
+                              <dt>Входящие токены</dt>
+                              <dd>{t.details.consumption.model.input?.toLocaleString('ru-RU') ?? '—'}</dd>
+                            </div>
+                            <div>
+                              <dt>Исходящие токены</dt>
+                              <dd>{t.details.consumption.model.output?.toLocaleString('ru-RU') ?? '—'}</dd>
+                            </div>
+                          </>
+                        )}
+                        {!link && t.details?.source && (
+                          <div>
+                            <dt>Источник</dt>
+                            <dd>
+                              {t.details.source.type === 'FILE'
+                                ? 'Файл'
+                                : t.details.source.type === 'AGENT_GRAPH_RUN'
+                                  ? 'Запуск агента'
+                                  : t.details.source.type}{' '}
+                              №{t.details.source.id}
+                            </dd>
+                          </div>
+                        )}
+                        {t.activatedDate && (
+                          <div>
+                            <dt>Проведена</dt>
+                            <dd>{new Date(t.activatedDate).toLocaleString('ru-RU')}</dd>
+                          </div>
+                        )}
+                      </dl>
                     </div>
-                  </details>
+                  </div>
                 </li>
               );
             })}

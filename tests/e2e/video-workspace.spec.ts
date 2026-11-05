@@ -122,10 +122,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await expect(page.getByRole('button', { name: 'Звук', exact: true })).toBeDisabled();
   await page.locator('.ds-template-card').first().click();
   await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
-  await page
-    .getByRole('dialog', { name: 'Выбрать референс' })
-    .getByText('Чашка.png', { exact: true })
-    .click();
+  await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Чашка.png', { exact: true }).click();
   await page.getByRole('button', { name: 'Длительность', exact: true }).click();
   await page.getByRole('option', { name: '4 с', exact: true }).click();
   await page.getByRole('button', { name: 'Структура ролика', exact: true }).click();

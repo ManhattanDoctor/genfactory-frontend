@@ -819,7 +819,7 @@ test('every catalog model can create a request with its default settings', async
     if (model.schema.properties?.task?.required?.includes('fileIds')) {
       await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
       await page
-        .getByRole('dialog', { name: 'Выбрать референс' })
+        .getByRole('dialog', { name: 'Библиотека' })
         .getByText('Test result', { exact: true })
         .click();
       await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
@@ -1077,7 +1077,7 @@ test('workspace chat defaults to no tools, continues a server conversation and s
   page,
 }) => {
   const state = await mockApi(page);
-  await page.goto('/agent');
+  await page.goto('/agent?studio=advanced');
   await page.getByLabel('Ваш запрос', { exact: true }).fill('Помоги придумать рекламную идею');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect(page.getByText('Точный промпт для генерации.', { exact: true })).toBeVisible();
@@ -1131,8 +1131,8 @@ test('workspace script stays in the same conversation when changing text modes',
     .getByRole('link', { name: 'Обсудить', exact: true })
     .click();
   await expect(page).toHaveURL(/agent\?conversation=101/);
-  await expect(page.getByRole('heading', { name: 'Обсудить идею' })).toBeVisible();
-  await page.getByLabel('Ваш запрос', { exact: true }).fill('Измени концовку');
+  await expect(page.locator('#agent-draft')).toBeVisible();
+  await page.locator('#agent-draft').fill('Измени концовку');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(2);
   expect(state.sends[0].text).toContain('Не запускай генерацию');
@@ -1145,7 +1145,7 @@ test('workspace tools use the existing catalog and preserve conversation attachm
   const state = await mockApi(page);
   const c = { ...savedConversation(), files: [file], options: { model: agent.reference.model, tools: [] } };
   state.conversations.push(c);
-  await page.goto('/agent?conversation=101');
+  await page.goto('/agent?conversation=101&studio=advanced');
   await page.getByText('Инструменты · 0', { exact: true }).click();
   await page.getByLabel('Поиск в Яндексе', { exact: true }).check();
   await page.getByRole('button', { name: 'Сохранить инструменты' }).click();
@@ -1239,7 +1239,7 @@ test('workspace agent video analysis extracts three frames without uploading the
   page,
 }) => {
   const state = await mockApi(page);
-  await page.goto('/agent');
+  await page.goto('/agent?studio=advanced');
   await expect(page.getByLabel('Ассистент', { exact: true })).toBeEnabled();
   await page
     .locator('input[type=file]')
@@ -1260,7 +1260,7 @@ test('workspace agent video analysis extracts three frames without uploading the
 test('workspace lost response reports the error after the new conversation navigation', async ({ page }) => {
   const state = await mockApi(page);
   state.abortAfterAccept = true;
-  await page.goto('/agent');
+  await page.goto('/agent?studio=advanced');
   await page.getByLabel('Ваш запрос', { exact: true }).fill('Помоги с идеей');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect(page).toHaveURL(/conversation=101/);
@@ -1276,7 +1276,7 @@ test('workspace documents require an appropriate tool and remain file attachment
       ? route.fulfill({ json: { ...file, type: 'DOCUMENT', mime: 'application/pdf', name: 'brief.pdf' } })
       : route.fallback(),
   );
-  await page.goto('/agent');
+  await page.goto('/agent?studio=advanced');
   await expect(page.getByLabel('Ассистент', { exact: true })).toBeEnabled();
   await page
     .locator('input[type=file]')
@@ -1659,7 +1659,7 @@ test('advanced editor: fresh choice and cancelling the chooser do not submit; ch
     .click();
   await dialog.getByRole('button', { name: 'Выбрать другой' }).click();
   await page
-    .getByRole('dialog', { name: 'Выбрать референс' })
+    .getByRole('dialog', { name: 'Библиотека' })
     .getByRole('button', { name: /Test result/ })
     .click();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
@@ -1828,7 +1828,7 @@ test('balance history shows exact costs and sends numeric date filters with owne
   await page.goto('/account');
   const history = page.locator('#balance-history');
   await expect(history.getByText('−9,65 ₽', { exact: true })).toBeVisible();
-  await history.getByText('Детализация операции', { exact: true }).click();
+  await history.getByRole('button', { name: 'Детали операции', exact: true }).click();
   await expect(history.getByText('9,6516 ₽', { exact: true })).toBeVisible();
   await expect(history.getByText('8,219 ₽', { exact: true })).toBeVisible();
   await expect(history.getByText('1,4326 ₽', { exact: true })).toBeVisible();
@@ -2441,7 +2441,7 @@ test('audio editor fits mobile and hands text off without automatically spending
     { id: 5, role: 'ASSISTANT', text: 'Текст из ответа.', createdDate: file.createdDate },
   ]);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/agent?conversation=101');
+  await page.goto('/agent?conversation=101&studio=advanced');
   await page.getByRole('button', { name: 'Озвучить', exact: true }).click();
   await expect(page.getByLabel('Текст для озвучки', { exact: true })).toHaveValue('Текст из ответа.');
   await expect(page.getByLabel('Голос', { exact: true })).toBeVisible();
@@ -2686,7 +2686,7 @@ for (const path of ['/audio?mode=stt', '/library', '/image', '/prompt']) {
     if (path === '/image') {
       await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
       await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
-      await expect(page.getByRole('dialog', { name: 'Выбрать референс' })).toBeVisible();
+      await expect(page.getByRole('dialog', { name: 'Библиотека' })).toBeVisible();
     }
     await page
       .locator('input[type=file]')
@@ -2831,7 +2831,7 @@ test('prototype navigation selects specialized editors and matches the reference
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveCount(0);
   }
   await nav.getByRole('link', { name: 'AI agent', exact: true }).click();
-  await expect(page.locator('#text-prompt')).toBeVisible();
+  await expect(page.locator('#agent-draft')).toBeVisible();
 });
 
 test('home fits the mobile matrix and menu restores keyboard focus', async ({ page }) => {
@@ -3152,10 +3152,7 @@ test('content studio template is a recipe and portrait format is translated to i
   await page.locator('.cw-add').first().click();
   await page.getByLabel('Продукт', { exact: true }).fill('Красная чашка');
   await page.getByRole('dialog').getByRole('button', { name: 'Из библиотеки' }).click();
-  await page
-    .getByRole('dialog', { name: 'Выбрать референс' })
-    .getByText('Test result', { exact: true })
-    .click();
+  await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
   await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
   await page.getByRole('option', { name: '2:3', exact: true }).click();
@@ -3523,7 +3520,7 @@ test('content studio library reuses saved references without uploading or sendin
   await page.goto('/chat');
   await page.getByRole('button', { name: 'Изображение', exact: true }).click();
   await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
-  const picker = page.getByRole('dialog', { name: 'Выбрать референс' });
+  const picker = page.getByRole('dialog', { name: 'Библиотека' });
   await picker.getByText('Test result', { exact: true }).click();
   await expect(picker).not.toBeVisible();
   await expect(page.locator('.cw-files')).toContainText('Test result');
@@ -3546,7 +3543,7 @@ test('content studio library selects and replaces frame slots on mobile', async 
   await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
   await page.getByRole('button', { name: /Начальный кадр/ }).click();
   await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Выбрать референс' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Библиотека' })).toBeVisible();
   await page.screenshot({ path: '/tmp/content-library-mobile.png' });
   await page.getByRole('dialog').getByText('Test result', { exact: true }).click();
   await expect(page.getByRole('button', { name: /Начальный кадр Test result/ })).toBeVisible();
@@ -3625,10 +3622,7 @@ for (const title of ['Studio product turn', 'Product in use']) {
     await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Выберите изображение');
     await page.getByRole('dialog').getByRole('button', { name: 'Из библиотеки' }).click();
-    await page
-      .getByRole('dialog', { name: 'Выбрать референс' })
-      .getByText('Test result', { exact: true })
-      .click();
+    await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
     await page.getByRole('button', { name: /Адаптировать под/ }).click();
     await expect(page.getByLabel('Готовый текст для редактора')).toHaveValue(/6-second/);
     await expect(page.getByRole('region', { name: 'Настройки после применения' })).toContainText('6 с');
@@ -3673,7 +3667,7 @@ for (const kind of ['image', 'video', 'presentation']) {
         // Проверяем доступный референс во всех media-шаблонах без загрузки и платного запроса.
         await dialog.getByRole('button', { name: 'Из библиотеки' }).click();
         await page
-          .getByRole('dialog', { name: 'Выбрать референс' })
+          .getByRole('dialog', { name: 'Библиотека' })
           .getByText('Test result', { exact: true })
           .click();
       }
@@ -3696,10 +3690,7 @@ test('optional template clears previous references and sends explicitly from scr
   await page.goto('/chat?conversation=101');
   await page.getByRole('button', { name: 'Изображение', exact: true }).click();
   await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
-  await page
-    .getByRole('dialog', { name: 'Выбрать референс' })
-    .getByText('Test result', { exact: true })
-    .click();
+  await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
   const card = page.locator('.cw-card').nth(11);
   await card.locator('.cw-card-media').click();
   await card.locator('.cw-add').click();
