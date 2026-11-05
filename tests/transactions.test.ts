@@ -93,3 +93,18 @@ it('uses owned result metadata independently of requested models and deduplicate
   ]);
   expect(transactionModels({ ...payment, results: [{ ...result, userId: 8 }] })).toEqual([]);
 });
+
+it('prefers confirmed call models over saved selection without changing the breakdown', () => {
+  const selected = { provider: 'OPEN_ROUTER_IMAGE', model: 'selected' };
+  const actual = { provider: 'OPEN_AI_IMAGE_GPT', model: 'actual' };
+  const t: IPaymentTransaction = {
+    ...payment,
+    details: {
+      ...payment.details,
+      options: { tools: [{ uid: 'IMAGE', settings: { model: selected } }] },
+      consumption: { tools: [{ ...payment.details!.consumption!.tools![0], models: [actual] }] },
+    },
+  };
+  expect(transactionModels(t)).toEqual([{ label: 'Модель вызова · Изображение', reference: actual }]);
+  expect(breakdown(t)).toEqual(breakdown(payment));
+});

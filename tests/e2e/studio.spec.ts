@@ -1833,7 +1833,14 @@ test('balance history shows exact costs and sends numeric date filters with owne
               amounts: [{ amount: '0.096516', coinId: 'USD' }],
               rates: [{ from: 'USD', to: 'RUB', value: '100' }],
               consumption: {
-                tools: [{ type: 'IMAGE', status: 'FINAL', amounts: [{ amount: '0.08219', coinId: 'USD' }] }],
+                tools: [
+                  {
+                    type: 'IMAGE',
+                    models: [{ provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1-mini' }],
+                    status: 'FINAL',
+                    amounts: [{ amount: '0.08219', coinId: 'USD' }],
+                  },
+                ],
               },
             },
           },
@@ -1849,6 +1856,8 @@ test('balance history shows exact costs and sends numeric date filters with owne
   await expect(history.getByText('−9,65 ₽', { exact: true })).toBeVisible();
   await history.getByRole('button', { name: 'Детали операции', exact: true }).click();
   await expect(history.getByText('9,6516 ₽', { exact: true })).toBeVisible();
+  await expect(history.getByText('Модель вызова · Изображение', { exact: true })).toBeVisible();
+  await expect(history.getByText('GPT Image 1 Mini', { exact: true })).toBeVisible();
   await expect(history.getByText('8,219 ₽', { exact: true })).toBeVisible();
   await expect(history.getByText('1,4326 ₽', { exact: true })).toBeVisible();
   await expect(history.getByRole('link', { name: 'Беседа №49' })).toHaveAttribute(

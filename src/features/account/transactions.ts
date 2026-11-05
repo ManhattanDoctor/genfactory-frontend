@@ -119,9 +119,17 @@ export function breakdown(t: IPaymentTransaction): { label: string; amount: stri
 
 export function transactionModels(t: IPaymentTransaction) {
   const rows: { label: string; reference: IModelDescription['reference'] }[] = [];
+  const confirmed = new Set<string>();
+  for (const tool of t.details?.consumption?.tools || []) {
+    for (const reference of tool.models || []) {
+      if (!reference?.provider || !reference.model) continue;
+      confirmed.add(tool.type);
+      rows.push({ label: `Модель вызова · ${toolName(tool.type)}`, reference });
+    }
+  }
   const used = new Set(t.details?.consumption?.tools?.map((tool) => tool.type));
   for (const tool of t.details?.options?.tools || []) {
-    if (typeof tool !== 'object' || !tool || !used.has(tool.uid)) continue;
+    if (typeof tool !== 'object' || !tool || !used.has(tool.uid) || confirmed.has(tool.uid)) continue;
     const reference = tool.settings?.model;
     if (!reference?.provider || !reference.model) continue;
     rows.push({ label: `Выбранная модель · ${toolName(tool.uid)}`, reference });

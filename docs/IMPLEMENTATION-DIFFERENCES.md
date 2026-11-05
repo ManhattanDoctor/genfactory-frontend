@@ -814,3 +814,13 @@ Generate Prompt принимает изображения и исходные MP
 ### Локальная фиксация этапа — 2026-11-05
 
 Контроль перед коммитами:362unitfrontend,317backendtests/30suites,APItypecheck,productionbuildReactуспешны. Angularbuildпроверенранее. Backend dca1bdc, common c716492; Angular2e7924d, common b0f8dd8. Копии common сохранили свои исходные ветки. Миграция индекса применена только локально. При будущей выкладке сначала публикуются common-коммиты, затем backend с миграцией, затем клиенты; сейчас push/deploy не выполнялись.
+
+
+### BILLING-MODELS-01 — локально реализовано, 2026-11-05
+
+Согласовано `IAiToolConsumption.models?: Array<IAiModelReference>`. AiTool.costAdd принимает необязательную ссылку модели, собирает уникальные provider+model в usedModels (имя models уже занято сервисом у наследников). Вызовы IMAGE, VIDEO, TTS, STT, IMAGE_RECOGNITION, VIDEO_RECOGNITION добавляют окончательно подготовленную ссылку вместе с полученной стоимостью. LangchainTextBase.toolsEndHandler копирует её в consumption.tools.models. Это модель, переданная backend в задачу, не обещание узнать скрытый routing провайдера. При отказе до получения стоимости ссылка не добавляется. Суммы агрегированы по инструменту, не по модели; схема БД и формула списания не менялись.
+
+Frontend: «Модель вызова · <инструмент>» из нового поля приоритетнее сохранённой выбранной модели; без поля прежний fallback. Старые записи не переписывались. Проверено33backendtests/5suites,7frontendunit,2browserбиллинга,backend/frontendtypecheck. Логи /tmp/tool-models-{tests3,types3,front-tests,front-types,e2e}.log. Новый платный запуск и реальная новая проводка не проверялись; локальный backend ещё не перезапущен с этой правкой. Изменения пока без коммита и выкладки.
+
+
+BILLING-MODELS-01 платная проверка 2026-11-05: backend перезапущен после active=[] (pid51788, /tmp/billing-models-live-backend.log). Через браузер беседа104: один POST сообщения, один IMAGE вызов~9.5с, gpt-image-1-mini low1024, файл207 Blue Ceramic Cup.png. Проводка324 amount24.9465коп=0.249465RUB, IMAGE0.222RUB+assistant0.027465RUB. consumption.tools[IMAGE].models=[{provider:OPEN_AI_IMAGE_GPT,model:gpt-image-1-mini}] совпало с подготовленными настройками и file207.origin.generation.model. results содержит207, UI показывает «Модель вызова · Изображение» и GPTImage1Mini, summary−0.25RUB. Сохранён после reload. /tmp/live-billing-models{.log,-result.json,-payment.json,-account.png}. Script /tmp/live-billing-models.cjs УЖЕ ИСПОЛНЕН, не повторять. No push/deploy, текущие изменения models ещё не закоммичены.

@@ -176,6 +176,7 @@ export interface IPaymentTransaction {
     consumption?: {
       model?: { input?: number; output?: number };
       tools?: {
+        models?: Array<IModelDescription['reference']>;
         type: string;
         amounts?: { amount: string; coinId: string }[];
         status?: string;
