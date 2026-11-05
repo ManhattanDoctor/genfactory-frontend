@@ -7,17 +7,23 @@ import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuth } from '../auth/AuthProvider';
 import { SelectControl } from '../../components/SelectControl';
-import { breakdown, conversationLink, direction, transactionAmount, transactionTitle } from './transactions';
+import {
+  breakdown,
+  conversationLink,
+  direction,
+  transactionAmount,
+  transactionTitle,
+  transactionModels,
+} from './transactions';
 export function BalanceHistory() {
   const { user } = useAuth();
   return user ? <History key={user.id} userId={user.id} /> : null;
 }
 function History({ userId }: { userId: number }) {
-  const auth = useAuth();
   const [expanded, setExpanded] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [kind, setKind] = useState('all');
-  const [currency, setCurrency] = useState('');
+  const currency = 'RUB';
   const [since, setSince] = useState('');
   const [period, setPeriod] = useState('all');
   const query = useQuery({
@@ -50,21 +56,6 @@ function History({ userId }: { userId: number }) {
             <option value="all">Все операции</option>
             <option value="expense">Списания</option>
             <option value="income">Зачисления</option>
-          </SelectControl>
-        </label>
-        <label className="setting-field">
-          <SelectControl
-            aria-label="Валюта"
-            value={currency}
-            onChange={(e) => {
-              setCurrency(e.target.value);
-              setPage(0);
-            }}
-          >
-            <option value="">Все валюты</option>
-            {[...new Set(['RUB', 'USD', ...Object.keys(auth.balances)])].map((c) => (
-              <option key={c}>{c}</option>
-            ))}
           </SelectControl>
         </label>
         <label className="setting-field">
@@ -187,6 +178,12 @@ function History({ userId }: { userId: number }) {
                             </dd>
                           </div>
                         )}
+                        {transactionModels(t).map((item, index) => (
+                          <div key={index}>
+                            <dt>{item.label}</dt>
+                            <dd>{modelTitle({ reference: item.reference, name: item.reference.model })}</dd>
+                          </div>
+                        ))}
                         {t.details?.consumption?.model && (
                           <>
                             <div>

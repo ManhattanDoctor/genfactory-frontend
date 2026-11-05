@@ -5,6 +5,7 @@ export const toolNames: Record<string, string> = {
   IMAGE: 'Создание изображений',
   VIDEO: 'Создание видео',
   IMAGE_RECOGNITION: 'Анализ изображений',
+  VIDEO_RECOGNITION: 'Анализ видео',
   YANDEX: 'Поиск в Яндексе',
   WIKIPEDIA: 'Википедия',
   WOLFRAM_ALPHA: 'Вычисления',

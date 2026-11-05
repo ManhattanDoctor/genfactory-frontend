@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   breakdown,
+  transactionModels,
   direction,
   transactionAmount,
   conversationLink,
 } from '../src/features/account/transactions';
-import type { IPaymentTransaction } from '../src/lib/types';
+import type { IGnosisFile, IPaymentTransaction } from '../src/lib/types';
 const payment: IPaymentTransaction = {
   id: 242,
   type: 'TASK_PURCHASE',
@@ -64,4 +65,31 @@ describe('balance amounts and attribution', () => {
     expect(conversationLink({ ...payment, details: {} })).toBeUndefined();
     expect(conversationLink({ ...payment, details: { source: { type: 'FILE', id: 49 } } })).toBeUndefined();
   });
+});
+
+it('shows settings only for used tools and keeps selected models distinct from results', () => {
+  const reference = { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' };
+  const t: IPaymentTransaction = {
+    ...payment,
+    details: {
+      ...payment.details,
+      options: { tools: ['IMAGE', { uid: 'VIDEO_RECOGNITION', settings: { model: reference } }] },
+      consumption: { tools: [{ type: 'VIDEO_RECOGNITION' }] },
+    },
+  };
+  expect(transactionModels(t)).toEqual([{ label: 'Выбранная модель · Анализ видео', reference }]);
+  expect(transactionModels({ ...t, details: { ...t.details, consumption: { tools: [] } } })).toEqual([]);
+  expect(transactionModels(payment)).toEqual([]);
+});
+
+it('uses owned result metadata independently of requested models and deduplicates it', () => {
+  const reference = { provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1-mini' };
+  const result = {
+    userId: 7,
+    origin: { kind: 'GENERATION', generation: { model: reference } },
+  } as IGnosisFile;
+  expect(transactionModels({ ...payment, results: [result, result, { ...result, userId: 8 }] })).toEqual([
+    { label: 'Модель результата', reference },
+  ]);
+  expect(transactionModels({ ...payment, results: [{ ...result, userId: 8 }] })).toEqual([]);
 });

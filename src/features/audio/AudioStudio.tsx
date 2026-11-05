@@ -207,6 +207,7 @@ function AudioEditor() {
         uid: toolId,
         settings: {
           model: model.reference,
+          isLockSelection: true,
           options: Object.fromEntries(Object.entries(cleanOptions).filter(([key]) => key !== 'model')),
         },
       };

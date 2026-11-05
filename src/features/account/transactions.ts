@@ -1,4 +1,4 @@
-import type { IPaymentTransaction } from '../../lib/types';
+import type { IModelDescription, IPaymentTransaction } from '../../lib/types';
 const scale = 10n ** 12n;
 function decimal(value: unknown): bigint | undefined {
   if (typeof value !== 'string' || !/^\d+(\.\d{1,12})?$/.test(value)) return;
@@ -38,6 +38,7 @@ export function direction(t: IPaymentTransaction) {
 const toolNames: Record<string, string> = {
   IMAGE: 'Изображение',
   VIDEO: 'Видео',
+  VIDEO_RECOGNITION: 'Анализ видео',
   DOCUMENT_READ: 'Чтение документа',
   TTS: 'Озвучка',
   STT: 'Распознавание речи',
@@ -114,4 +115,26 @@ export function breakdown(t: IPaymentTransaction): { label: string; amount: stri
   }
   if (toolTotal > total) return;
   return [{ label: 'Ассистент', amount: serial(total - toolTotal) }, ...rows];
+}
+
+export function transactionModels(t: IPaymentTransaction) {
+  const rows: { label: string; reference: IModelDescription['reference'] }[] = [];
+  const used = new Set(t.details?.consumption?.tools?.map((tool) => tool.type));
+  for (const tool of t.details?.options?.tools || []) {
+    if (typeof tool !== 'object' || !tool || !used.has(tool.uid)) continue;
+    const reference = tool.settings?.model;
+    if (!reference?.provider || !reference.model) continue;
+    rows.push({ label: `Выбранная модель · ${toolName(tool.uid)}`, reference });
+  }
+  const seen = new Set<string>();
+  for (const file of t.results || []) {
+    if (file.userId !== t.userId) continue;
+    const reference = file.origin?.generation?.model;
+    if (!reference?.provider || !reference.model) continue;
+    const key = JSON.stringify(reference);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push({ label: 'Модель результата', reference });
+  }
+  return rows;
 }

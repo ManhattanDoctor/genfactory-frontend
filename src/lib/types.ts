@@ -92,7 +92,11 @@ export interface ITaskRequest {
 }
 export interface IToolConnection {
   uid: string;
-  settings?: { model: IModelDescription['reference']; options?: Record<string, unknown> };
+  settings?: {
+    model: IModelDescription['reference'];
+    options?: Record<string, unknown>;
+    isLockSelection?: boolean;
+  };
 }
 export interface IToolDescription {
   uid: string;
@@ -151,6 +155,7 @@ export interface IConversationProgress {
 }
 
 export interface IPaymentTransaction {
+  results?: IGnosisFile[];
   operationId?: string | null;
   id: number;
   type: string;
@@ -164,7 +169,7 @@ export interface IPaymentTransaction {
   activatedDate?: string | null;
   details?: {
     model?: string;
-    options?: { model?: string };
+    options?: { model?: string; tools?: (IToolConnection | string)[] };
     source?: { type: string; id: number | string };
     amounts?: { amount: string; coinId: string }[];
     rates?: { from: string; to: string; value: string }[];

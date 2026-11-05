@@ -353,7 +353,10 @@ test('image translates an insufficient funds response and keeps the draft withou
   await page.route('**/api/conversation/101/message', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
     sends++;
-    await route.fulfill({ status: 400, json: { message: 'InsufficientFundsError' } });
+    await route.fulfill({
+      status: 402,
+      json: { code: 'INSUFFICIENT_FUNDS', message: 'InsufficientFundsError' },
+    });
   });
   await page.goto('/image');
   await page.locator('#img-draft').fill('Сохранить мой промпт');
@@ -626,4 +629,28 @@ test('a completed image clears the earlier clarification from the workspace', as
   await page.reload();
   await expect(page.locator('.image-result')).toHaveCount(1);
   await expect(page.locator('.media-answer-card')).toHaveCount(0);
+});
+
+test('image hides provider funding errors without suggesting a top-up or retrying', async ({ page }) => {
+  await setup(page);
+  let sends = 0;
+  await page.route('**/api/conversation/101/message', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    sends++;
+    await route.fulfill({
+      status: 402,
+      json: {
+        code: 'AI_VENDOR_ERROR',
+        message: 'OpenRouter: insufficient credits. Add funds to your provider account.',
+      },
+    });
+  });
+  await page.goto('/image');
+  await page.locator('#img-draft').fill('Сохранить мой промпт');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('Сервис временно недоступен');
+  await expect(alert).not.toContainText(/OpenRouter|credits|Пополните|InsufficientFunds/i);
+  await expect(page.locator('#img-draft')).toHaveValue('Сохранить мой промпт');
+  expect(sends).toBe(1);
 });

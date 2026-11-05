@@ -557,7 +557,6 @@ export function Studio({ kind }: { kind: MediaKind }) {
     'Беседа завершилась с ошибкой и пока не принимает новые сообщения. Задание сохранено.';
   const imageSendError = (value: unknown) => {
     const message = value instanceof Error ? value.message : 'Ответ не получен.';
-    if (message.includes('InsufficientFundsError')) return insufficientFundsMessage;
     if (message.includes('ConversationForbiddenError') && conversation?.status === 'ERROR')
       return failedConversationMessage;
     return `${message}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`;

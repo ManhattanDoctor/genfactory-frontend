@@ -34,6 +34,7 @@ describe('Conversation tool contracts', () => {
     const tool = toolSettings('video', model, options);
     expect(tool.settings).toEqual({
       model: model.reference,
+      isLockSelection: true,
       options: { duration: 4, generateAudio: false, seed: 0 },
     });
     expect(options.frameImages).toHaveLength(1);

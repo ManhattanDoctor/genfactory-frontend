@@ -1,3 +1,4 @@
+import { apiErrorMessage } from './errorMessages';
 import type {
   IGnosisFile,
   IFileOutputSettings,
@@ -69,7 +70,7 @@ export async function request<T>(
       const data = await res.json().catch(() => ({}));
       if (res.status === 401 && sid === getSession())
         window.dispatchEvent(new Event('genfactory:unauthorized'));
-      const message = typeof data.message === 'string' ? data.message : `Запрос не выполнен (${res.status})`;
+      const message = apiErrorMessage(data, res.status);
       throw new ApiError(message, res.status, data.details);
     }
     if (res.status === 204) return undefined as T;
@@ -135,9 +136,7 @@ async function uploadFile(
         const message =
           xhr.status === 413
             ? 'Сервер отклонил загрузку из-за размера файла. Максимальный размер — 1 ГБ.'
-            : typeof response?.message === 'string'
-              ? response.message
-              : `Не удалось загрузить файл (${xhr.status})`;
+            : apiErrorMessage(response, xhr.status);
         reject(new ApiError(message, xhr.status, response?.details));
       };
       progress(0, file.size, 'uploading');

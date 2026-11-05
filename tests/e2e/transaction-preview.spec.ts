@@ -20,14 +20,15 @@ const pagination = (items: unknown[], pageIndex = 0, pages = 1) => ({
   pageSize: 24,
 });
 for (const width of [390, 1440])
-  test(`transaction preview matches operation across pages and opens only on click ${width}`, async ({
+  test(`transaction preview uses server results without loading messages and opens only on click ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.addInitScript(() => localStorage.setItem('genfactory.session', 'test'));
     await page.routeWebSocket('**/socket.io/**', () => {});
     let originals = 0,
-      sends = 0;
+      sends = 0,
+      messageReads = 0;
     await page.route('**/original-result.mp4', (route) => {
       originals++;
       return route.fulfill({ status: 404, body: '' });
@@ -52,36 +53,15 @@ for (const width of [390, 1440])
             createdDate: date,
             activatedDate: date,
             operationId,
+            ...(i === 0
+              ? { results: [file, { ...file, id: 13, name: 'Второй.mp4' }, { ...file, id: 14, userId: 8 }] }
+              : i === 1
+                ? { results: [] }
+                : {}),
             details: { source: { type: 'CONVERSATION', id: 50 } },
           })),
         );
-      if (path === '/api/conversation/50/message') {
-        const index = Number(url.searchParams.get('pageIndex'));
-        body = pagination(
-          [
-            {
-              id: 2 - index,
-              role: 'ASSISTANT',
-              files: index
-                ? [
-                    file,
-                    { ...file, id: 13, name: 'Второй.mp4' },
-                    { ...file, id: 14, userId: 8, name: 'Чужой.mp4' },
-                  ]
-                : [
-                    {
-                      ...file,
-                      id: 20,
-                      name: 'Другая операция.mp4',
-                      origin: { kind: 'GENERATION', operationId: 'task:other' },
-                    },
-                  ],
-            },
-          ],
-          index,
-          2,
-        );
-      }
+      if (path.endsWith('/message')) messageReads++;
       if (path === '/api/file/12') body = file;
       return route.fulfill({ json: body });
     });
@@ -96,6 +76,7 @@ for (const width of [390, 1440])
     await expect(rows.nth(1).locator('.transaction-preview')).toHaveCount(0);
     await expect(rows.nth(2).locator('.transaction-preview')).toHaveCount(0);
     expect(originals).toBe(0);
+    expect(messageReads).toBe(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await preview.click();
     await expect(page.getByRole('dialog', { name: 'Результат.mp4', exact: true })).toBeVisible();

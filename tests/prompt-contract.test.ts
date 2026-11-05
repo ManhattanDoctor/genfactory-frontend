@@ -31,3 +31,13 @@ it('only enables ready results with grounded sources and valid structure', () =>
     )?.prompt,
   ).toBeNull();
 });
+
+it('recovers a complete result followed only by a matching redundant status', () => {
+  const json = JSON.stringify(ready);
+  expect(readPromptResult(json + ',{"status":"ready"}', [12])).toEqual(ready);
+  expect(readPromptResult(json + ',{"status":"blocked"}', [12])).toBeUndefined();
+  expect(readPromptResult(json + ',{"status":"ready","error":"failed"}', [12])).toBeUndefined();
+  expect(readPromptResult(json + ',' + json, [12])).toBeUndefined();
+  expect(readPromptResult(json + ',{"status":"ready"}', [99])).toBeUndefined();
+  expect(readPromptResult('{"status":"ready"},{"status":"ready"}', [12])).toBeUndefined();
+});

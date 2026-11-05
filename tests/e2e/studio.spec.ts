@@ -298,6 +298,7 @@ test('image studio creates a configured conversation and sends tool preferences,
   expect(state.creates[0].model).toBe('OPEN_AI_CONVERSATION');
   expect(state.creates[0].options.tools.map((t: any) => t.uid)).toEqual(['IMAGE', 'VIDEO']);
   expect(state.sends[0].settings.tools[0].settings.model).toEqual(catalog[0].reference);
+  expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
   expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('model');
   expect(state.forbidden).toEqual([]);
   await expect(page).toHaveURL(/conversation=101/);
@@ -321,6 +322,7 @@ test('video settings use VIDEO and server message attachments', async ({ page })
   await submit(page, 'City camera movement', 'video');
   await expectCompleted(page);
   expect(state.sends[0].settings.tools[0].uid).toBe('VIDEO');
+  expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
   expect(state.sends[0].settings.tools[0].settings.model.provider).toBe('OPEN_ROUTER_VIDEO');
   await expect(page.locator('.result-grid video, .video-result video')).toHaveCount(1);
   expect(state.forbidden).toEqual([]);
@@ -1097,7 +1099,7 @@ test('workspace Generate Prompt transfers its answer and reference into image ge
 }) => {
   const state = await mockApi(page);
   await page.goto('/prompt');
-  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить изображение или видео', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /Test result/ })
@@ -1235,26 +1237,43 @@ test('workspace history supports rename favorites local archive and a running fi
   await request;
 });
 
-test('workspace agent video analysis extracts three frames without uploading the source video', async ({
-  page,
-}) => {
+test('workspace video analysis uploads the original and sends VIDEO_RECOGNITION', async ({ page }) => {
   const state = await mockApi(page);
+  const video = { ...file, type: 'VIDEO', mime: 'video/mp4', size: 1000, name: 'Видео.mp4' };
+  await page.route('**/api/aimodels?provider=OPEN_ROUTER_TEXT', (route) =>
+    route.fulfill({
+      json: [
+        {
+          reference: { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' },
+          capabilities: ['VIDEO_INPUT', 'TEXT_OUTPUT'],
+          name: 'Gemini',
+          schema: {},
+        },
+      ],
+    }),
+  );
+  await page.route('**/api/file', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    state.uploads++;
+    return route.fulfill({ json: video });
+  });
+  await page.route('**/api/file/12', (route) => route.fulfill({ json: video }));
   await page.goto('/agent?studio=advanced');
   await expect(page.getByLabel('Ассистент', { exact: true })).toBeEnabled();
   await page
     .locator('input[type=file]')
     .setInputFiles(new URL('../fixtures/preview.mp4', import.meta.url).pathname);
-  await expect(
-    page.getByText(
-      'Из видео извлечены три кадра. Анализируется изображение, без звука и непрерывного движения.',
-    ),
-  ).toBeVisible();
-  expect(state.uploads).toBe(3);
-  await expect(page.locator('.reference')).toHaveCount(3);
+  await expect(page.getByText('Видео будет проанализировано инструментом «Анализ видео».')).toBeVisible();
+  expect(state.uploads).toBe(1);
+  await expect(page.locator('.reference')).toHaveCount(1);
   await page.getByLabel('Ваш запрос', { exact: true }).fill('Опиши визуальный стиль');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12, 13, 14]);
+  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].settings.tools[0]).toMatchObject({
+    uid: 'VIDEO_RECOGNITION',
+    settings: { isLockSelection: true, options: { maxTokens: 4096 } },
+  });
 });
 
 test('workspace lost response reports the error after the new conversation navigation', async ({ page }) => {
@@ -1845,7 +1864,7 @@ test('balance history shows exact costs and sends numeric date filters with owne
   expect(requests.every((r) => r.conditions.userId === 7)).toBe(true);
   await history.getByLabel('Операции', { exact: true }).selectOption('expense');
   await expect.poll(() => requests.at(-1)?.conditions.credit).toBe('PR-00');
-  await history.getByLabel('Валюта', { exact: true }).selectOption('RUB');
+  await expect(history.getByLabel('Валюта', { exact: true })).toHaveCount(0);
   await expect.poll(() => requests.at(-1)?.conditions.coinId).toBe('RUB');
 });
 
@@ -2391,7 +2410,11 @@ test('audio TTS uses catalog settings, validates text, and restores saved prefer
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.creates[0].options.tools[0]).toMatchObject({
     uid: 'TTS',
-    settings: { model: { provider: 'TEST_TTS' }, options: { voice: 'second-voice', format: 'flac' } },
+    settings: {
+      isLockSelection: true,
+      model: { provider: 'TEST_TTS' },
+      options: { voice: 'second-voice', format: 'flac' },
+    },
   });
   expect(state.creates[0].options.tools[0].settings.options).not.toHaveProperty('model');
   expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('model');
@@ -2423,7 +2446,7 @@ test('audio STT takes the exact video from the file menu and saves transcription
   expect(state.sends[0].text).toContain('isFile=true');
   expect(state.sends[0].settings.tools[0]).toMatchObject({
     uid: 'STT',
-    settings: { options: { language: 'ru' } },
+    settings: { isLockSelection: true, options: { language: 'ru' } },
   });
   await expect(page).toHaveURL(/audio\?mode=stt&conversation=101/);
   await page.getByRole('link', { name: 'Озвучить', exact: true }).click();
@@ -3140,6 +3163,7 @@ test('content studio gallery creates explicit first and last image frames and se
   expect(state.uploads).toBe(2);
   expect(state.sends[0].files).toEqual([12, 13]);
   expect(state.sends[0].settings.tools[0].uid).toBe('VIDEO');
+  expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
 });
 
 test('content studio template is a recipe and portrait format is translated to image size', async ({

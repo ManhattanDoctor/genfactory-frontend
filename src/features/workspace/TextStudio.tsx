@@ -20,7 +20,7 @@ import { ToolPicker } from './ToolPicker';
 import { LibraryPicker } from '../../components/LibraryPicker';
 import { LoginDialog } from '../../components/LoginDialog';
 import { SelectControl } from '../../components/SelectControl';
-import { videoFrames } from './videoFrames';
+import { videoAnalysisError, videoAnalysisTool } from '../prompt/videoAnalysis';
 
 export function TextStudio({ mode }: { mode: TextMode }) {
   const auth = useAuth();
@@ -104,6 +104,27 @@ function TextEditor({ mode }: { mode: TextMode }) {
     staleTime: 300000,
     queryFn: ({ signal }) => api.catalog('OPEN_AI_CONVERSATION', signal),
   });
+  const videoModels = useQuery({
+    queryKey: ['video-analysis-models', auth.user?.id],
+    enabled: !!auth.user && !modernAgent,
+    queryFn: ({ signal }) => api.catalog('OPEN_ROUTER_TEXT', signal),
+    staleTime: 300000,
+  });
+  const savedVideoTool = conversation?.options.tools?.find(
+    (t) => typeof t !== 'string' && t.uid === 'VIDEO_RECOGNITION',
+  );
+  const videoModel = (videoModels.data || []).find(
+    (m) =>
+      m.capabilities?.includes('VIDEO_INPUT') &&
+      (typeof savedVideoTool !== 'object' ||
+        !savedVideoTool.settings ||
+        m.reference.model === savedVideoTool.settings.model.model),
+  );
+  const videoTool = videoModel
+    ? typeof savedVideoTool === 'object' && savedVideoTool.settings
+      ? { ...savedVideoTool, settings: { ...savedVideoTool.settings, isLockSelection: true } }
+      : videoAnalysisTool(videoModel)
+    : undefined;
   const model =
     models.data?.find(
       (m) =>
@@ -234,30 +255,36 @@ function TextEditor({ mode }: { mode: TextMode }) {
         const isImage = ['image/png', 'image/jpeg', 'image/webp'].includes(source.type);
         const isDocument = /\.(pdf|docx?|xlsx?|csv|json)$/i.test(source.name);
         const isAudio = /\.(mp3|wav|ogg|m4a)$/i.test(source.name);
-        if ((isVideo || isImage) && !imageCapable)
-          throw new Error('Выбранная модель не поддерживает анализ изображений.');
+        if (isImage && !imageCapable) throw new Error('Выбранная модель не поддерживает анализ изображений.');
         if (!isVideo && !isImage && !isDocument && !isAudio)
           throw new Error('Выберите изображение, видео, документ, таблицу или аудиозапись.');
-        const images = isVideo ? await videoFrames(source) : [source];
-        if (count + images.length > 4)
-          throw new Error('Можно прикрепить до четырёх файлов. Для видео нужны три свободных места.');
+        if (isVideo) {
+          const issue = videoAnalysisError({ type: 'VIDEO', mime: source.type, size: source.size });
+          if (issue) throw Error(issue);
+        }
+        const images = [source];
+        if (count + images.length > 4) throw new Error('Можно прикрепить до четырёх файлов.');
         for (const image of images) {
           if (!isCurrent(sid)) return;
           const saved = await api.upload(image, sid, undefined, (progress) => {
             if (isCurrent(sid)) setUploadProgress(progress);
           });
           if (!isCurrent(sid)) return;
-          if (saved.userId !== auth.user.id || ((isImage || isVideo) && saved.type !== 'IMAGE'))
+          if (
+            saved.userId !== auth.user.id ||
+            (isImage && saved.type !== 'IMAGE') ||
+            (isVideo && saved.type !== 'VIDEO')
+          )
             throw new Error('Не удалось получить файл вашего аккаунта.');
           count++;
           setFiles((prev) => (prev.some((f) => f.id === saved.id) ? prev : [...prev, saved]));
         }
         if (isDocument) setNotice('Для анализа документа подключите инструмент «Чтение документов».');
         if (isAudio) setNotice('Для аудиозаписи подключите инструмент «Расшифровка аудио».');
-        if (isVideo)
-          setNotice(
-            'Из видео извлечены три кадра. Анализируется изображение, без звука и непрерывного движения.',
-          );
+        if (isVideo) {
+          setToolIds((v) => (v.includes('VIDEO_RECOGNITION') ? v : [...v, 'VIDEO_RECOGNITION']));
+          setNotice('Видео будет проанализировано инструментом «Анализ видео».');
+        }
         void client.invalidateQueries({ queryKey: ['files', auth.user.id] });
       }
     } catch (e) {
@@ -308,6 +335,18 @@ function TextEditor({ mode }: { mode: TextMode }) {
       setError('Подключите инструмент «Расшифровка аудио».');
       return;
     }
+    const videos = files.filter((f) => f.type === 'VIDEO');
+    if (videos.length && (!videoTool || !toolIds.includes('VIDEO_RECOGNITION'))) {
+      setError('Подключите инструмент «Анализ видео» и дождитесь загрузки совместимой модели.');
+      return;
+    }
+    for (const file of videos) {
+      const issue = videoAnalysisError(file);
+      if (issue) {
+        setError(issue);
+        return;
+      }
+    }
     submitting.current = true;
     setError('');
     const sid = auth.session;
@@ -323,9 +362,17 @@ function TextEditor({ mode }: { mode: TextMode }) {
             brand: useBrand ? prefs.value.brand : '',
           }),
       files: files.map((f) => f.id),
-      settings: { tools: [] },
+      settings: { tools: videos.length && videoTool ? [videoTool] : [] },
     };
     try {
+      if (videos.length) {
+        const checked = await Promise.all(videos.map((f) => api.file(f.id, sid)));
+        if (checked.some((f) => f.userId !== userId || f.type !== 'VIDEO' || videoAnalysisError(f)))
+          throw Error('Исходное видео недоступно или не подходит для анализа.');
+        body.text +=
+          '\nДля каждого видео вызови VIDEO_RECOGNITION с его fileId один раз, без повторов после ошибки. Не делай выводов о звуке без подтверждения. Видео: ' +
+          videos.map((f) => f.id).join(', ');
+      }
       let active = conversation;
       if (modernAgent) {
         const checked = await Promise.all(files.map((f) => api.file(f.id, sid)));
@@ -370,7 +417,9 @@ function TextEditor({ mode }: { mode: TextMode }) {
             model: model!.reference.provider,
             options: {
               model: model!.reference.model,
-              tools: modernAgent ? [] : toolIds.map((uid) => ({ uid })),
+              tools: modernAgent
+                ? []
+                : toolIds.map((uid) => (uid === 'VIDEO_RECOGNITION' && videoTool ? videoTool : { uid })),
             },
             tags: ['genfactory', mode],
             ...(fileOutput.changed ? { fileOutput: fileOutput.value } : {}),
@@ -618,7 +667,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
               onChange={(e) => void upload(e.target.files)}
             />
             <p className="small muted">
-              Изображения, документы, таблицы, аудио и видео до 20 МБ. Из видео берём три кадра без звука.
+              Изображения, документы, таблицы и аудио до 20 МБ. Видео MP4/WebM до 12 МБ анализируется целиком.
             </p>
             {!conversation && (
               <label className="setting-field">
@@ -738,9 +787,17 @@ function TextEditor({ mode }: { mode: TextMode }) {
       {picker && (
         <LibraryPicker
           imagesOnly={false}
+          acceptedTypes={['IMAGE', 'VIDEO', 'DOCUMENT', 'AUDIO']}
           selected={files.map((f) => f.id)}
           onClose={() => setPicker(false)}
           onPick={(f) => {
+            const issue = videoAnalysisError(f);
+            if (issue) {
+              setError(issue);
+              return;
+            }
+            if (f.type === 'VIDEO')
+              setToolIds((v) => (v.includes('VIDEO_RECOGNITION') ? v : [...v, 'VIDEO_RECOGNITION']));
             draft.changed();
             setFiles((p) => [...p, f].slice(0, 4));
           }}

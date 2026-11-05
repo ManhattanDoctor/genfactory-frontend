@@ -1,3 +1,4 @@
+import { promptSystem, videoAnalysisError, videoAnalysisTool } from './videoAnalysis';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -9,7 +10,7 @@ import {
 } from '@tanstack/react-query';
 import { ArrowUp, Plus, X, Copy, Download, Expand, ArrowUpRight } from 'lucide-react';
 import { api, getSession } from '../../lib/api';
-import type { IGnosisFile, IConversationMessage } from '../../lib/types';
+import type { IGnosisFile, IConversationMessage, IToolConnection } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useConversationRoom } from '../realtime/RealtimeProvider';
 import { ImageMenu } from '../studio/MediaWorkspace';
@@ -94,13 +95,31 @@ function PromptEditor() {
     queryFn: ({ signal }) => api.catalog('OPEN_AI_CONVERSATION', signal),
     staleTime: 300000,
   });
-  const models = (catalog.data || []).filter((m) => m.capabilities?.includes('IMAGE_INPUT'));
+  const videoCatalog = useQuery({
+    queryKey: ['video-analysis-models', auth.user?.id],
+    enabled: !!auth.user,
+    queryFn: ({ signal }) => api.catalog('OPEN_ROUTER_TEXT', signal),
+    staleTime: 300000,
+  });
+  const hasVideo = files.some((f) => f.type === 'VIDEO');
+  const imageModels = (catalog.data || []).filter((m) => m.capabilities?.includes('IMAGE_INPUT'));
+  const models = hasVideo
+    ? (videoCatalog.data || []).filter(
+        (m) => m.capabilities?.includes('VIDEO_INPUT') && m.capabilities?.includes('TEXT_OUTPUT'),
+      )
+    : imageModels;
   const model =
     models.find((m) => m.reference.model === selected) ||
     models.find((m) => m.reference.model === 'gpt-5.4') ||
     models[0];
   const unavailableModel =
-    !!selected && !!catalog.data && !models.some((m) => m.reference.model === selected);
+    !!selected &&
+    !!(hasVideo ? videoCatalog.data : catalog.data) &&
+    !models.some((m) => m.reference.model === selected);
+  const assistantModel = hasVideo
+    ? imageModels.find((m) => m.reference.model === 'gpt-4o-mini' && m.capabilities?.includes('TOOLS')) ||
+      imageModels.find((m) => m.capabilities?.includes('TOOLS'))
+    : model;
   const messages = useInfiniteQuery({
     queryKey: ['prompt-messages', auth.user?.id, id],
     enabled: !!conversation,
@@ -115,7 +134,9 @@ function PromptEditor() {
   for (const message of ordered) {
     if (message.role === 'USER') request = message;
     if (message.role !== 'ASSISTANT' || !message.text) continue;
-    const source = (request?.files || []).filter((f) => f.userId === auth.user?.id && f.type === 'IMAGE');
+    const source = (request?.files || []).filter(
+      (f) => f.userId === auth.user?.id && ['IMAGE', 'VIDEO'].includes(f.type),
+    );
     const settings = readPromptInput(request?.text || '');
     const result = request
       ? readPromptResult(
@@ -159,16 +180,24 @@ function PromptEditor() {
     if (value) {
       setInput(value);
       setFiles(
-        (latest?.files || []).filter((f) => f.type === 'IMAGE' && f.userId === auth.user?.id).slice(0, 4),
+        (latest?.files || [])
+          .filter((f) => ['IMAGE', 'VIDEO'].includes(f.type) && f.userId === auth.user?.id)
+          .slice(0, 4),
       );
     }
-    if (conversation?.model === 'OPEN_AI_CONVERSATION') setSelected(conversation.options.model);
+    const video = latest?.files?.some((f) => f.type === 'VIDEO');
+    const analysis = conversation?.options.tools?.find(
+      (t) => typeof t !== 'string' && t.uid === 'VIDEO_RECOGNITION',
+    );
+    if (video) setSelected(typeof analysis === 'object' ? analysis.settings?.model.model || '' : '');
+    else if (conversation?.model === 'OPEN_AI_CONVERSATION') setSelected(conversation.options.model);
     restored.current = true;
   }, [messages.data, draft.available]);
   useEffect(() => {
-    if (!dock.current) return;
-    const observer = new ResizeObserver(() => setBottom(dock.current!.offsetHeight + 104));
-    observer.observe(dock.current);
+    const element = dock.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setBottom(element.offsetHeight + 104));
+    observer.observe(element);
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
@@ -194,13 +223,14 @@ function PromptEditor() {
       text,
       source,
       sid,
+      tools,
     }: {
       conversationId: number;
       text: string;
       source: number[];
+      tools: IToolConnection[];
       sid: string;
-    }) =>
-      api.sendMessage(conversationId, { role: 'USER', text, files: source, settings: { tools: [] } }, sid),
+    }) => api.sendMessage(conversationId, { role: 'USER', text, files: source, settings: { tools } }, sid),
     onSettled: (_data, failure, v) => {
       client.setQueryData(['prompt-error', auth.user?.id, v.conversationId], failure?.message || null);
       void client.invalidateQueries({ queryKey: ['conversation', auth.user?.id, v.conversationId] });
@@ -219,7 +249,15 @@ function PromptEditor() {
       setLogin(true);
       return;
     }
-    if (busy || sending.current || !model || unavailableModel || !files.length || !input.aspects.length)
+    if (
+      busy ||
+      sending.current ||
+      !model ||
+      !assistantModel ||
+      unavailableModel ||
+      !files.length ||
+      !input.aspects.length
+    )
       return;
     if (rawId && !conversation) {
       setError('Откройте доступную беседу.');
@@ -232,33 +270,44 @@ function PromptEditor() {
     setError('');
     try {
       const actual = await Promise.all(files.map((f) => api.file(f.id, sid)));
-      if (actual.some((f) => f.userId !== userId || f.type !== 'IMAGE'))
-        throw Error('Исходное изображение недоступно.');
+      if (actual.some((f) => f.userId !== userId || !['IMAGE', 'VIDEO'].includes(f.type)))
+        throw Error('Исходный материал недоступен.');
+      for (const file of actual) {
+        const issue = videoAnalysisError(file);
+        if (issue) throw Error(issue);
+      }
+      const tools = actual.some((f) => f.type === 'VIDEO') ? [videoAnalysisTool(model)] : [];
       if (getSession() !== sid || !mounted.current) return;
       let active = conversation;
       if (active) {
         active = await api.conversation(active.id, undefined, sid);
         if (active.userId !== userId || active.status === 'LOADING')
           throw Error('Беседа занята или недоступна.');
-        if (active.model !== model.reference.provider)
+        if (active.model !== assistantModel.reference.provider)
           throw Error('Для другой модели анализа начните новую работу.');
-        if (active.options.model !== model.reference.model)
+        if (
+          active.options.model !== assistantModel.reference.model ||
+          JSON.stringify(active.options.tools || []) !== JSON.stringify(tools) ||
+          active.system !== promptSystem
+        )
           active = await api.editConversation(
             active,
-            { options: { ...active.options, model: model.reference.model } },
+            {
+              options: { ...active.options, model: assistantModel.reference.model, tools },
+              system: promptSystem,
+            },
             sid,
           );
       } else
         active = await api.createConversation(
           {
-            name: input.note.trim().slice(0, 64) || 'Промпт по изображению',
-            model: model.reference.provider,
-            options: { model: model.reference.model, tools: [] },
+            name: input.note.trim().slice(0, 64) || 'Промпт по материалам',
+            model: assistantModel.reference.provider,
+            options: { model: assistantModel.reference.model, tools },
             tags: ['genfactory', 'prompt'],
             history: 32,
             isConsiderHistory: true,
-            system:
-              'Подготавливай промпты по приложенным изображениям и настройкам последнего запроса. Не создавай медиа и не вызывай инструменты. Не выдумывай содержимое материалов. Возвращай запрошенный формат ответа.',
+            system: promptSystem,
           },
           sid,
         );
@@ -268,6 +317,7 @@ function PromptEditor() {
         conversationId: active.id,
         text: promptRequest(input, actual),
         source: actual.map((f) => f.id),
+        tools,
         sid,
       });
       if (!id) navigate(`/prompt?conversation=${active.id}`, { replace: true });
@@ -293,7 +343,13 @@ function PromptEditor() {
           : chosen === 'presentation' || chosen === 'other'
             ? '/chat'
             : '/image';
-    navigate(path, { state: { prompt: card.result.prompt, references: card.files, userId: auth.user?.id } });
+    navigate(path, {
+      state: {
+        prompt: card.result.prompt,
+        references: card.files.filter((f) => f.type === 'IMAGE'),
+        userId: auth.user?.id,
+      },
+    });
   };
   const copy = async (text: string) => {
     try {
@@ -317,6 +373,7 @@ function PromptEditor() {
     detail.error?.message ||
     messages.error?.message ||
     catalog.error?.message ||
+    (hasVideo ? videoCatalog.error?.message : undefined) ||
     sendError.data ||
     (rawId && !id ? 'Некорректный адрес беседы.' : '') ||
     (conversation?.status === 'ERROR'
@@ -408,7 +465,7 @@ function PromptEditor() {
               const value = readPromptInput('[Genfactory:prompt-input] ' + JSON.stringify(v.input));
               if (!value || !auth.user || !auth.session) return;
               const restored = await restoreDraftFiles(v.files, auth.user.id, auth.session);
-              setFiles(restored.files.filter((f) => f.type === 'IMAGE').slice(0, 4));
+              setFiles(restored.files.filter((f) => ['IMAGE', 'VIDEO'].includes(f.type)).slice(0, 4));
               setInput(value);
               setSelected(typeof v.selected === 'string' ? v.selected : '');
               dirty.current = true;
@@ -431,6 +488,8 @@ function PromptEditor() {
                   onClick={() => {
                     dirty.current = true;
                     draft.changed();
+                    if (f.type === 'VIDEO' && files.filter((x) => x.type === 'VIDEO').length === 1)
+                      setSelected('');
                     setFiles((v) => v.filter((x) => x.id !== f.id));
                   }}
                 >
@@ -453,7 +512,7 @@ function PromptEditor() {
           <button
             className="cw-plus"
             type="button"
-            aria-label="Добавить изображение"
+            aria-label="Добавить изображение или видео"
             disabled={busy || files.length >= 4}
             onClick={() => (auth.user ? setPicker(true) : setLogin(true))}
           >
@@ -572,7 +631,7 @@ function PromptEditor() {
               busy ||
               !files.length ||
               !input.aspects.length ||
-              (!!auth.user && (!model || unavailableModel || (!!rawId && !conversation)))
+              (!!auth.user && (!model || !assistantModel || unavailableModel || (!!rawId && !conversation)))
             }
           >
             <ArrowUp size={22} />
@@ -591,10 +650,18 @@ function PromptEditor() {
       </form>
       {picker && (
         <LibraryPicker
+          acceptedTypes={['IMAGE', 'VIDEO']}
           selected={files.map((f) => f.id)}
           onClose={() => setPicker(false)}
           onPick={(f) => {
-            if (f.userId !== auth.user?.id || f.type !== 'IMAGE') return;
+            if (f.userId !== auth.user?.id || !['IMAGE', 'VIDEO'].includes(f.type)) return;
+            const issue = videoAnalysisError(f);
+            if (issue) {
+              setError(issue);
+              return;
+            }
+            if (f.type === 'VIDEO' && !hasVideo) setSelected('');
+            setError('');
             dirty.current = true;
             draft.changed();
             setFiles((v) => (v.some((x) => x.id === f.id) ? v : [...v, f].slice(0, 4)));

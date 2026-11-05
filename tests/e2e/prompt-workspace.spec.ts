@@ -48,6 +48,7 @@ async function setup(
     clarifications: [],
     limitations: [],
   }),
+  material: any = source,
 ) {
   await page.addInitScript(() => localStorage.setItem('genfactory.session', 'video-test'));
   await page.routeWebSocket('**/socket.io/**', () => {});
@@ -68,7 +69,16 @@ async function setup(
       body =
         url.searchParams.get('provider') === 'OPEN_AI_CONVERSATION'
           ? [agent]
-          : catalog.filter((m: any) => m.reference.provider === url.searchParams.get('provider'));
+          : url.searchParams.get('provider') === 'OPEN_ROUTER_TEXT'
+            ? [
+                {
+                  reference: { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' },
+                  name: 'Gemini 2.5 Pro',
+                  capabilities: ['VIDEO_INPUT', 'TEXT_OUTPUT'],
+                  schema: {},
+                },
+              ]
+            : catalog.filter((m: any) => m.reference.provider === url.searchParams.get('provider'));
     else if (path === '/api/conversation' && req.method() === 'POST') {
       state.creates.push(req.postDataJSON());
       body = state.conversation = {
@@ -76,27 +86,29 @@ async function setup(
         id: 101,
         userId: 7,
         status: 'LOADED',
-        createdDate: source.createdDate,
+        createdDate: material.createdDate,
       };
     } else if (path === '/api/conversation') body = pagination([]);
-    else if (path === '/api/conversation/101') body = state.conversation;
-    else if (path === '/api/conversation/101/message' && req.method() === 'POST') {
+    else if (path === '/api/conversation/101') {
+      if (req.method() === 'PUT') state.conversation = { ...state.conversation, ...req.postDataJSON() };
+      body = state.conversation;
+    } else if (path === '/api/conversation/101/message' && req.method() === 'POST') {
       state.sends.push(req.postDataJSON());
-      body = { ...req.postDataJSON(), id: 1, files: [source] };
+      body = { ...req.postDataJSON(), id: 1, files: [material] };
       state.messages = [{ id: 2, role: 'ASSISTANT', text: answer, files: [] }, body];
     } else if (path === '/api/conversation/101/message') body = pagination(state.messages);
-    else if (path === '/api/file/12') body = source;
+    else if (path === '/api/file/12') body = material;
     else if (path === '/api/file/13') body = result;
     else if (path === '/api/file' && req.method() === 'POST') {
       state.uploads++;
-      body = source;
+      body = material;
     } else if (path === '/api/file')
       body = pagination(
         JSON.parse(url.searchParams.get('conditions') || '{}').type === 'VIDEO'
           ? state.sends.length
             ? [result]
             : []
-          : [source],
+          : [material],
       );
     else if (path === '/api/fileTag') body = pagination([]);
     await route.fulfill({ json: body });
@@ -106,7 +118,7 @@ async function setup(
 
 async function prepare(page: Page) {
   await page.goto('/prompt');
-  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить изображение или видео', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Чашка.png Чашка.png 05.11.2026', exact: true })
@@ -204,4 +216,68 @@ test('prompt restores draft inputs and permits return to Auto without sending', 
   await expect(page.locator('#gp-note')).toHaveValue('Сохрани чашку');
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toHaveCount(1);
   expect(state.sends).toHaveLength(0);
+});
+
+test('prompt analyzes the original video with a locked tool and restores its source after reload', async ({
+  page,
+}) => {
+  const video = {
+    ...source,
+    name: 'Ролик.mp4',
+    type: 'VIDEO',
+    mime: 'video/mp4',
+    size: 1000,
+    preview: { image: { status: 'READY', url: '/media/gallery-1.jpg' } },
+  };
+  const state = await setup(page, undefined, video);
+  await page.goto('/prompt');
+  await page.getByRole('button', { name: 'Добавить изображение или видео', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Ролик.mp4/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Собрать промпт', exact: true }).click();
+  await expect(page.locator('.prompt-card h3')).toHaveText('Синяя чашка');
+  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].settings.tools).toEqual([
+    {
+      uid: 'VIDEO_RECOGNITION',
+      settings: {
+        model: { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' },
+        options: { maxTokens: 4096 },
+        isLockSelection: true,
+      },
+    },
+  ]);
+  expect(state.creates[0].options.tools).toEqual(state.sends[0].settings.tools);
+  expect(state.sends[0].text).toContain('VIDEO_RECOGNITION');
+  expect(state.uploads).toBe(0);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Убрать Ролик.mp4', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Gemini');
+  await page.locator('.prompt-card').hover();
+  await page.getByRole('button', { name: 'В генератор', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Убрать Ролик.mp4', exact: true })).toHaveCount(0);
+  expect(state.sends).toHaveLength(1);
+});
+
+test('prompt rejects oversized videos before a paid request', async ({ page }) => {
+  const state = await setup(page, undefined, {
+    ...source,
+    name: 'Большой.mp4',
+    type: 'VIDEO',
+    mime: 'video/mp4',
+    size: 13 * 1024 * 1024,
+  });
+  await page.goto('/prompt');
+  await page.getByRole('button', { name: 'Добавить изображение или видео', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Большой.mp4/ })
+    .first()
+    .click();
+  await expect(page.getByRole('alert')).toContainText('12 МБ');
+  expect(state.sends).toHaveLength(0);
+  expect(state.creates).toHaveLength(0);
 });

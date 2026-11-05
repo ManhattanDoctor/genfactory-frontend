@@ -30,7 +30,7 @@ export function toolSettings(
         value !== '',
     ),
   );
-  return { uid: toolFor(kind), settings: { model: model.reference, options: values } };
+  return { uid: toolFor(kind), settings: { model: model.reference, options: values, isLockSelection: true } };
 }
 export function createConversationBody(
   prompt: string,
