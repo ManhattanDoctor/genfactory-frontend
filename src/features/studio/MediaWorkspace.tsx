@@ -1,7 +1,8 @@
+import { videoRatios, videoLengths, videoSound, videoShapes } from './videoMenus';
 import { VideoTemplateMedia, VideoViewer, VideoModelInfo } from './VideoMedia';
 import '../catalog/model-favorites.css';
 import { readRecipes, variantGroups, type IGenerationRecipe } from './variants';
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   ArrowUp,
@@ -350,7 +351,7 @@ export function MediaWorkspace({
             <strong>{item.title}</strong>
           </span>
           <span className="img-use" aria-hidden="true">
-            {selected?.id === item.id ? <Check size={18} /> : <Plus size={18} />}
+            {!video && selected?.id === item.id ? <Check size={18} /> : <Plus size={18} />}
             <span>{selected?.id === item.id ? 'Выбран' : 'Добавить'}</span>
           </span>
         </span>
@@ -416,7 +417,7 @@ export function MediaWorkspace({
                       disabled={busy}
                       onClick={() => onReferences(references.filter((f) => f.id !== file.id))}
                     >
-                      <X size={16} />
+                      {video ? '×' : <X size={16} />}
                     </button>
                   </div>
                 </div>
@@ -438,7 +439,7 @@ export function MediaWorkspace({
                         promptInput.current?.focus();
                       }}
                     >
-                      <X size={16} />
+                      {video ? '×' : <X size={16} />}
                     </button>
                   </div>
                   {!video && (
@@ -514,6 +515,8 @@ export function MediaWorkspace({
             <ImageMenu
               label={ratio || 'Стороны'}
               name="Стороны"
+              note={video ? 'Форма кадра: вертикаль, квадрат или ширина.' : undefined}
+              descriptions={video ? videoRatios : undefined}
               values={ratios}
               selection={ratio}
               disabled={busy}
@@ -535,6 +538,13 @@ export function MediaWorkspace({
               <ImageMenu
                 label={options.duration ? `${options.duration} с` : 'Не задаётся'}
                 name="Длительность"
+                note="Длина ролика. От неё зависит, сколько секунд соберёт модель."
+                descriptions={{
+                  ...videoLengths,
+                  ...(Math.max(...choices(fields.duration, [4, 6, 8, 10, 15]).map(Number)) <= 15
+                    ? { '15 с': 'Самый длинный ролик в этом окне.' }
+                    : {}),
+                }}
                 values={choices(fields.duration, [4, 6, 8, 10, 15]).map((v) => `${v} с`)}
                 selection={`${options.duration} с`}
                 disabled={busy || !fields.duration}
@@ -543,6 +553,8 @@ export function MediaWorkspace({
               <ImageMenu
                 label={options.generateAudio ? 'Со звуком' : 'Без звука'}
                 name="Звук"
+                note="Звук ролика."
+                descriptions={videoSound}
                 values={choices(fields.generateAudio, [false, true]).map((value) =>
                   value ? 'Со звуком' : 'Без звука',
                 )}
@@ -553,6 +565,8 @@ export function MediaWorkspace({
               <ImageMenu
                 label={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
                 name="Структура ролика"
+                note="Как собрать ролик внутри выбранной длины. На выходе всегда один файл."
+                descriptions={videoShapes}
                 values={['Один кадр', 'Набор сцен']}
                 selection={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
                 disabled={busy}
@@ -614,6 +628,8 @@ function ImageMenu({
   onSelect,
   favorites = [],
   details = false,
+  note,
+  descriptions,
   onFavorite,
 }: {
   label: string;
@@ -625,11 +641,27 @@ function ImageMenu({
   onSelect: (value: string) => void;
   favorites?: string[];
   details?: boolean;
+  note?: string;
+  descriptions?: Record<string, string>;
   onFavorite?: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState<IModelDescription>();
   const root = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!open || !note) return;
+    const menu = root.current?.querySelector<HTMLElement>('.cw-model-menu');
+    if (!menu) return;
+    const fit = () => {
+      menu.style.transform = '';
+      const box = menu.getBoundingClientRect();
+      const offset = Math.min(0, innerWidth - 16 - box.right) + Math.max(0, 16 - box.left);
+      menu.style.transform = `translateX(${offset}px)`;
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [open, note]);
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => {
@@ -647,7 +679,7 @@ function ImageMenu({
   const visible = models?.filter((model) => !onlyFavorites || favorites.includes(modelKey(model)));
   return (
     <div
-      className={`image-menu ${models ? 'image-model-menu' : ''}`}
+      className={`image-menu ${note ? 'video-setting-menu' : ''} ${models ? 'image-model-menu' : ''}`}
       ref={root}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -683,6 +715,7 @@ function ImageMenu({
       </button>
       {open && (
         <div className="cw-model-menu" role="listbox" aria-label={name}>
+          {note && <p className="image-menu-note">{note}</p>}
           {models && (
             <button
               type="button"
@@ -758,13 +791,20 @@ function ImageMenu({
                 type="button"
                 role="option"
                 aria-selected={value === selection}
+                aria-label={value}
                 key={value}
                 onClick={() => {
-                  onSelect(value);
-                  setOpen(false);
+                  choose(value);
                 }}
               >
-                {value}
+                {descriptions ? (
+                  <span className="video-option-copy">
+                    <strong>{value}</strong>
+                    {descriptions[value] && <small>{descriptions[value]}</small>}
+                  </span>
+                ) : (
+                  value
+                )}
                 <i className="image-choice-mark" aria-hidden="true" />
               </button>
             ))}

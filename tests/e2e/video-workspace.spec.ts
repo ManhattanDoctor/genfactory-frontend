@@ -174,6 +174,17 @@ for (const width of [390, 1440])
     const menu = await page.getByRole('listbox', { name: 'Модель', exact: true }).boundingBox();
     expect(menu!.x).toBeGreaterThanOrEqual(0);
     expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
+    await page.keyboard.press('Escape');
+    for (const name of ['Стороны', 'Длительность', 'Структура ролика']) {
+      await page.getByRole('button', { name, exact: true }).click();
+      const list = page.getByRole('listbox', { name, exact: true });
+      const box = await list.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      await expect(list.locator('.image-menu-note')).toBeVisible();
+      await list.getByRole('option').first().click();
+      await expect(page.getByRole('button', { name, exact: true })).toBeFocused();
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
