@@ -1,7 +1,10 @@
+import { MediaPreview } from '../../components/MediaPreview';
+import { Modal } from '../../components/Modal';
+import { historyResult } from './historyResult';
 import { Heart, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import './history.css';
 import { ConversationCover } from './ConversationCover';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -10,7 +13,7 @@ import { api } from '../../lib/api';
 import { usePreferences, toggleItem } from '../workspace/preferences';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSession } from '../../lib/api';
-import type { IConversation } from '../../lib/types';
+import type { IConversation, IGnosisFile } from '../../lib/types';
 import { connection } from './conversations';
 export function History() {
   const auth = useAuth();
@@ -23,6 +26,48 @@ export function History() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [login, setLogin] = useState(false);
+  const [preview, setPreview] = useState<IGnosisFile>();
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState('');
+  const pendingPreview = useRef<AbortController | undefined>(undefined);
+  useEffect(() => {
+    pendingPreview.current?.abort();
+    setOpening(false);
+    setOpenError('');
+    setPreview(undefined);
+    return () => pendingPreview.current?.abort();
+  }, [auth.session]);
+  const closePreview = () => {
+    pendingPreview.current?.abort();
+    setOpening(false);
+    setOpenError('');
+    setPreview(undefined);
+  };
+  const openFile = async (conversation: IConversation) => {
+    if (!auth.session || conversation.userId !== auth.user?.id) return;
+    pendingPreview.current?.abort();
+    const controller = new AbortController();
+    pendingPreview.current = controller;
+    const sid = auth.session;
+    const current = () => !controller.signal.aborted && getSession() === sid;
+    setOpenError('');
+    setOpening(true);
+    const timeout = setTimeout(() => {
+      if (!current()) return;
+      controller.abort();
+      setOpening(false);
+      setOpenError('Не удалось открыть файл. Попробуйте ещё раз.');
+    }, 30000);
+    try {
+      const file = await historyResult(conversation, sid, controller.signal);
+      if (current()) setPreview(file);
+    } catch (error) {
+      if (current()) setOpenError(error instanceof Error ? error.message : 'Не удалось открыть файл.');
+    } finally {
+      clearTimeout(timeout);
+      if (current()) setOpening(false);
+    }
+  };
   const [pagination, setPagination] = useState({ userId: auth.user?.id, page: 0 });
   const page = pagination.userId === auth.user?.id ? pagination.page : 0;
   const list = useQuery({
@@ -141,7 +186,7 @@ export function History() {
             {visible.map((c) => (
               <article className="generation-card history-card" key={c.id}>
                 <header>
-                  <ConversationCover conversation={c} />
+                  <ConversationCover conversation={c} onOpen={() => void openFile(c)} />
                   {editing === c.id ? (
                     <form
                       className="rename-form"
@@ -263,7 +308,7 @@ export function History() {
                   )}
                   {connection(c, 'video') && (
                     <Link className="button" aria-label="Открыть видео" to={`/video?conversation=${c.id}`}>
-                      Видео
+                      Видеостудия
                     </Link>
                   )}
                 </footer>
@@ -293,6 +338,12 @@ export function History() {
           )}
         </>
       )}
+      {(opening || openError) && (
+        <Modal title="Просмотр файла" onClose={closePreview}>
+          {openError ? <p role="alert">{openError}</p> : <p role="status">Открываем файл…</p>}
+        </Modal>
+      )}
+      {preview && <MediaPreview file={preview} onClose={closePreview} />}
       {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );

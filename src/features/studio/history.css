@@ -173,3 +173,10 @@
   opacity: 0.45;
   cursor: default;
 }
+
+.work-history button.history-cover {
+  display: block;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}

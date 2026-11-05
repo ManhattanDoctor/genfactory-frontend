@@ -2074,10 +2074,7 @@ test('history displays ready covers and refreshes pending covers from socket', a
       ]),
   );
   await expect(page.getByAltText('Превью: Saved creative work')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Открыть работу Saved creative work' })).toHaveAttribute(
-    'href',
-    '/image?conversation=101',
-  );
+  await expect(page.getByRole('button', { name: 'Открыть файл Saved creative work' })).toBeVisible();
 });
 
 test('socket reconnect restores the conversation room', async ({ page }) => {
@@ -2109,8 +2106,7 @@ test('history video cover opens video and a broken poster falls back', async ({ 
   state.conversations.push(conversation);
   await page.route('**/missing-history-poster.webp', (route) => route.fulfill({ status: 404 }));
   await page.goto('/history');
-  const cover = page.getByRole('link', { name: 'Открыть работу Saved creative work' });
-  await expect(cover).toHaveAttribute('href', '/video?conversation=101');
+  const cover = page.getByRole('button', { name: 'Открыть файл Saved creative work' });
   await expect(cover.getByText('Недоступно')).toBeVisible();
 });
 
@@ -3785,3 +3781,48 @@ for (const width of [390, 1440]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
+
+test('history cover opens the original file in place, even when it is on an older message page', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  const clip = { ...file, type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' };
+  const pages: number[] = [];
+  await page.route('**/api/conversation/101/message?**', (route) => {
+    const index = Number(new URL(route.request().url()).searchParams.get('pageIndex'));
+    pages.push(index);
+    return route.fulfill({
+      json: {
+        ...pagination(
+          index === 0
+            ? [{ id: 9, role: 'ASSISTANT', text: 'Уточнение', files: [] }]
+            : [{ id: 8, role: 'ASSISTANT', files: [clip] }],
+        ),
+        pages: 2,
+        pageIndex: index,
+      },
+    });
+  });
+  await page.goto('/history');
+  await page.getByRole('button', { name: 'Открыть файл Saved creative work' }).click();
+  await expect(page.getByRole('dialog').locator('video')).toHaveAttribute('src', /\/test-video\.mp4$/);
+  await expect(page).toHaveURL(/\/history$/);
+  expect(pages).toEqual([0, 1]);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
+  expect(state.edits).toHaveLength(0);
+});
+
+test('history cover with no generated file shows a message instead of navigating', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  await page.goto('/history');
+  await page.getByRole('button', { name: 'Открыть файл Saved creative work' }).click();
+  await expect(page.getByRole('dialog')).toContainText(
+    'В этой беседе пока нет готового изображения или видео.',
+  );
+  await expect(page).toHaveURL(/\/history$/);
+  expect(state.sends).toHaveLength(0);
+});

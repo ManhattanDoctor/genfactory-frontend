@@ -101,6 +101,8 @@ export interface IToolDescription {
   providers?: string[];
 }
 export interface IConversation {
+  previewFileId?: number;
+  previewMode?: 'AUTO' | 'MANUAL' | 'NONE';
   fileOutput?: IFileOutputSettings;
   preview?: IPreview;
   id: number;
