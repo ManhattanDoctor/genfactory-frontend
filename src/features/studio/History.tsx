@@ -1,3 +1,5 @@
+import { Heart, Pencil, Archive, ArchiveRestore } from 'lucide-react';
+import './history.css';
 import { ConversationCover } from './ConversationCover';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -65,17 +67,7 @@ export function History() {
         (filter !== 'favorite' || prefs.value.favorites.includes(c.id)),
     ) || [];
   return (
-    <div className="page-content page-enter work-history">
-      <div className="page-heading compact">
-        <div>
-          <span className="eyebrow">ПУТЬ ОТ ИДЕИ К РЕЗУЛЬТАТУ</span>
-          <h1>История работ</h1>
-          <p>
-            Ваши беседы сохраняются в gnosis и доступны с любого устройства. Откройте работу, чтобы
-            продолжить.
-          </p>
-        </div>
-      </div>
+    <div className="page-content work-history">
       {!auth.user ? (
         <div className="empty-state">
           <p>Войдите, чтобы открыть историю.</p>
@@ -85,24 +77,6 @@ export function History() {
         </div>
       ) : (
         <>
-          {list.isPending && <p>Загружаем беседы…</p>}
-          {list.error && (
-            <p className="error" role="alert">
-              Не удалось загрузить историю.{' '}
-              <button className="text-button" onClick={() => void list.refetch()}>
-                Обновить
-              </button>
-            </p>
-          )}
-          {list.data && !list.data.items.length && (
-            <div className="empty-state">
-              <h2>Каждая идея оставляет след</h2>
-              <p>Здесь появятся ваши рабочие беседы.</p>
-              <Link className="button primary" to="/image">
-                Создать изображение
-              </Link>
-            </div>
-          )}
           <div className="library-toolbar">
             <div className="chips">
               {[
@@ -114,6 +88,14 @@ export function History() {
                 <button
                   key={id}
                   className={`chip ${filter === id ? 'active' : ''}`}
+                  aria-pressed={filter === id}
+                  title={
+                    id === 'archive'
+                      ? 'Архив в этом браузере. Работы остаются сохранены.'
+                      : id === 'favorite'
+                        ? 'Избранное в этом браузере'
+                        : undefined
+                  }
                   onClick={() => {
                     setFilter(id);
                     setPagination({ userId: auth.user?.id, page: 0 });
@@ -130,10 +112,23 @@ export function History() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <p className="small muted">
-            Избранное и архив хранятся в этом браузере. Архив скрывает работу из общего списка и не удаляет её
-            на сервере.
-          </p>
+          {list.isPending && <p>Загружаем историю…</p>}
+          {list.error && (
+            <p className="error" role="alert">
+              Не удалось загрузить историю.{' '}
+              <button className="text-button" onClick={() => void list.refetch()}>
+                Обновить
+              </button>
+            </p>
+          )}
+          {list.data && !list.data.items.length && (
+            <div className="empty-state">
+              <h2>{filter === 'running' ? 'Нет работ в процессе' : 'Пока нет работ'}</h2>
+              <Link className="button primary" to="/image">
+                Создать изображение
+              </Link>
+            </div>
+          )}
           {(error || prefs.error) && (
             <p className="error" role="alert">
               {error || prefs.error}
@@ -177,41 +172,63 @@ export function History() {
                   ) : (
                     <h2>{c.name}</h2>
                   )}
-                  <span className="small muted">
-                    {c.status === 'LOADING'
-                      ? 'В работе'
-                      : c.status === 'ERROR'
-                        ? 'Нужно проверить результат'
-                        : 'Беседа сохранена'}
-                  </span>
+                  {c.status !== 'LOADED' && (
+                    <span className="history-status" data-status={c.status}>
+                      {c.status === 'LOADING' ? 'В работе' : 'Нужно проверить результат'}
+                    </span>
+                  )}
                 </header>
-                <p className="small muted">
-                  {new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU')}
-                </p>
-                <div className="workspace-actions">
-                  <button
-                    className="text-button"
-                    onClick={() => prefs.update((p) => ({ ...p, favorites: toggleItem(p.favorites, c.id) }))}
-                  >
-                    {prefs.value.favorites.includes(c.id) ? '★ В избранном' : '☆ В избранное'}
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={c.status === 'LOADING'}
-                    onClick={() => {
-                      setEditing(c.id);
-                      setName(c.name);
-                      setError('');
-                    }}
-                  >
-                    Переименовать
-                  </button>
-                  <button
-                    className="text-button"
-                    onClick={() => prefs.update((p) => ({ ...p, archive: toggleItem(p.archive, c.id) }))}
-                  >
-                    {prefs.value.archive.includes(c.id) ? 'Вернуть из архива' : 'В архив'}
-                  </button>
+                <div className="history-meta">
+                  <p className="small muted">
+                    {new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                  <div className="workspace-actions">
+                    <button
+                      className="history-icon-button"
+                      aria-label={prefs.value.favorites.includes(c.id) ? 'В избранном' : 'В избранное'}
+                      title={prefs.value.favorites.includes(c.id) ? 'Убрать из избранного' : 'В избранное'}
+                      aria-pressed={prefs.value.favorites.includes(c.id)}
+                      onClick={() =>
+                        prefs.update((p) => ({ ...p, favorites: toggleItem(p.favorites, c.id) }))
+                      }
+                    >
+                      <Heart
+                        size={16}
+                        fill={prefs.value.favorites.includes(c.id) ? 'currentColor' : 'none'}
+                      />
+                    </button>
+                    <button
+                      className="history-icon-button"
+                      aria-label="Переименовать"
+                      title="Переименовать"
+                      disabled={c.status === 'LOADING'}
+                      onClick={() => {
+                        setEditing(c.id);
+                        setName(c.name);
+                        setError('');
+                      }}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      className="history-icon-button"
+                      aria-label={prefs.value.archive.includes(c.id) ? 'Вернуть из архива' : 'В архив'}
+                      title={prefs.value.archive.includes(c.id) ? 'Вернуть из архива' : 'В архив'}
+                      onClick={() => prefs.update((p) => ({ ...p, archive: toggleItem(p.archive, c.id) }))}
+                    >
+                      {prefs.value.archive.includes(c.id) ? (
+                        <ArchiveRestore size={16} />
+                      ) : (
+                        <Archive size={16} />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <footer>
                   {c.options.tools?.some((t) =>
@@ -219,29 +236,34 @@ export function History() {
                   ) && (
                     <Link
                       className="button"
+                      aria-label="Открыть аудио"
                       to={`/audio?mode=${c.tags?.includes('stt') ? 'stt' : 'tts'}&conversation=${c.id}`}
                     >
-                      Открыть аудио
+                      Аудио
                     </Link>
                   )}
                   {!connection(c, 'image') && !connection(c, 'video') && (
-                    <Link className="button" to={`/chat?conversation=${c.id}`}>
-                      Открыть беседу
+                    <Link className="button" aria-label="Открыть беседу" to={`/chat?conversation=${c.id}`}>
+                      Беседа
                     </Link>
                   )}
                   {(connection(c, 'image') || connection(c, 'video')) && (
-                    <Link className="button" to={`/chat?conversation=${c.id}`}>
-                      Обсудить работу
+                    <Link className="button" aria-label="Обсудить работу" to={`/chat?conversation=${c.id}`}>
+                      Беседа
                     </Link>
                   )}
                   {connection(c, 'image') && (
-                    <Link className="button" to={`/image?conversation=${c.id}`}>
-                      Открыть изображения
+                    <Link
+                      className="button"
+                      aria-label="Открыть изображения"
+                      to={`/image?conversation=${c.id}`}
+                    >
+                      Изображения
                     </Link>
                   )}
                   {connection(c, 'video') && (
-                    <Link className="button" to={`/video?conversation=${c.id}`}>
-                      Открыть видео
+                    <Link className="button" aria-label="Открыть видео" to={`/video?conversation=${c.id}`}>
+                      Видео
                     </Link>
                   )}
                 </footer>

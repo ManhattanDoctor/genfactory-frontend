@@ -1027,7 +1027,7 @@ test('empty pages and unknown routes give a usable next action', async ({ page }
     .click();
   await expect(page).toHaveURL(/\/image(?:\?studio=advanced)?$/);
   await navigateLegacyRoute(page, '/history');
-  await expect(page.getByRole('heading', { name: 'Каждая идея оставляет след' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Пока нет работ' })).toBeVisible();
   await page.goto('/does-not-exist');
   await page.getByRole('link', { name: 'Вернуться в студию' }).click();
   await expect(page).toHaveURL('http://127.0.0.1:5173/');
@@ -1210,7 +1210,7 @@ test('workspace history supports rename favorites local archive and a running fi
   await page.getByRole('button', { name: 'Сохранить название' }).click();
   await expect(page.getByRole('heading', { name: 'Новая кампания' })).toBeVisible();
   expect(state.edits[0].files).toEqual([12]);
-  await page.getByRole('button', { name: '☆ В избранное', exact: true }).click();
+  await page.getByRole('button', { name: 'В избранное', exact: true }).click();
   await page.getByRole('button', { name: 'Избранное', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Новая кампания' })).toBeVisible();
   await page.getByRole('button', { name: 'В архив', exact: true }).click();
@@ -1884,7 +1884,8 @@ test('history cards keep readable spacing and fit mobile during rename', async (
     await page.goto('/history');
     const card = page.locator('.history-card');
     await expect(card).toBeVisible();
-    expect(await card.evaluate((el) => getComputedStyle(el).rowGap)).toBe('16px');
+    await expect(page.getByRole('heading', { name: 'История', exact: true })).toHaveCount(0);
+    await expect(page.getByText(/ПУТЬ ОТ ИДЕИ|Ваши беседы сохраняются|Беседа сохранена/)).toHaveCount(0);
     await card.getByRole('button', { name: 'Переименовать' }).click();
     await expect(card.getByLabel('Новое название')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -3752,3 +3753,35 @@ test('content studio does not offer clarification or refusal as a script', async
   await expect(page.getByText(/Не найден готовый сценарий/)).toBeVisible();
   expect(state.sends).toHaveLength(1);
 });
+
+for (const width of [390, 1440]) {
+  test(`history filters stay in place while loading and empty at ${width}`, async ({ page }) => {
+    const state = await mockApi(page);
+    state.conversations.push(savedConversation());
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/conversation?**', async (route) => {
+      const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions') || '{}');
+      if (conditions.status !== 'LOADING') return route.fallback();
+      await pending;
+      await route.fulfill({ json: pagination([]) });
+    });
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/history');
+    await expect(page.locator('.history-card')).toHaveCount(1);
+    const toolbar = page.locator('.library-toolbar');
+    const before = await toolbar.boundingBox();
+    await page.getByRole('button', { name: 'В работе', exact: true }).click();
+    await expect(page.getByText('Загружаем историю…')).toBeVisible();
+    expect(await toolbar.boundingBox()).toEqual(before);
+    release();
+    await expect(page.getByRole('heading', { name: 'Нет работ в процессе' })).toBeVisible();
+    expect(await toolbar.boundingBox()).toEqual(before);
+    await page.getByRole('button', { name: 'Избранное', exact: true }).click();
+    await expect(page.getByText('На этой странице нет подходящих работ.')).toBeVisible();
+    expect(await toolbar.boundingBox()).toEqual(before);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
