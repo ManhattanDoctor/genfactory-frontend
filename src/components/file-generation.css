@@ -1,51 +1,199 @@
 .file-generation-summary {
   overflow-wrap: anywhere;
   font-size: 12px;
-  color: #b5b5bd;
+  color: #9a9aa0;
 }
 .file-generation {
   margin-top: 16px;
-  padding: 14px;
-  border: 1px solid #35363c;
-  border-radius: 12px;
+  padding: 0;
+  border: 1px solid #2c2c31;
+  border-radius: 16px;
+  min-width: 0;
+  background: #1a1b1e;
+  color: #f4f4f5;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.file-generation > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.file-generation > summary::-webkit-details-marker {
+  display: none;
+}
+.file-generation > summary svg {
+  flex: none;
+  color: #9a9aa0;
+  transition: transform 160ms ease;
+}
+.file-generation[open] > summary svg {
+  transform: rotate(180deg);
+}
+.file-generation-content {
+  padding: 0 16px 16px;
   min-width: 0;
 }
-.file-generation summary {
-  cursor: pointer;
-  font-weight: 600;
+.file-generation .file-generation-hint {
+  margin: 0 0 16px;
+  color: #9a9aa0;
+  font-size: 12px;
+  line-height: 1.5;
 }
-.file-generation dl {
+.file-generation-model {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: 8px 16px;
+  gap: 4px;
+  margin-bottom: 16px;
 }
-.file-generation-row {
-  display: contents;
+.file-generation-label {
+  color: #9a9aa0;
+  font-size: 12px;
+}
+.file-generation-model strong {
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.file-generation-identifier {
+  color: #9a9aa0;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.file-generation .file-generation-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0 0 20px;
+}
+.file-generation .file-generation-row {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #121314;
+}
+.file-generation dt {
+  color: #9a9aa0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .file-generation dd {
   margin: 0;
+  color: #f4f4f5;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
-.file-generation dt {
-  color: #b5b5bd;
+.file-generation h3 {
+  margin: 0;
+  color: #f4f4f5;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
 }
-.file-generation-prompt {
+.file-generation-prompt-head {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.file-generation-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #2a2b30;
+  color: #f4f4f5;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.file-generation-copy:hover {
+  background: #34353b;
+}
+.file-generation .file-generation-prompt {
+  max-height: 220px;
+  margin: 0 0 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #121314;
+  color: #c8c8ce;
+  font-size: 13px;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  overflow-y: auto;
+}
+.file-generation .file-generation-notice {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #c8c8ce;
+}
+.file-generation ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
 }
 .file-generation li {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.file-generation li a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #2a2b30;
+  color: #f4f4f5;
+  text-decoration: none;
+}
+.file-generation li a > svg {
+  flex: none;
+  color: #9a9aa0;
+}
+.file-generation li a > span {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
-.file-generation dt {
-  overflow-wrap: anywhere;
-  min-width: 0;
+.file-generation li a:hover {
+  background: #34353b;
+}
+.file-generation :is(summary, button, a):focus-visible {
+  outline: 2px solid #d1fe17;
+  outline-offset: 2px;
 }
 @media (max-width: 540px) {
-  .file-generation dl {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
+  .file-generation > summary {
+    padding: 12px;
   }
-  .file-generation dd {
-    margin-bottom: 10px;
+  .file-generation-content {
+    padding: 0 12px 12px;
+  }
+  .file-generation .file-generation-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .file-generation > summary svg {
+    transition: none;
   }
 }

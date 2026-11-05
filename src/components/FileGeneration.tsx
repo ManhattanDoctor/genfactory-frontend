@@ -1,3 +1,4 @@
+import { ChevronDown, Copy, FileImage, ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -32,15 +33,19 @@ function SourceFile({ id, mask }: { id: number; mask: boolean }) {
     enabled: !!user,
     retry: false,
   });
-  const url = source.data && safeMediaUrl(source.data.path);
+  const url = source.data?.userId === user?.id && safeMediaUrl(source.data?.path);
   return (
     <li>
-      {mask ? 'Маска: ' : ''}
       {source.isPending ? (
         'Загрузка исходника…'
       ) : url ? (
         <a href={url} target="_blank" rel="noopener noreferrer">
-          {source.data!.name}
+          <FileImage size={16} aria-hidden="true" />
+          <span>
+            {mask && <small>Маска · </small>}
+            {source.data!.name}
+          </span>
+          <ArrowUpRight size={14} aria-hidden="true" />
         </a>
       ) : (
         `Исходник №${id} недоступен`
@@ -71,58 +76,70 @@ export function GenerationDetails({ file }: { file: IGnosisFile }) {
   ];
   return (
     <details className="file-generation" onToggle={(event) => setExpanded(event.currentTarget.open)}>
-      <summary>Параметры генерации</summary>
-      <p className="muted small">
-        Сохранённые параметры запроса. Фактические свойства результата могут отличаться.
-      </p>
-      <dl>
-        <dt>Модель</dt>
-        <dd>{modelTitle({ reference: generation.model, name: generation.model.model })}</dd>
-        <dt>Идентификатор</dt>
-        <dd>
-          {generation.model.provider} / {generation.model.model}
-        </dd>
-        {Object.entries(generation.options).map(([key, value]) => (
-          <div className="file-generation-row" key={key}>
-            <dt>{labels[key] || key}</dt>
-            <dd>
-              {typeof value === 'boolean'
-                ? value
-                  ? 'Да'
-                  : 'Нет'
-                : typeof value === 'object'
-                  ? JSON.stringify(value)
-                  : String(value)}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <h3>Промпт</h3>
-      <p className="file-generation-prompt">{generation.prompt}</p>
-      <button
-        type="button"
-        className="button"
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(generation.prompt);
-            setNotice('Промпт скопирован');
-          } catch {
-            setNotice('Не удалось скопировать. Выделите текст промпта вручную.');
-          }
-        }}
-      >
-        Копировать промпт
-      </button>
-      {notice && <p role="status">{notice}</p>}
-      {!!sources.length && (
-        <>
-          <h3>Исходные файлы</h3>
-          <ol>
-            {expanded &&
-              sources.map((id) => <SourceFile key={id} id={id} mask={id === generation.maskFileId} />)}
-          </ol>
-        </>
-      )}
+      <summary>
+        <span>Параметры генерации</span>
+        <ChevronDown size={16} aria-hidden="true" />
+      </summary>
+      <div className="file-generation-content">
+        <p className="file-generation-hint">Параметры запроса. Фактический результат может отличаться.</p>
+        <div className="file-generation-model">
+          <span className="file-generation-label">Модель</span>
+          <strong>{modelTitle({ reference: generation.model, name: generation.model.model })}</strong>
+          <span className="file-generation-identifier">
+            {generation.model.provider} / {generation.model.model}
+          </span>
+        </div>
+        <dl className="file-generation-options">
+          {Object.entries(generation.options).map(([key, value]) => (
+            <div className="file-generation-row" key={key}>
+              <dt>{labels[key] || key}</dt>
+              <dd>
+                {typeof value === 'boolean'
+                  ? value
+                    ? 'Да'
+                    : 'Нет'
+                  : typeof value === 'object'
+                    ? JSON.stringify(value)
+                    : String(value)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <div className="file-generation-prompt-head">
+          <h3>Промпт</h3>
+          <button
+            type="button"
+            className="file-generation-copy"
+            aria-label="Копировать промпт"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(generation.prompt);
+                setNotice('Промпт скопирован');
+              } catch {
+                setNotice('Не удалось скопировать. Выделите текст промпта вручную.');
+              }
+            }}
+          >
+            <Copy size={14} aria-hidden="true" />
+            Копировать
+          </button>
+        </div>
+        <p className="file-generation-prompt">{generation.prompt}</p>
+        {notice && (
+          <p className="file-generation-notice" role="status">
+            {notice}
+          </p>
+        )}
+        {!!sources.length && (
+          <>
+            <h3>Исходные файлы</h3>
+            <ol>
+              {expanded &&
+                sources.map((id) => <SourceFile key={id} id={id} mask={id === generation.maskFileId} />)}
+            </ol>
+          </>
+        )}
+      </div>
     </details>
   );
 }
