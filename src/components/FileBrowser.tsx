@@ -1,11 +1,12 @@
+import './file-browser.css';
 import { GenerationSummary } from './FileGeneration';
 import { UploadButtonContent } from './UploadButtonContent';
 import type { IUploadProgress } from '../lib/api';
 import { FileTagFilter } from './FileTagFilter';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Folder, Link as LinkIcon, Upload, MoreHorizontal } from 'lucide-react';
-import { api } from '../lib/api';
+import { Folder, Link as LinkIcon, Upload, MoreHorizontal, ArrowLeft, CircleAlert } from 'lucide-react';
+import { api, getSession } from '../lib/api';
 import { directoryPath, folderTrail, mediaType, resolveFile } from '../lib/files';
 import type { IGnosisFile } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -73,6 +74,49 @@ export function FileBrowser({
   const [destination, setDestination] = useState<string | null>(null);
   const upload = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
+  const [uploadBatch, setUploadBatch] = useState<{ index: number; total: number }>();
+  const uploadLock = useRef(false);
+  async function uploadFiles(selectedFiles: File[]) {
+    const sid = getSession();
+    if (!selectedFiles.length || !sid || busy || uploadLock.current) return;
+    uploadLock.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    let completed = 0;
+    const failures: string[] = [];
+    try {
+      for (const [index, file] of selectedFiles.entries()) {
+        if (!alive.current || getSession() !== sid) break;
+        setUploadBatch({ index: index + 1, total: selectedFiles.length });
+        setUploadProgress(undefined);
+        try {
+          await api.upload(file, sid, { directory }, (progress) => {
+            if (alive.current && getSession() === sid) setUploadProgress(progress);
+          });
+          completed++;
+        } catch (e) {
+          failures.push(`${file.name}: ${e instanceof Error ? e.message : 'Не удалось загрузить'}`);
+        }
+      }
+      if (alive.current && getSession() === sid) {
+        await refresh();
+        setNotice(
+          selectedFiles.length === 1 && completed === 1
+            ? 'Файл загружен'
+            : `Загружено: ${completed} из ${selectedFiles.length}`,
+        );
+        if (failures.length) setError(`Не загружены: ${failures.join('; ')}`);
+      }
+    } finally {
+      uploadLock.current = false;
+      if (alive.current && getSession() === sid) {
+        setBusy(false);
+        setUploadProgress(undefined);
+        setUploadBatch(undefined);
+      }
+    }
+  }
   const files = useQuery({
     queryKey: [
       'files',
@@ -160,7 +204,18 @@ export function FileBrowser({
   return (
     <section className="file-browser" aria-label={foldersOnly ? 'Выбор папки' : 'Файлы'}>
       <nav className="file-breadcrumbs" aria-label="Путь к папке">
-        <button type="button" className="text-button" onClick={() => navigate([])}>
+        {!!trail.length && (
+          <button
+            type="button"
+            className="icon-button file-back"
+            aria-label="Назад в родительскую папку"
+            disabled={busy}
+            onClick={() => navigate(trail.slice(0, -1))}
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
+        <button type="button" className="text-button" disabled={busy} onClick={() => navigate([])}>
           Все файлы
         </button>
         {!query &&
@@ -172,6 +227,7 @@ export function FileBrowser({
               <button
                 type="button"
                 className="text-button"
+                disabled={busy}
                 onClick={() => navigate(trail.slice(0, index + 1))}
               >
                 {folder.name}
@@ -205,31 +261,28 @@ export function FileBrowser({
             type="button"
             className="button"
             disabled={busy || !!query || !!selectedTags.length}
-            aria-busy={!!uploadProgress}
+            aria-busy={!!uploadBatch}
             onClick={() => upload.current?.click()}
           >
-            <UploadButtonContent busy={!!uploadProgress} progress={uploadProgress}>
+            <UploadButtonContent busy={!!uploadBatch} progress={uploadProgress}>
               <Upload size={16} />
               Загрузить файл
             </UploadButtonContent>
+            {uploadBatch && uploadBatch.total > 1 && (
+              <span className="file-upload-count">
+                {uploadBatch.index}/{uploadBatch.total}
+              </span>
+            )}
           </button>
           <input
             hidden
             ref={upload}
             type="file"
+            multiple
             onChange={(e) => {
-              const file = e.target.files?.[0];
+              const selectedFiles = Array.from(e.target.files || []);
               e.target.value = '';
-              if (file)
-                void run(async () => {
-                  try {
-                    await api.upload(file, undefined, { directory }, (progress) => {
-                      if (alive.current) setUploadProgress(progress);
-                    });
-                  } finally {
-                    if (alive.current) setUploadProgress(undefined);
-                  }
-                }, 'Файл загружен');
+              void uploadFiles(selectedFiles);
             }}
           />
         </div>
@@ -286,7 +339,7 @@ export function FileBrowser({
           const incompatible = !folder && !!acceptedTypes && !acceptedTypes.includes(mediaType(file));
           const already = selected.includes(file.linkTo ?? file.id);
           return (
-            <article className="file-entry" key={file.id}>
+            <article className={`file-entry${incompatible ? ' is-incompatible' : ''}`} key={file.id}>
               <button
                 type="button"
                 className="library-card"
@@ -317,7 +370,12 @@ export function FileBrowser({
                   </span>
                   <GenerationSummary file={file} />
                   {already && <span>Уже добавлен</span>}
-                  {incompatible && <span>Не подходит для этой задачи</span>}
+                  {incompatible && (
+                    <span className="file-incompatible">
+                      <CircleAlert size={16} aria-hidden="true" />
+                      Не подходит для этой задачи
+                    </span>
+                  )}
                 </div>
               </button>
               {!foldersOnly && !!file.tags?.length && (
@@ -404,7 +462,9 @@ export function FileBrowser({
         <p className="empty-state">
           {query || selectedTags.length
             ? 'По вашему запросу ничего не найдено.'
-            : 'В этой папке пока нет файлов.'}
+            : foldersOnly
+              ? 'Нет вложенных папок. Можно выбрать текущую.'
+              : 'В этой папке пока нет файлов.'}
         </p>
       )}
       {files.data && files.data.pages > 1 && (

@@ -65,15 +65,16 @@ async function setup(page: Page, guest = false) {
     } else if (p === '/api/conversation') body = pagination(state.conversation ? [state.conversation] : []);
     else if (p === '/api/conversation/101/message' && request.method() === 'POST') {
       state.sends.push(request.postDataJSON());
+      const nextMessageId = Math.max(0, ...state.messages.map((message) => message.id)) + 1;
       body = {
         ...request.postDataJSON(),
-        id: state.sends.length * 2 - 1,
+        id: nextMessageId,
         files: [],
         createdDate: file.createdDate,
       };
       state.messages = [
         {
-          id: state.sends.length * 2,
+          id: nextMessageId + 1,
           role: 'ASSISTANT',
           text: 'Готово',
           files: [file],
@@ -616,7 +617,7 @@ test('a completed image clears the earlier clarification from the workspace', as
   };
   state.messages = [question, ...state.messages];
   await page.reload();
-  await expect(page.locator('.image-conversation-note')).toHaveText(question.text);
+  await expect(page.locator('.media-answer-card')).toContainText(question.text);
   await page.locator('#img-draft').fill('Синяя чашка');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(2);
@@ -624,5 +625,5 @@ test('a completed image clears the earlier clarification from the workspace', as
   state.messages.push(question);
   await page.reload();
   await expect(page.locator('.image-result')).toHaveCount(1);
-  await expect(page.locator('.image-conversation-note')).toHaveCount(0);
+  await expect(page.locator('.media-answer-card')).toHaveCount(0);
 });

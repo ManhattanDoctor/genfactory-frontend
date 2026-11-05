@@ -3826,3 +3826,440 @@ test('history cover with no generated file shows a message instead of navigating
   await expect(page).toHaveURL(/\/history$/);
   expect(state.sends).toHaveLength(0);
 });
+
+test('library batch upload keeps destination, continues after failure and navigates back', async ({
+  page,
+}) => {
+  await mockApi(page);
+  const folder = { ...file, id: 80, uid: 'folder-80', name: 'ДТП', type: 'DIRECTORY' };
+  await page.route('**/api/file?*', (route) => {
+    const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!);
+    return route.fulfill({ json: pagination(typeof conditions.directory === 'string' ? [] : [folder]) });
+  });
+  const requests: string[] = [];
+  await page.route('**/api/file', async (route) => {
+    requests.push(route.request().postDataBuffer()!.toString());
+    await route.fulfill(
+      requests.length === 2
+        ? { status: 400, json: { message: 'Файл повреждён' } }
+        : { json: { ...file, id: 100 + requests.length } },
+    );
+  });
+  await page.goto('/library');
+  await page.getByRole('button', { name: 'ДТП Папка', exact: true }).click();
+  await page.locator('input[type=file]').setInputFiles([
+    { name: 'one.png', mimeType: 'image/png', buffer: Buffer.from('image') },
+    { name: 'broken.pdf', mimeType: 'application/pdf', buffer: Buffer.from('pdf') },
+    { name: 'three.mp4', mimeType: 'video/mp4', buffer: Buffer.from('video') },
+  ]);
+  await expect(page.getByRole('status')).toHaveText('Загружено: 2 из 3');
+  await expect(page.getByRole('alert')).toContainText('broken.pdf');
+  expect(requests).toHaveLength(3);
+  for (const request of requests) expect(request).toContain('folder-80');
+  await page.getByRole('button', { name: 'Назад в родительскую папку' }).click();
+  await expect(page.getByRole('button', { name: 'ДТП Папка', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Назад в родительскую папку' })).toHaveCount(0);
+});
+
+test('library incompatible document is visibly marked and cannot be attached', async ({ page }) => {
+  await mockApi(page);
+  await page.route('**/api/file?*', (route) =>
+    route.fulfill({
+      json: pagination([
+        file,
+        { ...file, id: 81, name: 'Document.pdf', type: 'DOCUMENT', mime: 'application/pdf' },
+      ]),
+    }),
+  );
+  await page.goto('/image');
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  const card = page.locator('.file-entry').filter({ hasText: 'Document.pdf' });
+  await expect(card).toHaveClass(/is-incompatible/);
+  await expect(card.locator('.library-card')).toBeDisabled();
+  await expect(card.getByText('Не подходит для этой задачи')).toBeVisible();
+  await expect(card.locator('.file-incompatible')).toHaveCSS('color', 'rgb(255, 208, 138)');
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(card.getByText('Не подходит для этой задачи')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `/tmp/library-incompatible-${width}.png` });
+  }
+});
+
+test('library move picker describes empty subfolders and still moves into a folder containing images', async ({
+  page,
+}) => {
+  await mockApi(page);
+  const folder = { ...file, id: 80, uid: 'folder-80', name: 'ДТП', type: 'DIRECTORY' };
+  const writes: unknown[] = [];
+  await page.route('**/api/file?*', (route) => {
+    const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!);
+    const items = typeof conditions.directory === 'string' ? [] : conditions.type ? [folder] : [folder, file];
+    return route.fulfill({ json: pagination(items) });
+  });
+  await page.route('**/api/file/12', (route) => {
+    if (route.request().method() === 'PUT') writes.push(route.request().postDataJSON());
+    return route.fulfill({ json: file });
+  });
+  await page.goto('/library');
+  await page.locator('.file-entry').filter({ hasText: 'Test result' }).locator('summary').click();
+  await page.getByRole('button', { name: 'Переместить', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'ДТП Папка', exact: true }).click();
+  await expect(dialog.getByText('Нет вложенных папок. Можно выбрать текущую.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Переместить сюда', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(writes).toEqual([{ directory: 'folder-80' }]);
+});
+
+test('prompt result dialog contains long blocked responses on desktop and mobile', async ({ page }) => {
+  const state = await mockApi(page);
+  const conversation = {
+    ...savedConversation(93),
+    tags: ['genfactory', 'prompt'],
+    options: { model: agent.reference.model, tools: [] },
+  };
+  state.conversations.push(conversation);
+  const source = { ...file, name: 'photo_2026-11-05_17-02-29_1793890509948.jpg' };
+  state.messages.set(93, [
+    {
+      id: 303,
+      role: 'USER',
+      text:
+        '[Genfactory:prompt-input] ' +
+        JSON.stringify({
+          task: 'video',
+          target: 'universal',
+          language: 'English',
+          aspects: ['Общая идея'],
+          note: 'Запрос видеопромпта',
+        }),
+      files: [source],
+      createdDate: file.createdDate,
+    },
+    {
+      id: 304,
+      role: 'ASSISTANT',
+      text: JSON.stringify({
+        status: 'blocked',
+        title: 'Не удалось подготовить промпт по этому запросу',
+        prompt: null,
+        observations: Array.from({ length: 5 }, () => ({
+          fileId: file.id,
+          text: 'На изображении виден персонаж в пиратской шляпе, расположенный по центру кадра в домашней обстановке.',
+        })),
+        clarifications: [],
+        limitations: Array.from(
+          { length: 3 },
+          () =>
+            'Модель не подготовила промпт по текущему запросу. Измените описание сцены и отправьте новый запрос, сохранив необходимые детали исходного изображения.',
+        ),
+      }),
+      files: [],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/prompt?conversation=93');
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.locator('.prompt-card').first().hover();
+    await page.getByRole('button', { name: 'Открыть промпт', exact: true }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toHaveClass(/prompt-result-modal/);
+    await expect(dialog).toBeVisible();
+    const geometry = await dialog.evaluate((d) => {
+      const view = d.querySelector('.prompt-view')!;
+      const rect = d.getBoundingClientRect();
+      const close = d.querySelector('[aria-label="Закрыть"]')!.getBoundingClientRect();
+      return {
+        fits: rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight,
+        overflow: d.scrollWidth > d.clientWidth || view.scrollWidth > view.clientWidth,
+        closeVisible: close.top >= 0 && close.bottom <= innerHeight,
+        background: getComputedStyle(d).backgroundColor,
+      };
+    });
+    expect(geometry.fits).toBe(true);
+    expect(geometry.overflow).toBe(false);
+    expect(geometry.closeVisible).toBe(true);
+    expect(geometry.background).not.toBe('rgba(0, 0, 0, 0)');
+    await page.screenshot({ path: `/tmp/prompt-panel-mock-${width}.png` });
+    if (width === 390) {
+      const scrollTop = await dialog.locator('.prompt-view').evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+        return element.scrollTop;
+      });
+      expect(scrollTop).toBeGreaterThan(0);
+      await expect(dialog.getByRole('button', { name: 'Закрыть', exact: true })).toBeInViewport();
+    }
+    await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+  }
+  expect(state.sends).toHaveLength(0);
+});
+
+test('image submission clears its reference after a response but keeps it on uncertain transport failure', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/image');
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Test result/ })
+    .click();
+  await submit(page, 'Preserve the reference cup');
+  await expectCompleted(page);
+  expect(state.sends[0].files).toEqual([12]);
+  await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Test result/ })
+    .click();
+  state.abortAfterAccept = true;
+  await submit(page, 'Try another angle');
+  await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
+  await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeVisible();
+  expect(state.sends).toHaveLength(2);
+});
+
+test('prompt cards keep their geometry with multiple long responses and a portrait reference', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push({
+    ...savedConversation(93),
+    tags: ['genfactory', 'prompt'],
+    options: { model: agent.reference.model, tools: [] },
+  });
+  const source = { ...file, path: '/portrait-test.svg' };
+  await page.route('**/portrait-test.svg', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="1200"><rect width="300" height="1200" fill="steelblue"/></svg>',
+    }),
+  );
+  state.messages.set(
+    93,
+    Array.from({ length: 8 }, (_, index) => [
+      {
+        id: 400 + index * 2,
+        role: 'USER',
+        text:
+          '[Genfactory:prompt-input] ' +
+          JSON.stringify({
+            task: 'video',
+            target: 'universal',
+            language: 'English',
+            aspects: ['Общая идея'],
+            note: 'Идея',
+          }),
+        files: [source],
+        createdDate: file.createdDate,
+      },
+      {
+        id: 401 + index * 2,
+        role: 'ASSISTANT',
+        text: JSON.stringify({
+          status: 'blocked',
+          title: 'Длинное название ответа модели для видеопромпта',
+          prompt: null,
+          observations: [],
+          clarifications: [],
+          limitations: ['Длинный ответ модели. '.repeat(25)],
+        }),
+        files: [],
+        createdDate: file.createdDate,
+      },
+    ]).flat() as IConversationMessage[],
+  );
+  await page.goto('/prompt?conversation=93');
+  await expect(page.locator('.prompt-card')).toHaveCount(8);
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.screenshot({ path: `/tmp/prompt-cards-${width}.png` });
+    const geometry = await page
+      .locator('.prompt-card-shot')
+      .first()
+      .evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const image = el.querySelector('img')!.getBoundingClientRect();
+        return { ratio: r.width / r.height, imageHeight: image.height, height: r.height };
+      });
+    const cards = await page.locator('.prompt-card').evaluateAll((elements) =>
+      elements.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom, left: r.left };
+      }),
+    );
+    for (let i = 1; i < cards.length; i++) {
+      const previous = cards
+        .slice(0, i)
+        .filter((c) => Math.abs(c.left - cards[i].left) < 1)
+        .at(-1);
+      if (previous) expect(cards[i].top - previous.bottom).toBeGreaterThanOrEqual(11);
+    }
+    expect(geometry.ratio).toBeCloseTo(16 / 9, 1);
+    expect(geometry.imageHeight).toBeLessThanOrEqual(geometry.height + 1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+});
+
+test('running generation restores elapsed time after reload and clears its previous completion notice', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  const conversation: IConversation = { ...savedConversation(101), status: 'LOADING' };
+  state.conversations.push(conversation);
+  state.messages.set(101, [
+    { id: 20, role: 'USER', text: 'Generate a cup', createdDate: new Date(Date.now() - 65000).toISOString() },
+  ]);
+  await page.goto('/image?conversation=101');
+  await expect(page.locator('.generation-elapsed')).toBeVisible();
+  expect(parseInt(await page.locator('.generation-elapsed').innerText())).toBeGreaterThanOrEqual(65);
+  await page.reload();
+  await expect(page.locator('.generation-elapsed')).toBeVisible();
+  expect(parseInt(await page.locator('.generation-elapsed').innerText())).toBeGreaterThanOrEqual(65);
+  await expect.poll(() => !!state.socket).toBeTruthy();
+  const refresh = () =>
+    state.socket!.send(
+      '42/gnosisai,' +
+        JSON.stringify([
+          'transportSocketEvent',
+          { uid: crypto.randomUUID(), name: 'ConversationChangedEvent', data: { id: 101 } },
+        ]),
+    );
+  conversation.status = 'LOADED';
+  refresh();
+  await expect(page.locator('.job-notice')).toContainText('Работа завершена');
+  conversation.status = 'LOADING';
+  refresh();
+  await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
+  await expect(page.locator('.job-notice')).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('library model label uses exact saved model from catalog', async ({ page }) => {
+  await mockApi(page);
+  const model = catalog[0];
+  await page.route('**/api/file?*', (route) =>
+    route.fulfill({
+      json: pagination([
+        {
+          ...file,
+          origin: { kind: 'GENERATION', generation: { model: model.reference, prompt: 'cup', options: {} } },
+        },
+      ]),
+    }),
+  );
+  await page.goto('/library');
+  await expect(page.locator('.file-generation-summary')).toHaveText(modelTitle(model));
+});
+
+test('active work finishes on another page even when its final socket event is lost', async ({ page }) => {
+  const state = await mockApi(page);
+  const conversation: IConversation = { ...savedConversation(101), status: 'LOADING' };
+  state.conversations.push(conversation);
+  await page.goto('/library');
+  await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
+  await page.clock.install();
+  conversation.status = 'LOADED';
+  await page.clock.runFor(5100);
+  await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible();
+  await expect(page.locator('.job-notice')).toContainText('Работа завершена');
+  expect(state.sends).toHaveLength(0);
+});
+
+for (const kind of ['image', 'video'] as const) {
+  test(`${kind} shows a response without a file as a neutral card and opens the full answer`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    const conversation = savedConversation(95);
+    conversation.tags = ['genfactory', kind];
+    state.conversations.push(conversation);
+    const answer =
+      kind === 'video'
+        ? 'Не удалось получить ролик: генератор завершил задачу без выходного файла, вероятно из-за фильтра контента. Повторно запускать генерацию без вашего указания не буду.'
+        : 'Уточните, какой предмет должен быть на изображении.';
+    state.messages.set(95, [
+      {
+        id: 316,
+        role: 'ASSISTANT',
+        text: answer + '\n' + 'Подробности ответа. '.repeat(100),
+        files: [],
+        createdDate: file.createdDate,
+      },
+    ]);
+    await page.goto(`/${kind}?conversation=95`);
+    const card = page.locator('.media-answer-card');
+    await expect(card).toContainText(answer);
+    await expect(card).toContainText('Ответ по запросу');
+    await expect(page.locator('.video-result-failed')).toHaveCount(0);
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await card.getByRole('button', { name: 'Открыть ответ по запросу' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Ответ по запросу' });
+      await expect(dialog).toContainText(answer);
+      expect(await dialog.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(
+        'rgba(0, 0, 0, 0)',
+      );
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `/tmp/${kind}-answer-${width}.png` });
+      await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+    }
+    expect(state.sends).toHaveLength(0);
+    expect(state.creates).toHaveLength(0);
+  });
+}
+
+test('video with an output file does not also display a no-result answer card', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation(95));
+  state.messages.set(95, [
+    {
+      id: 316,
+      role: 'ASSISTANT',
+      text: 'Ролик готов',
+      files: [{ ...file, type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' }],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/video?conversation=95');
+  await expect(page.locator('.video-result')).toHaveCount(1);
+  await expect(page.locator('.media-answer-card')).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('reloaded image page reveals completed output without a final socket event or another send', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  const conversation: IConversation = { ...savedConversation(101), status: 'LOADING' };
+  state.conversations.push(conversation);
+  state.messages.set(101, [
+    { id: 20, role: 'USER', text: 'Generate a cup', createdDate: new Date().toISOString() },
+  ]);
+  await page.goto('/image?conversation=101');
+  await expect(page.locator('.image-result-pending')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.image-result-pending')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
+  await page.clock.install();
+  conversation.status = 'LOADED';
+  state.messages.get(101)!.push({
+    id: 21,
+    role: 'ASSISTANT',
+    text: 'Готово',
+    files: [file],
+    createdDate: new Date().toISOString(),
+  });
+  await page.clock.runFor(5100);
+  await expect(page.locator('.image-result-pending')).toHaveCount(0);
+  await expect(page.locator('.image-result')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Добавить изображение', exact: true })).toBeEnabled();
+  expect(state.sends).toHaveLength(0);
+});

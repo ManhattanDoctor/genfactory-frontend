@@ -2,7 +2,7 @@ import { conversationUrl as workUrl } from '../lib/conversationUrl';
 import './active-jobs.css';
 import { History, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../lib/api';
 import type { IConversation } from '../lib/types';
@@ -15,6 +15,7 @@ export function ActiveJobs() {
   ) : null;
 }
 function Jobs({ userId, sid }: { userId: number; sid: string }) {
+  const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [notices, setNotices] = useState<IConversation[]>([]);
   const tracked = useRef(new Map<number, IConversation>());
@@ -22,6 +23,12 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
     queryKey: ['active-jobs', userId],
     queryFn: ({ signal }) => api.conversations(userId, 0, signal, 'LOADING'),
     retry: 1,
+    // Reconcile running jobs even if the final socket event was missed on another page.
+    // Completed/idle sessions do not poll.
+    refetchInterval: (query) =>
+      query.state.data?.items.some((item) => item.status === 'LOADING') || tracked.current.size
+        ? 5000
+        : false,
   });
   useEffect(() => {
     const handler = () => void query.refetch();
@@ -33,6 +40,8 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
     let cancelled = false;
     const running = query.data.items.filter((c) => c.userId === userId && c.status === 'LOADING');
     for (const c of running) tracked.current.set(c.id, c);
+    if (running.length)
+      setNotices((previous) => previous.filter((c) => !running.some((job) => job.id === c.id)));
     const absent = [...tracked.current.keys()].filter((id) => !running.some((c) => c.id === id));
     void Promise.allSettled(absent.map((id) => api.conversation(id, undefined, sid))).then((results) => {
       if (cancelled || getSession() !== sid) return;
@@ -41,7 +50,15 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
           ? [r.value]
           : [],
       );
-      for (const c of finished) tracked.current.delete(c.id);
+      for (const c of finished) {
+        tracked.current.delete(c.id);
+        client.setQueryData(['conversation', userId, c.id], c);
+        void client.invalidateQueries({ queryKey: ['messages', userId, c.id] });
+      }
+      if (finished.length) {
+        void client.invalidateQueries({ queryKey: ['files', userId] });
+        void client.invalidateQueries({ queryKey: ['conversations', userId] });
+      }
       if (finished.length) setNotices((previous) => [...finished, ...previous].slice(0, 8));
     });
     return () => {

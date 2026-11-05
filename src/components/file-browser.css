@@ -1,0 +1,41 @@
+.file-browser .file-back {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #2a2b30;
+  color: #f4f4f5;
+}
+.file-browser .file-upload-count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.file-browser .file-entry.is-incompatible {
+  border-color: #a97737;
+  background: #2b241a;
+}
+.file-browser .file-entry.is-incompatible .library-card:disabled {
+  opacity: 1;
+}
+.file-browser .file-entry.is-incompatible .library-media {
+  opacity: 0.45;
+}
+.file-browser .file-entry.is-incompatible .file-incompatible {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #49351e;
+  color: #ffd08a;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  white-space: normal;
+}
+.file-browser .file-incompatible svg {
+  flex: none;
+  margin-top: 1px;
+}

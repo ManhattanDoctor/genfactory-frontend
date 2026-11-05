@@ -31,6 +31,7 @@ import { ModelMark } from '../content-studio/ModelMark';
 import { useAuth } from '../auth/AuthProvider';
 import { usePreferences, toggleItem } from '../workspace/preferences';
 import { Media } from '../../components/MediaPreview';
+import { Modal } from '../../components/Modal';
 import { HomeImageViewer } from '../../app/HomeImageViewer';
 import { displayMessageText } from './conversations';
 import { useConversationRoom } from '../realtime/RealtimeProvider';
@@ -129,6 +130,8 @@ export function MediaWorkspace({
     setTemplateError('');
   }, [templateText, references.length]);
   const [notice, setNotice] = useState('');
+  const [answerView, setAnswerView] = useState<string>();
+  useEffect(() => setAnswerView(undefined), [conversation?.id]);
   const downloading = useRef(new Set<number>());
   const [downloadIds, setDownloadIds] = useState<number[]>([]);
   const [preview, setPreview] = useState<{ file: IGnosisFile; rect: DOMRect }>();
@@ -142,6 +145,10 @@ export function MediaWorkspace({
     enabled: !!conversation,
     refetchInterval: busy ? 2000 : false,
   });
+  const latestMessage = [...(messages.data?.items || [])]
+    .filter((message) => message.role !== 'COMMAND')
+    .sort((a, b) => b.id - a.id)[0];
+  const startedAt = latestMessage?.role === 'USER' ? latestMessage.createdDate : undefined;
   const history = useInfiniteQuery({
     queryKey: ['files', user?.id, `${kind}-wall`],
     enabled: !!user,
@@ -202,11 +209,9 @@ export function MediaWorkspace({
     return () => observer.disconnect();
   }, [history.hasNextPage, history.isFetchingNextPage, history.error, files.length]);
 
-  const latestAnswer = messages.data?.items.find((message) => message.role === 'ASSISTANT');
+  const latestAnswer = latestMessage?.role === 'ASSISTANT' ? latestMessage : undefined;
   const text =
-    (video && busy) || latestAnswer?.files?.some((file) => file.type === outputType)
-      ? undefined
-      : latestAnswer?.text;
+    busy || latestAnswer?.files?.some((file) => file.type === outputType) ? undefined : latestAnswer?.text;
   useEffect(() => {
     const measure = () => {
       const width = root.current?.clientWidth || innerWidth;
@@ -293,7 +298,7 @@ export function MediaWorkspace({
           >
             <span className="img-spin" aria-hidden="true" />
             {conversation ? (
-              <ImageProgress conversation={conversation} kind={kind} />
+              <ImageProgress conversation={conversation} kind={kind} startedAt={startedAt} />
             ) : video ? (
               'Создаём видео…'
             ) : (
@@ -302,7 +307,26 @@ export function MediaWorkspace({
           </div>,
         ]
       : []),
-    ...(video && !busy && conversation?.status === 'ERROR'
+    ...(text?.trim()
+      ? [
+          <article className="img-tile media-answer-card" key={`answer:${latestAnswer!.id}`}>
+            <button
+              type="button"
+              className="media-answer-open"
+              aria-label="Открыть ответ по запросу"
+              onClick={() => setAnswerView(displayMessageText(text))}
+            >
+              <span className="media-answer-heading">
+                <Info size={18} aria-hidden="true" />
+                <strong>Ответ по запросу</strong>
+                <Expand size={16} aria-hidden="true" />
+              </span>
+              <span className="media-answer-excerpt">{displayMessageText(text)}</span>
+            </button>
+          </article>,
+        ]
+      : []),
+    ...(video && !text && !busy && conversation?.status === 'ERROR'
       ? [
           <article key="failed" className="img-tile video-result-failed" role="alert">
             <img src="/media/prototype/content/video/fail-cry.jpg" alt="Ролик не собрался" />
@@ -425,9 +449,8 @@ export function MediaWorkspace({
             <span>{seedance ? 'Seedance Studio' : 'Nano Banana'}</span>
           </div>
         )}
-        {(text || messages.error || (messages.data?.pages || 0) > 1) && (
+        {(messages.error || (messages.data?.pages || 0) > 1) && (
           <div className="image-conversation-note">
-            {text && <p>{displayMessageText(text)}</p>}
             {messages.error && (
               <p role="alert">
                 Не удалось загрузить результаты.{' '}
@@ -683,6 +706,15 @@ export function MediaWorkspace({
           </p>
         )}
       </form>
+      {answerView && (
+        <Modal
+          title="Ответ по запросу"
+          className="media-answer-modal"
+          onClose={() => setAnswerView(undefined)}
+        >
+          <div className="media-answer-body">{answerView}</div>
+        </Modal>
+      )}
       {video && preview && (
         <VideoViewer key={preview.file.id} file={preview.file} onClose={() => setPreview(undefined)} />
       )}
@@ -949,7 +981,23 @@ export function ImageMenu({
   );
 }
 
-function ImageProgress({ conversation, kind }: { conversation: IConversation; kind: MediaKind }) {
+function ImageProgress({
+  conversation,
+  kind,
+  startedAt,
+}: {
+  conversation: IConversation;
+  kind: MediaKind;
+  startedAt?: string;
+}) {
+  const [now, setNow] = useState(Date.now);
+  const start = startedAt ? Date.parse(startedAt) : NaN;
+  useEffect(() => {
+    if (!Number.isFinite(start)) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [start]);
   const progress = useConversationProgress(conversation);
   return (
     <span>
@@ -958,6 +1006,11 @@ function ImageProgress({ conversation, kind }: { conversation: IConversation; ki
         : kind === 'video'
           ? 'Создаём видео…'
           : 'Создаём изображение…'}
+      {Number.isFinite(start) && (
+        <span className="generation-elapsed" aria-live="off">
+          {Math.max(0, Math.floor((now - start) / 1000))} с
+        </span>
+      )}
     </span>
   );
 }

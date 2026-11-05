@@ -7,12 +7,30 @@ import { api, safeMediaUrl } from '../lib/api';
 import type { IGnosisFile } from '../lib/types';
 import './file-generation.css';
 
+function useGenerationModelName(file: IGnosisFile) {
+  const { user } = useAuth();
+  const model = file.origin?.generation?.model;
+  const catalog = useQuery({
+    queryKey: ['generation-models', user?.id, model?.provider],
+    queryFn: ({ signal }) => api.catalog(model!.provider, signal),
+    enabled: !!user && !!model,
+    staleTime: 300000,
+    retry: 1,
+  });
+  if (!model) return '';
+  const match = catalog.data?.find(
+    (item) => item.reference.provider === model.provider && item.reference.model === model.model,
+  );
+  return modelTitle(match || { reference: model, name: model.model });
+}
+
 export function GenerationSummary({ file }: { file: IGnosisFile }) {
+  const modelName = useGenerationModelName(file);
   const generation = file.origin?.generation;
   if (!generation) return null;
   const options = generation.options;
   const values = [
-    modelTitle({ reference: generation.model, name: generation.model.model }),
+    modelName,
     typeof options.duration === 'number' ? `${options.duration} с` : undefined,
     options.resolution,
     options.size,
@@ -55,6 +73,7 @@ function SourceFile({ id, mask }: { id: number; mask: boolean }) {
 }
 
 export function GenerationDetails({ file }: { file: IGnosisFile }) {
+  const modelName = useGenerationModelName(file);
   const [expanded, setExpanded] = useState(false);
   const [notice, setNotice] = useState('');
   const generation = file.origin?.generation;
@@ -84,7 +103,7 @@ export function GenerationDetails({ file }: { file: IGnosisFile }) {
         <p className="file-generation-hint">Параметры запроса. Фактический результат может отличаться.</p>
         <div className="file-generation-model">
           <span className="file-generation-label">Модель</span>
-          <strong>{modelTitle({ reference: generation.model, name: generation.model.model })}</strong>
+          <strong>{modelName}</strong>
           <span className="file-generation-identifier">
             {generation.model.provider} / {generation.model.model}
           </span>

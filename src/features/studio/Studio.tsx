@@ -734,6 +734,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
         setPrompt('');
         setImageTemplateId('');
         setImageTemplateText('');
+        if (!legacy) setReferences([]);
       }
     } catch (e) {
       if (mounted.current && !messageSent && scopeRef.current === activeScope)

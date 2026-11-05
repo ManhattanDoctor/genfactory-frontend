@@ -104,15 +104,15 @@ async function release(page: Page) {
 }
 test('production worker updates on demand, preserves draft and never resends a request', async ({ page }) => {
   const writes = await setup(page);
-  await page.getByLabel('Ваш запрос', { exact: true }).fill('Сохранить этот черновик после обновления');
+  await page.getByLabel('Вопрос', { exact: true }).fill('Сохранить этот черновик после обновления');
   await release(page);
-  await expect(page.getByLabel('Ваш запрос', { exact: true })).toHaveValue(
+  await expect(page.getByLabel('Вопрос', { exact: true })).toHaveValue(
     'Сохранить этот черновик после обновления',
   );
   await page.getByRole('button', { name: 'Обновить приложение' }).click();
   await page.waitForLoadState('load');
   await page.getByRole('button', { name: /Восстановить/ }).click();
-  await expect(page.getByLabel('Ваш запрос', { exact: true })).toHaveValue(
+  await expect(page.getByLabel('Вопрос', { exact: true })).toHaveValue(
     'Сохранить этот черновик после обновления',
   );
   await expect(page.getByRole('button', { name: 'Обновить приложение' })).toHaveCount(0);
@@ -133,11 +133,11 @@ test('storage failure prevents reload and preserves the typed draft', async ({ p
       original.call(this, key, value);
     };
   });
-  await page.getByLabel('Ваш запрос', { exact: true }).fill('Черновик нельзя потерять');
+  await page.getByLabel('Вопрос', { exact: true }).fill('Черновик нельзя потерять');
   await release(page);
   await page.getByRole('button', { name: 'Обновить приложение' }).click();
   await expect(page.getByRole('alert')).toContainText('Не удалось сохранить черновик');
-  await expect(page.getByLabel('Ваш запрос', { exact: true })).toHaveValue('Черновик нельзя потерять');
+  await expect(page.getByLabel('Вопрос', { exact: true })).toHaveValue('Черновик нельзя потерять');
 });
 test('a production bundle on localhost does not register the worker', async ({ page }) => {
   await page.goto('https://localhost:5443/');
@@ -149,13 +149,11 @@ test('updating one tab does not reload another tab with an unfinished draft', as
   await setup(page);
   const other = await context.newPage();
   await setup(other);
-  await other.getByLabel('Ваш запрос', { exact: true }).fill('Не перезагружать другую вкладку');
+  await other.getByLabel('Вопрос', { exact: true }).fill('Не перезагружать другую вкладку');
   await release(page);
   await page.getByRole('button', { name: 'Обновить приложение' }).click();
   await expect(other.getByRole('button', { name: 'Обновить приложение' })).toBeVisible();
-  await expect(other.getByLabel('Ваш запрос', { exact: true })).toHaveValue(
-    'Не перезагружать другую вкладку',
-  );
+  await expect(other.getByLabel('Вопрос', { exact: true })).toHaveValue('Не перезагружать другую вкладку');
 });
 
 test('a pending POST blocks reload even before the server reports a running job', async ({ page }) => {
@@ -171,7 +169,7 @@ test('a pending POST blocks reload even before the server reports a running job'
     await wait;
     await route.fulfill({ status: 503, json: { message: 'Test rejection; no generation submitted' } });
   });
-  await page.getByLabel('Ваш запрос', { exact: true }).fill('Запрос ещё отправляется');
+  await page.getByLabel('Вопрос', { exact: true }).fill('Запрос ещё отправляется');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect.poll(() => entered).toBeTruthy();
   try {

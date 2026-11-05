@@ -603,9 +603,16 @@ function PromptEditor() {
       )}
       {login && <LoginDialog onClose={() => setLogin(false)} />}
       {viewer && (
-        <Modal title={viewer.result?.title || 'Ответ ассистента'} onClose={() => setViewer(undefined)} wide>
+        <Modal
+          className="prompt-result-modal"
+          title={viewer.result?.title || 'Ответ ассистента'}
+          onClose={() => setViewer(undefined)}
+          wide
+        >
           <div className="prompt-view">
-            <p>{viewer.result ? viewer.result.prompt : viewer.raw}</p>
+            {(viewer.result ? viewer.result.prompt : viewer.raw) && (
+              <p>{viewer.result ? viewer.result.prompt : viewer.raw}</p>
+            )}
             {!!viewer.result?.observations.length && (
               <>
                 <h3>Что использовано из файлов</h3>
