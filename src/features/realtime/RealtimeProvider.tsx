@@ -19,6 +19,7 @@ const resources = [
   'files',
   'file-preview',
   'transactions',
+  'transaction-results',
   'conversation-progress',
 ];
 
@@ -156,7 +157,9 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           'agent-messages',
           'active-jobs',
           'conversation-progress',
-          ...(name === 'TaskFinishedEvent' ? ['account', 'transactions', 'files'] : []),
+          ...(name === 'TaskFinishedEvent'
+            ? ['account', 'transactions', 'transaction-results', 'files']
+            : []),
         ]);
       }
     };

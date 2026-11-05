@@ -1,3 +1,4 @@
+import { TransactionPreview } from './TransactionPreview';
 import { ChevronDown } from 'lucide-react';
 import { modelTitle } from '../catalog/presentation';
 import { useEffect, useState } from 'react';
@@ -107,6 +108,7 @@ function History({ userId }: { userId: number }) {
               return (
                 <li key={t.id} className="transaction-row">
                   <div className="transaction-main">
+                    <TransactionPreview key={t.id} transaction={t} />
                     <div>
                       <h3>{transactionTitle(t)}</h3>
                       <p className="small muted">

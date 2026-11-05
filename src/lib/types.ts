@@ -151,6 +151,7 @@ export interface IConversationProgress {
 }
 
 export interface IPaymentTransaction {
+  operationId?: string | null;
   id: number;
   type: string;
   debet: string;

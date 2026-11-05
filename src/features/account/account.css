@@ -288,3 +288,66 @@
   text-align: right;
   align-items: flex-end;
 }
+.account-page .transaction-main:has(> .transaction-preview) {
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  column-gap: 12px;
+}
+.account-page .transaction-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid #35363b;
+  border-radius: 10px;
+  padding: 0;
+  overflow: hidden;
+  background: #232428;
+  color: #9a9aa0;
+  cursor: pointer;
+}
+.account-page .transaction-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.account-page .transaction-preview.is-loading {
+  cursor: default;
+  background: #232428;
+}
+.account-page .transaction-preview-play {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  filter: drop-shadow(0 1px 3px #000);
+  color: #fff;
+}
+.account-page .transaction-preview-count {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #17181bdd;
+  color: #f4f4f5;
+  font-size: 10px;
+  line-height: 15px;
+}
+.account-page .transaction-preview:focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .account-page .transaction-main:has(> .transaction-preview) {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    column-gap: 8px;
+  }
+  .account-page .transaction-preview {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+  }
+  .account-page .transaction-main:has(> .transaction-preview) .transaction-amount strong {
+    font-size: 14px;
+  }
+}
