@@ -122,6 +122,8 @@ export function MediaWorkspace({
     setTemplateError('');
   }, [templateText, references.length]);
   const [notice, setNotice] = useState('');
+  const downloading = useRef(new Set<number>());
+  const [downloadIds, setDownloadIds] = useState<number[]>([]);
   const [preview, setPreview] = useState<{ file: IGnosisFile; rect: DOMRect }>();
   const [page, setPage] = useState(0);
   useEffect(() => {
@@ -189,7 +191,10 @@ export function MediaWorkspace({
   }, [history.hasNextPage, history.isFetchingNextPage, history.error, files.length]);
 
   const latestAnswer = messages.data?.items.find((message) => message.role === 'ASSISTANT');
-  const text = latestAnswer?.files?.some((file) => file.type === outputType) ? undefined : latestAnswer?.text;
+  const text =
+    (video && busy) || latestAnswer?.files?.some((file) => file.type === outputType)
+      ? undefined
+      : latestAnswer?.text;
   useEffect(() => {
     const measure = () => {
       const width = root.current?.clientWidth || innerWidth;
@@ -246,6 +251,10 @@ export function MediaWorkspace({
     onSubmit();
   };
   const download = async (file: IGnosisFile) => {
+    if (downloading.current.has(file.id)) return;
+    downloading.current.add(file.id);
+    setDownloadIds([...downloading.current]);
+    setNotice('');
     try {
       const blob = await api.downloadFile(file.id),
         url = URL.createObjectURL(blob);
@@ -256,6 +265,9 @@ export function MediaWorkspace({
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setNotice('Не удалось скачать файл. Попробуйте ещё раз.');
+    } finally {
+      downloading.current.delete(file.id);
+      setDownloadIds([...downloading.current]);
     }
   };
   const cards: ReactNode[] = [
@@ -278,6 +290,14 @@ export function MediaWorkspace({
           </div>,
         ]
       : []),
+    ...(video && !busy && conversation?.status === 'ERROR'
+      ? [
+          <article key="failed" className="img-tile video-result-failed" role="alert">
+            <img src="/media/prototype/content/video/fail-cry.jpg" alt="Ролик не собрался" />
+            <p className="video-failure-note">Ролик не собрался.</p>
+          </article>,
+        ]
+      : []),
     ...files.map((file) => (
       <article className={`img-tile image-result ${video ? 'video-result' : ''}`} key={`file:${file.id}`}>
         <button
@@ -298,12 +318,21 @@ export function MediaWorkspace({
           >
             <Expand size={18} />
           </button>
-          <button type="button" aria-label={`Скачать ${file.name}`} onClick={() => void download(file)}>
+          <button
+            type="button"
+            aria-label={`Скачать ${file.name}`}
+            disabled={downloadIds.includes(file.id)}
+            aria-busy={downloadIds.includes(file.id)}
+            title="Скачать"
+            onClick={() => void download(file)}
+          >
             <Download size={18} />
           </button>
           <button
             type="button"
             aria-label={`Переделать ${file.name}`}
+            title="Переделать"
+            disabled={busy}
             onClick={() => onRepeat(file, repeatInput(file))}
           >
             <RotateCcw size={18} />
@@ -318,6 +347,8 @@ export function MediaWorkspace({
               <button type="button" onClick={() => void history.fetchNextPage()}>
                 Загрузить ещё
               </button>
+            ) : video ? (
+              'Загружаем видео…'
             ) : (
               'Загружаем изображения…'
             )}
@@ -598,7 +629,9 @@ export function MediaWorkspace({
           </p>
         )}
       </form>
-      {video && preview && <VideoViewer file={preview.file} onClose={() => setPreview(undefined)} />}
+      {video && preview && (
+        <VideoViewer key={preview.file.id} file={preview.file} onClose={() => setPreview(undefined)} />
+      )}
       {!video && preview && safeMediaUrl(preview.file.path) && (
         <HomeImageViewer
           image={{

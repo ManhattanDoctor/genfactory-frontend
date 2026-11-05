@@ -210,3 +210,101 @@ test('all 30 video templates apply without sending and model information closes 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+test('video shows actual running, clarification and failure states without retrying generation', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await page.goto('/video');
+  await page.locator('#vd-draft').fill('Чашка');
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect(page.locator('.video-result')).toHaveCount(1);
+  state.messages = [{ id: 3, role: 'ASSISTANT', text: 'Как должна двигаться камера?', files: [] }];
+  state.conversation.status = 'LOADING';
+  await page.reload();
+  await expect(page.locator('.image-result-pending')).toContainText('Создаём видео');
+  await expect(page.getByRole('button', { name: 'Собрать видео', exact: true })).toBeDisabled();
+  await page.locator('.video-result').hover();
+  await expect(page.getByRole('button', { name: 'Переделать Чашка.mp4', exact: true })).toBeDisabled();
+  await expect(page.locator('.image-conversation-note')).toHaveCount(0);
+  await page.screenshot({ path: '/tmp/video-running-app.png' });
+  state.conversation.status = 'LOADED';
+  await page.reload();
+  await expect(page.locator('.image-conversation-note')).toContainText('Как должна двигаться камера?');
+  await expect(page.locator('.image-result-pending')).toHaveCount(0);
+  await page.locator('#vd-draft').fill('Плавное приближение');
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(2);
+  await expect(page.locator('.image-conversation-note')).toHaveCount(0);
+  state.conversation.status = 'ERROR';
+  await page.reload();
+  await expect(page.locator('.video-result-failed')).toContainText('Ролик не собрался.');
+  await expect(page.locator('.image-result-pending')).toHaveCount(0);
+  await page.screenshot({ path: '/tmp/video-error-app.png' });
+  expect(state.sends).toHaveLength(2);
+});
+
+test('video download failure allows manual download retry and viewer failure does not generate again', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await page.goto('/video');
+  await page.locator('#vd-draft').fill('Чашка');
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect(page.locator('.video-result')).toHaveCount(1);
+  await page.route('**/api/file/13/content', (route) =>
+    route.fulfill({ status: 503, json: { message: 'Unavailable' } }),
+  );
+  const download = page.getByRole('button', { name: 'Скачать Чашка.mp4', exact: true });
+  await page.locator('.video-result').hover();
+  await download.click();
+  await expect(page.getByText('Не удалось скачать файл. Попробуйте ещё раз.', { exact: true })).toBeVisible();
+  await expect(download).toBeEnabled();
+  await page.route('**/api/file/13/content', (route) =>
+    route.fulfill({
+      contentType: 'video/mp4',
+      body: readFileSync(new URL('../fixtures/preview.mp4', import.meta.url)),
+    }),
+  );
+  const saved = page.waitForEvent('download');
+  await download.click();
+  expect((await saved).suggestedFilename()).toBe('Чашка.mp4');
+  await expect(page.getByText('Не удалось скачать файл. Попробуйте ещё раз.', { exact: true })).toHaveCount(
+    0,
+  );
+  await page.route('**/media/prototype/content/video/previews/01.mp4', (route) => route.abort());
+  const open = page.locator('.video-result .image-result-open');
+  await open.click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Видео не открылось.');
+  await page.keyboard.press('Escape');
+  await expect(open).toBeFocused();
+  expect(state.sends).toHaveLength(1);
+});
+
+test('broken short video preview falls back to the poster without loading the original', async ({ page }) => {
+  const state = await setup(page);
+  let originals = 0;
+  await page.route('**/broken-preview.mp4', (route) => route.abort());
+  await page.route('**/original-video.mp4', (route) => {
+    originals++;
+    return route.abort();
+  });
+  await page.route('**/api/file?**', (route) =>
+    route.fulfill({
+      json: pagination([
+        {
+          ...result,
+          path: '/original-video.mp4',
+          preview: { ...result.preview, video: { status: 'READY', url: '/broken-preview.mp4' } },
+        },
+      ]),
+    }),
+  );
+  await page.goto('/video');
+  await expect(page.locator('.video-result .image-result-open img')).toHaveAttribute(
+    'src',
+    /\/media\/gallery-1\.jpg$/,
+  );
+  expect(originals).toBe(0);
+  expect(state.sends).toHaveLength(0);
+});

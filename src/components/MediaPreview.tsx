@@ -15,8 +15,8 @@ export function Media({ file, controls = false }: { file: IGnosisFile; controls?
   const isVideo = file.type === 'VIDEO' || file.mime?.startsWith('video/');
   const poster = file.preview?.image?.status === 'READY' ? safeMediaUrl(file.preview.image.url) : undefined;
   const clip = file.preview?.video?.status === 'READY' ? safeMediaUrl(file.preview.video.url) : undefined;
-  const thumbnail = !controls ? (isVideo ? clip || poster : poster) : undefined;
-  const src = thumbnail && !failedSources.includes(thumbnail) ? thumbnail : original;
+  const sources = controls ? [original] : isVideo ? [clip, poster, original] : [poster, original];
+  const src = sources.find((source) => source && !failedSources.includes(source));
   const isImage = file.type === 'IMAGE' || file.mime?.startsWith('image/');
   const isAudio = file.type === 'AUDIO' || file.mime?.startsWith('audio/');
   if (!isImage && !isVideo) {
@@ -35,7 +35,7 @@ export function Media({ file, controls = false }: { file: IGnosisFile; controls?
         <span>{isAudio ? 'Аудиозапись недоступна' : 'Предпросмотр недоступен'}</span>
       </div>
     );
-  if (isVideo && !controls && src === poster && !clip)
+  if (isVideo && !controls && src === poster)
     return <img src={src} alt={file.name} loading="lazy" onError={() => failSource(src)} />;
   return isVideo ? (
     <video
