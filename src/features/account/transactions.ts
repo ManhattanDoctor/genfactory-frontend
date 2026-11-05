@@ -74,8 +74,7 @@ export function conversationLink(t: IPaymentTransaction) {
     !Number.isSafeInteger(Number(source.id))
   )
     return;
-  const types = t.details?.consumption?.tools?.map((t) => t.type) || [];
-  return `/${types.includes('VIDEO') ? 'video' : types.includes('IMAGE') ? 'image' : 'chat'}?conversation=${source.id}`;
+  return `/open?conversation=${source.id}`;
 }
 export function breakdown(t: IPaymentTransaction): { label: string; amount: string }[] | undefined {
   const details = t.details;

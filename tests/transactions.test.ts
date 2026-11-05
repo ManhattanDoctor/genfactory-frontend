@@ -42,7 +42,7 @@ describe('balance amounts and attribution', () => {
       { label: 'Ассистент', amount: '143.26' },
       { label: 'Изображение', amount: '821.9' },
     ]);
-    expect(conversationLink(payment)).toBe('/image?conversation=49');
+    expect(conversationLink(payment)).toBe('/open?conversation=49');
     expect(direction(payment)).toBe('expense');
     expect(direction({ ...payment, debet: 'PR-00', credit: 'CO-00' })).toBe('income');
     expect(direction({ ...payment, credit: 'GR-00' })).toBe('other');

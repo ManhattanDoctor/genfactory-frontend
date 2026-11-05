@@ -1,3 +1,4 @@
+import { conversationUrl as workUrl } from '../lib/conversationUrl';
 import './active-jobs.css';
 import { History, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -7,10 +8,6 @@ import { api, getSession } from '../lib/api';
 import type { IConversation } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { Modal } from './Modal';
-const workUrl = (c: IConversation) =>
-  c.tags?.includes('audio')
-    ? `/audio?mode=${c.tags.includes('stt') ? 'stt' : 'tts'}&conversation=${c.id}`
-    : `/chat?conversation=${c.id}`;
 export function ActiveJobs() {
   const auth = useAuth();
   return auth.user ? (

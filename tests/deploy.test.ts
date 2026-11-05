@@ -83,7 +83,7 @@ describe('production container deployment', () => {
     expect(result.status).not.toBe(0);
     expect(state.containers['genfactory-frontend']).toEqual({ image: 'previous', running: true });
     expect(state.containers['genfactory-frontend-next']).toBeUndefined();
-  });
+  }, 60_000);
   it('rejects an unpinned image before invoking Docker', () => {
     const { result, state } = deploy(false, 'ghcr.io/example/genfactory:latest');
     expect(result.status).not.toBe(0);

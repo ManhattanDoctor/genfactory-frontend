@@ -1,3 +1,4 @@
+import { conversationUrl } from '../../lib/conversationUrl';
 import { MediaPreview } from '../../components/MediaPreview';
 import { Modal } from '../../components/Modal';
 import { historyResult } from './historyResult';
@@ -288,11 +289,7 @@ export function History() {
                     </Link>
                   )}
                   {!connection(c, 'image') && !connection(c, 'video') && (
-                    <Link
-                      className="button"
-                      aria-label="Открыть беседу"
-                      to={`/${c.tags?.includes('prompt') ? 'prompt' : c.tags?.includes('chat') ? 'agent' : 'chat'}?conversation=${c.id}`}
-                    >
+                    <Link className="button" aria-label="Открыть беседу" to={conversationUrl(c)}>
                       Беседа
                     </Link>
                   )}

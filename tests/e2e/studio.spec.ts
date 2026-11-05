@@ -1834,7 +1834,7 @@ test('balance history shows exact costs and sends numeric date filters with owne
   await expect(history.getByText('1,4326 ₽', { exact: true })).toBeVisible();
   await expect(history.getByRole('link', { name: 'Беседа №49' })).toHaveAttribute(
     'href',
-    '/image?conversation=49',
+    '/open?conversation=49',
   );
   await history.getByRole('button', { name: 'Следующая страница' }).click();
   await expect.poll(() => requests.at(-1)?.page).toBe(1);
@@ -2683,7 +2683,7 @@ for (const path of ['/audio?mode=stt', '/library', '/image', '/prompt']) {
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(path);
-    if (path === '/image') {
+    if (path === '/image' || path === '/prompt') {
       await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
       await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Библиотека' })).toBeVisible();

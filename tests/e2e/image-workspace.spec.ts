@@ -435,6 +435,11 @@ test('image viewer reports a failed original and returns focus without retrying 
     state.messages = [result];
     await route.fulfill({ json: result });
   });
+  await page.route('**/api/file?**', (route) =>
+    route.fulfill({
+      json: pagination([{ ...file, preview: { image: { status: 'READY', url: '/media/gallery-2.jpg' } } }]),
+    }),
+  );
   let failImage!: () => void;
   const imageResponse = new Promise<void>((resolve) => {
     failImage = resolve;

@@ -1,3 +1,4 @@
+import { OpenConversation } from './OpenConversation';
 import { AppUpdateNotice } from '../components/AppUpdateNotice';
 import { ActiveJobs } from '../components/ActiveJobs';
 import { lazy, Suspense, useEffect, useState } from 'react';
@@ -172,6 +173,7 @@ export function App() {
             <Route path="/audio" element={<AudioStudio />} />
             <Route path="/library" element={<Library />} />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/open" element={<OpenConversation />} />
             <Route path="/account" element={<Account />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route
