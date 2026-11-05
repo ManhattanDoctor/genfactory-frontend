@@ -1,0 +1,133 @@
+.banana-workspace #nb-draft {
+  display: block;
+  width: 100%;
+  height: 72px;
+  min-height: 72px;
+  max-height: 122.4px;
+  resize: none;
+  padding: 4px 4px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #f4f4f5;
+  font-size: 16px;
+  line-height: 24px;
+}
+.banana-workspace #nb-draft::placeholder {
+  color: rgba(244, 244, 245, 0.32);
+}
+.banana-workspace .banana-brand {
+  position: absolute;
+  inset: 0 0 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  pointer-events: none;
+}
+.banana-brand img {
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  object-fit: cover;
+}
+.banana-brand span {
+  font-size: 64px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  background-image: linear-gradient(
+    100deg,
+    #fff 0%,
+    #fff6c2 16%,
+    #ffe14a 34%,
+    #fff 50%,
+    #f6c945 66%,
+    #fff 82%,
+    #ffe14a 100%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: banana-shimmer 5.5s linear infinite;
+}
+@keyframes banana-shimmer {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 200% 50%;
+  }
+}
+.image-workspace.banana-workspace .video-setting-menu .cw-model-menu {
+  width: 240px;
+}
+@media (max-width: 600px) {
+  .banana-brand img {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+  .banana-brand span {
+    font-size: 36px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .banana-brand span {
+    animation: none;
+    background-image: none;
+    color: #fff6c2;
+  }
+}
+.image-workspace.banana-workspace .banana-ratio-option {
+  display: grid;
+  grid-template-columns: 40px 1fr 16px;
+  gap: 12px;
+}
+.banana-ratio-frame {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 24px;
+}
+.banana-ratio-frame i {
+  display: block;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+}
+.banana-workspace .image-option:disabled {
+  color: #6d6e73;
+  cursor: default;
+}
+.banana-workspace .video-model-about {
+  display: inline-flex;
+  margin-left: 5px;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: #9a9aa0;
+  vertical-align: middle;
+}
+.image-workspace.banana-workspace {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.104) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.image-workspace.banana-workspace .image-model-menu > .cw-chip {
+  position: relative;
+  padding-right: 28px;
+}
+.banana-workspace .image-model-menu > .cw-chip > svg {
+  display: none;
+}
+.banana-workspace .image-model-menu > .cw-chip::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid #f2f2ee;
+  border-bottom: 1.5px solid #f2f2ee;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}

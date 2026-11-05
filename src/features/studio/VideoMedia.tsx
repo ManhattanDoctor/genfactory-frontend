@@ -111,7 +111,9 @@ export function VideoViewer({ file, onClose }: { file: IGnosisFile; onClose: () 
 export function VideoModelInfo({
   model,
   onClose,
+  kind = 'video',
 }: {
+  kind?: import('../../lib/types').MediaKind;
   model: import('../../lib/types').IModelDescription;
   onClose: () => void;
 }) {
@@ -145,7 +147,7 @@ export function VideoModelInfo({
           </button>
         </header>
         <p>{modelSummary(model)}</p>
-        <p>В этом окне модель собирает ролик по тексту и одному стартовому кадру.</p>
+        {kind === 'video' && <p>В этом окне модель собирает ролик по тексту и одному стартовому кадру.</p>}
       </div>
     </dialog>,
     document.body,

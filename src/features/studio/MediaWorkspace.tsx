@@ -1,3 +1,5 @@
+import { bananaRatios, bananaDescription } from './bananaSettings';
+import './banana-workspace.css';
 import { videoRatios, videoLengths, videoSound, videoShapes } from './videoMenus';
 import { VideoTemplateMedia, VideoViewer, VideoModelInfo } from './VideoMedia';
 import '../catalog/model-favorites.css';
@@ -37,6 +39,7 @@ import './image-workspace.css';
 
 export function MediaWorkspace({
   kind,
+  variant,
   shape = 'single',
   onShape,
   models,
@@ -64,6 +67,7 @@ export function MediaWorkspace({
   children,
 }: {
   kind: MediaKind;
+  variant?: 'banana';
   shape?: string;
   onShape?: (value: string) => void;
   models: IModelDescription[];
@@ -91,6 +95,7 @@ export function MediaWorkspace({
   children?: ReactNode;
 }) {
   const video = kind === 'video';
+  const banana = variant === 'banana';
   const outputType = video ? 'VIDEO' : 'IMAGE';
   const imageTemplates = templates.filter((item) => item.kind === kind);
   useConversationRoom(conversation?.id);
@@ -146,7 +151,11 @@ export function MediaWorkspace({
     history.data?.pages
       .flatMap((page) => page.items)
       .filter(
-        (file) => file.userId === user?.id && file.type === outputType && file.origin?.kind === 'GENERATION',
+        (file) =>
+          file.userId === user?.id &&
+          file.type === outputType &&
+          file.origin?.kind === 'GENERATION' &&
+          (!banana || /gemini.*(image|banana)/i.test(file.origin.generation?.model.model || '')),
       ) || [];
   const files = [
     ...new Map(
@@ -355,7 +364,7 @@ export function MediaWorkspace({
           </div>,
         ]
       : []),
-    ...imageTemplates.map((item, index) => (
+    ...(banana ? [] : imageTemplates).map((item, index) => (
       <button
         type="button"
         key={item.id}
@@ -391,11 +400,20 @@ export function MediaWorkspace({
   ];
   return (
     <section
-      className={`image-workspace ${video ? 'video-workspace' : ''}`}
+      className={`image-workspace ${video ? 'video-workspace' : ''} ${banana ? 'banana-workspace' : ''}`}
       ref={root}
-      aria-label={video ? 'Видео' : 'Изображения'}
+      aria-label={banana ? 'Nano Banana' : video ? 'Видео' : 'Изображения'}
     >
-      <div className="img-wall" aria-label={video ? 'Шаблоны и видео' : 'Шаблоны и изображения'}>
+      <div
+        className="img-wall"
+        aria-label={banana ? 'Кадры Nano Banana' : video ? 'Шаблоны и видео' : 'Шаблоны и изображения'}
+      >
+        {banana && !files.length && !busy && (
+          <div className="banana-brand" aria-hidden="true">
+            <img src="/media/prototype/banana.webp" alt="" />
+            <span>Nano Banana</span>
+          </div>
+        )}
         {(text || messages.error || (messages.data?.pages || 0) > 1) && (
           <div className="image-conversation-note">
             {text && <p>{displayMessageText(text)}</p>}
@@ -504,7 +522,7 @@ export function MediaWorkspace({
           )}
           <textarea
             ref={promptInput}
-            id={video ? 'vd-draft' : 'img-draft'}
+            id={banana ? 'nb-draft' : video ? 'vd-draft' : 'img-draft'}
             aria-label={video ? 'Идея ролика' : 'Идея'}
             rows={3}
             value={prompt}
@@ -527,11 +545,13 @@ export function MediaWorkspace({
             <Plus size={20} />
           </button>
           <ImageMenu
-            label={model ? modelTitle(model) : 'Выбрать модель'}
+            label={model ? modelTitle(model) : banana ? 'Nano Banana 2' : 'Выбрать модель'}
             name="Модель"
             disabled={busy}
             models={models}
-            details={video}
+            details={video || banana}
+            infoKind={kind}
+            describeModel={banana ? bananaDescription : undefined}
             selection={model && modelKey(model)}
             favorites={prefs.value.favoriteModels}
             onFavorite={(key) =>
@@ -542,25 +562,34 @@ export function MediaWorkspace({
               if (chosen) onModel(chosen);
             }}
           />
-          {!!ratios.length && (
+          {(!!ratios.length || banana) && (
             <ImageMenu
-              label={ratio || 'Стороны'}
+              label={ratio || (banana ? (user ? 'Не задаётся' : '1:1') : 'Стороны')}
               name="Стороны"
-              note={video ? 'Форма кадра: вертикаль, квадрат или ширина.' : undefined}
+              note={
+                banana
+                  ? 'Форма картинки: квадрат, вертикаль или ширина.'
+                  : video
+                    ? 'Форма кадра: вертикаль, квадрат или ширина.'
+                    : undefined
+              }
               descriptions={video ? videoRatios : undefined}
-              values={ratios}
+              values={banana ? [...new Set([...bananaRatios, ...ratios])] : ratios}
+              allowedValues={banana ? ratios : undefined}
+              ratioIcons={banana}
               selection={ratio}
-              disabled={busy}
+              disabled={busy || !ratios.length}
               onSelect={chooseRatio}
             />
           )}
-          {!video && !!quality.length && (
+          {!video && (!!quality.length || banana) && (
             <ImageMenu
-              label={String(options[qualityKey] || quality[0])}
-              name="Качество"
+              label={String(options[qualityKey] || quality[0] || (user ? 'Не задаётся' : '1K'))}
+              name={banana ? 'Размер' : 'Качество'}
+              note={banana ? 'Крупность файла. 1K быстрее, 4K детальнее.' : undefined}
               values={quality.map(String)}
               selection={String(options[qualityKey])}
-              disabled={busy}
+              disabled={busy || !quality.length}
               onSelect={(value) => onOptions({ ...options, [qualityKey]: value })}
             />
           )}
@@ -609,7 +638,11 @@ export function MediaWorkspace({
             className="cw-send"
             type="submit"
             aria-label={video ? 'Собрать видео' : 'Собрать изображение'}
-            disabled={busy || unavailable || (!prompt.trim() && !selected && !(video && references.length))}
+            disabled={
+              busy ||
+              unavailable ||
+              (!prompt.trim() && !selected && !((video || banana) && references.length))
+            }
           >
             {busy ? <span className="spinner" /> : <ArrowUp size={20} />}
           </button>
@@ -663,6 +696,10 @@ function ImageMenu({
   details = false,
   note,
   descriptions,
+  allowedValues,
+  ratioIcons,
+  infoKind,
+  describeModel,
   onFavorite,
 }: {
   label: string;
@@ -676,6 +713,10 @@ function ImageMenu({
   details?: boolean;
   note?: string;
   descriptions?: Record<string, string>;
+  allowedValues?: string[];
+  ratioIcons?: boolean;
+  infoKind?: MediaKind;
+  describeModel?: (model: IModelDescription) => string;
   onFavorite?: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -795,7 +836,7 @@ function ImageMenu({
                     </button>
                   )}
                 </strong>
-                <small>{modelSummary(model)}</small>
+                <small>{describeModel ? describeModel(model) : modelSummary(model)}</small>
               </span>
               <button
                 className="image-favorite"
@@ -820,16 +861,39 @@ function ImageMenu({
           {!models &&
             values.map((value) => (
               <button
-                className="image-option"
+                className={`image-option ${ratioIcons ? 'banana-ratio-option' : ''}`}
                 type="button"
                 role="option"
                 aria-selected={value === selection}
                 aria-label={value}
+                disabled={allowedValues && !allowedValues.includes(value)}
                 key={value}
                 onClick={() => {
                   choose(value);
                 }}
               >
+                {ratioIcons && (
+                  <span className="banana-ratio-frame" aria-hidden="true">
+                    <i
+                      style={{
+                        width: Math.max(
+                          3,
+                          Math.round(
+                            Math.min(32 / Number(value.split(':')[0]), 24 / Number(value.split(':')[1])) *
+                              Number(value.split(':')[0]),
+                          ),
+                        ),
+                        height: Math.max(
+                          3,
+                          Math.round(
+                            Math.min(32 / Number(value.split(':')[0]), 24 / Number(value.split(':')[1])) *
+                              Number(value.split(':')[1]),
+                          ),
+                        ),
+                      }}
+                    />
+                  </span>
+                )}
                 {descriptions ? (
                   <span className="video-option-copy">
                     <strong>{value}</strong>
@@ -843,7 +907,7 @@ function ImageMenu({
             ))}
         </div>
       )}
-      {info && <VideoModelInfo model={info} onClose={() => setInfo(undefined)} />}
+      {info && <VideoModelInfo kind={infoKind} model={info} onClose={() => setInfo(undefined)} />}
     </div>
   );
 }

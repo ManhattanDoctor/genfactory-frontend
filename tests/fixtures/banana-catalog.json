@@ -1,0 +1,1065 @@
+[
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "google/gemini-nano-banana-2.1"
+    },
+    "name": "Google: Nano Banana 2.1",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 14
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["google/gemini-nano-banana-2.1"],
+              "default": "google/gemini-nano-banana-2.1"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["1K", "2K", "4K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": [
+                "1:1",
+                "1:4",
+                "1:8",
+                "2:3",
+                "3:2",
+                "3:4",
+                "4:1",
+                "4:3",
+                "4:5",
+                "5:4",
+                "8:1",
+                "9:16",
+                "16:9",
+                "21:9"
+              ]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "google/gemini-3.1-flash-lite-image"
+    },
+    "name": "Google: Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 14
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["google/gemini-3.1-flash-lite-image"],
+              "default": "google/gemini-3.1-flash-lite-image"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["1K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": [
+                "1:1",
+                "1:4",
+                "1:8",
+                "2:3",
+                "3:2",
+                "3:4",
+                "4:1",
+                "4:3",
+                "4:5",
+                "5:4",
+                "8:1",
+                "9:16",
+                "16:9",
+                "21:9"
+              ]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "google/gemini-3.1-flash-image"
+    },
+    "name": "Google: Nano Banana 2 (Gemini 3.1 Flash Image)",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 14
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["google/gemini-3.1-flash-image"],
+              "default": "google/gemini-3.1-flash-image"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["512", "1K", "2K", "4K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": [
+                "1:1",
+                "1:4",
+                "1:8",
+                "2:3",
+                "3:2",
+                "3:4",
+                "4:1",
+                "4:3",
+                "4:5",
+                "5:4",
+                "8:1",
+                "9:16",
+                "16:9",
+                "21:9"
+              ]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "google/gemini-3-pro-image"
+    },
+    "name": "Google: Nano Banana Pro (Gemini 3 Pro Image)",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 14
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["google/gemini-3-pro-image"],
+              "default": "google/gemini-3-pro-image"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["1K", "2K", "4K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "google/gemini-3.1-flash-image-preview"
+    },
+    "name": "Google: Nano Banana 2 (Gemini 3.1 Flash Image Preview)",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 14
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["google/gemini-3.1-flash-image-preview"],
+              "default": "google/gemini-3.1-flash-image-preview"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["512", "1K", "2K", "4K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": [
+                "1:1",
+                "1:4",
+                "1:8",
+                "2:3",
+                "3:2",
+                "3:4",
+                "4:1",
+                "4:3",
+                "4:5",
+                "5:4",
+                "8:1",
+                "9:16",
+                "16:9",
+                "21:9"
+              ]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "google/gemini-3-pro-image-preview"
+    },
+    "name": "Google: Nano Banana Pro (Gemini 3 Pro Image Preview)",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 14
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["google/gemini-3-pro-image-preview"],
+              "default": "google/gemini-3-pro-image-preview"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Resolution tier supported by the model, e.g. 1K, 2K, 4K",
+              "enum": ["1K", "2K", "4K"]
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "reference": {
+      "provider": "OPEN_ROUTER_IMAGE",
+      "model": "google/gemini-2.5-flash-image"
+    },
+    "name": "Google: Nano Banana (Gemini 2.5 Flash Image)",
+    "capabilities": ["TEXT_INPUT", "IMAGE_OUTPUT", "IMAGE_INPUT", "IMAGE_EDIT"],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "OPEN_ROUTER_IMAGE"
+        },
+        "task": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileIds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 0,
+              "maxItems": 3
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["google/gemini-2.5-flash-image"],
+              "default": "google/gemini-2.5-flash-image"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(512|768|1K|1\\.5K|2K|4K|[1-9][0-9]*x[1-9][0-9]*)$"
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Model-supported aspect ratio, e.g. 16:9, 1:1, auto",
+              "enum": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
+            },
+            "format": {
+              "type": "string",
+              "enum": ["png", "jpeg", "webp", "svg"]
+            },
+            "provider": {
+              "type": "object",
+              "properties": {
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "order": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": ["price", "throughput", "latency"]
+                },
+                "allowFallbacks": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "description": "Only keys listed in the selected endpoint allowed_passthrough_parameters"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "default": {},
+          "allOf": [
+            {
+              "if": {
+                "required": ["compression"]
+              },
+              "then": {
+                "required": ["format"],
+                "properties": {
+                  "format": {
+                    "enum": ["jpeg", "webp"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["background"],
+                "properties": {
+                  "background": {
+                    "const": "transparent"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "format": {
+                    "enum": ["png", "webp"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["model", "task"],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  }
+]

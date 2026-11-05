@@ -1,3 +1,4 @@
+import { bananaDefaults, bananaTitle } from './bananaSettings';
 import { MediaWorkspace } from './MediaWorkspace';
 import { videoDefaults } from './videoSettings';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
@@ -207,15 +208,23 @@ export function Studio({ kind }: { kind: MediaKind }) {
     retry: 1,
   });
   const specialized = search.get('studio');
-  const models = (catalog.data || []).filter((m) =>
-    specialized === 'banana'
-      ? /gemini.*(image|banana)/i.test(m.reference.model)
-      : specialized === 'seedance'
-        ? /seedance/i.test(m.reference.model)
-        : true,
-  );
+  const legacy = !!specialized && specialized !== 'banana';
+  const models = (catalog.data || [])
+    .filter((m) =>
+      specialized === 'banana'
+        ? /gemini.*(image|banana)/i.test(m.reference.model)
+        : specialized === 'seedance'
+          ? /seedance/i.test(m.reference.model)
+          : true,
+    )
+    .map((m) => (specialized === 'banana' ? { ...m, name: bananaTitle(m) } : m));
   const modelKey = (m: IModelDescription) => `${m.reference.provider}:${m.reference.model}`;
-  const model = models.find((m) => modelKey(m) === selected) || models[0];
+  const model =
+    models.find((m) => modelKey(m) === selected) ||
+    (specialized === 'banana'
+      ? models.find((m) => /gemini-3\.1-flash-image$/.test(m.reference.model))
+      : undefined) ||
+    models[0];
   const currentKey = model ? modelKey(model) : '';
   uploadScope.current = `${auth.session}:${kind}:${currentKey}:${location.key}:${uploadEpoch.current}`;
   useEffect(() => {
@@ -229,9 +238,11 @@ export function Studio({ kind }: { kind: MediaKind }) {
     initializedModel.current = currentKey;
     setOptions(
       repeatRequest.current?.options || {
-        ...(kind === 'video' && !specialized
-          ? videoDefaults(model)
-          : defaults(model?.schema.properties?.options)),
+        ...(specialized === 'banana'
+          ? bananaDefaults(model)
+          : kind === 'video' && !legacy
+            ? videoDefaults(model)
+            : defaults(model?.schema.properties?.options)),
         ...(model ? { model: model.reference.model } : {}),
       },
     );
@@ -410,13 +421,13 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setError('Выбранная модель не поддерживает референсы. Выберите другую модель.');
       return;
     }
-    const limit = Math.min(4, referenceLimit(model));
+    const limit = specialized === 'banana' ? referenceLimit(model) : Math.min(4, referenceLimit(model));
     setReferences(incoming.slice(0, limit));
     if (incoming.length > limit) setNotice(`Для этой модели оставлены первые ${limit} референса.`);
     referenceKey.current = location.key;
     setFocusPrompt((value) => value + 1);
   }, [models, currentKey, location.key, location.state, auth.user?.id, conversation, conversationId, kind]);
-  const maxRefs = !specialized
+  const maxRefs = !legacy
     ? Math.min(kind === 'video' ? 1 : Infinity, referenceLimit(model))
     : Math.min(4, referenceLimit(model));
   const minRefs = referenceMinimum(model);
@@ -490,7 +501,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   };
   const imageDraftRestored = useRef('');
   useEffect(() => {
-    if (specialized || !auth.user || !models.length || busy || uploading) return;
+    if (legacy || !auth.user || !models.length || busy || uploading) return;
     if (conversationId && !conversation) return;
     if (imageDraftRestored.current === sourceScope) return;
     imageDraftRestored.current = sourceScope;
@@ -550,7 +561,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     return `${message}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`;
   };
   const imageBlockedReason =
-    !specialized && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
+    !legacy && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
       ? insufficientFundsMessage
       : '';
   const submit = async () => {
@@ -575,7 +586,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setError('Не удалось выбрать модель ассистента. Обновите каталог.');
       return;
     }
-    if (specialized && conversation && !references.length && !fromScratch) {
+    if (legacy && conversation && !references.length && !fromScratch) {
       setReferenceChoice(true);
       return;
     }
@@ -592,13 +603,13 @@ export function Studio({ kind }: { kind: MediaKind }) {
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
     );
     const combinedPrompt =
-      !specialized && imageTemplateId
+      !legacy && imageTemplateId
         ? [imageTemplateText.trim(), prompt.trim()].filter(Boolean).join('\n\n')
         : prompt;
     const preparedPrompt =
-      kind === 'image' && !specialized
+      kind === 'image' && !legacy
         ? imageRequest(prompt, imageTemplateId ? imageTemplateText : '')
-        : kind === 'video' && !specialized
+        : kind === 'video' && !legacy
           ? videoRequest(prompt, imageTemplateId ? imageTemplateText : '', shot.shape || 'single')
           : creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
     const body: ITaskRequest = {
@@ -672,7 +683,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           return;
         id = created.id;
         client.setQueryData(['conversation', userId, id], created);
-        const nextSearch = `?conversation=${id}${specialized === 'advanced' ? '&studio=advanced' : ''}`;
+        const nextSearch = `?conversation=${id}${specialized === 'advanced' || specialized === 'banana' ? `&studio=${specialized}` : ''}`;
         activeScope = `${userId}:/${kind}:${nextSearch}`;
         scopeRef.current = activeScope;
         navigate(`/${kind}${nextSearch}`, { replace: true });
@@ -685,7 +696,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           kind,
           tool,
           references.map((f) => f.id),
-          fromScratch || !conversationId || (!specialized && !references.length),
+          fromScratch || !conversationId || (!legacy && !references.length),
         ),
         sid,
       });
@@ -693,7 +704,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
         const saved = saveRecipe(userId, id, response.id, {
           kind,
           prompt: preparedPrompt,
-          ...(!specialized
+          ...(!legacy
             ? {
                 workspaceInput: {
                   idea: prompt,
@@ -724,7 +735,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     } catch (e) {
       if (mounted.current && !messageSent && scopeRef.current === activeScope)
         setError(
-          !specialized
+          !legacy
             ? imageSendError(e)
             : `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
         );
@@ -733,16 +744,17 @@ export function Studio({ kind }: { kind: MediaKind }) {
       if (mounted.current) setCreating(false);
     }
   };
-  if (!specialized)
+  if (!legacy)
     return (
       <MediaWorkspace
+        variant={specialized === 'banana' ? 'banana' : undefined}
         kind={kind}
         shape={shot.shape || 'single'}
         onShape={(shape) => {
           draft.changed();
           setShot((value) => ({ ...value, shape }));
         }}
-        key={`${auth.user?.id}:${kind}`}
+        key={`${auth.user?.id}:${kind}:${specialized || 'all'}`}
         models={models}
         model={model}
         options={options}
