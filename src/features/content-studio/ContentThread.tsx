@@ -1,3 +1,4 @@
+import { isReadyScript } from './script';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, safeMediaUrl } from '../../lib/api';
@@ -242,7 +243,8 @@ export function ContentThread({
                       </button>
                     ))}
                   {ask?.text?.startsWith('[Genfactory:script]\n') &&
-                    !!reply?.text?.trim() &&
+                    !!reply?.text &&
+                    isReadyScript(reply.text) &&
                     !files.length && (
                       <button disabled={busy} onClick={() => onUseScript(reply.text!, ask.files || [])}>
                         Использовать сценарий

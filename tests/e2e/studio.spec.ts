@@ -52,7 +52,8 @@ async function navigateLegacyRoute(page: Page, path: string) {
     window.history.pushState({}, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
   }, path);
-  if (!path.startsWith('/image')) await expect(page.locator('.image-workspace')).toHaveCount(0);
+  if (!path.startsWith('/image') && !path.startsWith('/video'))
+    await expect(page.locator('.image-workspace')).toHaveCount(0);
 }
 async function openViewerActions(page: Page) {
   const trigger = page.locator('.preview-menu > summary');
@@ -73,6 +74,7 @@ async function mockApi(page: Page, signedIn = true) {
     sends: [] as any[],
     forbidden: [] as string[],
     abortAfterAccept: false,
+    scriptReply: undefined as string | undefined,
     uploads: 0,
     edits: [] as any[],
     progress: null as unknown,
@@ -192,7 +194,8 @@ async function mockApi(page: Page, signedIn = true) {
           id: messages.length + 1,
           role: 'ASSISTANT',
           text: data.text.startsWith('[Genfactory:')
-            ? 'Точный промпт для генерации.'
+            ? (data.text.startsWith('[Genfactory:script]') && state.scriptReply) ||
+              'Точный промпт для генерации.'
             : 'Готово: результат сохранён.',
           files: data.text.startsWith('[Genfactory:') ? [] : [result],
           createdDate: file.createdDate,
@@ -235,10 +238,11 @@ async function mockApi(page: Page, signedIn = true) {
   return state;
 }
 async function submit(page: Page, prompt = 'A calm cinematic forest', kind = 'image') {
-  await page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ }).fill(prompt);
+  await page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ }).fill(prompt);
   await page
     .getByRole('button', {
-      name: kind === 'image' ? /^(Создать изображение|Собрать изображение)$/ : 'Создать видео',
+      name:
+        kind === 'image' ? /^(Создать изображение|Собрать изображение)$/ : /^(Создать видео|Собрать видео)$/,
       exact: true,
     })
     .click();
@@ -309,7 +313,7 @@ test('video settings use VIDEO and server message attachments', async ({ page })
   await expectCompleted(page);
   expect(state.sends[0].settings.tools[0].uid).toBe('VIDEO');
   expect(state.sends[0].settings.tools[0].settings.model.provider).toBe('OPEN_ROUTER_VIDEO');
-  await expect(page.locator('.result-grid video')).toHaveCount(1);
+  await expect(page.locator('.result-grid video, .video-result video')).toHaveCount(1);
   expect(state.forbidden).toEqual([]);
 });
 test('accepted message with lost response recovers from server after reload without a second POST', async ({
@@ -357,7 +361,7 @@ test('advanced editor: image to video keeps the same conversation and sends the 
   await submit(page);
   await page.getByRole('button', { name: 'Оживить', exact: true }).click();
   await expect(page).toHaveURL(/video\?conversation=101/);
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Animate this image', 'video');
   await expect.poll(() => state.sends.length).toBe(2);
@@ -380,7 +384,7 @@ test('library reference is attached to a conversation message', async ({ page })
 test('library reference survives returning to a studio with a cached catalog', async ({ page }) => {
   const state = await mockApi(page);
   await page.goto('/image');
-  await expect(page.getByLabel('Модель', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toBeVisible();
   await navigateLegacyRoute(page, '/library');
   await page.getByRole('button', { name: /Test result/ }).click();
   await openViewerActions(page);
@@ -689,9 +693,7 @@ test('advanced editor: reference survives restoration of a different saved video
   state.messages.set(101, [{ id: 1, role: 'ASSISTANT', files: [file], createdDate: file.createdDate }]);
   await page.goto('/image?conversation=101&studio=advanced');
   await page.getByRole('button', { name: 'Оживить', exact: true }).click();
-  await expect(page.getByLabel('Модель', { exact: true })).toHaveValue(
-    `${videoModels[1].reference.provider}:${videoModels[1].reference.model}`,
-  );
+  await expect(page.getByLabel('Модель', { exact: true })).toContainText('Wan');
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Animate the reference', 'video');
   await expect.poll(() => state.sends.length).toBe(1);
@@ -786,7 +788,7 @@ test('advanced editor: invalid and missing conversations do not show an endless 
     await page.goto(`/image?conversation=${id}&studio=advanced`);
     await expect(page.getByRole('alert')).toBeVisible();
     await expect(page.getByText('Загружаем рабочую беседу…')).toHaveCount(0);
-    await page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ }).fill('Try generation');
+    await page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ }).fill('Try generation');
     await expect(
       page.getByRole('button', { name: /^(Создать изображение|Собрать изображение)$/, exact: true }),
     ).toBeDisabled();
@@ -905,7 +907,7 @@ test('catalog failure is recoverable and prevents generation', async ({ page }) 
     failing ? route.fulfill({ status: 503, json: { message: 'Unavailable' } }) : route.fallback(),
   );
   await page.goto('/image');
-  await page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ }).fill('A new idea');
+  await page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ }).fill('A new idea');
   await expect(
     page.getByRole('button', { name: /^(Создать изображение|Собрать изображение)$/, exact: true }),
   ).toBeDisabled();
@@ -1099,7 +1101,7 @@ test('workspace Generate Prompt transfers its answer and reference into image ge
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].text).toContain('English');
   await page.getByRole('button', { name: 'В задачу изображения', exact: true }).last().click();
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toHaveValue(
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue(
     'Точный промпт для генерации.',
   );
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
@@ -1171,7 +1173,7 @@ test('advanced editor: workspace custom templates restore prompt model and optio
   await mockApi(page);
   await page.goto('/image?studio=advanced');
   await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
-  await page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ }).fill('Мой предметный кадр');
+  await page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ }).fill('Мой предметный кадр');
   await page.getByLabel('Качество', { exact: true }).selectOption('"high"');
   await page.getByText('Сохранить как шаблон', { exact: true }).click();
   await page.getByLabel('Название шаблона').fill('Мой сценарий');
@@ -1179,7 +1181,9 @@ test('advanced editor: workspace custom templates restore prompt model and optio
   await navigateLegacyRoute(page, '/templates');
   await page.getByRole('button', { name: 'Мои', exact: true }).click();
   await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toHaveValue('Мой предметный кадр');
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue(
+    'Мой предметный кадр',
+  );
   await expectQuality(page, 'high');
 });
 
@@ -1326,7 +1330,7 @@ test('advanced editor: persists and restores media drafts with account-owned ref
   const modelKey = `${catalog[1].reference.provider}:${catalog[1].reference.model}`;
   await chooseModel(page, modelKey);
   await page.getByLabel('Качество', { exact: true }).selectOption('high');
-  await page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ }).fill('Сохранённая идея');
+  await page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ }).fill('Сохранённая идея');
   await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
   await page
     .getByRole('dialog')
@@ -1340,7 +1344,9 @@ test('advanced editor: persists and restores media drafts with account-owned ref
     .toBe(true);
   await page.reload();
   await page.getByRole('button', { name: 'Восстановить черновик' }).click();
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toHaveValue('Сохранённая идея');
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue(
+    'Сохранённая идея',
+  );
   await expect(page.getByLabel('Модель', { exact: true })).toHaveValue(modelKey);
   await expectQuality(page, 'high');
   await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeVisible();
@@ -1457,7 +1463,7 @@ test('viewer navigates images and transfers the currently displayed file', async
   await openViewerActions(page);
   await page.getByRole('button', { name: 'Использовать как референс', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Убрать Second image', exact: true })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toBeFocused();
 });
 
 test('advanced editor: mobile workspace and model browser stay within the viewport', async ({ page }) => {
@@ -1492,7 +1498,7 @@ test('advanced editor: repeat restores the exact local run settings and never se
   await page.getByText('История вариантов', { exact: true }).click();
   await page.getByRole('button', { name: 'Повторить с изменениями' }).click();
   await expect(page).toHaveURL(/\/image(?:\?studio=advanced)?$/);
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toHaveValue(
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue(
     'Вариант для повторения',
   );
   await expect(page.getByLabel('Модель', { exact: true })).toHaveValue(key);
@@ -1524,7 +1530,9 @@ test('advanced editor: old variants explain unknown settings instead of using co
   await page.getByText('История вариантов', { exact: true }).click();
   await expect(page.getByText('Исходные модель и настройки неизвестны.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Повторить с изменениями' }).click();
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toHaveValue('Старый запрос');
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue(
+    'Старый запрос',
+  );
   await expect(page.getByText(/Исходные параметры запуска неизвестны/)).toBeVisible();
   expect(state.sends).toHaveLength(0);
 });
@@ -1601,7 +1609,7 @@ test('continuation requires a visible reference choice before any paid request a
     'Custom prefix. Если референсы не указаны, создавай с нуля: IMAGE isDrawNew=true, VIDEO fileIds=[]. Custom suffix.';
   state.conversations.push(conversation);
   state.messages.set(101, [{ id: 1, role: 'ASSISTANT', files: [file], createdDate: file.createdDate }]);
-  await page.goto('/video?conversation=101');
+  await page.goto('/video?conversation=101&studio=advanced');
   await submit(page, 'Пусть над ней кружит пчела', 'video');
   const dialog = page.getByRole('dialog', { name: 'Использовать предыдущий результат?' });
   await expect(dialog).toBeVisible();
@@ -1618,7 +1626,7 @@ test('continuation requires a visible reference choice before any paid request a
   expect(state.edits).toHaveLength(1);
   expect(state.edits[0].system).toContain('Только при явном выборе');
   expect(state.edits[0].system).toContain('Custom suffix.');
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue('');
   await submit(page, 'Теперь добавь свет', 'video');
   await expect.poll(() => state.sends.length).toBe(2);
   expect(state.sends[1].files).toEqual([12]);
@@ -1698,7 +1706,7 @@ test('reference chooser finds older images beyond the latest page and fits mobil
     });
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/video?conversation=101');
+  await page.goto('/video?conversation=101&studio=advanced');
   await page.getByRole('button', { name: 'Выбрать из беседы', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Использовать предыдущий результат?' });
   await expect(dialog.getByText(longFile.name)).toBeVisible();
@@ -1753,7 +1761,7 @@ test('a template can start a new work while another conversation request is stil
     await expect.poll(() => accepted).toBe(true);
     await navigateLegacyRoute(page, '/templates');
     await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).first().click();
-    await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).not.toHaveValue('');
+    await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).not.toHaveValue('');
     const generate = page.getByRole('button', {
       name: /^(Создать изображение|Собрать изображение)$/,
       exact: true,
@@ -2038,7 +2046,7 @@ test('advanced editor: edit action focuses the prompt without sending another ge
   state.messages.set(101, [{ id: 1, role: 'ASSISTANT', files: [file], createdDate: file.createdDate }]);
   await page.goto('/image?conversation=101&studio=advanced');
   await page.getByRole('button', { name: 'Изменить', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея)$/ })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   expect(state.sends).toHaveLength(0);
 });
@@ -3318,6 +3326,7 @@ test('content studio applies a saved script with references without generating u
   page,
 }) => {
   const state = await mockApi(page);
+  state.scriptReply = 'Длительность: 8 с. Действие: чашка вращается. Камера: статичная.';
   await page.goto('/chat');
   await page.locator('input[type=file]').setInputFiles({
     name: 'cup.png',
@@ -3331,7 +3340,7 @@ test('content studio applies a saved script with references without generating u
   await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Использовать сценарий', exact: true }).click();
-  await expect(page.locator('#cw-draft')).toHaveValue('Точный промпт для генерации.');
+  await expect(page.locator('#cw-draft')).toHaveValue(state.scriptReply);
   await expect(page.locator('#cw-draft')).toBeFocused();
   expect(state.sends).toHaveLength(1);
   expect(state.uploads).toBe(1);
@@ -3706,4 +3715,40 @@ test('optional template clears previous references and sends explicitly from scr
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(2);
   expect(state.sends[1].text).toContain('Продолжи беседу с учётом контекста');
+});
+
+for (const command of ['подтверждаю', 'да сделай уже видео!']) {
+  test(`content studio exits script loop: ${command}`, async ({ page }) => {
+    const state = await mockApi(page);
+    state.scriptReply = '**Длительность:** 8 секунд\n**Действие:** Чашка вращается.\n**Камера:** Статичная.';
+    await page.goto('/chat');
+    await page.locator('#cw-draft').fill('Придумай сценарий');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toBeVisible();
+    await page.locator('#cw-draft').fill(command);
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    if (command === 'подтверждаю') {
+      await expect(page.locator('#cw-draft')).toHaveValue(state.scriptReply);
+      expect(state.sends).toHaveLength(1);
+      await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    }
+    await expect.poll(() => state.sends.length).toBe(2);
+    expect(state.sends[1].settings.tools[0].uid).toBe('VIDEO');
+    expect(state.sends[1].text).toContain('Чашка вращается');
+    expect(state.sends[1].text).not.toContain('[Genfactory:script]');
+  });
+}
+
+test('content studio does not offer clarification or refusal as a script', async ({ page }) => {
+  const state = await mockApi(page);
+  state.scriptReply = 'Какая нужна длительность?';
+  await page.goto('/chat');
+  await page.locator('#cw-draft').fill('Придумай сценарий');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect(page.locator('.cw-thread')).toContainText(state.scriptReply);
+  await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toHaveCount(0);
+  await page.locator('#cw-draft').fill('сделай видео');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect(page.getByText(/Не найден готовый сценарий/)).toBeVisible();
+  expect(state.sends).toHaveLength(1);
 });

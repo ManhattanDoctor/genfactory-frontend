@@ -1,4 +1,5 @@
-import { ImageWorkspace } from './ImageWorkspace';
+import { MediaWorkspace } from './MediaWorkspace';
+import { videoDefaults } from './videoSettings';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import type { IUploadProgress } from '../../lib/api';
 import { ModelField as Field } from '../catalog/ModelField';
@@ -38,6 +39,7 @@ import {
   createConversationBody,
   createMessageBody,
   imageRequest,
+  videoRequest,
   migratedReferenceSystem,
   toolSettings,
 } from './conversations';
@@ -227,7 +229,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
     initializedModel.current = currentKey;
     setOptions(
       repeatRequest.current?.options || {
-        ...defaults(model?.schema.properties?.options),
+        ...(kind === 'video' && !specialized
+          ? videoDefaults(model)
+          : defaults(model?.schema.properties?.options)),
         ...(model ? { model: model.reference.model } : {}),
       },
     );
@@ -412,8 +416,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
     referenceKey.current = location.key;
     setFocusPrompt((value) => value + 1);
   }, [models, currentKey, location.key, location.state, auth.user?.id, conversation, conversationId, kind]);
-  const maxRefs =
-    kind === 'image' && !specialized ? referenceLimit(model) : Math.min(4, referenceLimit(model));
+  const maxRefs = !specialized
+    ? Math.min(kind === 'video' ? 1 : Infinity, referenceLimit(model))
+    : Math.min(4, referenceLimit(model));
   const minRefs = referenceMinimum(model);
   const draft = useDraft(
     `${kind}:${conversationId || 'new'}:${specialized || 'all'}`,
@@ -443,7 +448,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     setImageTemplateId(pending.value.imageTemplateId || '');
     setImageTemplateText(pending.value.imageTemplateText || '');
     setOptions(pending.value.options);
-    setReferences(pending.files.slice(0, maxRefs));
+    setReferences(pending.files);
     setShot(pending.value.shot || {});
     setUseBrand(!!pending.value.useBrand);
     setAgentKey(pending.value.agentKey || '');
@@ -485,7 +490,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   };
   const imageDraftRestored = useRef('');
   useEffect(() => {
-    if (kind !== 'image' || specialized || !auth.user || !models.length || busy || uploading) return;
+    if (specialized || !auth.user || !models.length || busy || uploading) return;
     if (conversationId && !conversation) return;
     if (imageDraftRestored.current === sourceScope) return;
     imageDraftRestored.current = sourceScope;
@@ -545,7 +550,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     return `${message}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`;
   };
   const imageBlockedReason =
-    kind === 'image' && !specialized && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
+    !specialized && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
       ? insufficientFundsMessage
       : '';
   const submit = async () => {
@@ -570,7 +575,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setError('Не удалось выбрать модель ассистента. Обновите каталог.');
       return;
     }
-    if ((kind !== 'image' || specialized) && conversation && !references.length && !fromScratch) {
+    if (specialized && conversation && !references.length && !fromScratch) {
       setReferenceChoice(true);
       return;
     }
@@ -587,13 +592,15 @@ export function Studio({ kind }: { kind: MediaKind }) {
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
     );
     const combinedPrompt =
-      kind === 'image' && !specialized && imageTemplateId
+      !specialized && imageTemplateId
         ? [imageTemplateText.trim(), prompt.trim()].filter(Boolean).join('\n\n')
         : prompt;
     const preparedPrompt =
       kind === 'image' && !specialized
         ? imageRequest(prompt, imageTemplateId ? imageTemplateText : '')
-        : creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
+        : kind === 'video' && !specialized
+          ? videoRequest(prompt, imageTemplateId ? imageTemplateText : '', shot.shape || 'single')
+          : creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
     const body: ITaskRequest = {
       model: model.reference.provider,
       task: { prompt: preparedPrompt, session: crypto.randomUUID() },
@@ -678,7 +685,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           kind,
           tool,
           references.map((f) => f.id),
-          fromScratch || !conversationId || (kind === 'image' && !specialized && !references.length),
+          fromScratch || !conversationId || (!specialized && !references.length),
         ),
         sid,
       });
@@ -686,8 +693,15 @@ export function Studio({ kind }: { kind: MediaKind }) {
         const saved = saveRecipe(userId, id, response.id, {
           kind,
           prompt: preparedPrompt,
-          ...(kind === 'image' && !specialized
-            ? { imageInput: { idea: prompt, templateId: imageTemplateId, templateText: imageTemplateText } }
+          ...(!specialized
+            ? {
+                workspaceInput: {
+                  idea: prompt,
+                  templateId: imageTemplateId,
+                  templateText: imageTemplateText,
+                  shape: shot.shape,
+                },
+              }
             : {}),
           model: model.reference,
           options: cleanOptions,
@@ -710,7 +724,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     } catch (e) {
       if (mounted.current && !messageSent && scopeRef.current === activeScope)
         setError(
-          kind === 'image' && !specialized
+          !specialized
             ? imageSendError(e)
             : `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
         );
@@ -719,10 +733,16 @@ export function Studio({ kind }: { kind: MediaKind }) {
       if (mounted.current) setCreating(false);
     }
   };
-  if (kind === 'image' && !specialized)
+  if (!specialized)
     return (
-      <ImageWorkspace
-        key={`${auth.user?.id}:image`}
+      <MediaWorkspace
+        kind={kind}
+        shape={shot.shape || 'single'}
+        onShape={(shape) => {
+          draft.changed();
+          setShot((value) => ({ ...value, shape }));
+        }}
+        key={`${auth.user?.id}:${kind}`}
         models={models}
         model={model}
         options={options}
@@ -759,7 +779,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
         error={
           (idParam && !conversationId ? 'Некорректный адрес беседы.' : '') ||
           (conversation && !connection(conversation, kind)
-            ? 'В этой беседе не подключён инструмент изображений.'
+            ? `В этой беседе не подключён инструмент ${kind === 'video' ? 'видео' : 'изображений'}.`
             : '') ||
           imageBlockedReason ||
           error ||
@@ -823,15 +843,20 @@ export function Studio({ kind }: { kind: MediaKind }) {
             activeScope = scopeRef.current;
           try {
             const sources = await Promise.all(
-              [...new Set([...(file.origin?.sourceFileIds || []), file.id])].map((id) => api.file(id, sid!)),
+              [
+                ...new Set([...(file.origin?.sourceFileIds || []), ...(kind === 'image' ? [file.id] : [])]),
+              ].map((id) => api.file(id, sid!)),
             );
             if (getSession() !== sid || scopeRef.current !== activeScope || !mounted.current) return;
             if (sources.some((f) => f.userId !== auth.user?.id || f.type !== 'IMAGE'))
               throw new Error('Исходные изображения недоступны.');
-            if (!supportsReferences(chosen) || sources.length > referenceLimit(chosen))
+            if (
+              (sources.length && !supportsReferences(chosen)) ||
+              sources.length > Math.min(kind === 'video' ? 1 : Infinity, referenceLimit(chosen))
+            )
               throw new Error('Количество референсов не поддерживается текущей моделью.');
             const values = {
-              ...defaults(chosen.schema.properties?.options),
+              ...(kind === 'video' ? videoDefaults(chosen) : defaults(chosen.schema.properties?.options)),
               ...generation.options,
               model: chosen.reference.model,
             };
@@ -840,11 +865,11 @@ export function Studio({ kind }: { kind: MediaKind }) {
               key: modelKey(chosen),
               files: sources,
               value: {
-                prompt: `${input?.idea ?? generation.prompt}\n\nПоследний референс — полученный результат. Исправь его с учётом моих уточнений.`,
+                prompt: `${input?.idea ?? generation.prompt}\n\n${kind === 'video' ? 'Ролик не подошёл полностью. Уточните, что изменить.' : 'Последний референс — полученный результат. Исправь его с учётом моих уточнений.'}`,
                 selected: modelKey(chosen),
                 options: values,
                 references: sources,
-                shot: {},
+                shot: input?.shape ? { shape: input.shape } : {},
                 useBrand: false,
                 agentKey,
                 imageTemplateId: input?.templateId || '',
@@ -883,7 +908,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
           />
         )}
         {login && <LoginDialog onClose={() => setLogin(false)} />}
-      </ImageWorkspace>
+      </MediaWorkspace>
     );
   return (
     <div className="studio page-enter">

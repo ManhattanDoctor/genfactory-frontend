@@ -1,3 +1,4 @@
+import { VideoTemplateMedia, VideoViewer, VideoModelInfo } from './VideoMedia';
 import '../catalog/model-favorites.css';
 import { readRecipes, variantGroups, type IGenerationRecipe } from './variants';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
@@ -13,9 +14,10 @@ import {
   Expand,
   Heart,
   ChevronDown,
+  Info,
 } from 'lucide-react';
 import { api, safeMediaUrl } from '../../lib/api';
-import type { IConversation, IGnosisFile, IModelDescription } from '../../lib/types';
+import type { IConversation, IGnosisFile, IModelDescription, MediaKind } from '../../lib/types';
 import { modelKey, modelTitle, modelSummary } from '../catalog/presentation';
 import { choices, ratioSizes, sizeRatio, suggestedRatios } from '../content-studio/controls';
 import templates from '../content-studio/templates.json';
@@ -32,8 +34,10 @@ import { useConversationProgress } from './useConversationProgress';
 import { toolLabel } from './progress';
 import './image-workspace.css';
 
-const imageTemplates = templates.filter((item) => item.kind === 'image');
-export function ImageWorkspace({
+export function MediaWorkspace({
+  kind,
+  shape = 'single',
+  onShape,
   models,
   model,
   options,
@@ -58,6 +62,9 @@ export function ImageWorkspace({
   promptInput,
   children,
 }: {
+  kind: MediaKind;
+  shape?: string;
+  onShape?: (value: string) => void;
   models: IModelDescription[];
   model?: IModelDescription;
   options: Record<string, unknown>;
@@ -78,10 +85,13 @@ export function ImageWorkspace({
   onReferences: (value: IGnosisFile[]) => void;
   onLibrary: () => void;
   onSubmit: () => void;
-  onRepeat: (file: IGnosisFile, input?: IGenerationRecipe['imageInput']) => void;
+  onRepeat: (file: IGnosisFile, input?: IGenerationRecipe['workspaceInput']) => void;
   promptInput: RefObject<HTMLTextAreaElement | null>;
   children?: ReactNode;
 }) {
+  const video = kind === 'video';
+  const outputType = video ? 'VIDEO' : 'IMAGE';
+  const imageTemplates = templates.filter((item) => item.kind === kind);
   useConversationRoom(conversation?.id);
   const { user } = useAuth();
   const prefs = usePreferences();
@@ -123,17 +133,17 @@ export function ImageWorkspace({
     refetchInterval: busy ? 2000 : false,
   });
   const history = useInfiniteQuery({
-    queryKey: ['files', user?.id, 'image-wall'],
+    queryKey: ['files', user?.id, `${kind}-wall`],
     enabled: !!user,
     initialPageParam: 0,
-    queryFn: ({ pageParam, signal }) => api.imageFiles(pageParam, signal),
+    queryFn: ({ pageParam, signal }) => api.mediaFiles(outputType, pageParam, signal),
     getNextPageParam: (last) => (last.pageIndex + 1 < last.pages ? last.pageIndex + 1 : undefined),
   });
   const historicalFiles =
     history.data?.pages
       .flatMap((page) => page.items)
       .filter(
-        (file) => file.userId === user?.id && file.type === 'IMAGE' && file.origin?.kind === 'GENERATION',
+        (file) => file.userId === user?.id && file.type === outputType && file.origin?.kind === 'GENERATION',
       ) || [];
   const files = [
     ...new Map(
@@ -142,7 +152,7 @@ export function ImageWorkspace({
         ...(messages.data?.items || [])
           .filter((message) => message.role === 'ASSISTANT')
           .flatMap((message) => message.files || [])
-          .filter((file) => file.type === 'IMAGE' && file.userId === user?.id),
+          .filter((file) => file.type === outputType && file.userId === user?.id),
       ].map((file) => [file.id, file]),
     ).values(),
   ].sort((a, b) => Date.parse(b.createdDate) - Date.parse(a.createdDate) || b.id - a.id);
@@ -153,7 +163,9 @@ export function ImageWorkspace({
       user.id,
     ).find((group) => group.outputs.some((output) => output.id === file.id));
     if (!group) return;
-    const input = readRecipes(user.id, conversation.id)[group.request.id]?.imageInput;
+    const input =
+      readRecipes(user.id, conversation.id)[group.request.id]?.workspaceInput ||
+      readRecipes(user.id, conversation.id)[group.request.id]?.imageInput;
     return input &&
       typeof input.idea === 'string' &&
       typeof input.templateId === 'string' &&
@@ -176,7 +188,7 @@ export function ImageWorkspace({
   }, [history.hasNextPage, history.isFetchingNextPage, history.error, files.length]);
 
   const latestAnswer = messages.data?.items.find((message) => message.role === 'ASSISTANT');
-  const text = latestAnswer?.files?.some((file) => file.type === 'IMAGE') ? undefined : latestAnswer?.text;
+  const text = latestAnswer?.files?.some((file) => file.type === outputType) ? undefined : latestAnswer?.text;
   useEffect(() => {
     const measure = () => {
       const width = root.current?.clientWidth || innerWidth;
@@ -255,12 +267,18 @@ export function ImageWorkspace({
             style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
           >
             <span className="img-spin" aria-hidden="true" />
-            {conversation ? <ImageProgress conversation={conversation} /> : 'Создаём изображение…'}
+            {conversation ? (
+              <ImageProgress conversation={conversation} kind={kind} />
+            ) : video ? (
+              'Создаём видео…'
+            ) : (
+              'Создаём изображение…'
+            )}
           </div>,
         ]
       : []),
     ...files.map((file) => (
-      <article className="img-tile image-result" key={`file:${file.id}`}>
+      <article className={`img-tile image-result ${video ? 'video-result' : ''}`} key={`file:${file.id}`}>
         <button
           type="button"
           className="image-result-open"
@@ -316,13 +334,17 @@ export function ImageWorkspace({
         onClick={() => applyTemplate(item)}
       >
         <span className="img-card" style={{ aspectRatio: item.ratio.replace(':', ' / ') }}>
-          <img
-            className="img-face"
-            src={item.src}
-            alt=""
-            loading={index < columns * 2 ? 'eager' : 'lazy'}
-            draggable={false}
-          />
+          {video ? (
+            <VideoTemplateMedia item={item} />
+          ) : (
+            <img
+              className="img-face"
+              src={item.src}
+              alt=""
+              loading={index < columns * 2 ? 'eager' : 'lazy'}
+              draggable={false}
+            />
+          )}
           <span className="img-cap">
             <span>{item.genre}</span>
             <strong>{item.title}</strong>
@@ -336,8 +358,12 @@ export function ImageWorkspace({
     )),
   ];
   return (
-    <section className="image-workspace" ref={root} aria-label="Изображения">
-      <div className="img-wall" aria-label="Шаблоны и изображения">
+    <section
+      className={`image-workspace ${video ? 'video-workspace' : ''}`}
+      ref={root}
+      aria-label={video ? 'Видео' : 'Изображения'}
+    >
+      <div className="img-wall" aria-label={video ? 'Шаблоны и видео' : 'Шаблоны и изображения'}>
         {(text || messages.error || (messages.data?.pages || 0) > 1) && (
           <div className="image-conversation-note">
             {text && <p>{displayMessageText(text)}</p>}
@@ -398,7 +424,10 @@ export function ImageWorkspace({
               {selected && (
                 <div className="img-file is-template">
                   <div className="img-thumb">
-                    <img src={selected.src} alt={selected.title} />
+                    <img
+                      src={video ? selected.src.replace(/\.mp4$/, '.jpg') : selected.src}
+                      alt={selected.title}
+                    />
                     <button
                       type="button"
                       className="img-thumb-x"
@@ -412,17 +441,19 @@ export function ImageWorkspace({
                       <X size={16} />
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    className="img-file-edit"
-                    aria-label="Редактировать шаблон"
-                    onClick={() => {
-                      setEditing(true);
-                      templateInput.current?.focus();
-                    }}
-                  >
-                    <Pencil size={16} />
-                  </button>
+                  {!video && (
+                    <button
+                      type="button"
+                      className="img-file-edit"
+                      aria-label="Редактировать шаблон"
+                      onClick={() => {
+                        setEditing(true);
+                        templateInput.current?.focus();
+                      }}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
                   {editing && (
                     <div className="img-template-editor">
                       <textarea
@@ -441,19 +472,23 @@ export function ImageWorkspace({
           )}
           <textarea
             ref={promptInput}
-            id="img-draft"
-            aria-label="Идея"
+            id={video ? 'vd-draft' : 'img-draft'}
+            aria-label={video ? 'Идея ролика' : 'Идея'}
             rows={3}
             value={prompt}
             onChange={(e) => onPrompt(e.target.value)}
-            placeholder="Опишите результат. Если редактируете изображение, укажите, что изменить и что сохранить"
+            placeholder={
+              video
+                ? 'Опишите ролик. Если есть стартовый кадр, укажите, что должно произойти и что сохранить'
+                : 'Опишите результат. Если редактируете изображение, укажите, что изменить и что сохранить'
+            }
           />
         </div>
         <div className="img-tools">
           <button
             className="cw-plus"
             type="button"
-            aria-label="Добавить изображение"
+            aria-label={video ? 'Добавить кадр' : 'Добавить изображение'}
             disabled={busy || (!!user && !model)}
             onClick={onLibrary}
           >
@@ -464,6 +499,7 @@ export function ImageWorkspace({
             name="Модель"
             disabled={busy}
             models={models}
+            details={video}
             selection={model && modelKey(model)}
             favorites={prefs.value.favoriteModels}
             onFavorite={(key) =>
@@ -484,7 +520,7 @@ export function ImageWorkspace({
               onSelect={chooseRatio}
             />
           )}
-          {!!quality.length && (
+          {!video && !!quality.length && (
             <ImageMenu
               label={String(options[qualityKey] || quality[0])}
               name="Качество"
@@ -494,11 +530,41 @@ export function ImageWorkspace({
               onSelect={(value) => onOptions({ ...options, [qualityKey]: value })}
             />
           )}
+          {video && (
+            <>
+              <ImageMenu
+                label={options.duration ? `${options.duration} с` : 'Не задаётся'}
+                name="Длительность"
+                values={choices(fields.duration, [4, 6, 8, 10, 15]).map((v) => `${v} с`)}
+                selection={`${options.duration} с`}
+                disabled={busy || !fields.duration}
+                onSelect={(value) => onOptions({ ...options, duration: Number(value.split(' ')[0]) })}
+              />
+              <ImageMenu
+                label={options.generateAudio ? 'Со звуком' : 'Без звука'}
+                name="Звук"
+                values={choices(fields.generateAudio, [false, true]).map((value) =>
+                  value ? 'Со звуком' : 'Без звука',
+                )}
+                selection={options.generateAudio ? 'Со звуком' : 'Без звука'}
+                disabled={busy || choices(fields.generateAudio, [false, true]).length < 2}
+                onSelect={(value) => onOptions({ ...options, generateAudio: value === 'Со звуком' })}
+              />
+              <ImageMenu
+                label={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
+                name="Структура ролика"
+                values={['Один кадр', 'Набор сцен']}
+                selection={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
+                disabled={busy}
+                onSelect={(value) => onShape?.(value === 'Набор сцен' ? 'sequence' : 'single')}
+              />
+            </>
+          )}
           <button
             className="cw-send"
             type="submit"
-            aria-label="Собрать изображение"
-            disabled={busy || unavailable || (!prompt.trim() && !selected)}
+            aria-label={video ? 'Собрать видео' : 'Собрать изображение'}
+            disabled={busy || unavailable || (!prompt.trim() && !selected && !(video && references.length))}
           >
             {busy ? <span className="spinner" /> : <ArrowUp size={20} />}
           </button>
@@ -509,7 +575,7 @@ export function ImageWorkspace({
               error ||
               notice ||
               prefs.error ||
-              (history.error ? 'Не удалось загрузить историю изображений.' : '')}
+              (history.error ? `Не удалось загрузить историю ${video ? 'видео' : 'изображений'}.` : '')}
             {retryCatalog && (
               <button type="button" onClick={retryCatalog}>
                 Загрузить снова
@@ -518,7 +584,8 @@ export function ImageWorkspace({
           </p>
         )}
       </form>
-      {preview && safeMediaUrl(preview.file.path) && (
+      {video && preview && <VideoViewer file={preview.file} onClose={() => setPreview(undefined)} />}
+      {!video && preview && safeMediaUrl(preview.file.path) && (
         <HomeImageViewer
           image={{
             src: safeMediaUrl(preview.file.path)!,
@@ -546,6 +613,7 @@ function ImageMenu({
   disabled,
   onSelect,
   favorites = [],
+  details = false,
   onFavorite,
 }: {
   label: string;
@@ -556,9 +624,11 @@ function ImageMenu({
   disabled?: boolean;
   onSelect: (value: string) => void;
   favorites?: string[];
+  details?: boolean;
   onFavorite?: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [info, setInfo] = useState<IModelDescription>();
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -643,7 +713,22 @@ function ImageMenu({
             >
               <ModelMark id={model.reference.model} />
               <span className="image-model-copy">
-                <strong>{modelTitle(model)}</strong>
+                <strong>
+                  {modelTitle(model)}
+                  {details && (
+                    <button
+                      className="video-model-about"
+                      type="button"
+                      aria-label={`О модели ${modelTitle(model)}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setInfo(model);
+                      }}
+                    >
+                      <Info size={14} />
+                    </button>
+                  )}
+                </strong>
                 <small>{modelSummary(model)}</small>
               </span>
               <button
@@ -685,17 +770,20 @@ function ImageMenu({
             ))}
         </div>
       )}
+      {info && <VideoModelInfo model={info} onClose={() => setInfo(undefined)} />}
     </div>
   );
 }
 
-function ImageProgress({ conversation }: { conversation: IConversation }) {
+function ImageProgress({ conversation, kind }: { conversation: IConversation; kind: MediaKind }) {
   const progress = useConversationProgress(conversation);
   return (
     <span>
       {progress.tools.length
         ? progress.tools.map((tool, index) => <span key={index}>{toolLabel(tool)}</span>)
-        : 'Создаём изображение…'}
+        : kind === 'video'
+          ? 'Создаём видео…'
+          : 'Создаём изображение…'}
     </span>
   );
 }

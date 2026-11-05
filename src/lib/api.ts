@@ -270,6 +270,11 @@ export const api = {
     request<IPagination<{ tag: string; count: number }>>(
       `/fileTag?${new URLSearchParams({ search, pageIndex: String(page), pageSize: '20' })}`,
     ),
+  mediaFiles: (type: 'IMAGE' | 'VIDEO', page: number, signal?: AbortSignal) =>
+    request<IPagination<IGnosisFile>>(
+      `/file?${new URLSearchParams({ pageSize: '24', pageIndex: String(page), sort: JSON.stringify({ createdDate: false, id: false }), conditions: JSON.stringify({ type }) })}`,
+      { signal },
+    ),
   imageFiles: (page: number, signal?: AbortSignal) =>
     request<IPagination<IGnosisFile>>(
       `/file?${new URLSearchParams({ pageSize: '24', pageIndex: String(page), sort: JSON.stringify({ createdDate: false, id: false }), conditions: JSON.stringify({ type: 'IMAGE' }) })}`,

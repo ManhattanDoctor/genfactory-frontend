@@ -1,3 +1,4 @@
+import { latestScript, scriptIntent } from './script';
 import '../catalog/model-favorites.css';
 import { TemplateEditor } from './TemplateEditor';
 import { useEffect, useRef, useState } from 'react';
@@ -505,16 +506,50 @@ export function ContentStudio() {
     work.setError('');
     const sid = session;
     const current = () => alive.current && getSession() === sid;
-    const sourceDraft = draft;
+    let sourceDraft = draft;
+    let sourceAttachments = attachments;
+    let preparingScript = writer;
     try {
+      const intent = writer && mode === 'video' ? scriptIntent(draft) : undefined;
+      if (intent && work.id) {
+        const messages = await api.messages(work.id, 0, undefined, sid);
+        if (!current() || new URLSearchParams(window.location.search).get('conversation') !== String(work.id))
+          return;
+        const script = latestScript(messages.items);
+        if (!script)
+          throw new Error(
+            'Не найден готовый сценарий в последних сообщениях. Выберите «Использовать сценарий» под нужным ответом или дополните задание.',
+          );
+        sourceDraft = script.text;
+        sourceAttachments = attachments.length
+          ? attachments
+          : script.files.map((file) => ({
+              id: String(file.id),
+              name: file.name,
+              url: file.path,
+              type: file.mime,
+              saved: file,
+            }));
+        if (intent === 'approve') {
+          setDraft(sourceDraft);
+          setAttachments(sourceAttachments);
+          setWriter(false);
+          textarea.current?.focus();
+          return;
+        }
+        preparingScript = false;
+      }
       if (picked.some((item) => item.kind !== mode))
         throw new Error('Выбран шаблон другого типа. Вернитесь в его режим или уберите шаблон.');
-      if (attachments.some((item) => item.slot) && attachments.some((item) => !item.slot))
+      if (sourceAttachments.some((item) => item.slot) && sourceAttachments.some((item) => !item.slot))
         throw new Error(
           'Не смешивайте опорные кадры с обычными референсами: оставьте начальный и конечный кадры либо обычные изображения.',
         );
-      if (!writer && mode !== 'presentation' && model) {
-        if (attachments.length && (!supportsReferences(model) || attachments.length > referenceLimit(model)))
+      if (!preparingScript && mode !== 'presentation' && model) {
+        if (
+          sourceAttachments.length &&
+          (!supportsReferences(model) || sourceAttachments.length > referenceLimit(model))
+        )
           throw new Error('Модель не поддерживает выбранное количество референсов.');
         if (ratioOptions.length && !ratioOptions.includes(ratio))
           throw new Error('Выберите формат из доступных для этой модели.');
@@ -525,14 +560,14 @@ export function ContentStudio() {
         if (mode === 'video' && soundOptions.length && !soundOptions.includes(effectiveSound))
           throw new Error('Выберите доступную настройку звука.');
       }
-      if (attachments.some((item) => !item.type.startsWith('image/')))
+      if (sourceAttachments.some((item) => !item.type.startsWith('image/')))
         throw new Error(
           'На этом этапе можно передавать только изображения. Документы, аудио и видео пока не подключены.',
         );
       if (
         mode === 'video' &&
-        attachments.some((item) => item.slot === 'end') &&
-        !attachments.some((item) => item.slot === 'start')
+        sourceAttachments.some((item) => item.slot === 'end') &&
+        !sourceAttachments.some((item) => item.slot === 'start')
       )
         throw new Error(
           'Для конечного кадра добавьте начальный: текущий видеоинструмент не поддерживает только конечный кадр.',
@@ -544,8 +579,8 @@ export function ContentStudio() {
       if (!model) throw new Error('Выберите доступную модель.');
       if (!work.conversation && !agent) throw new Error('Не удалось загрузить модель ассистента.');
       const savedFiles: IGnosisFile[] = [];
-      setUploading(attachments.length > 0);
-      const ordered = [...attachments].sort(
+      setUploading(sourceAttachments.length > 0);
+      const ordered = [...sourceAttachments].sort(
         (a, b) =>
           (a.slot === 'start' ? -1 : a.slot === 'end' ? 1 : 0) -
           (b.slot === 'start' ? -1 : b.slot === 'end' ? 1 : 0),
@@ -579,6 +614,11 @@ export function ContentStudio() {
         .map((field) => `${field.label}: ${settings[field.id]}`);
       const prompt = [
         sourceDraft.trim(),
+        ...(preparingScript && mode === 'video'
+          ? [
+              `Сценарий для ролика длительностью ${duration} с, формат ${effectiveRatio}. Не увеличивай длительность.`,
+            ]
+          : []),
         templateInstructions(picked),
         ...(creative.length
           ? [
@@ -595,7 +635,7 @@ export function ContentStudio() {
         .join('\n\n');
       let tools: IToolConnection[] = [];
       let body: IMessageCreate;
-      if (writer || mode === 'presentation') {
+      if (preparingScript || mode === 'presentation') {
         body = {
           role: 'USER',
           files: savedFiles.map((file) => file.id),
@@ -662,12 +702,13 @@ export function ContentStudio() {
         },
       );
       if (success && current()) {
+        setWriter(preparingScript);
         setTemplateStartsFresh(false);
         setTemplateNotice('');
         if (!work.id) studioDraft.clear();
-        setDraft((value) => (value === sourceDraft ? '' : value));
+        setDraft((value) => (value === draft ? '' : value));
         setAttachments((previous) =>
-          previous.filter((item) => !attachments.some((sent) => sent.id === item.id)),
+          previous.filter((item) => !sourceAttachments.some((sent) => sent.id === item.id)),
         );
         // Keep the recipe selected for the next iteration and for project restoration.
       }
