@@ -938,7 +938,9 @@ test('server errors in library can be retried without losing the session', async
       : route.fallback(),
   );
   await page.goto('/library');
-  await expect(page.getByRole('alert')).toContainText('Storage temporarily unavailable');
+  await expect(page.getByRole('alert')).toContainText(
+    'Не удалось выполнить запрос. Сервис временно недоступен.',
+  );
   failing = false;
   await page.getByRole('button', { name: 'Повторить', exact: true }).click();
   await expect(page.getByRole('button', { name: /Test result/ })).toBeVisible();
@@ -1762,7 +1764,9 @@ test('advanced editor: failed legacy instruction update blocks generation and ke
   await page.goto('/image?conversation=101&studio=advanced');
   await page.getByRole('button', { name: 'Изменить', exact: true }).click();
   await submit(page, 'Добавь свет');
-  await expect(page.getByText(/Instruction update failed/)).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText(
+    'Не удалось выполнить запрос. Сервис временно недоступен.',
+  );
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   expect(state.sends).toHaveLength(0);
 });
@@ -2717,7 +2721,12 @@ for (const path of ['/audio?mode=stt', '/library', '/image', '/prompt']) {
     await page.goto(path);
     if (path === '/image' || path === '/prompt') {
       await expect(page.getByLabel('Модель', { exact: true })).toBeEnabled();
-      await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+      await page
+        .getByRole('button', {
+          name: path === '/prompt' ? 'Добавить изображение или видео' : 'Добавить изображение',
+          exact: true,
+        })
+        .click();
       await expect(page.getByRole('dialog', { name: 'Библиотека' })).toBeVisible();
     }
     await page
@@ -3473,6 +3482,7 @@ test('content studio restores actual result settings and sources instead of curr
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].settings.tools[0].settings).toEqual({
+    isLockSelection: true,
     model: generation.model,
     options: generation.options,
   });

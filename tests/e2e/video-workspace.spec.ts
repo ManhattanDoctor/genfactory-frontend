@@ -253,6 +253,9 @@ test('video download failure allows manual download retry and viewer failure doe
     route.fulfill({ status: 503, json: { message: 'Unavailable' } }),
   );
   const download = page.getByRole('button', { name: 'Скачать Чашка.mp4', exact: true });
+  // The loaded thumbnail determines the card height and overlay button positions.
+  await expect(page.locator('.video-result .image-result-open img')).toHaveJSProperty('complete', true);
+  await expect(page.locator('.video-result .image-result-open img')).not.toHaveJSProperty('naturalWidth', 0);
   await page.locator('.video-result').hover();
   await download.click();
   await expect(page.getByText('Не удалось скачать файл. Попробуйте ещё раз.', { exact: true })).toBeVisible();
