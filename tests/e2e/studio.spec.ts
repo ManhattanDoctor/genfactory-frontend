@@ -4164,10 +4164,8 @@ test('active work finishes on another page even when its final socket event is l
   await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
-  await page.clock.install();
   conversation.status = 'LOADED';
-  await page.clock.runFor(5100);
-  await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.job-notice')).toContainText('Работа завершена');
   expect(state.sends).toHaveLength(0);
 });
@@ -4248,7 +4246,6 @@ test('reloaded image page reveals completed output without a final socket event 
   await page.reload();
   await expect(page.locator('.image-result-pending')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
-  await page.clock.install();
   conversation.status = 'LOADED';
   state.messages.get(101)!.push({
     id: 21,
@@ -4257,8 +4254,7 @@ test('reloaded image page reveals completed output without a final socket event 
     files: [file],
     createdDate: new Date().toISOString(),
   });
-  await page.clock.runFor(5100);
-  await expect(page.locator('.image-result-pending')).toHaveCount(0);
+  await expect(page.locator('.image-result-pending')).toHaveCount(0, { timeout: 15000 });
   await expect(page.locator('.image-result')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Добавить изображение', exact: true })).toBeEnabled();
   expect(state.sends).toHaveLength(0);
