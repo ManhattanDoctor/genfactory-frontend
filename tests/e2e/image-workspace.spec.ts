@@ -595,3 +595,29 @@ test('image viewer shows the thumbnail while the original loads and replaces it 
   await expect(viewer.getByRole('status')).toHaveCount(0);
   expect(state.sends).toHaveLength(0);
 });
+
+test('a completed image clears the earlier clarification from the workspace', async ({ page }) => {
+  const state = await setup(page);
+  await page.goto('/image');
+  await page.locator('#img-draft').fill('Карточка товара');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect(page.locator('.image-result')).toHaveCount(1);
+  const question = {
+    id: 10,
+    role: 'ASSISTANT',
+    text: 'Как называется товар?',
+    files: [],
+    createdDate: file.createdDate,
+  };
+  state.messages = [question, ...state.messages];
+  await page.reload();
+  await expect(page.locator('.image-conversation-note')).toHaveText(question.text);
+  await page.locator('#img-draft').fill('Синяя чашка');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(2);
+  // The old question remains in the conversation history after a successful answer.
+  state.messages.push(question);
+  await page.reload();
+  await expect(page.locator('.image-result')).toHaveCount(1);
+  await expect(page.locator('.image-conversation-note')).toHaveCount(0);
+});

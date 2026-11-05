@@ -175,9 +175,8 @@ export function ImageWorkspace({
     return () => observer.disconnect();
   }, [history.hasNextPage, history.isFetchingNextPage, history.error, files.length]);
 
-  const text = (messages.data?.items || []).find(
-    (m) => m.role === 'ASSISTANT' && m.text && !m.files?.some((f) => f.type === 'IMAGE'),
-  )?.text;
+  const latestAnswer = messages.data?.items.find((message) => message.role === 'ASSISTANT');
+  const text = latestAnswer?.files?.some((file) => file.type === 'IMAGE') ? undefined : latestAnswer?.text;
   useEffect(() => {
     const measure = () => {
       const width = root.current?.clientWidth || innerWidth;
