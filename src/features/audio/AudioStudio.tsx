@@ -12,7 +12,6 @@ import { ConversationResults } from '../studio/ConversationResults';
 import { FileOutputEditor, useFileOutputSettings } from '../../components/FileOutputEditor';
 import { LibraryPicker } from '../../components/LibraryPicker';
 import { SelectControl } from '../../components/SelectControl';
-import { LoginDialog } from '../../components/LoginDialog';
 import { ReferenceList } from '../../components/ReferenceList';
 import { DraftBar, restoreDraftFiles, useDraft } from '../workspace/drafts';
 
@@ -49,7 +48,6 @@ function AudioEditor() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const [picker, setPicker] = useState(false);
-  const [login, setLogin] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
   const submitting = useRef(false);
@@ -171,7 +169,7 @@ function AudioEditor() {
   };
   const submit = async () => {
     if (!auth.user || !auth.session) {
-      setLogin(true);
+      void auth.signIn();
       return;
     }
     if (busy || uploading || submitting.current || !model) return;
@@ -384,7 +382,7 @@ function AudioEditor() {
                   className="button"
                   disabled={busy || uploading}
                   aria-busy={uploading}
-                  onClick={() => (auth.user ? input.current?.click() : setLogin(true))}
+                  onClick={() => (auth.user ? input.current?.click() : void auth.signIn())}
                 >
                   <UploadButtonContent busy={uploading} progress={uploadProgress}>
                     Загрузить аудио или видео
@@ -510,8 +508,8 @@ function AudioEditor() {
                   : 'Расшифровать файл'}
           </button>
           <p className="billing-note">
-            Ответ ассистента и работа инструмента оплачиваются с баланса gnosis. Фактические списания доступны
-            в истории баланса.
+            Ответ ассистента и работа инструмента оплачиваются с баланса. Фактические списания доступны в
+            истории баланса.
           </p>
         </section>
         <section className="studio-output" aria-label="Результаты аудио">
@@ -548,7 +546,6 @@ function AudioEditor() {
           }}
         />
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

@@ -325,7 +325,7 @@ test('image blocks a nonpositive balance without creating or submitting a conver
   );
   await page.goto('/image');
   await page.locator('#img-draft').fill('Моё задание');
-  await expect(page.getByRole('alert')).toContainText('Недостаточно средств на балансе Gnosis');
+  await expect(page.getByRole('alert')).toContainText('Недостаточно средств на балансе');
   await expect(page.getByRole('button', { name: 'Собрать изображение', exact: true })).toBeDisabled();
   expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
@@ -373,7 +373,7 @@ test('image translates an insufficient funds response and keeps the draft withou
   await page.goto('/image');
   await page.locator('#img-draft').fill('Сохранить мой промпт');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Недостаточно средств на балансе Gnosis');
+  await expect(page.getByRole('alert')).toContainText('Недостаточно средств на балансе');
   await expect(page.getByRole('alert')).not.toContainText('InsufficientFundsError');
   await expect(page.locator('#img-draft')).toHaveValue('Сохранить мой промпт');
   expect(sends).toBe(1);

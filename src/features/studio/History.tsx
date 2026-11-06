@@ -18,7 +18,6 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { LoginDialog } from '../../components/LoginDialog';
 import { api } from '../../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSession } from '../../lib/api';
@@ -112,7 +111,6 @@ export function History() {
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [login, setLogin] = useState(false);
   const historyRoot = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
@@ -185,7 +183,7 @@ export function History() {
       {!auth.user ? (
         <div className="empty-state">
           <p>Войдите, чтобы открыть историю.</p>
-          <button className="button primary" onClick={() => setLogin(true)}>
+          <button className="button primary" onClick={() => void auth.signIn()}>
             Войти
           </button>
         </div>
@@ -517,7 +515,6 @@ export function History() {
           )}
         </>
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

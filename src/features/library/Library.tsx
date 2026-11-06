@@ -4,10 +4,8 @@ import type { IGnosisFile } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { FileBrowser } from '../../components/FileBrowser';
 import { MediaPreview } from '../../components/MediaPreview';
-import { LoginDialog } from '../../components/LoginDialog';
 export function Library() {
   const auth = useAuth();
-  const [login, setLogin] = useState(false);
   const [gallery, setGallery] = useState<IGnosisFile[]>([]);
   const [preview, setPreview] = useState<IGnosisFile>();
   const navigate = useNavigate();
@@ -29,7 +27,7 @@ export function Library() {
       ) : (
         <div className="empty-state">
           <p>Войдите, чтобы открыть библиотеку.</p>
-          <button className="button primary" onClick={() => setLogin(true)}>
+          <button className="button primary" onClick={() => void auth.signIn()}>
             Войти в аккаунт
           </button>
         </div>
@@ -45,7 +43,6 @@ export function Library() {
           onAnimate={(file) => navigate('/video', { state: { reference: file, userId: auth.user?.id } })}
         />
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

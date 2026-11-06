@@ -4,11 +4,11 @@ import { formatBalance } from '../../lib/money';
 import { useState } from 'react';
 import { Wallet, UserRound, RefreshCw, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
-import { LoginDialog } from '../../components/LoginDialog';
+import { Modal } from '../../components/Modal';
 export function Account() {
   const auth = useAuth();
-  const [login, setLogin] = useState(false);
   const [error, setError] = useState('');
+  const [confirmLogout, setConfirmLogout] = useState(false);
   return (
     <div className="page-content page-enter account-page">
       {auth.error && (
@@ -25,18 +25,7 @@ export function Account() {
             <UserRound size={24} />
             <h2>{auth.user.preferences?.name || 'Ваш аккаунт'}</h2>
             <p className="muted">{auth.user.preferences?.email || `Аккаунт № ${auth.user.id}`}</p>
-            <button
-              className="button"
-              onClick={() => {
-                void auth
-                  .signOut()
-                  .catch(() =>
-                    setError(
-                      'Вы вышли из студии, но завершить единый вход не удалось. Сервер временно недоступен.',
-                    ),
-                  );
-              }}
-            >
+            <button className="button" onClick={() => setConfirmLogout(true)}>
               <LogOut size={16} /> Выйти из студии
             </button>
           </section>
@@ -62,18 +51,41 @@ export function Account() {
       ) : (
         <div className="empty-state">
           <UserRound size={36} />
-          <button className="button primary" onClick={() => setLogin(true)}>
+          <button className="button primary" onClick={() => void auth.signIn()}>
             Войти
           </button>
         </div>
       )}
       <BalanceHistory />
+      {confirmLogout && auth.user && (
+        <Modal title="Выйти из аккаунта?" onClose={() => setConfirmLogout(false)}>
+          <div className="modal-actions">
+            <button className="button" onClick={() => setConfirmLogout(false)}>
+              Отмена
+            </button>
+            <button
+              className="button primary"
+              onClick={() => {
+                setConfirmLogout(false);
+                void auth
+                  .signOut()
+                  .catch(() =>
+                    setError(
+                      'Вы вышли из студии, но завершить единый вход не удалось. Сервер временно недоступен.',
+                    ),
+                  );
+              }}
+            >
+              Выйти
+            </button>
+          </div>
+        </Modal>
+      )}
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

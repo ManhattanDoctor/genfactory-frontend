@@ -18,7 +18,6 @@ import { textInstruction, textModes, type TextMode } from './prompt';
 import { usePreferences } from './preferences';
 import { ToolPicker } from './ToolPicker';
 import { LibraryPicker } from '../../components/LibraryPicker';
-import { LoginDialog } from '../../components/LoginDialog';
 import { SelectControl } from '../../components/SelectControl';
 import { videoAnalysisError, videoAnalysisTool } from '../prompt/videoAnalysis';
 
@@ -66,7 +65,6 @@ function TextEditor({ mode }: { mode: TextMode }) {
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [picker, setPicker] = useState(false);
-  const [login, setLogin] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
   const submitting = useRef(false);
@@ -231,7 +229,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
   };
   const upload = async (selectedFiles: FileList | File[] | null) => {
     if (!auth.user || !auth.session) {
-      setLogin(true);
+      void auth.signIn();
       return;
     }
     if (!selectedFiles || uploading || busy) return;
@@ -299,7 +297,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
   };
   const submit = async () => {
     if (!auth.user || !auth.session) {
-      setLogin(true);
+      void auth.signIn();
       return;
     }
     if (busy || uploading || submitting.current || (!prompt.trim() && !(modernAgent && files.length))) return;
@@ -516,7 +514,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
             draft.changed();
             setSelected(m.reference.model);
           }}
-          onLibrary={() => (auth.user ? setPicker(true) : setLogin(true))}
+          onLibrary={() => (auth.user ? setPicker(true) : void auth.signIn())}
           onSubmit={() => void submit()}
         />
         {picker && (
@@ -530,7 +528,6 @@ function TextEditor({ mode }: { mode: TextMode }) {
             }}
           />
         )}
-        {login && <LoginDialog onClose={() => setLogin(false)} />}
       </>
     );
   return (
@@ -645,7 +642,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
                 className="button"
                 disabled={busy || uploading}
                 aria-busy={uploading}
-                onClick={() => (auth.user ? input.current?.click() : setLogin(true))}
+                onClick={() => (auth.user ? input.current?.click() : void auth.signIn())}
               >
                 <UploadButtonContent busy={uploading} progress={uploadProgress}>
                   Добавить материал
@@ -754,9 +751,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
                       : 'Отправить'
                   : 'Войти и продолжить'}
             </button>
-            <p className="billing-note">
-              Ответ ассистента и вызванные инструменты оплачиваются с баланса gnosis.
-            </p>
+            <p className="billing-note">Ответ ассистента и вызванные инструменты оплачиваются с баланса.</p>
           </section>
         </UploadSurface>
         <section className="studio-output" aria-label="Ответы ассистента">
@@ -803,7 +798,6 @@ function TextEditor({ mode }: { mode: TextMode }) {
           }}
         />
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

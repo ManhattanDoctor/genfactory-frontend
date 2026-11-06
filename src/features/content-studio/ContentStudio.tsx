@@ -23,7 +23,6 @@ import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { modelKey, modelTitle, modelSummary } from '../catalog/presentation';
-import { LoginDialog } from '../../components/LoginDialog';
 import templates from './templates.json';
 import icons from './icons.json';
 import fieldIcons from './fieldIcons.json';
@@ -82,7 +81,7 @@ function Icon({ name }: { name: keyof typeof icons }) {
 }
 
 export function ContentStudio() {
-  const { user, session } = useAuth();
+  const { user, session, signIn } = useAuth();
   const work = useContentConversation();
   const [preparingFrame, setPreparingFrame] = useState(false);
   const frameEpoch = useRef(0);
@@ -170,7 +169,6 @@ export function ContentStudio() {
   const [templateStartsFresh, setTemplateStartsFresh] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ITemplate>();
   const [selectedTemplate, setSelectedTemplate] = useState<string>();
-  const [login, setLogin] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const focusRestoredDraft = useRef(false);
@@ -497,7 +495,7 @@ export function ContentStudio() {
   }
   async function submit() {
     if (!user || !session) {
-      setLogin(true);
+      void signIn();
       return;
     }
     if (busy || submitting.current) return;
@@ -926,7 +924,7 @@ export function ContentStudio() {
                       user ? ['Auto', ...(catalog.data || []).map(modelKey)] : ['Auto', 'Сменить модель']
                     }
                     onSelect={(value) => {
-                      if (!user && value !== 'Auto') setLogin(true);
+                      if (!user && value !== 'Auto') void signIn();
                       else setSelectedModel(value);
                     }}
                     titles={user ? ['Auto', ...(catalog.data || []).map(modelTitle)] : undefined}
@@ -1236,7 +1234,7 @@ export function ContentStudio() {
                                   onClick={() => {
                                     setFrameMenu(undefined);
                                     setFrameSlot(undefined);
-                                    if (!user) setLogin(true);
+                                    if (!user) void signIn();
                                     else setLibrary({ scope: draftScope, slot });
                                   }}
                                 >
@@ -1371,7 +1369,6 @@ export function ContentStudio() {
           }}
         />
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

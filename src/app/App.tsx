@@ -33,11 +33,9 @@ import { useAuth } from '../features/auth/AuthProvider';
 const AuthCallback = lazy(() =>
   import('../features/auth/AuthCallback').then((m) => ({ default: m.AuthCallback })),
 );
-import { LoginDialog } from '../components/LoginDialog';
 export function App() {
   const auth = useAuth();
   const client = useQueryClient();
-  const [login, setLogin] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
@@ -114,8 +112,9 @@ export function App() {
             <button
               className="shell-account-link"
               aria-label="Войти в аккаунт"
-              aria-busy={auth.loading}
-              onClick={() => setLogin(true)}
+              aria-busy={auth.loading || auth.signingIn}
+              disabled={auth.signingIn}
+              onClick={() => void auth.signIn()}
             >
               <svg
                 width="18"
@@ -145,6 +144,11 @@ export function App() {
         </Modal>
       )}
       <main id="main" className="main">
+        {auth.signInError && (
+          <p className="page-content error" role="alert">
+            {auth.signInError}
+          </p>
+        )}
         <Suspense
           fallback={
             <div className="empty-state" role="status">
@@ -192,7 +196,6 @@ export function App() {
         </Suspense>
       </main>
       <AppUpdateNotice />
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

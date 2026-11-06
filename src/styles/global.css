@@ -766,29 +766,6 @@ a svg {
   font-size: 13px;
   line-height: 1.7;
 }
-.login-note {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  margin-top: 20px;
-}
-.dev-login {
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 25px;
-  border-top: 1px solid #313339;
-  padding-top: 15px;
-}
-.dev-login summary {
-  cursor: pointer;
-}
-.dev-login label {
-  display: block;
-  margin: 15px 0;
-}
-.dev-login input {
-  margin-top: 8px;
-}
 .modal-actions {
   display: flex;
   align-items: center;

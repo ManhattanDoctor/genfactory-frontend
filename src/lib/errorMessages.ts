@@ -1,5 +1,4 @@
-export const userBalanceError =
-  'Недостаточно средств на балансе Gnosis. Пополните баланс перед новым запуском.';
+export const userBalanceError = 'Недостаточно средств на балансе. Пополните баланс перед новым запуском.';
 export const serviceError = 'Не удалось выполнить запрос. Сервис временно недоступен.';
 
 /** Only the application's explicit error code confirms a user balance problem. */

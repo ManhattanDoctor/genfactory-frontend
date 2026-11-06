@@ -294,9 +294,8 @@ test('guest can explore and open a studio without fabricated models', async ({ p
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
   await page.getByRole('link', { name: 'Изображения', exact: true }).click();
   await submit(page, 'Гостевая идея');
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
+  expect(new URL(page.url()).searchParams.get('theme')).toBe('genfactory');
 });
 test('image studio creates a configured conversation and sends tool preferences, never task or fileBuffer', async ({
   page,
@@ -604,6 +603,10 @@ test('login persists in a new tab and logout clears both tabs immediately', asyn
   await second.goto('/account');
   await expect(second.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
   await second.getByRole('button', { name: 'Выйти из студии' }).click();
+  await second
+    .getByRole('dialog', { name: 'Выйти из аккаунта?' })
+    .getByRole('button', { name: 'Выйти', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: 'Выйти из студии' })).not.toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBeNull();
   // The test context owns both tabs and closes them during fixture teardown.
@@ -976,6 +979,10 @@ test('account balance refresh uses minor units and logout succeeds locally when 
     route.fulfill({ status: 503, json: { message: 'Unavailable' } }),
   );
   await page.getByRole('button', { name: 'Выйти из студии' }).click();
+  await page
+    .getByRole('dialog', { name: 'Выйти из аккаунта?' })
+    .getByRole('button', { name: 'Выйти', exact: true })
+    .click();
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/logout/);
   const state = await page.context().storageState();
   expect(
@@ -1951,6 +1958,31 @@ test('history cards keep readable spacing and fit mobile during rename', async (
   }
 });
 
+test('logout confirmation can be dismissed without ending the session', async ({ page }) => {
+  await mockApi(page);
+  let requests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/logout') requests++;
+  });
+  await page.goto('/account');
+  const trigger = page.getByRole('button', { name: 'Выйти из студии' });
+  const dialog = page.getByRole('dialog', { name: 'Выйти из аккаунта?' });
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Отмена' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await trigger.click();
+  await dialog.getByRole('button', { name: 'Закрыть' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(requests).toBe(0);
+  expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBe('test-session');
+  await expect(page).toHaveURL(/\/account$/);
+});
+
 for (const withIdToken of [true, false]) {
   test(`logout ends Keycloak SSO ${withIdToken ? 'with ID token' : 'for a legacy session without ID token'}`, async ({
     page,
@@ -1960,6 +1992,10 @@ for (const withIdToken of [true, false]) {
     if (withIdToken) await page.evaluate(() => sessionStorage.setItem('genfactory.idToken', 'test-id-token'));
     const logout = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/logout');
     await page.getByRole('button', { name: 'Выйти из студии' }).click();
+    await page
+      .getByRole('dialog', { name: 'Выйти из аккаунта?' })
+      .getByRole('button', { name: 'Выйти', exact: true })
+      .click();
     expect((await logout).headers()['authorization']).toBe('Bearer test-session');
     await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/logout/);
     const url = new URL(page.url());
@@ -2816,14 +2852,45 @@ test('OAuth redirect login does not use popup windows', async ({ page }) => {
     };
   });
   await page.getByRole('button', { name: 'Войти', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'Войти в аккаунт' }).click();
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
   const url = new URL(page.url());
   expect(url.searchParams.get('theme')).toBe('genfactory');
   expect(url.searchParams.get('client_id')).toBe('gnosis');
   expect(url.searchParams.get('state')).toBeTruthy();
   expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:5173/auth/callback');
+});
+
+test('direct login prevents duplicate requests and lets the user retry a failed connection', async ({
+  page,
+}) => {
+  await mockApi(page, false);
+  let requests = 0;
+  let release: (() => void) | undefined;
+  await page.route('**/api/config', async (route) => {
+    requests++;
+    if (requests === 1) {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+    } else await route.fallback();
+  });
+  await page.goto('/account');
+  const sidebar = page.getByRole('button', { name: 'Войти в аккаунт', exact: true });
+  const account = page.getByRole('main').getByRole('button', { name: 'Войти', exact: true });
+  await sidebar.click();
+  await expect.poll(() => requests).toBe(1);
+  await expect(sidebar).toBeDisabled();
+  await account.click();
+  expect(requests).toBe(1);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  release!();
+  await expect(page.getByRole('alert')).toContainText('Не удалось открыть вход');
+  await expect(sidebar).toBeEnabled();
+  await expect(page).toHaveURL(/\/account$/);
+  await account.click();
+  await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
+  expect(requests).toBe(2);
 });
 
 test('OAuth callback cannot exchange the same attempt twice', async ({ page }) => {

@@ -50,7 +50,6 @@ import { LibraryPicker } from '../../components/LibraryPicker';
 import { WorkspaceNav } from '../workspace/WorkspaceNav';
 import { usePreferences, type IPreset } from '../workspace/preferences';
 import { creativePrompt } from '../workspace/prompt';
-import { LoginDialog } from '../../components/LoginDialog';
 const providers = { image: ['OPEN_AI_IMAGE_GPT', 'OPEN_ROUTER_IMAGE'], video: ['OPEN_ROUTER_VIDEO'] };
 const suggestions = {
   image: [
@@ -146,7 +145,6 @@ export function Studio({ kind }: { kind: MediaKind }) {
     predicate: (mutation) =>
       !!conversationId && (mutation.state.variables as { id?: number } | undefined)?.id === conversationId,
   });
-  const [login, setLogin] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [imageTemplateId, setImageTemplateId] = useState('');
   const [imageTemplateText, setImageTemplateText] = useState('');
@@ -509,7 +507,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
   }, [sourceScope, models.length, conversation, draft.available, busy, uploading]);
   const upload = async (files: FileList | File[] | null) => {
     if (!auth.user) {
-      setLogin(true);
+      void auth.signIn();
       return;
     }
     if (!files || !model || uploading) return;
@@ -550,7 +548,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     }
   };
   const insufficientFundsMessage =
-    'Недостаточно средств на балансе Gnosis. Пополните баланс перед новым запуском. Задание сохранено.';
+    'Недостаточно средств на балансе. Пополните баланс перед новым запуском. Задание сохранено.';
   const failedConversationMessage =
     'Беседа завершилась с ошибкой и пока не принимает новые сообщения. Задание сохранено.';
   const imageSendError = (value: unknown) => {
@@ -565,7 +563,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       : '';
   const submit = async () => {
     if (!auth.user || !auth.session) {
-      setLogin(true);
+      void auth.signIn();
       return;
     }
     if (!model || busy || uploading || submitting.current) return;
@@ -822,7 +820,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
         }}
         onLibrary={() => {
           if (!auth.user) {
-            setLogin(true);
+            void auth.signIn();
             return;
           }
           if (!supportsReferences(model)) {
@@ -917,7 +915,6 @@ export function Studio({ kind }: { kind: MediaKind }) {
             }}
           />
         )}
-        {login && <LoginDialog onClose={() => setLogin(false)} />}
       </MediaWorkspace>
     );
   return (
@@ -1084,7 +1081,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
                 className="upload-reference"
                 disabled={uploading || busy || (!!model && references.length >= maxRefs)}
                 aria-busy={uploading}
-                onClick={() => (auth.user ? input.current?.click() : setLogin(true))}
+                onClick={() => (auth.user ? input.current?.click() : void auth.signIn())}
               >
                 <UploadButtonContent busy={uploading} progress={uploadProgress}>
                   <Upload size={17} />
@@ -1377,8 +1374,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
               )}
             </button>
             <p className="billing-note">
-              Ассистент использует выбранный инструмент. Работа ассистента и генерация оплачиваются с баланса
-              gnosis.{' '}
+              Ассистент использует выбранный инструмент. Работа ассистента и генерация оплачиваются с баланса.{' '}
               <Link className="text-button" to="/account#balance-history">
                 История списаний
               </Link>
@@ -1494,7 +1490,6 @@ export function Studio({ kind }: { kind: MediaKind }) {
           }}
         />
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

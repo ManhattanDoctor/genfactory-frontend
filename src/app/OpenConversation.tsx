@@ -1,15 +1,12 @@
-import { useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { conversationUrl } from '../lib/conversationUrl';
 import { useAuth } from '../features/auth/AuthProvider';
-import { LoginDialog } from '../components/LoginDialog';
 
 export function OpenConversation() {
-  const { user, loading } = useAuth();
+  const { user, loading, signIn } = useAuth();
   const [params] = useSearchParams();
-  const [login, setLogin] = useState(false);
   const raw = params.get('conversation') || '';
   const id = /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : undefined;
   const result = useQuery({
@@ -34,7 +31,7 @@ export function OpenConversation() {
       {loading || (user && result.isPending) ? (
         <p role="status">Открываем беседу…</p>
       ) : !user ? (
-        <button className="button" onClick={() => setLogin(true)}>
+        <button className="button" onClick={() => void signIn()}>
           Войти
         </button>
       ) : (
@@ -45,7 +42,6 @@ export function OpenConversation() {
           </button>
         </div>
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
     </div>
   );
 }

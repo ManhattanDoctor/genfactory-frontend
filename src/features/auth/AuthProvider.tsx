@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession, setSession, SESSION_KEY } from '../../lib/api';
 import type { IInitResponse } from '../../lib/types';
@@ -9,6 +9,8 @@ interface IAuth {
   loading: boolean;
   error: Error | null;
   signIn: () => Promise<void>;
+  signInError: string;
+  signingIn: boolean;
   acceptSession: (sid: string) => void;
   signOut: () => Promise<void>;
   refresh: () => void;
@@ -17,6 +19,9 @@ const Context = createContext<IAuth | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, changeSession] = useState(getSession);
   const client = useQueryClient();
+  const signInStarted = useRef(false);
+  const [signInError, setSignInError] = useState('');
+  const [signingIn, setSigningIn] = useState(false);
   const query = useQuery({
     queryKey: ['account', session],
     queryFn: api.init,
@@ -29,6 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     changeSession(sid);
   };
   useEffect(() => {
+    const restore = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      signInStarted.current = false;
+      setSigningIn(false);
+    };
     const expired = () => {
       setSession(null);
       changeSession(null);
@@ -43,28 +53,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('genfactory:unauthorized', expired);
     window.addEventListener('storage', synchronize);
+    window.addEventListener('pageshow', restore);
     return () => {
       window.removeEventListener('genfactory:unauthorized', expired);
       window.removeEventListener('storage', synchronize);
+      window.removeEventListener('pageshow', restore);
     };
   }, [client]);
   const signIn = async () => {
-    const { keycloak } = await api.config();
-    const state = crypto.randomUUID();
-    const redirectUri = `${location.origin}/auth/callback`;
-    sessionStorage.setItem('genfactory.oauth', JSON.stringify({ state, createdAt: Date.now(), redirectUri }));
-    const url = new URL(
-      `${keycloak.url.replace(/\/$/, '')}/realms/${encodeURIComponent(keycloak.realm)}/protocol/openid-connect/auth`,
-    );
-    url.search = new URLSearchParams({
-      client_id: keycloak.clientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'openid',
-      state,
-      theme: 'genfactory',
-    }).toString();
-    location.assign(url.href);
+    if (signInStarted.current) return;
+    signInStarted.current = true;
+    setSigningIn(true);
+    setSignInError('');
+    try {
+      const { keycloak } = await api.config();
+      const state = crypto.randomUUID();
+      const redirectUri = `${location.origin}/auth/callback`;
+      sessionStorage.setItem(
+        'genfactory.oauth',
+        JSON.stringify({ state, createdAt: Date.now(), redirectUri }),
+      );
+      const url = new URL(
+        `${keycloak.url.replace(/\/$/, '')}/realms/${encodeURIComponent(keycloak.realm)}/protocol/openid-connect/auth`,
+      );
+      url.search = new URLSearchParams({
+        client_id: keycloak.clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'openid',
+        state,
+        theme: 'genfactory',
+      }).toString();
+      location.assign(url.href);
+    } catch {
+      signInStarted.current = false;
+      setSigningIn(false);
+      setSignInError('Не удалось открыть вход. Проверьте подключение и попробуйте снова.');
+    }
   };
   const signOut = async () => {
     const sid = session;
@@ -96,6 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading: !!session && query.isPending,
         error: query.error,
         signIn,
+        signInError,
+        signingIn,
         signOut,
         acceptSession,
         refresh: () => {

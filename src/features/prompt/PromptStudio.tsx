@@ -18,7 +18,6 @@ import { modelKey, modelTitle } from '../catalog/presentation';
 import { usePreferences, toggleItem } from '../workspace/preferences';
 import { useDraft, DraftBar, restoreDraftFiles } from '../workspace/drafts';
 import { LibraryPicker } from '../../components/LibraryPicker';
-import { LoginDialog } from '../../components/LoginDialog';
 import { Media } from '../../components/MediaPreview';
 import { Modal } from '../../components/Modal';
 import {
@@ -61,8 +60,7 @@ function PromptEditor() {
   const [input, setInput] = useState<PromptInput>(initialPromptInput);
   const [files, setFiles] = useState<IGnosisFile[]>([]);
   const [selected, setSelected] = useState('');
-  const [picker, setPicker] = useState(false),
-    [login, setLogin] = useState(false);
+  const [picker, setPicker] = useState(false);
   const [aspectsOpen, setAspectsOpen] = useState(false);
   const [error, setError] = useState(''),
     [notice, setNotice] = useState('');
@@ -246,7 +244,7 @@ function PromptEditor() {
   });
   const submit = async () => {
     if (!auth.user || !auth.session) {
-      setLogin(true);
+      void auth.signIn();
       return;
     }
     if (
@@ -514,7 +512,7 @@ function PromptEditor() {
             type="button"
             aria-label="Добавить изображение или видео"
             disabled={busy || files.length >= 4}
-            onClick={() => (auth.user ? setPicker(true) : setLogin(true))}
+            onClick={() => (auth.user ? setPicker(true) : void auth.signIn())}
           >
             <Plus size={20} />
           </button>
@@ -668,7 +666,7 @@ function PromptEditor() {
           }}
         />
       )}
-      {login && <LoginDialog onClose={() => setLogin(false)} />}
+
       {viewer && (
         <Modal
           className="prompt-result-modal"
