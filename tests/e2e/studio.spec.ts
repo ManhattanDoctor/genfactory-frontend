@@ -2292,7 +2292,7 @@ test('thumbnail actions float above the card and close with Escape without openi
   await page.keyboard.press('Escape');
   await expect(entry.locator('details')).not.toHaveAttribute('open');
   await entry.locator('summary').click();
-  await page.getByRole('heading', { name: 'Библиотека', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Поиск по всем файлам', exact: true }).click();
   await expect(entry.locator('details')).not.toHaveAttribute('open');
 });
 
@@ -2887,7 +2887,11 @@ test('prototype navigation selects specialized editors and matches the reference
   );
   await nav.getByRole('link', { name: 'Seedance Studio', exact: true }).click();
   await expect(page).toHaveURL(/\/video\?studio=seedance$/);
-  for (const label of ['Аудио', 'Библиотека', 'Шаблоны', 'Правила бренда']) {
+  await expect(nav.getByRole('link', { name: 'Библиотека', exact: true })).toHaveAttribute(
+    'href',
+    '/library',
+  );
+  for (const label of ['Аудио', 'Шаблоны', 'Правила бренда']) {
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveCount(0);
   }
   await nav.getByRole('link', { name: 'AI agent', exact: true }).click();
