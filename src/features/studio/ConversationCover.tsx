@@ -8,9 +8,11 @@ import { connection } from './conversations';
 export function ConversationCover({
   conversation,
   onOpen,
+  isStatic = false,
 }: {
   conversation: IConversation;
   onOpen?: () => void;
+  isStatic?: boolean;
 }) {
   const [failed, setFailed] = useState<string>();
   const image = conversation.preview?.image;
@@ -37,12 +39,14 @@ export function ConversationCover({
       {video && src && failed !== src && <Play className="history-cover-play" size={20} aria-hidden="true" />}
     </>
   );
+  if (isStatic) return <div className="history-cover">{content}</div>;
   return onOpen ? (
     <button
       type="button"
       className="history-cover"
       onClick={onOpen}
       aria-label={`Открыть файл ${conversation.name}`}
+      title="Открыть файл"
     >
       {content}
     </button>

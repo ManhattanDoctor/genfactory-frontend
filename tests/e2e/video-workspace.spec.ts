@@ -308,3 +308,88 @@ test('broken short video preview falls back to the poster without loading the or
   expect(originals).toBe(0);
   expect(state.sends).toHaveLength(0);
 });
+
+test('Wan uses both catalog-supported frames in order and restores them for a revision', async ({ page }) => {
+  const state = await setup(page);
+  const wan = catalog.find((model: any) => model.reference.model === 'alibaba/wan-3.0');
+  const endFrame = { ...source, id: 14, uid: 'end-frame', name: 'Конечный кадр.png' };
+  const video = {
+    ...result,
+    origin: {
+      ...result.origin,
+      sourceFileIds: [12, 14],
+      generation: { ...result.origin.generation, model: wan.reference },
+    },
+  };
+  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([source, endFrame]) }));
+  await page.route('**/api/file/14', (route) => route.fulfill({ json: endFrame }));
+  await page.route('**/api/file/13', (route) => route.fulfill({ json: video }));
+  await page.route('**/api/conversation/101/message', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    const body = route.request().postDataJSON();
+    state.sends.push(body);
+    state.messages = [
+      { id: 2, role: 'ASSISTANT', text: 'Готово', files: [video] },
+      { ...body, id: 1 },
+    ];
+    return route.fulfill({ json: { ...body, id: 1 } });
+  });
+  await page.goto('/video');
+  await page.getByRole('button', { name: 'Модель', exact: true }).click();
+  await page.getByRole('option', { name: /Wan/i }).click();
+  for (const name of ['Чашка.png', 'Конечный кадр.png']) {
+    await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Библиотека' })
+      .getByRole('button', { name: new RegExp(name) })
+      .click();
+    await expect(page.getByRole('button', { name: `Убрать ${name}`, exact: true })).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Библиотека' })).toHaveCount(0);
+  await expect(
+    page.getByText('Для выбранной модели можно добавить до 2 референсов.', { exact: true }),
+  ).toBeVisible();
+  await page.locator('#vd-draft').fill('Плавный переход от стартового кадра к конечному');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.video:new:all')))
+    .toContain('Конечный кадр.png');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Убрать Конечный кадр.png', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect(page.locator('.video-result')).toHaveCount(1);
+  expect(state.sends).toHaveLength(1);
+  expect(state.sends[0].files).toEqual([12, 14]);
+  expect(state.sends[0].settings.tools[0].settings).toMatchObject({
+    model: wan.reference,
+    isLockSelection: true,
+  });
+  await page.locator('.video-result').hover();
+  await page.getByRole('button', { name: 'Переделать Чашка.mp4', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Убрать Конечный кадр.png', exact: true })).toBeVisible();
+  expect(state.sends).toHaveLength(1);
+});
+
+test('a video model limited to one frame still blocks the second attachment', async ({ page }) => {
+  const state = await setup(page);
+  const single = structuredClone(catalog[0]);
+  single.schema.properties.options.properties.frameImages.maxItems = 1;
+  await page.route('**/api/aimodels?*', (route) =>
+    new URL(route.request().url()).searchParams.get('provider') === 'OPEN_ROUTER_VIDEO'
+      ? route.fulfill({ json: [single] })
+      : route.fallback(),
+  );
+  await page.goto('/video');
+  await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Библиотека' })
+    .getByRole('button', { name: /Чашка.png/ })
+    .click();
+  await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+  await expect(
+    page.getByText('Для выбранной модели можно добавить до 1 референсов.', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Библиотека' })).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
+});

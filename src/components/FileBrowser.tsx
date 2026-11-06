@@ -5,7 +5,16 @@ import type { IUploadProgress } from '../lib/api';
 import { FileTagFilter } from './FileTagFilter';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Folder, Link as LinkIcon, Upload, MoreHorizontal, ArrowLeft, CircleAlert } from 'lucide-react';
+import {
+  Folder,
+  FolderUp,
+  Link as LinkIcon,
+  Upload,
+  MoreHorizontal,
+  ArrowLeft,
+  CircleAlert,
+  House,
+} from 'lucide-react';
 import { api, getSession } from '../lib/api';
 import { directoryPath, folderTrail, mediaType, resolveFile } from '../lib/files';
 import type { IGnosisFile } from '../lib/types';
@@ -215,9 +224,18 @@ export function FileBrowser({
             <ArrowLeft size={18} />
           </button>
         )}
-        <button type="button" className="text-button" disabled={busy} onClick={() => navigate([])}>
-          Все файлы
-        </button>
+        {(!!trail.length || !!query || !!selectedTags.length) && (
+          <button
+            type="button"
+            className="icon-button file-back"
+            aria-label="Корень библиотеки"
+            title="Корень библиотеки"
+            disabled={busy}
+            onClick={() => navigate([])}
+          >
+            <House size={18} />
+          </button>
+        )}
         {!query &&
           !selectedTags.length &&
           trail.map((folder, index) => (
@@ -334,6 +352,31 @@ export function FileBrowser({
         </p>
       )}
       <div className={foldersOnly ? 'file-folder-list' : 'library-grid'}>
+        {!!trail.length && !query && !selectedTags.length && (
+          <article className="file-entry file-parent">
+            <button
+              type="button"
+              className="library-card"
+              aria-label="На уровень выше"
+              title="На уровень выше"
+              disabled={busy}
+              onClick={() => navigate(trail.slice(0, -1))}
+            >
+              <div className="library-media">
+                <div className="file-folder-icon">
+                  <FolderUp size={44} />
+                </div>
+              </div>
+              <div>
+                <b>...</b>
+                <span>Папка</span>
+                <span className="file-generation-summary" title={trail.at(-2)?.name || 'Библиотека'}>
+                  {trail.at(-2)?.name || 'Библиотека'}
+                </span>
+              </div>
+            </button>
+          </article>
+        )}
         {files.data?.items.map((file) => {
           const folder = file.type === 'DIRECTORY';
           const incompatible = !folder && !!acceptedTypes && !acceptedTypes.includes(mediaType(file));
@@ -561,7 +604,7 @@ export function FileBrowser({
             )}
             {action.kind === 'move' && (
               <>
-                <p>Откройте папку назначения или оставьте «Все файлы» для переноса в корень.</p>
+                <p>Откройте папку назначения или выберите корень библиотеки.</p>
                 <FileBrowser foldersOnly onDirectory={setDestination} />
               </>
             )}

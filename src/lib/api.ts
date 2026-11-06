@@ -227,20 +227,26 @@ export const api = {
     signal?: AbortSignal,
     status?: string,
     tags?: Array<string>,
+    search?: string,
+    flags?: Pick<IConversation, 'isFavorite' | 'isArchived'>,
   ) =>
     request<IPagination<IConversation>>(
       `/conversation?${new URLSearchParams({
         pageSize: '24',
         pageIndex: String(page),
+        ...(search?.trim() ? { search: search.trim() } : {}),
         sort: JSON.stringify({ createdDate: false, id: false }),
         conditions: JSON.stringify({
           userId,
+          ...flags,
           ...(status ? { status } : {}),
           ...(tags?.length ? { tags: { condition: 'INCLUDES_ALL', value: tags } } : {}),
         }),
       })}`,
       { signal },
     ),
+  patchConversation: (id: number, flags: Pick<IConversation, 'isFavorite' | 'isArchived'>, sid: string) =>
+    request<IConversation>(`/conversation/${id}`, { method: 'PATCH', body: JSON.stringify(flags) }, sid),
   conversation: (id: number, signal?: AbortSignal, sid?: string) =>
     request<IConversation>(`/conversation/${id}`, { signal }, sid),
   createConversation: (body: IConversationCreate, sid: string) =>

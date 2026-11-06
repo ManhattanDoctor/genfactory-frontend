@@ -77,6 +77,7 @@ async function mockApi(page: Page, signedIn = true) {
     scriptReply: undefined as string | undefined,
     uploads: 0,
     edits: [] as any[],
+    patches: [] as any[],
     progress: null as unknown,
     socket: undefined as WebSocketRoute | undefined,
     joinedRooms: [] as string[],
@@ -165,7 +166,11 @@ async function mockApi(page: Page, signedIn = true) {
       );
       body = pagination(
         state.conversations.filter(
-          (c) => c.userId === conditions.userId && (!conditions.status || c.status === conditions.status),
+          (c) =>
+            c.userId === conditions.userId &&
+            (!conditions.status || c.status === conditions.status) &&
+            (conditions.isArchived === undefined || !!c.isArchived === conditions.isArchived) &&
+            (conditions.isFavorite === undefined || !!c.isFavorite === conditions.isFavorite),
         ),
       );
     } else if (messageMatch) {
@@ -220,6 +225,11 @@ async function mockApi(page: Page, signedIn = true) {
       }
     } else if (conversationMatch) {
       const found = state.conversations.find((c) => c.id === Number(conversationMatch[1]));
+      if (method === 'PATCH' && found) {
+        const changes = route.request().postDataJSON();
+        state.patches.push(changes);
+        Object.assign(found, changes);
+      }
       if (method === 'PUT' && found) {
         const changes = route.request().postDataJSON();
         state.edits.push(changes);
@@ -356,7 +366,8 @@ test('history opens server conversation on a fresh visit and continues it', asyn
     },
   ]);
   await page.goto('/history');
-  await page.getByRole('link', { name: 'Открыть изображения' }).click();
+  await page.locator('.history-actions summary').click();
+  await page.getByRole('link', { name: 'Студия изображений' }).click();
   await expect(page.locator('.image-result')).toHaveCount(1);
   await expectQuality(page, 'high');
   await submit(page, 'Another landscape');
@@ -898,7 +909,8 @@ test('history and messages request the selected server page', async ({ page }) =
   await expect(page.getByText('Work page 0')).toBeVisible();
   await page.getByRole('button', { name: 'Далее', exact: true }).click();
   await expect(page.getByText('Work page 1')).toBeVisible();
-  await page.getByRole('link', { name: 'Открыть изображения' }).click();
+  await page.locator('.history-actions summary').click();
+  await page.getByRole('link', { name: 'Студия изображений' }).click();
   await expect(page.getByText('Messages page 0')).toBeVisible();
   await page.getByRole('button', { name: 'Далее', exact: true }).click();
   await expect(page.getByText('Messages page 1')).toBeVisible();
@@ -1213,22 +1225,26 @@ test('workspace library picker attaches a reference without leaving the image ed
   expect(state.sends[0].files).toEqual([12]);
 });
 
-test('workspace history supports rename favorites local archive and a running filter', async ({ page }) => {
+test('workspace history supports rename favorites server archive and a running filter', async ({ page }) => {
   const state = await mockApi(page);
   state.conversations.push({ ...savedConversation(), files: [file] });
   await page.goto('/history');
+  await page.locator('.history-actions summary').click();
   await page.getByRole('button', { name: 'Переименовать', exact: true }).click();
   await page.getByLabel('Новое название').fill('Новая кампания');
   await page.getByRole('button', { name: 'Сохранить название' }).click();
   await expect(page.getByRole('heading', { name: 'Новая кампания' })).toBeVisible();
   expect(state.edits[0].files).toEqual([12]);
+  await page.locator('.history-actions summary').click();
   await page.getByRole('button', { name: 'В избранное', exact: true }).click();
   await page.getByRole('button', { name: 'Избранное', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Новая кампания' })).toBeVisible();
+  await page.locator('.history-actions summary').click();
   await page.getByRole('button', { name: 'В архив', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Новая кампания' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Архив', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Новая кампания' })).toBeVisible();
+  await page.locator('.history-actions summary').click();
   await page.getByRole('button', { name: 'Вернуть из архива', exact: true }).click();
   const request = page.waitForRequest(
     (r) =>
@@ -1927,6 +1943,7 @@ test('history cards keep readable spacing and fit mobile during rename', async (
     await expect(card).toBeVisible();
     await expect(page.getByRole('heading', { name: 'История', exact: true })).toHaveCount(0);
     await expect(page.getByText(/ПУТЬ ОТ ИДЕИ|Ваши беседы сохраняются|Беседа сохранена/)).toHaveCount(0);
+    await card.locator('.history-actions summary').click();
     await card.getByRole('button', { name: 'Переименовать' }).click();
     await expect(card.getByLabel('Новое название')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -2115,7 +2132,9 @@ test('history displays ready covers and refreshes pending covers from socket', a
       ]),
   );
   await expect(page.getByAltText('Превью: Saved creative work')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Открыть файл Saved creative work' })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Открыть беседу Saved creative work', exact: true }),
+  ).toBeVisible();
 });
 
 test('socket reconnect restores the conversation room', async ({ page }) => {
@@ -2137,7 +2156,7 @@ test('socket reconnect restores the conversation room', async ({ page }) => {
   ).toBeVisible();
 });
 
-test('history video cover opens video and a broken poster falls back', async ({ page }) => {
+test('history broken video poster falls back', async ({ page }) => {
   const state = await mockApi(page);
   const conversation = savedConversation();
   conversation.preview = {
@@ -2147,7 +2166,7 @@ test('history video cover opens video and a broken poster falls back', async ({ 
   state.conversations.push(conversation);
   await page.route('**/missing-history-poster.webp', (route) => route.fulfill({ status: 404 }));
   await page.goto('/history');
-  const cover = page.getByRole('button', { name: 'Открыть файл Saved creative work' });
+  const cover = page.locator('.history-cover');
   await expect(cover.getByText('Недоступно')).toBeVisible();
 });
 
@@ -2198,7 +2217,7 @@ test('file browser navigates folders, edits metadata, moves to root and confirms
   await page.getByRole('button', { name: 'Переместить сюда', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(writes[1]).toEqual({ directory: null });
-  await page.getByRole('button', { name: 'Все файлы', exact: true }).click();
+  await page.getByRole('button', { name: 'Корень библиотеки', exact: true }).click();
   const entry = page.locator('.file-entry').filter({ hasText: 'Updated material' });
   await entry.locator('summary').click();
   await entry.getByRole('button', { name: 'Удалить', exact: true }).click();
@@ -3826,54 +3845,41 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole('heading', { name: 'Нет работ в процессе' })).toBeVisible();
     expect(await toolbar.boundingBox()).toEqual(before);
     await page.getByRole('button', { name: 'Избранное', exact: true }).click();
-    await expect(page.getByText('На этой странице нет подходящих работ.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Нет избранных работ' })).toBeVisible();
     expect(await toolbar.boundingBox()).toEqual(before);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
 
-test('history cover opens the original file in place, even when it is on an older message page', async ({
-  page,
-}) => {
+test('history card opens the conversation from cover title date and free space', async ({ page }) => {
   const state = await mockApi(page);
   state.conversations.push(savedConversation());
-  const clip = { ...file, type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' };
-  const pages: number[] = [];
-  await page.route('**/api/conversation/101/message?**', (route) => {
-    const index = Number(new URL(route.request().url()).searchParams.get('pageIndex'));
-    pages.push(index);
-    return route.fulfill({
-      json: {
-        ...pagination(
-          index === 0
-            ? [{ id: 9, role: 'ASSISTANT', text: 'Уточнение', files: [] }]
-            : [{ id: 8, role: 'ASSISTANT', files: [clip] }],
-        ),
-        pages: 2,
-        pageIndex: index,
-      },
-    });
-  });
-  await page.goto('/history');
-  await page.getByRole('button', { name: 'Открыть файл Saved creative work' }).click();
-  await expect(page.getByRole('dialog').locator('video')).toHaveAttribute('src', /\/test-video\.mp4$/);
-  await expect(page).toHaveURL(/\/history$/);
-  expect(pages).toEqual([0, 1]);
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  for (const selector of ['.history-cover', 'h2', 'time', '.history-card']) {
+    await page.goto('/history');
+    const target = page.locator('.history-card').first();
+    await expect(target).toBeVisible();
+    const box = await (selector === '.history-card' ? target : target.locator(selector)).boundingBox();
+    if (!box) throw new Error('Card target is missing');
+    await page.mouse.click(
+      box.x + box.width / 2,
+      box.y + (selector === '.history-card' ? box.height - 5 : box.height / 2),
+    );
+    await expect(page, selector).toHaveURL(/\/chat\?conversation=101$/);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
   expect(state.sends).toHaveLength(0);
   expect(state.edits).toHaveLength(0);
 });
 
-test('history cover with no generated file shows a message instead of navigating', async ({ page }) => {
+test('history conversation link supports keyboard without a generated file', async ({ page }) => {
   const state = await mockApi(page);
   state.conversations.push(savedConversation());
   await page.goto('/history');
-  await page.getByRole('button', { name: 'Открыть файл Saved creative work' }).click();
-  await expect(page.getByRole('dialog')).toContainText(
-    'В этой беседе пока нет готового изображения или видео.',
-  );
-  await expect(page).toHaveURL(/\/history$/);
+  const link = page.getByRole('link', { name: 'Открыть беседу Saved creative work', exact: true });
+  await link.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/chat\?conversation=101$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(state.sends).toHaveLength(0);
 });
 
@@ -3895,7 +3901,14 @@ test('library batch upload keeps destination, continues after failure and naviga
         : { json: { ...file, id: 100 + requests.length } },
     );
   });
-  await page.goto('/library');
+  await page.goto('/image');
+  const navigation = page.getByRole('navigation', { name: 'Основное меню' });
+  await expect(navigation.getByRole('link', { name: 'История', exact: true })).toBeVisible();
+  const labels = await navigation.getByRole('link').allTextContents();
+  expect(labels.indexOf('Библиотека')).toBeLessThan(labels.indexOf('История'));
+  await navigation.getByRole('link', { name: 'Библиотека', exact: true }).click();
+  await expect(page).toHaveURL(/\/library$/);
+  await expect(page.getByRole('button', { name: 'Все файлы', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'ДТП Папка', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles([
     { name: 'one.png', mimeType: 'image/png', buffer: Buffer.from('image') },
@@ -3906,7 +3919,13 @@ test('library batch upload keeps destination, continues after failure and naviga
   await expect(page.getByRole('alert')).toContainText('broken.pdf');
   expect(requests).toHaveLength(3);
   for (const request of requests) expect(request).toContain('folder-80');
-  await page.getByRole('button', { name: 'Назад в родительскую папку' }).click();
+  const up = page
+    .locator('.library-grid > .file-entry')
+    .first()
+    .getByRole('button', { name: 'На уровень выше' });
+  await expect(up).toBeVisible();
+  await up.click();
+  await expect(page.getByRole('button', { name: 'На уровень выше' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'ДТП Папка', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Назад в родительскую папку' })).toHaveCount(0);
 });
@@ -4308,4 +4327,107 @@ test('reloaded image page reveals completed output without a final socket event 
   await expect(page.locator('.image-result')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Добавить изображение', exact: true })).toBeEnabled();
   expect(state.sends).toHaveLength(0);
+});
+
+test('history menus close outside and on Escape without blocking actions', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation(), { ...savedConversation(), id: 102, name: 'Second work' });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/history');
+    const menus = page.locator('.history-actions');
+    await menus.first().locator('summary').click();
+    await expect(menus.first()).toHaveAttribute('open', '');
+    await page.getByRole('textbox', { name: 'Поиск по названию и запросу' }).click();
+    await expect(page.locator('.history-actions[open]')).toHaveCount(0);
+    await menus.first().locator('summary').click();
+    await menus.last().locator('summary').click();
+    await expect(menus.first()).not.toHaveAttribute('open');
+    await expect(menus.last()).toHaveAttribute('open', '');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.history-actions[open]')).toHaveCount(0);
+    await expect(menus.last().locator('summary')).toBeFocused();
+    await menus.first().locator('summary').click();
+    await menus.first().getByRole('button', { name: 'Переименовать', exact: true }).click();
+    await expect(page.getByLabel('Новое название')).toBeVisible();
+    await expect(page.locator('.history-actions[open]')).toHaveCount(0);
+  }
+});
+
+test('history searches all server pages by title or prompt and resets pagination for a new query', async ({
+  page,
+}) => {
+  await mockApi(page);
+  const requests: Array<{ page: number; conditions: any; search: string | null }> = [];
+  await page.route('**/api/conversation?**', async (route) => {
+    const url = new URL(route.request().url());
+    const conditions = JSON.parse(url.searchParams.get('conditions') || '{}');
+    const index = Number(url.searchParams.get('pageIndex'));
+    requests.push({ page: index, conditions, search: url.searchParams.get('search') });
+    const pattern = url.searchParams.get('search');
+    const match = pattern === 'РЕДКАЯ';
+    const items = pattern
+      ? match
+        ? [{ ...savedConversation(), id: 200, name: 'Работа, найденная по промпту' }]
+        : []
+      : [{ ...savedConversation(), name: `Работа страницы ${index}` }];
+    await route.fulfill({
+      json: {
+        ...pagination(items),
+        pages: pattern ? (match ? 1 : 0) : 3,
+        pageIndex: index,
+        total: pattern ? items.length : 60,
+      },
+    });
+  });
+  await page.goto('/history');
+  await page.getByRole('button', { name: 'Далее', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Работа страницы 1' })).toBeVisible();
+  const search = page.getByRole('textbox', { name: 'Поиск по названию и запросу' });
+  await search.fill('  РЕДКАЯ  ');
+  await expect(page.getByRole('heading', { name: 'Работа, найденная по промпту' })).toBeVisible();
+  expect(requests.at(-1)).toMatchObject({
+    page: 0,
+    conditions: { userId: 7 },
+    search: 'РЕДКАЯ',
+  });
+  await page.getByRole('button', { name: 'В работе', exact: true }).click();
+  await expect.poll(() => requests.at(-1)?.conditions.status).toBe('LOADING');
+  expect(requests.at(-1)?.search).toBe('РЕДКАЯ');
+  await search.fill('100%_test');
+  await expect(page.getByRole('heading', { name: 'Ничего не найдено' })).toBeVisible();
+  expect(requests.at(-1)?.search).toBe('100%_test');
+  await page.getByRole('button', { name: 'Сбросить поиск' }).click();
+  await expect(search).toHaveValue('');
+  await expect(page.getByRole('heading', { name: 'Работа страницы 0' })).toBeVisible();
+  expect(requests.at(-1)?.search).toBeNull();
+});
+
+test('history ignores browser flags, persists server flags and rolls back failed patches', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  await page.addInitScript(() =>
+    localStorage.setItem('genfactory.preferences.v1.7', JSON.stringify({ favorites: [101], archive: [101] })),
+  );
+  await page.goto('/history');
+  const card = page.locator('.history-card');
+  await expect(card).toBeVisible();
+  await expect(card.locator('.history-favorite-mark')).toHaveCount(0);
+  await card.locator('summary').click();
+  await card.getByRole('button', { name: 'В избранное', exact: true }).click();
+  await expect.poll(() => state.patches).toEqual([{ isFavorite: true }]);
+  await expect(card.locator('.history-favorite-mark')).toHaveCount(1);
+  await page.reload();
+  await expect(card.locator('.history-favorite-mark')).toHaveCount(1);
+  await page.route('**/api/conversation/101', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    await route.fulfill({ status: 500, json: { message: 'Save failed' } });
+  });
+  await card.locator('summary').click();
+  await card.getByRole('button', { name: 'В архив', exact: true }).click();
+  await expect(page.locator('.work-history > [role="alert"]')).toBeVisible();
+  await expect(card).toBeVisible();
+  expect(state.conversations[0].isArchived).toBeUndefined();
 });

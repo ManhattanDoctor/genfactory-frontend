@@ -429,9 +429,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     referenceKey.current = location.key;
     setFocusPrompt((value) => value + 1);
   }, [models, currentKey, location.key, location.state, auth.user?.id, conversation, conversationId, kind]);
-  const maxRefs = !legacy
-    ? Math.min(kind === 'video' ? 1 : Infinity, referenceLimit(model))
-    : Math.min(4, referenceLimit(model));
+  const maxRefs = !legacy ? referenceLimit(model) : Math.min(4, referenceLimit(model));
   const minRefs = referenceMinimum(model);
   const draft = useDraft(
     `${kind}:${conversationId || 'new'}:${specialized || 'all'}`,
@@ -865,10 +863,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
             if (getSession() !== sid || scopeRef.current !== activeScope || !mounted.current) return;
             if (sources.some((f) => f.userId !== auth.user?.id || f.type !== 'IMAGE'))
               throw new Error('Исходные изображения недоступны.');
-            if (
-              (sources.length && !supportsReferences(chosen)) ||
-              sources.length > Math.min(kind === 'video' ? 1 : Infinity, referenceLimit(chosen))
-            )
+            if ((sources.length && !supportsReferences(chosen)) || sources.length > referenceLimit(chosen))
               throw new Error('Количество референсов не поддерживается текущей моделью.');
             const values = {
               ...(kind === 'video' ? videoDefaults(chosen) : defaults(chosen.schema.properties?.options)),

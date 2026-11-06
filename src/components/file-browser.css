@@ -39,3 +39,169 @@
   flex: none;
   margin-top: 1px;
 }
+
+.file-browser {
+  gap: 16px;
+}
+.file-browser .file-breadcrumbs {
+  font-size: 13px;
+  color: #9a9aa0;
+}
+.file-browser .file-breadcrumbs .text-button {
+  color: #c8c8ce;
+  font-size: 13px;
+}
+.file-browser .file-toolbar {
+  gap: 8px;
+}
+.file-browser .file-toolbar input {
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid #2c2c31;
+  border-radius: 12px;
+  background: #1a1b1e;
+  color: #f4f4f5;
+  font-size: 14px;
+}
+.file-browser .button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: #2a2b30;
+  color: #f4f4f5;
+  font-size: 14px;
+  padding: 0 14px;
+  box-shadow: none;
+}
+.file-browser .button:hover:not(:disabled) {
+  background: #35363b;
+}
+.file-browser .chips {
+  gap: 8px;
+}
+.file-browser .chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #2a2b30;
+  color: #f4f4f5;
+  font-size: 14px;
+}
+.file-browser .chip.active {
+  background: #f4f4f5;
+  color: #111;
+}
+.file-browser .file-tag-filter .workspace-details {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.file-browser .file-tag-filter summary {
+  font-size: 13px;
+  color: #9a9aa0;
+  padding: 0;
+}
+.file-browser .library-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.file-browser .file-entry {
+  border: 1px solid #2c2c31;
+  border-radius: 16px;
+  background: #1a1b1e;
+}
+.file-browser .file-entry .library-card {
+  background: transparent;
+  border-radius: 15px;
+}
+.file-browser .library-media {
+  height: auto;
+  aspect-ratio: 1;
+  background: #111214;
+  overflow: hidden;
+}
+.file-browser .library-card > div:last-child {
+  min-height: 88px;
+  padding: 12px;
+}
+.file-browser .library-card b {
+  font-size: 14px;
+  line-height: 20px;
+  color: #f4f4f5;
+}
+.file-browser .library-card span {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #9a9aa0;
+}
+.file-browser .file-generation-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.file-browser .file-tag-chips {
+  padding: 0 12px 12px;
+  gap: 4px;
+}
+.file-browser .file-tag-chips .chip {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+.file-browser .file-actions summary {
+  background: #232428e6;
+  border: 1px solid #3a3b40;
+  border-radius: 8px;
+  color: #f4f4f5;
+}
+.file-browser .empty-state {
+  border: 0;
+  background: transparent;
+  color: #9a9aa0;
+  font-size: 14px;
+}
+.file-browser :focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 3px;
+}
+@media (max-width: 800px) {
+  .file-browser .library-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .file-browser .library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .file-browser .file-toolbar input {
+    flex-basis: 100%;
+  }
+  .file-browser .file-toolbar .button {
+    flex: 1 1 0;
+    white-space: nowrap;
+    padding: 0 10px;
+  }
+  .file-browser .library-card > div:last-child {
+    min-height: 84px;
+    padding: 10px;
+  }
+  .file-browser .library-card b {
+    font-size: 13px;
+  }
+  .file-browser .chip {
+    font-size: 13px;
+    padding: 0 10px;
+  }
+}
+.library-page .file-breadcrumbs:empty {
+  display: none;
+}
+
+.file-browser .file-folder-list .library-card > div:last-child {
+  min-height: 0;
+}

@@ -105,6 +105,8 @@ export interface IToolDescription {
   providers?: string[];
 }
 export interface IConversation {
+  isFavorite?: boolean;
+  isArchived?: boolean;
   previewFileId?: number;
   previewMode?: 'AUTO' | 'MANUAL' | 'NONE';
   fileOutput?: IFileOutputSettings;

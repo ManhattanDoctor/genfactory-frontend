@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUp, ChevronDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../features/auth/AuthProvider';
-import { usePreferences } from '../features/workspace/preferences';
 import { ConversationCover } from '../features/studio/ConversationCover';
 import { api } from '../lib/api';
 import { destinations } from './destinations';
@@ -103,15 +102,13 @@ function RecentWorks() {
     ['prompt', 'Промпты'],
   ];
   const { user } = useAuth();
-  const preferences = usePreferences();
   const query = useQuery({
-    queryKey: ['conversations', user?.id, 0, 'all'],
+    queryKey: ['conversations', user?.id, 0, 'home', 'server-flags'],
     enabled: !!user,
-    queryFn: ({ signal }) => api.conversations(user!.id, 0, signal),
+    queryFn: ({ signal }) =>
+      api.conversations(user!.id, 0, signal, undefined, undefined, undefined, { isArchived: false }),
   });
-  const own = (query.data?.items || []).filter(
-    (item) => item.userId === user?.id && !preferences.value.archive.includes(item.id),
-  );
+  const own = (query.data?.items || []).filter((item) => item.userId === user?.id && !item.isArchived);
   const items = own.filter((item) => filter === 'all' || item.tags?.includes(filter));
   return (
     <section

@@ -37,7 +37,11 @@ export function AppNavigation({ onNavigate }: { onNavigate?: () => void }) {
         className={`shell-nav-item ${active ? 'active' : ''}`}
       >
         <img
-          src={`/media/prototype/nav/${({ 'mark-studio': 'studio', 'mark-image': 'image', 'mark-video': 'video', prompt: 'edit' } as Record<string, string>)[item.icon] || item.icon}.webp`}
+          src={
+            item.icon === 'history'
+              ? '/media/nav/history.svg'
+              : `/media/prototype/nav/${({ 'mark-studio': 'studio', 'mark-image': 'image', 'mark-video': 'video', prompt: 'edit' } as Record<string, string>)[item.icon] || item.icon}.webp`
+          }
           alt=""
           width={18}
           height={18}
@@ -49,7 +53,8 @@ export function AppNavigation({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="shell-navigation" aria-label="Основное меню">
       {primary.map(renderDestination)}
-      {user && renderDestination({ to: '/history', label: 'История', icon: 'assets' })}
+      {user && renderDestination({ to: '/library', label: 'Библиотека', icon: 'assets' })}
+      {user && renderDestination({ to: '/history', label: 'История', icon: 'history' })}
       <p className="shell-nav-heading">Инструменты</p>
       {destinations.slice(3).map((item) =>
         item.to !== '/agent' ? (

@@ -12,8 +12,6 @@ export interface IPreset {
   options?: Record<string, unknown>;
 }
 export interface IPreferences {
-  favorites: number[];
-  archive: number[];
   favoriteTemplates: string[];
   favoriteModels: string[];
   presets: IPreset[];
@@ -21,8 +19,6 @@ export interface IPreferences {
   versions: { at: string; text: string }[];
 }
 const empty: IPreferences = {
-  favorites: [],
-  archive: [],
   favoriteTemplates: [],
   favoriteModels: [],
   presets: [],
@@ -42,8 +38,6 @@ function read(key: string): IPreferences {
   try {
     const data = JSON.parse(localStorage.getItem(key) || '{}');
     return {
-      favorites: Array.isArray(data.favorites) ? data.favorites.filter(Number.isSafeInteger) : [],
-      archive: Array.isArray(data.archive) ? data.archive.filter(Number.isSafeInteger) : [],
       favoriteTemplates: Array.isArray(data.favoriteTemplates)
         ? data.favoriteTemplates.filter((x: unknown) => typeof x === 'string')
         : [],

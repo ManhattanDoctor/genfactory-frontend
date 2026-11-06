@@ -15,14 +15,8 @@ export function Library() {
     setPreview(undefined);
   }, [auth.user?.id]);
   return (
-    <div className="page-content page-enter">
-      <div className="page-heading compact">
-        <div>
-          <span className="eyebrow">ВАШИ МАТЕРИАЛЫ И РЕЗУЛЬТАТЫ</span>
-          <h1>Библиотека</h1>
-          <p>Файлы, папки и ссылки вашего аккаунта gnosis.</p>
-        </div>
-      </div>
+    <div className="page-content page-enter library-page">
+      <h1 className="sr-only">Библиотека</h1>
       {auth.user ? (
         <FileBrowser
           key={auth.user.id}
@@ -34,7 +28,6 @@ export function Library() {
         />
       ) : (
         <div className="empty-state">
-          <h2>Все ваши файлы в одном месте</h2>
           <p>Войдите, чтобы открыть библиотеку.</p>
           <button className="button primary" onClick={() => setLogin(true)}>
             Войти в аккаунт
