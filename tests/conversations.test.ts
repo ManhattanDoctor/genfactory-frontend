@@ -4,6 +4,7 @@ import {
   imageRequest,
   migratedReferenceSystem,
   displayMessageText,
+  withMessageContext,
   createConversationBody,
   createMessageBody,
   toolSettings,
@@ -52,7 +53,7 @@ describe('Conversation tool contracts', () => {
     const body = createMessageBody('Move closer', 'video', tool, [42, 12]);
     expect(body.files).toEqual([42, 12]);
     expect(body.text).toContain('42, 12');
-    expect(body.settings.tools).toEqual([tool]);
+    expect(body.settings.tools).toEqual([{ ...tool, isRequired: true }]);
     expect(JSON.stringify(body)).not.toContain('frameImages');
   });
   it('explicitly prevents reuse of old images for a fresh generation', () => {
@@ -108,6 +109,34 @@ it('binds the displayed model alias to its exact ID without exposing the instruc
     'Nano Banana 2 Lite',
   );
   expect(body.text).toContain(JSON.stringify({ name: 'Nano Banana 2 Lite', ...lite.reference }));
-  expect(body.settings.tools).toEqual([tool]);
+  expect(body.settings.tools).toEqual([{ ...tool, isRequired: true }]);
   expect(displayMessageText(body.text)).toBe('Идея:\nСоздай чашку на Nano Banana 2 Lite');
+});
+
+it('separates studio settings from user text without changing the sent context', () => {
+  const source = 'Хочу ролик.\nСтруктура: мой собственный текст';
+  const context =
+    'Сценарий для ролика длительностью 8 с, формат 9:16. Не увеличивай длительность.\n\nСтруктура: Один кадр';
+  const request =
+    '[Genfactory:script]\nСлужебная инструкция\n\nЗапрос пользователя:\n' +
+    withMessageContext(source, context);
+  expect(displayMessageText(request)).toBe(source);
+  expect(request).toContain(JSON.stringify(context));
+  const ownMarker = source + '\n\n[Genfactory:context]\n"Цитата пользователя"\n[/Genfactory:context]';
+  expect(
+    displayMessageText(
+      '[Genfactory:script]\nИнструкция\n\nЗапрос пользователя:\n' + withMessageContext(ownMarker, context),
+    ),
+  ).toBe(ownMarker);
+  expect(displayMessageText(ownMarker)).toBe(ownMarker);
+});
+
+it('hides the exact old studio footer from conversation 121 but preserves ordinary text', () => {
+  const source = 'Короткое видео, где ребенок бьется с зомби и побежает, фото приложу';
+  const footer =
+    '\n\nСценарий для ролика длительностью 8 с, формат 9:16. Не увеличивай длительность.\n\nСтруктура: Один кадр';
+  expect(
+    displayMessageText('[Genfactory:script]\nИнструкция\n\nЗапрос пользователя:\n' + source + footer),
+  ).toBe(source);
+  expect(displayMessageText(source + footer)).toBe(source + footer);
 });

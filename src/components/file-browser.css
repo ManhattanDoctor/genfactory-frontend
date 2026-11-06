@@ -21,23 +21,43 @@
 .file-browser .file-entry.is-incompatible .library-media {
   opacity: 0.45;
 }
-.file-browser .file-entry.is-incompatible .file-incompatible {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px;
-  border-radius: 8px;
+.file-browser .file-entry {
+  position: relative;
+}
+.file-browser .file-incompatible {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #a97737;
+  border-radius: 50%;
   background: #49351e;
   color: #ffd08a;
-  font-size: 12px;
-  line-height: 18px;
-  font-weight: 500;
-  white-space: normal;
 }
-.file-browser .file-incompatible svg {
-  flex: none;
-  margin-top: 1px;
+.file-browser .file-incompatible [role='tooltip'] {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 160px;
+  padding: 8px 10px;
+  border: 1px solid #3a3a40;
+  border-radius: 8px;
+  background: #242428;
+  color: #f4f4f5;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: left;
+  pointer-events: none;
+  visibility: hidden;
+}
+.file-browser .file-incompatible:hover [role='tooltip'],
+.file-browser .file-incompatible:focus [role='tooltip'] {
+  visibility: visible;
 }
 
 .file-browser {

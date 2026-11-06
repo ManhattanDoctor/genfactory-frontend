@@ -86,8 +86,10 @@ export function useContentConversation() {
         if (!current()) return false;
         if (fresh.userId !== userId || fresh.status === 'LOADING')
           throw new Error('Беседа недоступна или уже выполняет запрос.');
-        // Message settings only override connected tools; an empty array does NOT disable them.
-        conversation = await api.editConversation(fresh, { options: { ...fresh.options, tools } }, sid);
+        // Discussion disables tools for this request without deleting saved connections.
+        conversation = body.settings.isToolsDisabled
+          ? fresh
+          : await api.editConversation(fresh, { options: { ...fresh.options, tools } }, sid);
       } else {
         conversation = await api.createConversation(
           {

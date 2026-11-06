@@ -228,7 +228,17 @@ function PromptEditor() {
       source: number[];
       tools: IToolConnection[];
       sid: string;
-    }) => api.sendMessage(conversationId, { role: 'USER', text, files: source, settings: { tools } }, sid),
+    }) =>
+      api.sendMessage(
+        conversationId,
+        {
+          role: 'USER',
+          text,
+          files: source,
+          settings: { tools, ...(!tools.length ? { isToolsDisabled: true } : {}) },
+        },
+        sid,
+      ),
     onSettled: (_data, failure, v) => {
       client.setQueryData(['prompt-error', auth.user?.id, v.conversationId], failure?.message || null);
       void client.invalidateQueries({ queryKey: ['conversation', auth.user?.id, v.conversationId] });
@@ -274,7 +284,11 @@ function PromptEditor() {
         const issue = videoAnalysisError(file);
         if (issue) throw Error(issue);
       }
-      const tools = actual.some((f) => f.type === 'VIDEO') ? [videoAnalysisTool(model)] : [];
+      const videos = actual.filter((f) => f.type === 'VIDEO');
+      const tools = videos.length
+        ? [{ ...videoAnalysisTool(model), ...(videos.length === 1 ? { isRequired: true } : {}) }]
+        : [];
+      const connections = tools.map(({ isRequired, ...tool }) => tool);
       if (getSession() !== sid || !mounted.current) return;
       let active = conversation;
       if (active) {
@@ -285,13 +299,17 @@ function PromptEditor() {
           throw Error('Для другой модели анализа начните новую работу.');
         if (
           active.options.model !== assistantModel.reference.model ||
-          JSON.stringify(active.options.tools || []) !== JSON.stringify(tools) ||
+          JSON.stringify(active.options.tools || []) !== JSON.stringify(connections) ||
           active.system !== promptSystem
         )
           active = await api.editConversation(
             active,
             {
-              options: { ...active.options, model: assistantModel.reference.model, tools },
+              options: {
+                ...active.options,
+                model: assistantModel.reference.model,
+                tools: connections,
+              },
               system: promptSystem,
             },
             sid,
@@ -301,7 +319,10 @@ function PromptEditor() {
           {
             name: input.note.trim().slice(0, 64) || 'Промпт по материалам',
             model: assistantModel.reference.provider,
-            options: { model: assistantModel.reference.model, tools },
+            options: {
+              model: assistantModel.reference.model,
+              tools: connections,
+            },
             tags: ['genfactory', 'prompt'],
             history: 32,
             isConsiderHistory: true,

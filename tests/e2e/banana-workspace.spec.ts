@@ -110,6 +110,7 @@ test('banana uses the designer empty canvas and catalog settings, preserves its 
   await expect(page.locator('.image-result')).toHaveCount(1);
   await expect(page.locator('.banana-brand')).toHaveCount(0);
   expect(state.sends[0].settings.tools[0]).toMatchObject({
+    isRequired: true,
     uid: 'IMAGE',
     settings: {
       model: { model: 'google/gemini-3.1-flash-image' },

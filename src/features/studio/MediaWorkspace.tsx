@@ -1,3 +1,4 @@
+import { followsReferenceRatio } from '../catalog/schema';
 import { bananaRatios, bananaDescription } from './bananaSettings';
 import './banana-workspace.css';
 import './seedance-workspace.css';
@@ -238,7 +239,10 @@ export function MediaWorkspace({
     sizes.set(sizeRatio(options.size), options.size);
     ratios.push(sizeRatio(options.size));
   }
-  const ratio = String(options.aspectRatio || (options.size ? sizeRatio(String(options.size)) : ''));
+  const referenceRatio = followsReferenceRatio(model, references.length);
+  const ratio = referenceRatio
+    ? ''
+    : String(options.aspectRatio || (options.size ? sizeRatio(String(options.size)) : ''));
   const qualityKey = fields.resolution
     ? 'resolution'
     : fields.quality
@@ -608,7 +612,11 @@ export function MediaWorkspace({
           />
           {(!!ratios.length || banana) && (
             <ImageMenu
-              label={ratio || (banana ? (user ? 'Не задаётся' : '1:1') : 'Стороны')}
+              label={
+                referenceRatio
+                  ? 'По исходному кадру'
+                  : ratio || (banana ? (user ? 'Не задаётся' : '1:1') : 'Стороны')
+              }
               name="Стороны"
               note={
                 banana
@@ -622,7 +630,7 @@ export function MediaWorkspace({
               allowedValues={banana ? ratios : undefined}
               ratioIcons={banana}
               selection={ratio}
-              disabled={busy || !ratios.length}
+              disabled={busy || referenceRatio || !ratios.length}
               onSelect={chooseRatio}
             />
           )}

@@ -7,7 +7,15 @@ import { api, safeMediaUrl } from '../lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
-export function Media({ file, controls = false }: { file: IGnosisFile; controls?: boolean }) {
+export function Media({
+  file,
+  controls = false,
+  isPlaybackDisabled = false,
+}: {
+  file: IGnosisFile;
+  controls?: boolean;
+  isPlaybackDisabled?: boolean;
+}) {
   const original = safeMediaUrl(file.path);
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const failSource = (source: string) =>
@@ -15,7 +23,14 @@ export function Media({ file, controls = false }: { file: IGnosisFile; controls?
   const isVideo = file.type === 'VIDEO' || file.mime?.startsWith('video/');
   const poster = file.preview?.image?.status === 'READY' ? safeMediaUrl(file.preview.image.url) : undefined;
   const clip = file.preview?.video?.status === 'READY' ? safeMediaUrl(file.preview.video.url) : undefined;
-  const sources = controls ? [original] : isVideo ? [clip, poster, original] : [poster, original];
+  const sources =
+    isVideo && isPlaybackDisabled
+      ? [poster]
+      : controls
+        ? [original]
+        : isVideo
+          ? [clip, poster, original]
+          : [poster, original];
   const src = sources.find((source) => source && !failedSources.includes(source));
   const isImage = file.type === 'IMAGE' || file.mime?.startsWith('image/');
   const isAudio = file.type === 'AUDIO' || file.mime?.startsWith('audio/');
@@ -28,6 +43,7 @@ export function Media({ file, controls = false }: { file: IGnosisFile; controls?
     if (src && !failedSources.includes(src))
       return <audio src={src} controls onError={() => failSource(src)} />;
   }
+  if (isVideo && isPlaybackDisabled && !src) return <FilePlaceholder file={file} />;
   if (!src || failedSources.includes(src))
     return (
       <div className="media-missing">
@@ -43,12 +59,13 @@ export function Media({ file, controls = false }: { file: IGnosisFile; controls?
       poster={poster}
       onError={() => failSource(src)}
       controls={controls}
+      autoPlay={controls && !isPlaybackDisabled}
       muted={!controls}
       preload="metadata"
       playsInline
       loop={!controls}
       onMouseEnter={(event) => {
-        if (!controls && clip) void event.currentTarget.play().catch(() => {});
+        if (!controls && !isPlaybackDisabled && clip) void event.currentTarget.play().catch(() => {});
       }}
       onMouseLeave={(event) => {
         if (!controls) event.currentTarget.pause();

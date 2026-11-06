@@ -26,7 +26,7 @@ export function ContentThread({
   conversation: IConversation;
   onUse: (file: IGnosisFile, kind: MediaKind) => void;
   onRepeat: (text: string) => void;
-  onUseScript: (text: string, files: IGnosisFile[]) => void;
+  onUseScript: (text: string, messageId: number) => void;
   busy: boolean;
   onUseParameters: (file: IGnosisFile) => void;
 }) {
@@ -246,7 +246,7 @@ export function ContentThread({
                     !!reply?.text &&
                     isReadyScript(reply.text) &&
                     !files.length && (
-                      <button disabled={busy} onClick={() => onUseScript(reply.text!, ask.files || [])}>
+                      <button disabled={busy} onClick={() => onUseScript(reply.text!, reply.id)}>
                         Использовать сценарий
                       </button>
                     )}

@@ -123,6 +123,8 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await page.locator('.ds-template-card').first().click();
   await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
   await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Чашка.png', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toHaveText('По исходному кадру');
+  await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Длительность', exact: true }).click();
   await page.getByRole('option', { name: '4 с', exact: true }).click();
   await page.getByRole('button', { name: 'Структура ролика', exact: true }).click();
@@ -144,6 +146,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
     uid: 'VIDEO',
     settings: { options: { duration: 4, generateAudio: true } },
   });
+  expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('aspectRatio');
   expect(state.sends[0].text).toContain('Шаблон:');
   expect(state.sends[0].text).toContain('Несколько последовательных сцен');
   await page.locator('.video-result').hover();

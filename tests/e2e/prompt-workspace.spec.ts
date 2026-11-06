@@ -135,6 +135,7 @@ test('prompt analyzes image without tools and restores result before handoff', a
   await expect(page.locator('.prompt-card h3')).toHaveText('Синяя чашка');
   expect(state.sends).toHaveLength(1);
   expect(state.sends[0].settings.tools).toEqual([]);
+  expect(state.sends[0].settings.isToolsDisabled).toBe(true);
   expect(state.sends[0].files).toEqual([12]);
   await page.reload();
   await expect(page.locator('.prompt-card h3')).toHaveText('Синяя чашка');
@@ -243,6 +244,7 @@ test('prompt analyzes the original video with a locked tool and restores its sou
   expect(state.sends[0].settings.tools).toEqual([
     {
       uid: 'VIDEO_RECOGNITION',
+      isRequired: true,
       settings: {
         model: { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' },
         options: { maxTokens: 4096 },
@@ -250,7 +252,10 @@ test('prompt analyzes the original video with a locked tool and restores its sou
       },
     },
   ]);
-  expect(state.creates[0].options.tools).toEqual(state.sends[0].settings.tools);
+  expect(state.creates[0].options.tools).toEqual(
+    state.sends[0].settings.tools.map(({ isRequired, ...tool }: { isRequired?: boolean }) => tool),
+  );
+  expect(state.creates[0].options.tools[0]).not.toHaveProperty('isRequired');
   expect(state.sends[0].text).toContain('VIDEO_RECOGNITION');
   expect(state.uploads).toBe(0);
   await page.reload();

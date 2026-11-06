@@ -395,7 +395,7 @@ export function FileBrowser({
                       <Folder size={44} />
                     </div>
                   ) : (
-                    <Media file={file} />
+                    <Media file={file} isPlaybackDisabled={incompatible} />
                   )}
                 </div>
                 <div>
@@ -413,14 +413,21 @@ export function FileBrowser({
                   </span>
                   <GenerationSummary file={file} />
                   {already && <span>Уже добавлен</span>}
-                  {incompatible && (
-                    <span className="file-incompatible">
-                      <CircleAlert size={16} aria-hidden="true" />
-                      Не подходит для этой задачи
-                    </span>
-                  )}
                 </div>
               </button>
+              {incompatible && (
+                <button
+                  type="button"
+                  className="file-incompatible"
+                  aria-label="Почему файл не подходит"
+                  aria-describedby={`file-incompatible-${file.id}`}
+                >
+                  <CircleAlert size={18} aria-hidden="true" />
+                  <span role="tooltip" id={`file-incompatible-${file.id}`}>
+                    Не подходит для этой задачи
+                  </span>
+                </button>
+              )}
               {!foldersOnly && !!file.tags?.length && (
                 <div className="file-tag-chips" aria-label={`Теги файла ${file.name}`}>
                   {file.tags.map((tag) => (

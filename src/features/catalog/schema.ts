@@ -69,3 +69,12 @@ export function referenceMinimum(model?: IModelDescription): number {
     return Math.max(1, options.properties?.frameImages?.minItems ?? 1);
   return 0;
 }
+
+/** Grok Lite's verified image-to-video contract uses the first frame's aspect ratio. */
+export function followsReferenceRatio(model: IModelDescription | undefined, count: number): boolean {
+  return (
+    count > 0 &&
+    model?.reference.provider === 'OPEN_ROUTER_VIDEO' &&
+    model.reference.model === 'x-ai/grok-imagine-video-1.5-lite'
+  );
+}

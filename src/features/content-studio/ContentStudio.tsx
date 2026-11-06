@@ -1,4 +1,4 @@
-import { latestScript, scriptIntent } from './script';
+import { scriptReferences } from './script';
 import '../catalog/model-favorites.css';
 import { TemplateEditor } from './TemplateEditor';
 import { useEffect, useRef, useState } from 'react';
@@ -9,11 +9,11 @@ import type { IGnosisFile, IFileGeneration, IMessageCreate, IToolConnection } fr
 import { useContentConversation } from './useContentConversation';
 import { ContentThread } from './ContentThread';
 import { choices, ratioSizes, sizeRatio, suggestedRatios } from './controls';
-import { referenceLimit, supportsReferences } from '../catalog/schema';
+import { followsReferenceRatio, referenceLimit, supportsReferences } from '../catalog/schema';
 import { templateFrame, templateInstructions, type ITemplate } from './materials';
 import { mediaOptions } from './request';
 import { textInstruction } from '../workspace/prompt';
-import { createMessageBody, toolSettings } from '../studio/conversations';
+import { createMessageBody, toolSettings, withMessageContext } from '../studio/conversations';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import { ArrowUp, CircleAlert, Heart, Plus } from 'lucide-react';
 import { Modal } from '../../components/Modal';
@@ -238,6 +238,7 @@ export function ContentStudio() {
       ? choices(modelProperties.aspectRatio, suggestedRatios)
       : [...sizes.keys()]
     : suggestedRatios;
+  const referenceRatio = followsReferenceRatio(model, attachments.length);
   const effectiveRatio = ratio;
   const qualityField = modelProperties[mode === 'image' ? 'quality' : 'resolution'];
   const qualityOptions = model
@@ -493,6 +494,53 @@ export function ContentStudio() {
       if (alive.current) setRestoringResult(false);
     }
   }
+  async function applyScript(text: string, messageId: number) {
+    if (busy || !work.id || !session) return;
+    const id = work.id;
+    const sid = session;
+    const current = () =>
+      alive.current &&
+      getSession() === sid &&
+      new URLSearchParams(window.location.search).get('conversation') === String(id);
+    setRestoringResult(true);
+    work.setError('');
+    try {
+      let files: Array<IGnosisFile> = [];
+      if (!attachments.length) {
+        for (let page = 0; ; page++) {
+          const messages = await api.messages(id, page, undefined, sid);
+          if (!current()) return;
+          const found = scriptReferences(messages.items, messageId);
+          if (found) {
+            files = found;
+            break;
+          }
+          if (page + 1 >= messages.pages || !messages.items.length) break;
+        }
+      }
+      if (!current()) return;
+      setDraft(text);
+      setWriter(false);
+      setAttachments((previous) =>
+        previous.length
+          ? previous
+          : files.map((file) => ({
+              id: String(file.id),
+              name: file.name,
+              url: file.path,
+              type: file.mime,
+              saved: file,
+            })),
+      );
+      focusRestoredDraft.current = true;
+    } catch (error) {
+      if (current())
+        work.setError(error instanceof Error ? error.message : 'Не удалось восстановить материалы сценария.');
+    } finally {
+      if (alive.current) setRestoringResult(false);
+    }
+  }
+
   async function submit() {
     if (!user || !session) {
       void signIn();
@@ -504,39 +552,10 @@ export function ContentStudio() {
     work.setError('');
     const sid = session;
     const current = () => alive.current && getSession() === sid;
-    let sourceDraft = draft;
-    let sourceAttachments = attachments;
-    let preparingScript = writer;
+    const sourceDraft = draft;
+    const sourceAttachments = attachments;
+    const preparingScript = writer;
     try {
-      const intent = writer && mode === 'video' ? scriptIntent(draft) : undefined;
-      if (intent && work.id) {
-        const messages = await api.messages(work.id, 0, undefined, sid);
-        if (!current() || new URLSearchParams(window.location.search).get('conversation') !== String(work.id))
-          return;
-        const script = latestScript(messages.items);
-        if (!script)
-          throw new Error(
-            'Не найден готовый сценарий в последних сообщениях. Выберите «Использовать сценарий» под нужным ответом или дополните задание.',
-          );
-        sourceDraft = script.text;
-        sourceAttachments = attachments.length
-          ? attachments
-          : script.files.map((file) => ({
-              id: String(file.id),
-              name: file.name,
-              url: file.path,
-              type: file.mime,
-              saved: file,
-            }));
-        if (intent === 'approve') {
-          setDraft(sourceDraft);
-          setAttachments(sourceAttachments);
-          setWriter(false);
-          textarea.current?.focus();
-          return;
-        }
-        preparingScript = false;
-      }
       if (picked.some((item) => item.kind !== mode))
         throw new Error('Выбран шаблон другого типа. Вернитесь в его режим или уберите шаблон.');
       if (sourceAttachments.some((item) => item.slot) && sourceAttachments.some((item) => !item.slot))
@@ -610,11 +629,10 @@ export function ContentStudio() {
         )
         .filter((field) => !['Авто', 'Нет', 'Не задано'].includes(settings[field.id]))
         .map((field) => `${field.label}: ${settings[field.id]}`);
-      const prompt = [
-        sourceDraft.trim(),
+      const context = [
         ...(preparingScript && mode === 'video'
           ? [
-              `Сценарий для ролика длительностью ${duration} с, формат ${effectiveRatio}. Не увеличивай длительность.`,
+              `Сценарий для ролика длительностью ${duration} с, формат ${referenceRatio ? 'по исходному кадру' : effectiveRatio}. Не увеличивай длительность.`,
             ]
           : []),
         templateInstructions(picked),
@@ -631,16 +649,17 @@ export function ContentStudio() {
       ]
         .filter(Boolean)
         .join('\n\n');
+      const prompt = withMessageContext(sourceDraft, context);
       let tools: IToolConnection[] = [];
       let body: IMessageCreate;
       if (preparingScript || mode === 'presentation') {
         body = {
           role: 'USER',
           files: savedFiles.map((file) => file.id),
-          settings: { tools: [] },
+          settings: { tools: [], isToolsDisabled: true },
           text:
             mode === 'presentation'
-              ? `Подготовь текст по слайдам на основе задачи и истории проекта. Это текстовая структура, не готовый файл презентации. Используй только факты из брифа и истории. Не утверждай ничего о рынке, конкурентах, достижениях и цифрах без источника пользователя. Недостающие данные обозначай «Нужно уточнить». Предположения выделяй как гипотезы, а не факты.\n\n${prompt}`
+              ? `[Genfactory:presentation]\nПодготовь текст по слайдам на основе задачи и истории проекта. Это текстовая структура, не готовый файл презентации. Используй только факты из брифа и истории. Не утверждай ничего о рынке, конкурентах, достижениях и цифрах без источника пользователя. Недостающие данные обозначай «Нужно уточнить». Предположения выделяй как гипотезы, а не факты.\n\nЗапрос пользователя:\n${prompt}`
               : textInstruction('script', prompt, {
                   language: 'Русский',
                   target: mode,
@@ -673,9 +692,11 @@ export function ContentStudio() {
           `Модель: ${model.reference.model}`,
           modelProperties.size && options.size
             ? `Размер (options.size): ${options.size}`
-            : ratioOptions.length
-              ? `Формат: ${effectiveRatio}`
-              : '',
+            : referenceRatio
+              ? 'Формат: по исходному кадру'
+              : ratioOptions.length
+                ? `Формат: ${effectiveRatio}`
+                : '',
           effectiveQuality ? `Качество: ${effectiveQuality}` : '',
           mode === 'video' && modelProperties.duration ? `Длительность: ${duration} с` : '',
           mode === 'video' && audioValues.length ? effectiveSound : '',
@@ -683,7 +704,10 @@ export function ContentStudio() {
           .filter(Boolean)
           .join('; ');
         body = createMessageBody(
-          `${prompt}\n\nПараметры текущего запуска (важнее текста шаблона): ${launch}. Не переопределяй их при вызове инструмента.`,
+          withMessageContext(
+            sourceDraft,
+            `${context}\n\nПараметры текущего запуска (важнее текста шаблона): ${launch}. Не переопределяй их при вызове инструмента.`,
+          ),
           mode,
           tool,
           savedFiles.map((file) => file.id),
@@ -700,7 +724,6 @@ export function ContentStudio() {
         },
       );
       if (success && current()) {
-        setWriter(preparingScript);
         setTemplateStartsFresh(false);
         setTemplateNotice('');
         if (!work.id) studioDraft.clear();
@@ -747,20 +770,7 @@ export function ContentStudio() {
                     conversation={work.conversation}
                     busy={busy}
                     onUseParameters={(file) => void restoreResult(file)}
-                    onUseScript={(text, files) => {
-                      setDraft(text);
-                      setWriter(false);
-                      setAttachments(
-                        files.map((file) => ({
-                          id: String(file.id),
-                          name: file.name,
-                          url: file.path,
-                          type: file.mime,
-                          saved: file,
-                        })),
-                      );
-                      textarea.current?.focus();
-                    }}
+                    onUseScript={(text, id) => void applyScript(text, id)}
                     onRepeat={(text) => {
                       setDraft(text);
                       textarea.current?.focus();
@@ -998,9 +1008,9 @@ export function ContentStudio() {
                   )}
                   {mode !== 'presentation' && ratioOptions.length > 0 && (
                     <StudioMenu
-                      disabled={busy}
-                      label={effectiveRatio}
-                      ariaLabel={`Стороны: ${effectiveRatio}`}
+                      disabled={busy || referenceRatio}
+                      label={referenceRatio ? 'По исходному кадру' : effectiveRatio}
+                      ariaLabel={`Стороны: ${referenceRatio ? 'по исходному кадру' : effectiveRatio}`}
                       options={ratioOptions}
                       onSelect={setRatio}
                     />
@@ -1170,7 +1180,7 @@ export function ContentStudio() {
                   <div className="cw-extra-toggles">
                     <Toggle
                       label="Сценарист"
-                      description="Предлагает сценарий отдельно от брифа. Нажмите «Использовать сценарий», проверьте текст и отправьте его для генерации."
+                      description="Включён — обсуждаем сценарий. Выключен — создаём результат."
                       value={writer}
                       onChange={setWriter}
                     />
@@ -1322,7 +1332,11 @@ export function ContentStudio() {
           item={editingTemplate}
           launchSettings={[
             `Модель: ${model ? modelTitle(model) : 'Auto'}`,
-            ratioOptions.length ? `Формат: ${effectiveRatio}` : '',
+            referenceRatio
+              ? 'Формат: по исходному кадру'
+              : ratioOptions.length
+                ? `Формат: ${effectiveRatio}`
+                : '',
             effectiveQuality ? `Качество: ${effectiveQuality}` : '',
             mode === 'video' && modelProperties.duration ? `Длительность: ${duration} с` : '',
             mode === 'video' && audioValues.length ? effectiveSound : '',

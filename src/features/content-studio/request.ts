@@ -1,6 +1,7 @@
 import { ratioSizes } from './controls';
 import type { IGnosisFile, IModelDescription, ITaskRequest, MediaKind } from '../../lib/types';
 import {
+  followsReferenceRatio,
   defaults,
   referenceLimit,
   referenceMinimum,
@@ -28,6 +29,7 @@ export function mediaOptions(
     } else if (key === 'generateAudio' && value === true)
       throw new Error('Эта модель не поддерживает настройку звука.');
   }
+  if (followsReferenceRatio(model, files.length)) delete options.aspectRatio;
   if (files.some((file) => file.type !== 'IMAGE'))
     throw new Error('Для этой генерации доступны только изображения-референсы.');
   if (files.length && (!supportsReferences(model) || files.length > referenceLimit(model)))

@@ -121,6 +121,7 @@ test('agent sends an image, continues the same dialogue and restores messages', 
   expect(state.sends[0].files).toEqual([12]);
   expect(state.creates[0].options.tools).toEqual([]);
   expect(state.sends[0].settings.tools).toEqual([]);
+  expect(state.sends[0].settings.isToolsDisabled).toBe(true);
   await page.locator('#agent-draft').fill('Какого она цвета?');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect(page.locator('.agent-msg.is-assistant')).toHaveCount(2);

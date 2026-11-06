@@ -253,7 +253,7 @@ function AudioEditor() {
       const body: IMessageCreate = {
         role: 'USER',
         files: mode === 'stt' ? [files[0].id] : [],
-        settings: { tools: [tool] },
+        settings: { tools: [{ ...tool, isRequired: true }] },
         text:
           mode === 'tts'
             ? `[Genfactory:tts]\nОзвучь с помощью TTS следующий текст дословно, без вступления и дополнений.\n\nТекст для озвучки:\n${text}`

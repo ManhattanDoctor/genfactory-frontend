@@ -92,6 +92,7 @@ export interface ITaskRequest {
 }
 export interface IToolConnection {
   uid: string;
+  isRequired?: boolean;
   settings?: {
     model: IModelDescription['reference'];
     options?: Record<string, unknown>;
@@ -144,7 +145,7 @@ export interface IMessageCreate {
   role: 'USER';
   text: string;
   files: number[];
-  settings: { tools: IToolConnection[] };
+  settings: { tools: IToolConnection[]; isToolsDisabled?: boolean };
 }
 
 export interface IToolProgress {

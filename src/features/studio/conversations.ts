@@ -77,15 +77,21 @@ export function createMessageBody(
     role: 'USER',
     text: `${instruction}\n${references}\n\n${selectedModel}${prompt.trim()}`,
     files: fileIds,
-    settings: { tools: [tool] },
+    settings: { tools: [{ ...tool, isRequired: true }] },
   };
+}
+
+// Keep the user's text separate from UI settings inside the existing text-only API.
+export function withMessageContext(text: string, context: string): string {
+  return `${text.trim()}\n\n[Genfactory:context]\n${JSON.stringify(context)}\n[/Genfactory:context]`;
 }
 
 // Only our exact envelope is hidden; messages from other clients remain untouched.
 export function displayMessageText(text: string): string {
   const prefix =
     /^(Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.|Продолжи беседу с учётом контекста\. Если исходное изображение неоднозначно, уточни выбор до генерации\.)\n\n/;
-  return text
+  const generated = prefix.test(text) || /^\[Genfactory:(?:chat|prompt|script|presentation)\]\n/.test(text);
+  let value = text
     .replace(prefix, '')
     .replace(/^\[Genfactory:model\]\n[^\n]*\n[^\n]*\n\[\/Genfactory:model\]\n\n/, '')
     .replace(/^\[Genfactory:(?:image|video)\]\n[\s\S]*?\n\nИдея:\n/, 'Идея:\n')
@@ -93,7 +99,29 @@ export function displayMessageText(text: string): string {
       /^\[Genfactory:tts\]\nОзвучь с помощью TTS следующий текст дословно, без вступления и дополнений\.\n\nТекст для озвучки:\n/,
       '',
     )
-    .replace(/^\[Genfactory:(chat|prompt|script)\]\n[\s\S]*?\n\nЗапрос пользователя:\n/, '');
+    .replace(
+      /^\[Genfactory:(chat|prompt|script|presentation)\]\n(?:[\s\S]*?\n\n)?Запрос пользователя:\n/,
+      '',
+    );
+  if (!generated) return value;
+  const start = '\n\n[Genfactory:context]\n';
+  const end = '\n[/Genfactory:context]';
+  const index = value.lastIndexOf(start);
+  if (index >= 0 && value.endsWith(end)) {
+    try {
+      const context = JSON.parse(value.slice(index + start.length, -end.length));
+      if (typeof context === 'string') return value.slice(0, index);
+    } catch {
+      // Keep unfamiliar or malformed content visible.
+    }
+  }
+  // Older studio messages (including conversation 121) have an unmarked standard footer.
+  if (text.startsWith('[Genfactory:script]\n'))
+    value = value.replace(
+      /\n\nСценарий для ролика длительностью \d+ с, формат \d+:\d+\. Не увеличивай длительность\.\n\nСтруктура: (?:Один кадр|Набор сцен)$/u,
+      '',
+    );
+  return value;
 }
 
 // Upgrade only the obsolete Genfactory instruction, preserving custom system text.

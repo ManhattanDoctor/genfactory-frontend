@@ -360,7 +360,10 @@ function TextEditor({ mode }: { mode: TextMode }) {
             brand: useBrand ? prefs.value.brand : '',
           }),
       files: files.map((f) => f.id),
-      settings: { tools: videos.length && videoTool ? [videoTool] : [] },
+      settings: {
+        tools: videos.length && videoTool ? [videoTool] : [],
+        ...(modernAgent ? { isToolsDisabled: true } : {}),
+      },
     };
     try {
       if (videos.length) {

@@ -36,3 +36,16 @@ describe('Content studio model settings', () => {
     expect(() => mediaOptions(image, 'image', 'A cup', [], { generateAudio: true })).toThrow('звука');
   });
 });
+
+it('Grok Lite follows a reference frame while text-to-video keeps the selected ratio', () => {
+  const model = structuredClone(
+    catalog.find((m) => m.reference.provider === 'OPEN_ROUTER_VIDEO'),
+  ) as unknown as IModelDescription;
+  model.reference.model = 'x-ai/grok-imagine-video-1.5-lite';
+  const file = { id: 12, type: 'IMAGE', path: '/cup.png' } as any;
+  const values = { aspectRatio: '9:16', duration: 8, resolution: '720p', generateAudio: true };
+  const withFrame = mediaOptions(model, 'video', 'A cup', [file], values);
+  expect(withFrame).not.toHaveProperty('aspectRatio');
+  expect(withFrame).toMatchObject({ duration: 8, resolution: '720p', generateAudio: true });
+  expect(mediaOptions(model, 'video', 'A cup', [], values)).toHaveProperty('aspectRatio', '9:16');
+});

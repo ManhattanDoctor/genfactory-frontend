@@ -1,24 +1,5 @@
 import type { IConversationMessage } from '../../lib/types';
 
-// Only standalone commands count as approval; quoted requests, questions and negations do not.
-export function scriptIntent(text: string): 'approve' | 'generate' | undefined {
-  const command = text
-    .trim()
-    .toLowerCase()
-    .replace(/[.!]+$/u, '')
-    .trim();
-  if (
-    /^(?:да[, ]+)?(?:подтверждаю|утверждаю|давай|приступай|следующий этап|сценарий подходит)$/u.test(command)
-  )
-    return 'approve';
-  if (
-    /^(?:да[, ]+)?(?:сделай|создай|сгенерируй|генерируй|запусти генерацию)(?: уже)? (?:видео|ролик)(?: пожалуйста)?$/u.test(
-      command,
-    )
-  )
-    return 'generate';
-}
-
 export function isReadyScript(text: string): boolean {
   text = text.replace(/[*_`]/gu, '');
   // Legacy answers have no structured status: require actual scene content, not merely a title.
@@ -28,25 +9,12 @@ export function isReadyScript(text: string): boolean {
   );
 }
 
-export function latestScript(messages: IConversationMessage[]) {
-  const ordered = [...messages].sort((a, b) => a.id - b.id);
-  let ask: IConversationMessage | undefined;
-  let result: { text: string; files: NonNullable<IConversationMessage['files']> } | undefined;
-  for (const message of ordered) {
-    if (message.role === 'USER') {
-      ask = message;
-      const request = message.text?.split('Запрос пользователя:\n').at(-1) || '';
-      // A new brief or correction must not silently reuse an older approved script.
-      if (!scriptIntent(request)) result = undefined;
-    }
-    if (
-      message.role === 'ASSISTANT' &&
-      ask?.text?.startsWith('[Genfactory:script]\n') &&
-      !message.files?.length &&
-      isReadyScript(message.text || '')
-    ) {
-      result = { text: message.text!, files: ask.files?.length ? ask.files : result?.files || [] };
-    }
+/** Latest user-supplied image set before the selected script, never generated results. */
+export function scriptReferences(messages: Array<IConversationMessage>, before: number) {
+  for (const message of [...messages].sort((a, b) => b.id - a.id)) {
+    if (message.id >= before || message.role !== 'USER') continue;
+    const files = (message.files || []).filter((file) => file.type === 'IMAGE');
+    if (files.length)
+      return files.filter((file, index) => files.findIndex((item) => item.id === file.id) === index);
   }
-  return result;
 }

@@ -1,3 +1,4 @@
+import { followsReferenceRatio } from '../catalog/schema';
 import { bananaDefaults, bananaTitle } from './bananaSettings';
 import { MediaWorkspace } from './MediaWorkspace';
 import { videoDefaults } from './videoSettings';
@@ -599,6 +600,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     const cleanOptions = Object.fromEntries(
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
     );
+    if (followsReferenceRatio(model, references.length)) delete cleanOptions.aspectRatio;
     const combinedPrompt =
       !legacy && imageTemplateId
         ? [imageTemplateText.trim(), prompt.trim()].filter(Boolean).join('\n\n')
@@ -646,6 +648,22 @@ export function Studio({ kind }: { kind: MediaKind }) {
         if (fileOutput.changed) {
           const updated = await api.editFileOutput(latest.id, fileOutput.value, sid);
           client.setQueryData(['conversation', userId, latest.id], updated);
+        }
+        if (followsReferenceRatio(model, references.length)) {
+          await api.editConversation(
+            latest,
+            {
+              options: {
+                ...latest.options,
+                tools: (latest.options.tools || []).map((item) =>
+                  (typeof item === 'string' ? item : item.uid) === 'VIDEO'
+                    ? toolSettings(kind, model, cleanOptions)
+                    : item,
+                ),
+              },
+            },
+            sid,
+          );
         }
         const system = migratedReferenceSystem(latest);
         if (system !== undefined) {

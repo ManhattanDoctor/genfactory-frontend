@@ -308,6 +308,7 @@ test(
     expect(state.creates[0].model).toBe('OPEN_AI_CONVERSATION');
     expect(state.creates[0].options.tools.map((t: any) => t.uid)).toEqual(['IMAGE', 'VIDEO']);
     expect(state.sends[0].settings.tools[0].settings.model).toEqual(catalog[0].reference);
+    expect(state.sends[0].settings.tools[0].isRequired).toBe(true);
     expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
     expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('model');
     expect(state.forbidden).toEqual([]);
@@ -333,6 +334,7 @@ test('video settings use VIDEO and server message attachments', { tag: '@smoke' 
   await submit(page, 'City camera movement', 'video');
   await expectCompleted(page);
   expect(state.sends[0].settings.tools[0].uid).toBe('VIDEO');
+  expect(state.sends[0].settings.tools[0].isRequired).toBe(true);
   expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
   expect(state.sends[0].settings.tools[0].settings.model.provider).toBe('OPEN_ROUTER_VIDEO');
   await expect(page.locator('.result-grid video, .video-result video')).toHaveCount(1);
@@ -3135,7 +3137,9 @@ test(
   },
 );
 
-test('content studio writer removes connected media tools before sending', async ({ page }) => {
+test('content studio writer disables tools for the request and preserves connected tools', async ({
+  page,
+}) => {
   const state = await mockApi(page);
   state.conversations.push(savedConversation());
   await page.goto('/chat?conversation=101');
@@ -3148,7 +3152,9 @@ test('content studio writer removes connected media tools before sending', async
   await page.locator('#cw-draft').fill('Придумай сценарий рекламы кофейни');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.edits.at(-1).options.tools).toEqual([]);
+  expect(state.edits).toHaveLength(0);
+  expect(state.conversations[0].options.tools).toHaveLength(2);
+  expect(state.sends[0].settings.isToolsDisabled).toBe(true);
   expect(state.sends[0].settings.tools).toEqual([]);
   expect(state.sends[0].text).toContain('Не запускай генерацию медиа');
   expect(state.creates).toHaveLength(0);
@@ -3501,6 +3507,9 @@ test('content studio applies a saved script with references without generating u
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].settings.tools).toEqual([]);
+  expect(state.sends[0].text).toContain('[Genfactory:context]');
+  expect(state.sends[0].text).toContain('Структура: Один кадр');
+  await expect(page.locator('.as-ask').first()).toHaveText('Подготовь сценарий для этой чашки');
   await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Использовать сценарий', exact: true }).click();
@@ -3884,7 +3893,7 @@ test('optional template clears previous references and sends explicitly from scr
 });
 
 for (const command of ['подтверждаю', 'да сделай уже видео!']) {
-  test(`content studio exits script loop: ${command}`, async ({ page }) => {
+  test(`content studio does not change mode for text command: ${command}`, async ({ page }) => {
     const state = await mockApi(page);
     state.scriptReply = '**Длительность:** 8 секунд\n**Действие:** Чашка вращается.\n**Камера:** Статичная.';
     await page.goto('/chat');
@@ -3893,15 +3902,19 @@ for (const command of ['подтверждаю', 'да сделай уже ви�
     await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toBeVisible();
     await page.locator('#cw-draft').fill(command);
     await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-    if (command === 'подтверждаю') {
-      await expect(page.locator('#cw-draft')).toHaveValue(state.scriptReply);
-      expect(state.sends).toHaveLength(1);
-      await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-    }
     await expect.poll(() => state.sends.length).toBe(2);
-    expect(state.sends[1].settings.tools[0].uid).toBe('VIDEO');
-    expect(state.sends[1].text).toContain('Чашка вращается');
-    expect(state.sends[1].text).not.toContain('[Genfactory:script]');
+    expect(state.sends[1].settings.isToolsDisabled).toBe(true);
+    expect(state.sends[1].settings.tools).toEqual([]);
+    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    await expect(page.getByRole('switch', { name: 'Сценарист', exact: true })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+    await page.locator('#cw-draft').fill('Сделай видео по сценарию');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect.poll(() => state.sends.length).toBe(3);
+    expect(state.sends[2].settings.tools[0]).toMatchObject({ uid: 'VIDEO', isRequired: true });
   });
 }
 
@@ -3915,8 +3928,8 @@ test('content studio does not offer clarification or refusal as a script', async
   await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toHaveCount(0);
   await page.locator('#cw-draft').fill('сделай видео');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-  await expect(page.getByText(/Не найден готовый сценарий/)).toBeVisible();
-  expect(state.sends).toHaveLength(1);
+  await expect.poll(() => state.sends.length).toBe(2);
+  expect(state.sends[1].settings.isToolsDisabled).toBe(true);
 });
 
 for (const width of [390, 1440]) {
@@ -4043,6 +4056,14 @@ test('library incompatible document is visibly marked and cannot be attached', a
       json: pagination([
         file,
         { ...file, id: 81, name: 'Document.pdf', type: 'DOCUMENT', mime: 'application/pdf' },
+        {
+          ...file,
+          id: 82,
+          name: 'Movie.mp4',
+          type: 'VIDEO',
+          mime: 'video/mp4',
+          preview: { video: { status: 'READY', url: '/test-video.mp4' } },
+        },
       ]),
     }),
   );
@@ -4051,11 +4072,18 @@ test('library incompatible document is visibly marked and cannot be attached', a
   const card = page.locator('.file-entry').filter({ hasText: 'Document.pdf' });
   await expect(card).toHaveClass(/is-incompatible/);
   await expect(card.locator('.library-card')).toBeDisabled();
-  await expect(card.getByText('Не подходит для этой задачи')).toBeVisible();
+  await expect(card.getByRole('tooltip')).toBeHidden();
   await expect(card.locator('.file-incompatible')).toHaveCSS('color', 'rgb(255, 208, 138)');
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(card.getByText('Не подходит для этой задачи')).toBeVisible();
+    await card.getByRole('button', { name: 'Почему файл не подходит' }).focus();
+    await expect(card.getByRole('tooltip')).toBeVisible();
+    const movie = page.locator('.file-entry').filter({ hasText: 'Movie.mp4' });
+    await movie.hover();
+    await expect(movie.locator('video')).toHaveCount(0);
+    const good = page.locator('.file-entry').filter({ hasText: 'Test result' });
+    const heights = await Promise.all([good, card].map(async (item) => (await item.boundingBox())!.height));
+    expect(Math.abs(heights[0] - heights[1])).toBeLessThan(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `/tmp/library-incompatible-${width}.png` });
   }
@@ -4587,3 +4615,111 @@ test(
     expect(state.creates).toHaveLength(0);
   },
 );
+
+for (const initialWriter of [true, false]) {
+  test(`content studio preserves writer changed during a pending request: ${initialWriter}`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    state.scriptReply = 'Длительность: 8 с. Действие: чашка вращается. Камера: статичная.';
+    const conversation = savedConversation();
+    conversation.options.tools = [];
+    state.conversations.push(conversation);
+    await page.goto('/chat?conversation=101');
+    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    const writer = page.getByRole('switch', { name: 'Сценарист', exact: true });
+    await expect(writer).toHaveAttribute('aria-checked', 'true');
+    if (!initialWriter) await writer.click();
+    let release!: () => void;
+    const response = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/conversation/101/message', async (route) => {
+      if (route.request().method() === 'POST') await response;
+      await route.fallback();
+    });
+    await page.locator('#cw-draft').fill('Чашка вращается');
+    const request = page.waitForRequest(
+      (request) => request.method() === 'POST' && request.url().endsWith('/conversation/101/message'),
+    );
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await request;
+    await writer.click();
+    await expect(writer).toHaveAttribute('aria-checked', String(!initialWriter));
+    release();
+    await expect(page.locator('#cw-draft')).toHaveValue('');
+    await expect(writer).toHaveAttribute('aria-checked', String(!initialWriter));
+    expect(state.sends[0].text.startsWith('[Genfactory:script]')).toBe(initialWriter);
+    await page.locator('#cw-draft').fill('Следующий кадр с чашкой');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect.poll(() => state.sends.length).toBe(2);
+    expect(state.sends[1].text.startsWith('[Genfactory:script]')).toBe(!initialWriter);
+    expect(state.sends[1].settings.tools.length).toBe(initialWriter ? 1 : 0);
+    await expect(page.locator('#cw-draft')).toHaveValue('');
+    await page.reload();
+    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    await expect(writer).toHaveAttribute('aria-checked', String(!initialWriter));
+  });
+}
+
+for (const hasCurrent of [false, true]) {
+  test(`content studio applies script with earlier references and preserves current selection: ${hasCurrent}`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    const conversation = savedConversation();
+    conversation.options.tools = [];
+    state.conversations.push(conversation);
+    state.messages.set(101, [
+      {
+        id: 1,
+        role: 'USER',
+        text: '[Genfactory:script]\nЗапрос пользователя:\nОживи чашку',
+        files: [file],
+        createdDate: file.createdDate,
+      },
+      { id: 2, role: 'ASSISTANT', text: 'Какое движение?', createdDate: file.createdDate },
+      {
+        id: 3,
+        role: 'USER',
+        text: '[Genfactory:script]\nЗапрос пользователя:\nМедленное вращение',
+        createdDate: file.createdDate,
+      },
+      {
+        id: 4,
+        role: 'ASSISTANT',
+        text: 'Длительность: 8 с. Действие: чашка вращается. Камера: статичная.',
+        createdDate: file.createdDate,
+      },
+    ]);
+    await page.route('**/api/conversation/101/message?*', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      const pageIndex = Number(new URL(route.request().url()).searchParams.get('pageIndex') || 0);
+      const items = state.messages
+        .get(101)!
+        .filter((item) => (pageIndex === 0 ? item.id > 2 : item.id <= 2))
+        .reverse();
+      await route.fulfill({ json: { ...pagination(items), pages: 2, total: 4, pageIndex } });
+    });
+    await page.goto('/chat?conversation=101');
+    if (hasCurrent)
+      await page
+        .locator('input[type=file]')
+        .setInputFiles({ name: 'current.png', mimeType: 'image/png', buffer: Buffer.from('fake') });
+    await page.getByRole('button', { name: 'Использовать сценарий', exact: true }).click();
+    await expect(page.locator('.cw-action-mode')).toHaveCount(0);
+    await expect(page.locator('.cw-send')).toHaveText('');
+    await expect(page.locator('.cw-files')).toContainText(hasCurrent ? 'current.png' : file.name);
+    expect(state.sends).toHaveLength(0);
+    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    await expect(page.getByRole('switch', { name: 'Сценарист', exact: true })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+    await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+    await expect(page.getByRole('switch', { name: 'Сценарист', exact: true })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
+}
