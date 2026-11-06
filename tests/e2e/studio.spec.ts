@@ -3687,45 +3687,52 @@ for (const title of ['Studio product turn', 'Product in use']) {
   });
 }
 
-for (const kind of ['image', 'video', 'presentation']) {
-  test(`all ${kind} templates prepare a complete draft without generation`, async ({ page }) => {
-    test.setTimeout(420_000);
-    const state = await mockApi(page);
-    await page.goto('/chat');
-    const modeName = { image: 'Изображение', video: 'Видео', presentation: 'Презентация' }[kind]!;
-    await page.getByRole('button', { name: modeName, exact: true }).click();
+test.describe('complete template catalog', () => {
+  test.describe.configure({ mode: 'parallel' });
+  for (const kind of ['image', 'video', 'presentation']) {
     const items = templates.filter((item) => item.kind === kind);
-    for (const [index, item] of items.entries()) {
-      const card = page.locator('.cw-card').nth(index);
-      await card.locator('.cw-card-media').click();
-      await card.locator('.cw-add').click();
-      const dialog = page.getByRole('dialog', { name: item.title, exact: true });
-      const inputs = dialog.locator('[data-template-variable]');
-      for (const input of await inputs.all()) await input.fill('Тестовые данные');
-      if (kind === 'presentation')
-        await page
-          .getByLabel('Тема и исходные факты')
-          .fill('Кофейня: 2 филиала, основана в 2020 году. Другие данные неизвестны.');
-      else {
-        // Проверяем доступный референс во всех media-шаблонах без загрузки и платного запроса.
-        await dialog.getByRole('button', { name: 'Из библиотеки' }).click();
-        await page
-          .getByRole('dialog', { name: 'Библиотека' })
-          .getByText('Test result', { exact: true })
-          .click();
-      }
-      const adapt = dialog.getByRole('button', { name: /Адаптировать под/ });
-      if (await adapt.count()) await adapt.click();
-      const prepared = await dialog.getByLabel('Готовый текст для редактора').inputValue();
-      expect(prepared, item.id).not.toMatch(/\[[A-Za-z][A-Za-z_0-9 ]*\]/);
-      await dialog.getByRole('button', { name: 'Использовать шаблон' }).click();
-      await expect(dialog).toHaveCount(0);
-      await expect(page.locator('#cw-draft')).toHaveValue(prepared);
-      expect(state.sends, item.id).toHaveLength(0);
-      expect(state.uploads, item.id).toBe(0);
+    for (let offset = 0; offset < items.length; offset += 20) {
+      test(`all ${kind} templates prepare a complete draft without generation: ${offset + 1}-${Math.min(offset + 20, items.length)}`, async ({
+        page,
+      }) => {
+        test.setTimeout(120_000);
+        const state = await mockApi(page);
+        await page.goto('/chat');
+        const modeName = { image: 'Изображение', video: 'Видео', presentation: 'Презентация' }[kind]!;
+        await page.getByRole('button', { name: modeName, exact: true }).click();
+        for (const [index, item] of items.slice(offset, offset + 20).entries()) {
+          const card = page.locator('.cw-card').nth(offset + index);
+          await card.locator('.cw-card-media').click();
+          await card.locator('.cw-add').click();
+          const dialog = page.getByRole('dialog', { name: item.title, exact: true });
+          const inputs = dialog.locator('[data-template-variable]');
+          for (const input of await inputs.all()) await input.fill('Тестовые данные');
+          if (kind === 'presentation')
+            await page
+              .getByLabel('Тема и исходные факты')
+              .fill('Кофейня: 2 филиала, основана в 2020 году. Другие данные неизвестны.');
+          else {
+            // Проверяем доступный референс во всех media-шаблонах без загрузки и платного запроса.
+            await dialog.getByRole('button', { name: 'Из библиотеки' }).click();
+            await page
+              .getByRole('dialog', { name: 'Библиотека' })
+              .getByText('Test result', { exact: true })
+              .click();
+          }
+          const adapt = dialog.getByRole('button', { name: /Адаптировать под/ });
+          if (await adapt.count()) await adapt.click();
+          const prepared = await dialog.getByLabel('Готовый текст для редактора').inputValue();
+          expect(prepared, item.id).not.toMatch(/\[[A-Za-z][A-Za-z_0-9 ]*\]/);
+          await dialog.getByRole('button', { name: 'Использовать шаблон' }).click();
+          await expect(dialog).toHaveCount(0);
+          await expect(page.locator('#cw-draft')).toHaveValue(prepared);
+          expect(state.sends, item.id).toHaveLength(0);
+          expect(state.uploads, item.id).toBe(0);
+        }
+      });
     }
-  });
-}
+  }
+});
 
 test('optional template clears previous references and sends explicitly from scratch', async ({ page }) => {
   const state = await mockApi(page);

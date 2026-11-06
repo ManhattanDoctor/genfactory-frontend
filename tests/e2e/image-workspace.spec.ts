@@ -213,31 +213,43 @@ for (const width of [390, 768, 1440, 1920])
     expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   });
-test('all image cards apply complete editable prompts without generation or uploading', async ({ page }) => {
-  test.setTimeout(300_000);
-  const state = await setup(page);
-  await page.goto('/image');
-  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
+test.describe('complete image template catalog', () => {
+  test.describe.configure({ mode: 'parallel' });
   const items: { id: string; kind: string; title: string }[] = JSON.parse(
     readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
   );
-  for (const item of items.filter((item) => item.kind === 'image')) {
-    await page.getByRole('button', { name: item.title, exact: true }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
-    const input = page.getByRole('textbox', { name: 'Текст шаблона', exact: true });
-    const prepared = (await input.inputValue()).replace(/\[([A-Za-z][A-Za-z_0-9 ]*)\]/g, 'Тестовые данные');
-    await input.fill(prepared);
-    await expect(input).toHaveValue(prepared);
-    await expect(page.locator('#img-draft')).toHaveValue('');
-    expect(prepared).not.toMatch(/\[[A-Za-z][A-Za-z_0-9 ]*\]/);
+  const images = items.filter((item) => item.kind === 'image');
+  for (let offset = 0; offset < images.length; offset += 20) {
+    test(`all image cards apply complete editable prompts without generation or uploading: ${offset + 1}-${Math.min(offset + 20, images.length)}`, async ({
+      page,
+    }) => {
+      test.setTimeout(120_000);
+      const state = await setup(page);
+      await page.goto('/image');
+      await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
+      for (const item of images.slice(offset, offset + 20)) {
+        await page.getByRole('button', { name: item.title, exact: true }).click();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
+        const input = page.getByRole('textbox', { name: 'Текст шаблона', exact: true });
+        const prepared = (await input.inputValue()).replace(
+          /\[([A-Za-z][A-Za-z_0-9 ]*)\]/g,
+          'Тестовые данные',
+        );
+        await input.fill(prepared);
+        await expect(input).toHaveValue(prepared);
+        await expect(page.locator('#img-draft')).toHaveValue('');
+        expect(prepared).not.toMatch(/\[[A-Za-z][A-Za-z_0-9 ]*\]/);
+      }
+      await page.getByRole('button', { name: 'Убрать шаблон', exact: true }).click();
+      await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(0);
+      expect(state.sends).toHaveLength(0);
+      expect(state.creates).toHaveLength(0);
+      expect(state.uploads).toBe(0);
+    });
   }
-  await page.getByRole('button', { name: 'Убрать шаблон', exact: true }).click();
-  await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(0);
-  expect(state.sends).toHaveLength(0);
-  expect(state.creates).toHaveLength(0);
-  expect(state.uploads).toBe(0);
 });
+
 test('canceling a template preserves the prompt and removing an applied template clears selection', async ({
   page,
 }) => {
