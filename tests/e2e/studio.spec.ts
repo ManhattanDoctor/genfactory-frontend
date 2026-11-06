@@ -4431,3 +4431,46 @@ test('history ignores browser flags, persists server flags and rolls back failed
   await expect(card).toBeVisible();
   expect(state.conversations[0].isArchived).toBeUndefined();
 });
+
+test('late video remains pending across reload and appears after the conversation event without resubmitting', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  const conversation: IConversation = { ...savedConversation(101), status: 'LOADING' };
+  state.conversations.push(conversation);
+  const request: IConversationMessage = {
+    id: 20,
+    role: 'USER',
+    text: 'Animate the cup',
+    createdDate: new Date(Date.now() - 16 * 60000).toISOString(),
+  };
+  state.messages.set(101, [request]);
+  await page.goto('/video?conversation=101');
+  await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
+  await page.reload();
+  await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
+  await expect.poll(() => !!state.socket).toBeTruthy();
+  conversation.status = 'LOADED';
+  state.messages.set(101, [
+    request,
+    {
+      id: 21,
+      role: 'ASSISTANT',
+      text: 'Видео готово.',
+      files: [{ ...file, type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' }],
+      createdDate: new Date().toISOString(),
+    },
+  ]);
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        { uid: crypto.randomUUID(), name: 'ConversationChangedEvent', data: { id: 101, item: {} } },
+      ]),
+  );
+  await expect(page.locator('.image-result-pending')).toHaveCount(0);
+  await expect(page.locator('.image-result')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible();
+  expect(state.sends).toHaveLength(0);
+  expect(state.creates).toHaveLength(0);
+});

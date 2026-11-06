@@ -179,6 +179,7 @@ export interface IPaymentTransaction {
       model?: { input?: number; output?: number };
       tools?: {
         models?: Array<IModelDescription['reference']>;
+        pending?: Array<{ operationId: string }>;
         type: string;
         amounts?: { amount: string; coinId: string }[];
         status?: string;

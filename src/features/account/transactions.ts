@@ -58,7 +58,9 @@ export function transactionTitle(t: IPaymentTransaction) {
     AGENT_PURCHASE: 'Работа агента',
   };
   if (types[t.type]) return types[t.type];
-  const tools = t.details?.consumption?.tools || [];
+  const tools = (t.details?.consumption?.tools || []).filter(
+    (tool) => !(tool.pending?.length && tool.amounts?.length === 0),
+  );
   if (tools.length) return [...new Set(tools.map((t) => toolName(t.type)))].join(' + ');
   const provider = t.details?.model || '';
   if (provider.includes('CONVERSATION') || provider.includes('TEXT')) return 'Работа ассистента';

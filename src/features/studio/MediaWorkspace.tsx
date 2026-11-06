@@ -1001,11 +1001,13 @@ function ImageProgress({
   const progress = useConversationProgress(conversation);
   return (
     <span>
-      {progress.tools.length
-        ? progress.tools.map((tool, index) => <span key={index}>{toolLabel(tool)}</span>)
-        : kind === 'video'
-          ? 'Создаём видео…'
-          : 'Создаём изображение…'}
+      {kind === 'video' && Number.isFinite(start) && now - start >= 15 * 60 * 1000
+        ? 'Видео ещё создаётся…'
+        : progress.tools.length
+          ? progress.tools.map((tool, index) => <span key={index}>{toolLabel(tool)}</span>)
+          : kind === 'video'
+            ? 'Создаём видео…'
+            : 'Создаём изображение…'}
       {Number.isFinite(start) && (
         <span className="generation-elapsed" aria-live="off">
           {Math.max(0, Math.floor((now - start) / 1000))} с

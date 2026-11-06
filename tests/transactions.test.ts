@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   breakdown,
   transactionModels,
+  transactionTitle,
   direction,
   transactionAmount,
   conversationLink,
@@ -28,6 +29,23 @@ const payment: IPaymentTransaction = {
   },
 };
 describe('balance amounts and attribution', () => {
+  it('labels the assistant separately when the video expense is referenced but not included', () => {
+    expect(
+      transactionTitle({
+        ...payment,
+        details: {
+          ...payment.details,
+          consumption: {
+            tools: [
+              { type: 'VIDEO', amounts: [], status: 'PENDING', pending: [{ operationId: 'async-job:45' }] },
+            ],
+          },
+        },
+      }),
+    ).toBe('Работа ассистента');
+    expect(transactionTitle({ ...payment, details: { model: 'OPEN_ROUTER_VIDEO' } })).toBe('Создание видео');
+    expect(transactionTitle(payment)).toBe('Изображение');
+  });
   it('keeps every decimal digit in exact amounts and rounds only the summary', () => {
     expect(transactionAmount('965.16', 'RUB', true)).toBe('9,6516 ₽');
     expect(transactionAmount('965.16', 'RUB')).toBe('9,65 ₽');
