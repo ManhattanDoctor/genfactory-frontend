@@ -2,7 +2,17 @@ name: Frontend checks
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      full_regression:
+        description: Run the complete browser regression suite
+        type: boolean
+        default: true
   workflow_call:
+    inputs:
+      full_regression:
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -19,7 +29,8 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: ${{ inputs.full_regression && 'Full browser regression' || 'Browser smoke checks' }}
+        run: ${{ inputs.full_regression && 'npm run test:e2e' || 'npm run test:e2e:smoke' }}
       - run: npm run test:sw
       - name: Check deployment scripts
         run: bash -n scripts/deploy.sh scripts/container-smoke.sh && sh -n docker/genfactory/15-check-api.sh

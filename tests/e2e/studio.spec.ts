@@ -288,7 +288,7 @@ async function expectQuality(page: Page, quality: string) {
     await expect(field).toHaveValue(JSON.stringify(quality));
   else await expect(field).toHaveText(quality);
 }
-test('guest can explore and open a studio without fabricated models', async ({ page }) => {
+test('guest can explore and open a studio without fabricated models', { tag: '@smoke' }, async ({ page }) => {
   await mockApi(page, false);
   await page.goto('/');
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true });
@@ -297,24 +297,26 @@ test('guest can explore and open a studio without fabricated models', async ({ p
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
   expect(new URL(page.url()).searchParams.get('theme')).toBe('genfactory');
 });
-test('image studio creates a configured conversation and sends tool preferences, never task or fileBuffer', async ({
-  page,
-}) => {
-  const state = await mockApi(page);
-  await page.goto('/image');
-  await submit(page);
-  await expectCompleted(page);
-  expect(state.creates[0].model).toBe('OPEN_AI_CONVERSATION');
-  expect(state.creates[0].options.tools.map((t: any) => t.uid)).toEqual(['IMAGE', 'VIDEO']);
-  expect(state.sends[0].settings.tools[0].settings.model).toEqual(catalog[0].reference);
-  expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
-  expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('model');
-  expect(state.forbidden).toEqual([]);
-  await expect(page).toHaveURL(/conversation=101/);
-  await page.screenshot({ path: 'test-results/studio-desktop.png', fullPage: true });
-  await navigateLegacyRoute(page, '/library');
-  await expect(page.getByRole('button', { name: /Test result/ })).toBeVisible();
-});
+test(
+  'image studio creates a configured conversation and sends tool preferences, never task or fileBuffer',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    const state = await mockApi(page);
+    await page.goto('/image');
+    await submit(page);
+    await expectCompleted(page);
+    expect(state.creates[0].model).toBe('OPEN_AI_CONVERSATION');
+    expect(state.creates[0].options.tools.map((t: any) => t.uid)).toEqual(['IMAGE', 'VIDEO']);
+    expect(state.sends[0].settings.tools[0].settings.model).toEqual(catalog[0].reference);
+    expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
+    expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('model');
+    expect(state.forbidden).toEqual([]);
+    await expect(page).toHaveURL(/conversation=101/);
+    await page.screenshot({ path: 'test-results/studio-desktop.png', fullPage: true });
+    await navigateLegacyRoute(page, '/library');
+    await expect(page.getByRole('button', { name: /Test result/ })).toBeVisible();
+  },
+);
 test('advanced editor: invalid parameters do not create or execute a conversation', async ({ page }) => {
   const state = await mockApi(page);
   await page.goto('/image?studio=advanced');
@@ -325,7 +327,7 @@ test('advanced editor: invalid parameters do not create or execute a conversatio
   expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
 });
-test('video settings use VIDEO and server message attachments', async ({ page }) => {
+test('video settings use VIDEO and server message attachments', { tag: '@smoke' }, async ({ page }) => {
   const state = await mockApi(page);
   await page.goto('/video');
   await submit(page, 'City camera movement', 'video');
@@ -336,22 +338,24 @@ test('video settings use VIDEO and server message attachments', async ({ page })
   await expect(page.locator('.result-grid video, .video-result video')).toHaveCount(1);
   expect(state.forbidden).toEqual([]);
 });
-test('accepted message with lost response recovers from server after reload without a second POST', async ({
-  page,
-}) => {
-  const state = await mockApi(page);
-  state.abortAfterAccept = true;
-  await page.goto('/image');
-  await submit(page);
-  await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
-  await page.reload();
-  await expectCompleted(page);
-  expect(state.sends).toHaveLength(1);
-  expect(state.creates).toHaveLength(1);
-  expect(
-    await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('genfactory.jobs'))),
-  ).toBe(false);
-});
+test(
+  'accepted message with lost response recovers from server after reload without a second POST',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    const state = await mockApi(page);
+    state.abortAfterAccept = true;
+    await page.goto('/image');
+    await submit(page);
+    await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
+    await page.reload();
+    await expectCompleted(page);
+    expect(state.sends).toHaveLength(1);
+    expect(state.creates).toHaveLength(1);
+    expect(
+      await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('genfactory.jobs'))),
+    ).toBe(false);
+  },
+);
 test('history opens server conversation on a fresh visit and continues it', async ({ page }) => {
   const state = await mockApi(page);
   state.conversations.push(savedConversation());
@@ -458,7 +462,7 @@ test('advanced editor: new work creates a new conversation while subsequent prom
   await expect(page).toHaveURL(/conversation=102/);
   expect(state.creates).toHaveLength(2);
 });
-test('mobile navigation and layout remain usable', async ({ page }) => {
+test('mobile navigation and layout remain usable', { tag: '@smoke' }, async ({ page }) => {
   await mockApi(page, false);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
@@ -499,27 +503,31 @@ test('session expiry clears account and a private file preview', async ({ page }
   expect(await page.evaluate(() => sessionStorage.getItem('genfactory.session'))).toBeNull();
 });
 
-test('OAuth callback rejects a mismatched state without exchanging the code', async ({ page }) => {
-  await mockApi(page, false);
-  let exchanges = 0;
-  page.on('request', (r) => {
-    if (new URL(r.url()).pathname === '/api/login') exchanges++;
-  });
-  await page.addInitScript(() =>
-    sessionStorage.setItem(
-      'genfactory.oauth',
-      JSON.stringify({
-        state: 'expected',
-        createdAt: Date.now(),
-        redirectUri: location.origin + '/auth/callback',
-      }),
-    ),
-  );
-  await page.goto('/auth/callback?state=wrong&code=must-not-exchange');
-  await expect(page.getByRole('heading', { name: 'Не удалось войти' })).toBeVisible();
-  expect(exchanges).toBe(0);
-  expect(new URL(page.url()).search).toBe('');
-});
+test(
+  'OAuth callback rejects a mismatched state without exchanging the code',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    await mockApi(page, false);
+    let exchanges = 0;
+    page.on('request', (r) => {
+      if (new URL(r.url()).pathname === '/api/login') exchanges++;
+    });
+    await page.addInitScript(() =>
+      sessionStorage.setItem(
+        'genfactory.oauth',
+        JSON.stringify({
+          state: 'expected',
+          createdAt: Date.now(),
+          redirectUri: location.origin + '/auth/callback',
+        }),
+      ),
+    );
+    await page.goto('/auth/callback?state=wrong&code=must-not-exchange');
+    await expect(page.getByRole('heading', { name: 'Не удалось войти' })).toBeVisible();
+    expect(exchanges).toBe(0);
+    expect(new URL(page.url()).search).toBe('');
+  },
+);
 
 test('foreign conversation response is not displayed even to an administrator session', async ({ page }) => {
   const state = await mockApi(page);
@@ -992,33 +1000,37 @@ test('account balance refresh uses minor units and logout succeeds locally when 
   ).toBeFalsy();
 });
 
-test('valid OAuth callback exchanges the code once and removes it from the URL', async ({ page }) => {
-  await mockApi(page, false);
-  await page.addInitScript(() =>
-    sessionStorage.setItem(
-      'genfactory.oauth',
-      JSON.stringify({
-        state: 'valid-state',
-        createdAt: Date.now(),
-        redirectUri: `${location.origin}/auth/callback`,
-      }),
-    ),
-  );
-  let exchanges = 0;
-  await page.route('**/api/login', async (route) => {
-    exchanges++;
-    expect(route.request().postDataJSON().data).toEqual({
-      codeOrToken: 'test-code',
-      redirectUri: 'http://127.0.0.1:5173/auth/callback',
+test(
+  'valid OAuth callback exchanges the code once and removes it from the URL',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    await mockApi(page, false);
+    await page.addInitScript(() =>
+      sessionStorage.setItem(
+        'genfactory.oauth',
+        JSON.stringify({
+          state: 'valid-state',
+          createdAt: Date.now(),
+          redirectUri: `${location.origin}/auth/callback`,
+        }),
+      ),
+    );
+    let exchanges = 0;
+    await page.route('**/api/login', async (route) => {
+      exchanges++;
+      expect(route.request().postDataJSON().data).toEqual({
+        codeOrToken: 'test-code',
+        redirectUri: 'http://127.0.0.1:5173/auth/callback',
+      });
+      await route.fulfill({ json: { sid: 'new-session' } });
     });
-    await route.fulfill({ json: { sid: 'new-session' } });
-  });
-  await page.goto('/auth/callback?state=valid-state&code=test-code');
-  await expect(page).toHaveURL(/\/image(?:\?studio=advanced)?$/);
-  await expect(page.getByRole('link', { name: 'Открыть аккаунт' })).toBeVisible();
-  expect(exchanges).toBe(1);
-  expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBe('new-session');
-});
+    await page.goto('/auth/callback?state=valid-state&code=test-code');
+    await expect(page).toHaveURL(/\/image(?:\?studio=advanced)?$/);
+    await expect(page.getByRole('link', { name: 'Открыть аккаунт' })).toBeVisible();
+    expect(exchanges).toBe(1);
+    expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBe('new-session');
+  },
+);
 
 test('expired OAuth callback and provider denial never exchange a code', async ({ page }) => {
   const state = await mockApi(page, false);
@@ -1831,78 +1843,80 @@ test('a template can start a new work while another conversation request is stil
   }
 });
 
-test('balance history shows exact costs and sends numeric date filters with owner scope and pagination', async ({
-  page,
-}) => {
-  await mockApi(page);
-  const requests: { page: number; conditions: any }[] = [];
-  await page.route('**/api/paymentTransaction?*', (route) => {
-    const url = new URL(route.request().url());
-    const conditions = JSON.parse(url.searchParams.get('conditions')!);
-    const index = Number(url.searchParams.get('pageIndex'));
-    requests.push({ page: index, conditions });
-    return route.fulfill({
-      json: {
-        ...pagination([
-          {
-            id: 242 + index,
-            userId: 7,
-            type: 'TASK_PURCHASE',
-            debet: 'CO-00',
-            credit: 'PR-00',
-            coinId: 'RUB',
-            amount: '965.16',
-            createdDate: file.createdDate,
-            activatedDate: file.createdDate,
-            details: {
-              model: 'OPEN_AI_CONVERSATION',
-              source: { type: 'CONVERSATION', id: 49 },
-              amounts: [{ amount: '0.096516', coinId: 'USD' }],
-              rates: [{ from: 'USD', to: 'RUB', value: '100' }],
-              consumption: {
-                tools: [
-                  {
-                    type: 'IMAGE',
-                    models: [{ provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1-mini' }],
-                    status: 'FINAL',
-                    amounts: [{ amount: '0.08219', coinId: 'USD' }],
-                  },
-                ],
+test(
+  'balance history shows exact costs and sends numeric date filters with owner scope and pagination',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    await mockApi(page);
+    const requests: { page: number; conditions: any }[] = [];
+    await page.route('**/api/paymentTransaction?*', (route) => {
+      const url = new URL(route.request().url());
+      const conditions = JSON.parse(url.searchParams.get('conditions')!);
+      const index = Number(url.searchParams.get('pageIndex'));
+      requests.push({ page: index, conditions });
+      return route.fulfill({
+        json: {
+          ...pagination([
+            {
+              id: 242 + index,
+              userId: 7,
+              type: 'TASK_PURCHASE',
+              debet: 'CO-00',
+              credit: 'PR-00',
+              coinId: 'RUB',
+              amount: '965.16',
+              createdDate: file.createdDate,
+              activatedDate: file.createdDate,
+              details: {
+                model: 'OPEN_AI_CONVERSATION',
+                source: { type: 'CONVERSATION', id: 49 },
+                amounts: [{ amount: '0.096516', coinId: 'USD' }],
+                rates: [{ from: 'USD', to: 'RUB', value: '100' }],
+                consumption: {
+                  tools: [
+                    {
+                      type: 'IMAGE',
+                      models: [{ provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1-mini' }],
+                      status: 'FINAL',
+                      amounts: [{ amount: '0.08219', coinId: 'USD' }],
+                    },
+                  ],
+                },
               },
             },
-          },
-        ]),
-        pages: 2,
-        total: 21,
-        pageIndex: index,
-      },
+          ]),
+          pages: 2,
+          total: 21,
+          pageIndex: index,
+        },
+      });
     });
-  });
-  await page.goto('/account');
-  const history = page.locator('#balance-history');
-  await expect(history.getByText('−9,65 ₽', { exact: true })).toBeVisible();
-  await history.getByRole('button', { name: 'Детали операции', exact: true }).click();
-  await expect(history.getByText('9,6516 ₽', { exact: true })).toBeVisible();
-  await expect(history.getByText('Модель вызова · Изображение', { exact: true })).toBeVisible();
-  await expect(history.getByText('GPT Image 1 Mini', { exact: true })).toBeVisible();
-  await expect(history.getByText('8,219 ₽', { exact: true })).toBeVisible();
-  await expect(history.getByText('1,4326 ₽', { exact: true })).toBeVisible();
-  await expect(history.getByRole('link', { name: 'Беседа №49' })).toHaveAttribute(
-    'href',
-    '/open?conversation=49',
-  );
-  await history.getByRole('button', { name: 'Следующая страница' }).click();
-  await expect.poll(() => requests.at(-1)?.page).toBe(1);
-  await history.getByLabel('Период', { exact: true }).selectOption('7');
-  await expect.poll(() => requests.at(-1)?.page).toBe(0);
-  await expect.poll(() => typeof requests.at(-1)?.conditions.createdDate?.value).toBe('number');
-  expect(requests.at(-1)!.conditions.createdDate.value).toBeGreaterThan(Date.now() - 8 * 86400000);
-  expect(requests.every((r) => r.conditions.userId === 7)).toBe(true);
-  await history.getByLabel('Операции', { exact: true }).selectOption('expense');
-  await expect.poll(() => requests.at(-1)?.conditions.credit).toBe('PR-00');
-  await expect(history.getByLabel('Валюта', { exact: true })).toHaveCount(0);
-  await expect.poll(() => requests.at(-1)?.conditions.coinId).toBe('RUB');
-});
+    await page.goto('/account');
+    const history = page.locator('#balance-history');
+    await expect(history.getByText('−9,65 ₽', { exact: true })).toBeVisible();
+    await history.getByRole('button', { name: 'Детали операции', exact: true }).click();
+    await expect(history.getByText('9,6516 ₽', { exact: true })).toBeVisible();
+    await expect(history.getByText('Модель вызова · Изображение', { exact: true })).toBeVisible();
+    await expect(history.getByText('GPT Image 1 Mini', { exact: true })).toBeVisible();
+    await expect(history.getByText('8,219 ₽', { exact: true })).toBeVisible();
+    await expect(history.getByText('1,4326 ₽', { exact: true })).toBeVisible();
+    await expect(history.getByRole('link', { name: 'Беседа №49' })).toHaveAttribute(
+      'href',
+      '/open?conversation=49',
+    );
+    await history.getByRole('button', { name: 'Следующая страница' }).click();
+    await expect.poll(() => requests.at(-1)?.page).toBe(1);
+    await history.getByLabel('Период', { exact: true }).selectOption('7');
+    await expect.poll(() => requests.at(-1)?.page).toBe(0);
+    await expect.poll(() => typeof requests.at(-1)?.conditions.createdDate?.value).toBe('number');
+    expect(requests.at(-1)!.conditions.createdDate.value).toBeGreaterThan(Date.now() - 8 * 86400000);
+    expect(requests.every((r) => r.conditions.userId === 7)).toBe(true);
+    await history.getByLabel('Операции', { exact: true }).selectOption('expense');
+    await expect.poll(() => requests.at(-1)?.conditions.credit).toBe('PR-00');
+    await expect(history.getByLabel('Валюта', { exact: true })).toHaveCount(0);
+    await expect.poll(() => requests.at(-1)?.conditions.coinId).toBe('RUB');
+  },
+);
 
 test('balance history rejects foreign or non-personal transactions and recovers from errors', async ({
   page,
@@ -1958,57 +1972,64 @@ test('history cards keep readable spacing and fit mobile during rename', async (
   }
 });
 
-test('logout confirmation can be dismissed without ending the session', async ({ page }) => {
-  await mockApi(page);
-  let requests = 0;
-  page.on('request', (request) => {
-    if (new URL(request.url()).pathname === '/api/logout') requests++;
-  });
-  await page.goto('/account');
-  const trigger = page.getByRole('button', { name: 'Выйти из студии' });
-  const dialog = page.getByRole('dialog', { name: 'Выйти из аккаунта?' });
-  await trigger.click();
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Отмена' }).click();
-  await expect(dialog).toHaveCount(0);
-  await expect(trigger).toBeFocused();
-  await trigger.click();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-  await trigger.click();
-  await dialog.getByRole('button', { name: 'Закрыть' }).click();
-  await expect(dialog).toHaveCount(0);
-  expect(requests).toBe(0);
-  expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBe('test-session');
-  await expect(page).toHaveURL(/\/account$/);
-});
+test(
+  'logout confirmation can be dismissed without ending the session',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    await mockApi(page);
+    let requests = 0;
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/api/logout') requests++;
+    });
+    await page.goto('/account');
+    const trigger = page.getByRole('button', { name: 'Выйти из студии' });
+    const dialog = page.getByRole('dialog', { name: 'Выйти из аккаунта?' });
+    await trigger.click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Отмена' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await trigger.click();
+    await dialog.getByRole('button', { name: 'Закрыть' }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(requests).toBe(0);
+    expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBe('test-session');
+    await expect(page).toHaveURL(/\/account$/);
+  },
+);
 
 for (const withIdToken of [true, false]) {
-  test(`logout ends Keycloak SSO ${withIdToken ? 'with ID token' : 'for a legacy session without ID token'}`, async ({
-    page,
-  }) => {
-    await mockApi(page);
-    await page.goto('/account');
-    if (withIdToken) await page.evaluate(() => sessionStorage.setItem('genfactory.idToken', 'test-id-token'));
-    const logout = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/logout');
-    await page.getByRole('button', { name: 'Выйти из студии' }).click();
-    await page
-      .getByRole('dialog', { name: 'Выйти из аккаунта?' })
-      .getByRole('button', { name: 'Выйти', exact: true })
-      .click();
-    expect((await logout).headers()['authorization']).toBe('Bearer test-session');
-    await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/logout/);
-    const url = new URL(page.url());
-    expect(url.searchParams.get('client_id')).toBe('gnosis');
-    expect(url.searchParams.get('post_logout_redirect_uri')).toBe('http://127.0.0.1:5173/account');
-    expect(url.searchParams.get('id_token_hint')).toBe(withIdToken ? 'test-id-token' : null);
-    const state = await page.context().storageState();
-    expect(
-      state.origins
-        .find((o) => o.origin === 'http://127.0.0.1:5173')
-        ?.localStorage.some((item) => item.name === 'genfactory.session'),
-    ).toBeFalsy();
-  });
+  test(
+    `logout ends Keycloak SSO ${withIdToken ? 'with ID token' : 'for a legacy session without ID token'}`,
+    { tag: '@smoke' },
+    async ({ page }) => {
+      await mockApi(page);
+      await page.goto('/account');
+      if (withIdToken)
+        await page.evaluate(() => sessionStorage.setItem('genfactory.idToken', 'test-id-token'));
+      const logout = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/logout');
+      await page.getByRole('button', { name: 'Выйти из студии' }).click();
+      await page
+        .getByRole('dialog', { name: 'Выйти из аккаунта?' })
+        .getByRole('button', { name: 'Выйти', exact: true })
+        .click();
+      expect((await logout).headers()['authorization']).toBe('Bearer test-session');
+      await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/logout/);
+      const url = new URL(page.url());
+      expect(url.searchParams.get('client_id')).toBe('gnosis');
+      expect(url.searchParams.get('post_logout_redirect_uri')).toBe('http://127.0.0.1:5173/account');
+      expect(url.searchParams.get('id_token_hint')).toBe(withIdToken ? 'test-id-token' : null);
+      const state = await page.context().storageState();
+      expect(
+        state.origins
+          .find((o) => o.origin === 'http://127.0.0.1:5173')
+          ?.localStorage.some((item) => item.name === 'genfactory.session'),
+      ).toBeFalsy();
+    },
+  );
 }
 
 test('ready previews are thumbnails while the dialog and download keep the original', async ({ page }) => {
@@ -2843,7 +2864,7 @@ for (const invalid of [
   });
 }
 
-test('OAuth redirect login does not use popup windows', async ({ page }) => {
+test('OAuth redirect login does not use popup windows', { tag: '@smoke' }, async ({ page }) => {
   await mockApi(page, false);
   await page.goto('/account');
   await page.evaluate(() => {
@@ -2860,38 +2881,40 @@ test('OAuth redirect login does not use popup windows', async ({ page }) => {
   expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:5173/auth/callback');
 });
 
-test('direct login prevents duplicate requests and lets the user retry a failed connection', async ({
-  page,
-}) => {
-  await mockApi(page, false);
-  let requests = 0;
-  let release: (() => void) | undefined;
-  await page.route('**/api/config', async (route) => {
-    requests++;
-    if (requests === 1) {
-      await new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
-    } else await route.fallback();
-  });
-  await page.goto('/account');
-  const sidebar = page.getByRole('button', { name: 'Войти в аккаунт', exact: true });
-  const account = page.getByRole('main').getByRole('button', { name: 'Войти', exact: true });
-  await sidebar.click();
-  await expect.poll(() => requests).toBe(1);
-  await expect(sidebar).toBeDisabled();
-  await account.click();
-  expect(requests).toBe(1);
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  release!();
-  await expect(page.getByRole('alert')).toContainText('Не удалось открыть вход');
-  await expect(sidebar).toBeEnabled();
-  await expect(page).toHaveURL(/\/account$/);
-  await account.click();
-  await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
-  expect(requests).toBe(2);
-});
+test(
+  'direct login prevents duplicate requests and lets the user retry a failed connection',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    await mockApi(page, false);
+    let requests = 0;
+    let release: (() => void) | undefined;
+    await page.route('**/api/config', async (route) => {
+      requests++;
+      if (requests === 1) {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      } else await route.fallback();
+    });
+    await page.goto('/account');
+    const sidebar = page.getByRole('button', { name: 'Войти в аккаунт', exact: true });
+    const account = page.getByRole('main').getByRole('button', { name: 'Войти', exact: true });
+    await sidebar.click();
+    await expect.poll(() => requests).toBe(1);
+    await expect(sidebar).toBeDisabled();
+    await account.click();
+    expect(requests).toBe(1);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    release!();
+    await expect(page.getByRole('alert')).toContainText('Не удалось открыть вход');
+    await expect(sidebar).toBeEnabled();
+    await expect(page).toHaveURL(/\/account$/);
+    await account.click();
+    await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
+    expect(requests).toBe(2);
+  },
+);
 
 test('OAuth callback cannot exchange the same attempt twice', async ({ page }) => {
   await mockApi(page, false);
@@ -3086,27 +3109,31 @@ test('content studio prototype controls, templates and guest favorites work with
   expect(state.sends).toHaveLength(0);
 });
 
-test('content studio sends image in a persistent conversation and restores its result', async ({ page }) => {
-  const state = await mockApi(page);
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
-  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
-  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
-  await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
-  await page.getByRole('option', { name: '1:1', exact: true }).click();
-  await page.locator('#cw-draft').fill('Чашка на белом фоне');
-  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.creates[0].options.tools).toHaveLength(1);
-  expect(state.sends[0].settings.tools[0].uid).toBe('IMAGE');
-  await expect(page).toHaveURL(/chat\?conversation=101/);
-  await expect(page.locator('.cw-thread')).toContainText('Чашка на белом фоне');
-  await page.reload();
-  await expect(page.locator('.cw-thread')).toContainText('Чашка на белом фоне');
-  expect(state.sends).toHaveLength(1);
-  await expect.poll(() => state.joinedRooms.some((room) => room.includes('101'))).toBe(true);
-  await page.screenshot({ path: '/tmp/content-studio-connected.png' });
-});
+test(
+  'content studio sends image in a persistent conversation and restores its result',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    const state = await mockApi(page);
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+    await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
+    await page.getByRole('option', { name: '1:1', exact: true }).click();
+    await page.locator('#cw-draft').fill('Чашка на белом фоне');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect.poll(() => state.sends.length).toBe(1);
+    expect(state.creates[0].options.tools).toHaveLength(1);
+    expect(state.sends[0].settings.tools[0].uid).toBe('IMAGE');
+    await expect(page).toHaveURL(/chat\?conversation=101/);
+    await expect(page.locator('.cw-thread')).toContainText('Чашка на белом фоне');
+    await page.reload();
+    await expect(page.locator('.cw-thread')).toContainText('Чашка на белом фоне');
+    expect(state.sends).toHaveLength(1);
+    await expect.poll(() => state.joinedRooms.some((room) => room.includes('101'))).toBe(true);
+    await page.screenshot({ path: '/tmp/content-studio-connected.png' });
+  },
+);
 
 test('content studio writer removes connected media tools before sending', async ({ page }) => {
   const state = await mockApi(page);
@@ -3924,25 +3951,29 @@ for (const width of [390, 1440]) {
   });
 }
 
-test('history card opens the conversation from cover title date and free space', async ({ page }) => {
-  const state = await mockApi(page);
-  state.conversations.push(savedConversation());
-  for (const selector of ['.history-cover', 'h2', 'time', '.history-card']) {
-    await page.goto('/history');
-    const target = page.locator('.history-card').first();
-    await expect(target).toBeVisible();
-    const box = await (selector === '.history-card' ? target : target.locator(selector)).boundingBox();
-    if (!box) throw new Error('Card target is missing');
-    await page.mouse.click(
-      box.x + box.width / 2,
-      box.y + (selector === '.history-card' ? box.height - 5 : box.height / 2),
-    );
-    await expect(page, selector).toHaveURL(/\/chat\?conversation=101$/);
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-  }
-  expect(state.sends).toHaveLength(0);
-  expect(state.edits).toHaveLength(0);
-});
+test(
+  'history card opens the conversation from cover title date and free space',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    const state = await mockApi(page);
+    state.conversations.push(savedConversation());
+    for (const selector of ['.history-cover', 'h2', 'time', '.history-card']) {
+      await page.goto('/history');
+      const target = page.locator('.history-card').first();
+      await expect(target).toBeVisible();
+      const box = await (selector === '.history-card' ? target : target.locator(selector)).boundingBox();
+      if (!box) throw new Error('Card target is missing');
+      await page.mouse.click(
+        box.x + box.width / 2,
+        box.y + (selector === '.history-card' ? box.height - 5 : box.height / 2),
+      );
+      await expect(page, selector).toHaveURL(/\/chat\?conversation=101$/);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    }
+    expect(state.sends).toHaveLength(0);
+    expect(state.edits).toHaveLength(0);
+  },
+);
 
 test('history conversation link supports keyboard without a generated file', async ({ page }) => {
   const state = await mockApi(page);
@@ -3956,52 +3987,54 @@ test('history conversation link supports keyboard without a generated file', asy
   expect(state.sends).toHaveLength(0);
 });
 
-test('library batch upload keeps destination, continues after failure and navigates back', async ({
-  page,
-}) => {
-  await mockApi(page);
-  const folder = { ...file, id: 80, uid: 'folder-80', name: 'ДТП', type: 'DIRECTORY' };
-  await page.route('**/api/file?*', (route) => {
-    const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!);
-    return route.fulfill({ json: pagination(typeof conditions.directory === 'string' ? [] : [folder]) });
-  });
-  const requests: string[] = [];
-  await page.route('**/api/file', async (route) => {
-    requests.push(route.request().postDataBuffer()!.toString());
-    await route.fulfill(
-      requests.length === 2
-        ? { status: 400, json: { message: 'Файл повреждён' } }
-        : { json: { ...file, id: 100 + requests.length } },
-    );
-  });
-  await page.goto('/image');
-  const navigation = page.getByRole('navigation', { name: 'Основное меню' });
-  await expect(navigation.getByRole('link', { name: 'История', exact: true })).toBeVisible();
-  const labels = await navigation.getByRole('link').allTextContents();
-  expect(labels.indexOf('Библиотека')).toBeLessThan(labels.indexOf('История'));
-  await navigation.getByRole('link', { name: 'Библиотека', exact: true }).click();
-  await expect(page).toHaveURL(/\/library$/);
-  await expect(page.getByRole('button', { name: 'Все файлы', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'ДТП Папка', exact: true }).click();
-  await page.locator('input[type=file]').setInputFiles([
-    { name: 'one.png', mimeType: 'image/png', buffer: Buffer.from('image') },
-    { name: 'broken.pdf', mimeType: 'application/pdf', buffer: Buffer.from('pdf') },
-    { name: 'three.mp4', mimeType: 'video/mp4', buffer: Buffer.from('video') },
-  ]);
-  await expect(page.getByRole('status')).toHaveText('Загружено: 2 из 3');
-  await expect(page.getByRole('alert')).toContainText('broken.pdf');
-  expect(requests).toHaveLength(3);
-  for (const request of requests) expect(request).toContain('folder-80');
-  const up = page
-    .locator('.library-grid > .file-entry')
-    .first()
-    .getByRole('button', { name: 'На уровень выше' });
-  await expect(up).toBeVisible();
-  await up.click();
-  await expect(page.getByRole('button', { name: 'На уровень выше' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'ДТП Папка', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Назад в родительскую папку' })).toHaveCount(0);
-});
+test(
+  'library batch upload keeps destination, continues after failure and navigates back',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    await mockApi(page);
+    const folder = { ...file, id: 80, uid: 'folder-80', name: 'ДТП', type: 'DIRECTORY' };
+    await page.route('**/api/file?*', (route) => {
+      const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!);
+      return route.fulfill({ json: pagination(typeof conditions.directory === 'string' ? [] : [folder]) });
+    });
+    const requests: string[] = [];
+    await page.route('**/api/file', async (route) => {
+      requests.push(route.request().postDataBuffer()!.toString());
+      await route.fulfill(
+        requests.length === 2
+          ? { status: 400, json: { message: 'Файл повреждён' } }
+          : { json: { ...file, id: 100 + requests.length } },
+      );
+    });
+    await page.goto('/image');
+    const navigation = page.getByRole('navigation', { name: 'Основное меню' });
+    await expect(navigation.getByRole('link', { name: 'История', exact: true })).toBeVisible();
+    const labels = await navigation.getByRole('link').allTextContents();
+    expect(labels.indexOf('Библиотека')).toBeLessThan(labels.indexOf('История'));
+    await navigation.getByRole('link', { name: 'Библиотека', exact: true }).click();
+    await expect(page).toHaveURL(/\/library$/);
+    await expect(page.getByRole('button', { name: 'Все файлы', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'ДТП Папка', exact: true }).click();
+    await page.locator('input[type=file]').setInputFiles([
+      { name: 'one.png', mimeType: 'image/png', buffer: Buffer.from('image') },
+      { name: 'broken.pdf', mimeType: 'application/pdf', buffer: Buffer.from('pdf') },
+      { name: 'three.mp4', mimeType: 'video/mp4', buffer: Buffer.from('video') },
+    ]);
+    await expect(page.getByRole('status')).toHaveText('Загружено: 2 из 3');
+    await expect(page.getByRole('alert')).toContainText('broken.pdf');
+    expect(requests).toHaveLength(3);
+    for (const request of requests) expect(request).toContain('folder-80');
+    const up = page
+      .locator('.library-grid > .file-entry')
+      .first()
+      .getByRole('button', { name: 'На уровень выше' });
+    await expect(up).toBeVisible();
+    await up.click();
+    await expect(page.getByRole('button', { name: 'На уровень выше' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'ДТП Папка', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Назад в родительскую папку' })).toHaveCount(0);
+  },
+);
 
 test('library incompatible document is visibly marked and cannot be attached', async ({ page }) => {
   await mockApi(page);
@@ -4476,74 +4509,81 @@ test('history searches all server pages by title or prompt and resets pagination
   expect(requests.at(-1)?.search).toBeNull();
 });
 
-test('history ignores browser flags, persists server flags and rolls back failed patches', async ({
-  page,
-}) => {
-  const state = await mockApi(page);
-  state.conversations.push(savedConversation());
-  await page.addInitScript(() =>
-    localStorage.setItem('genfactory.preferences.v1.7', JSON.stringify({ favorites: [101], archive: [101] })),
-  );
-  await page.goto('/history');
-  const card = page.locator('.history-card');
-  await expect(card).toBeVisible();
-  await expect(card.locator('.history-favorite-mark')).toHaveCount(0);
-  await card.locator('summary').click();
-  await card.getByRole('button', { name: 'В избранное', exact: true }).click();
-  await expect.poll(() => state.patches).toEqual([{ isFavorite: true }]);
-  await expect(card.locator('.history-favorite-mark')).toHaveCount(1);
-  await page.reload();
-  await expect(card.locator('.history-favorite-mark')).toHaveCount(1);
-  await page.route('**/api/conversation/101', async (route) => {
-    if (route.request().method() !== 'PATCH') return route.fallback();
-    await route.fulfill({ status: 500, json: { message: 'Save failed' } });
-  });
-  await card.locator('summary').click();
-  await card.getByRole('button', { name: 'В архив', exact: true }).click();
-  await expect(page.locator('.work-history > [role="alert"]')).toBeVisible();
-  await expect(card).toBeVisible();
-  expect(state.conversations[0].isArchived).toBeUndefined();
-});
+test(
+  'history ignores browser flags, persists server flags and rolls back failed patches',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    const state = await mockApi(page);
+    state.conversations.push(savedConversation());
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        'genfactory.preferences.v1.7',
+        JSON.stringify({ favorites: [101], archive: [101] }),
+      ),
+    );
+    await page.goto('/history');
+    const card = page.locator('.history-card');
+    await expect(card).toBeVisible();
+    await expect(card.locator('.history-favorite-mark')).toHaveCount(0);
+    await card.locator('summary').click();
+    await card.getByRole('button', { name: 'В избранное', exact: true }).click();
+    await expect.poll(() => state.patches).toEqual([{ isFavorite: true }]);
+    await expect(card.locator('.history-favorite-mark')).toHaveCount(1);
+    await page.reload();
+    await expect(card.locator('.history-favorite-mark')).toHaveCount(1);
+    await page.route('**/api/conversation/101', async (route) => {
+      if (route.request().method() !== 'PATCH') return route.fallback();
+      await route.fulfill({ status: 500, json: { message: 'Save failed' } });
+    });
+    await card.locator('summary').click();
+    await card.getByRole('button', { name: 'В архив', exact: true }).click();
+    await expect(page.locator('.work-history > [role="alert"]')).toBeVisible();
+    await expect(card).toBeVisible();
+    expect(state.conversations[0].isArchived).toBeUndefined();
+  },
+);
 
-test('late video remains pending across reload and appears after the conversation event without resubmitting', async ({
-  page,
-}) => {
-  const state = await mockApi(page);
-  const conversation: IConversation = { ...savedConversation(101), status: 'LOADING' };
-  state.conversations.push(conversation);
-  const request: IConversationMessage = {
-    id: 20,
-    role: 'USER',
-    text: 'Animate the cup',
-    createdDate: new Date(Date.now() - 16 * 60000).toISOString(),
-  };
-  state.messages.set(101, [request]);
-  await page.goto('/video?conversation=101');
-  await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
-  await page.reload();
-  await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
-  await expect.poll(() => !!state.socket).toBeTruthy();
-  conversation.status = 'LOADED';
-  state.messages.set(101, [
-    request,
-    {
-      id: 21,
-      role: 'ASSISTANT',
-      text: 'Видео готово.',
-      files: [{ ...file, type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' }],
-      createdDate: new Date().toISOString(),
-    },
-  ]);
-  state.socket!.send(
-    '42/gnosisai,' +
-      JSON.stringify([
-        'transportSocketEvent',
-        { uid: crypto.randomUUID(), name: 'ConversationChangedEvent', data: { id: 101, item: {} } },
-      ]),
-  );
-  await expect(page.locator('.image-result-pending')).toHaveCount(0);
-  await expect(page.locator('.image-result')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible();
-  expect(state.sends).toHaveLength(0);
-  expect(state.creates).toHaveLength(0);
-});
+test(
+  'late video remains pending across reload and appears after the conversation event without resubmitting',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    const state = await mockApi(page);
+    const conversation: IConversation = { ...savedConversation(101), status: 'LOADING' };
+    state.conversations.push(conversation);
+    const request: IConversationMessage = {
+      id: 20,
+      role: 'USER',
+      text: 'Animate the cup',
+      createdDate: new Date(Date.now() - 16 * 60000).toISOString(),
+    };
+    state.messages.set(101, [request]);
+    await page.goto('/video?conversation=101');
+    await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
+    await page.reload();
+    await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
+    await expect.poll(() => !!state.socket).toBeTruthy();
+    conversation.status = 'LOADED';
+    state.messages.set(101, [
+      request,
+      {
+        id: 21,
+        role: 'ASSISTANT',
+        text: 'Видео готово.',
+        files: [{ ...file, type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' }],
+        createdDate: new Date().toISOString(),
+      },
+    ]);
+    state.socket!.send(
+      '42/gnosisai,' +
+        JSON.stringify([
+          'transportSocketEvent',
+          { uid: crypto.randomUUID(), name: 'ConversationChangedEvent', data: { id: 101, item: {} } },
+        ]),
+    );
+    await expect(page.locator('.image-result-pending')).toHaveCount(0);
+    await expect(page.locator('.image-result')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible();
+    expect(state.sends).toHaveLength(0);
+    expect(state.creates).toHaveLength(0);
+  },
+);
