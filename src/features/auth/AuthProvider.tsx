@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       response_type: 'code',
       scope: 'openid',
       state,
+      theme: 'genfactory',
     }).toString();
     location.assign(url.href);
   };

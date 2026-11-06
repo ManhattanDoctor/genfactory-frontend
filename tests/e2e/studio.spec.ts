@@ -2820,6 +2820,8 @@ test('OAuth redirect login does not use popup windows', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Войти в аккаунт' }).click();
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
   const url = new URL(page.url());
+  expect(url.searchParams.get('theme')).toBe('genfactory');
+  expect(url.searchParams.get('client_id')).toBe('gnosis');
   expect(url.searchParams.get('state')).toBeTruthy();
   expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:5173/auth/callback');
 });
