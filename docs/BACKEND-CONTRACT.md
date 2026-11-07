@@ -1,6 +1,6 @@
 # Существующий контракт gnosis
 
-Новый frontend использует беседы и универсальные инструменты. Ниже описан локальный контракт; изменения каталога от 2026-11-07 ещё не опубликованы. Все перечисленные ниже пути реализованы в gnosis.
+Новый frontend использует беседы и универсальные инструменты. Контракт каталога от 2026-11-07 опубликован согласованно с backend, common и обоими клиентами. Все перечисленные ниже пути реализованы в gnosis.
 
 | Операция                             | Назначение                                                                                             |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
@@ -103,7 +103,7 @@ TTS attaches an audio file; STT receives the exact selected audio/video file ID 
 - Both routes require authentication and send `Cache-Control: private, no-store`. Browser code no longer depends on storage CORS for reading TXT or downloading originals. No AI calls or balance charges for these endpoints.
 - Tool connections carry the model only in `settings.model`; `settings.options` must exclude `model`, even though model catalog validation requires `options.model` in a direct task request.
 
-## Каталог моделей — локальное изменение 2026-11-07
+## Каталог моделей — опубликовано 2026-11-07
 
 `GET /api/aimodels` теперь возвращает страницу `{items,total,pages,pageIndex,pageSize}`, а не массив. Provider и статус передаются через общий `conditions`: `{"provider":"OPEN_AI_IMAGE_GPT","status":"ACTIVE"}`. Поддерживаются стандартные sort/pageIndex/pageSize (максимум 500); клиент обходит все страницы. Верхнеуровневый provider и специальные флаги видимости не используются.
 
@@ -111,6 +111,6 @@ TTS attaches an audio file; STT receives the exact selected audio/video file ID 
 
 AiModelChangedEvent обновляет запросы каталогов и сохранённых описаний в открытом Genfactory; тариф в событие не входит. Ошибки AI_MODEL_HIDDEN/AI_MODEL_DISABLED имеют безопасные сообщения для пользователя.
 
-Административные GET `/api/management/aimodel` и PUT `/api/management/aimodel/:id` доступны только ADMINISTRATOR. GET использует общую фильтрацию и возвращает записи с тарифами. PUT изменяет name/status/sortOrder/price; идентичность provider/model неизменяема. Управление реализовано локально в старом Angular-клиенте (/managementAiModels); отдельного экрана в Genfactory нет. Миграция 54 и однократный импорт переносят цены ai_price без изменения их валют/единиц; ai_price сохраняется для отката. Первый успешный импорт адаптера сохраняет исходный активный набор, новые модели последующих синхронизаций создаются HIDDEN. Административные изменения не перезаписываются.
+Административные GET `/api/management/aimodel` и PUT `/api/management/aimodel/:id` доступны только ADMINISTRATOR. GET использует общую фильтрацию и возвращает записи с тарифами. PUT изменяет name/status/sortOrder/price; идентичность provider/model неизменяема. Управление опубликовано в старом Angular-клиенте (/managementAiModels); отдельного экрана в Genfactory нет. Миграция 54 и однократный импорт переносят цены ai_price без изменения их валют/единиц; ai_price сохраняется для отката. Первый успешный импорт адаптера сохраняет исходный активный набор, новые модели последующих синхронизаций создаются HIDDEN. Административные изменения не перезаписываются.
 
-Контракт требует согласованной выкладки backend/common/Angular/Genfactory. Все эти изменения пока локальные; production продолжает работать по прежнему контракту.
+Контракт требует согласованной выкладки backend/common/Angular/Genfactory. Обновление опубликовано 2026-11-07: backend 86c4f5e / common 8cce241 / Angular 228a5b1 / Genfactory 8e7079f. Миграция 54 применена на production, 122 перенесённых тарифа сверены без расхождений.

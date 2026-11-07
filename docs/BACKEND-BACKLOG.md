@@ -1,5 +1,13 @@
 # Что перенести с frontend в gnosis позже
 
+## 2026-11-07 — каталог и фильтрация опубликованы
+
+Backend `86c4f5e` / common `8cce241` / Angular `228a5b1` (1.1.0-442) / Genfactory `8e7079f` выпущены согласованно. Production-миграция54: 187 моделей,151 ACTIVE/36 HIDDEN; ai_price сохранена,122 модельных тарифа совпали со старыми значениями. Runtime environment API неизменен. Резервная копия БД проверена и скачана до выкладки.
+
+Backend889 tests/105 suites и24 PostgreSQL integration PASS, Genfactory380 unit/build/format PASS, Angular4price-form tests/build PASS. В полном браузерном прогоне исправлены старые ожидания login/миграции настроек и выявлена гонка собственного перехода Content Studio. Исправление различает свою навигацию и уход пользователя, включая тот же URL с новым history key; исходный запрос не запускает платное сообщение после ухода. Все падения повторно проверены; затронутый блок Content Studio/статусов44 PASS. Финальный CI [42387277791](https://github.com/ManhattanDoctor/genfactory-frontend/actions/runs/42387277791), BUILD [42387317659](https://github.com/ManhattanDoctor/genfactory-frontend/actions/runs/42387317659), DEPLOY [42388037031](https://github.com/ManhattanDoctor/genfactory-frontend/actions/runs/42388037031) успешны.
+
+На production проверены админка и меню старого клиента, новый каталог, Swagger, основные страницы Genfactory и мобильная главная. Проверки без записей/платных вызовов. Предыдущие записи ниже описывают локальные этапы до этой публикации.
+
 ## 2026-11-07 — каталог ai_model реализован локально
 
 Согласованный пользователем этап реализован, не опубликован. Одна запись БД на provider/model объединяет имя, AiModelStatus (ACTIVE/HIDDEN/DISABLED), порядок и тариф. Возможности остаются в адаптерах. Миграция 54 переносит реальные цены и исторические ссылки, сохраняет ai_price. Отдельная sync-таблица хранит состояние импорта. Первичный набор активен, последующие новые модели HIDDEN, изменения администратора сохраняются.
