@@ -1,3 +1,4 @@
+import { catalogPage, catalogProvider } from '../e2e/modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
 import { createServer, type Server } from 'node:https';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -80,7 +81,8 @@ async function setup(page: Page, running = false, path = '/agent') {
     const url = new URL(route.request().url());
     let body: unknown = {};
     if (url.pathname === '/api/init') body = { user: { id: 7 }, balances: { RUB: '100' } };
-    else if (url.pathname === '/api/aimodels') body = [agent];
+    else if (url.pathname === '/api/aimodels')
+      body = catalogPage(catalogProvider(url) === agent.reference.provider ? [agent] : []);
     else if (url.pathname.startsWith('/api/aimodel/')) body = { tools: [] };
     else if (url.pathname === '/api/conversation')
       body = {
