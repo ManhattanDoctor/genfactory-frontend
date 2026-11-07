@@ -1,3 +1,4 @@
+import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
 import { modelTitle } from '../../src/features/catalog/presentation';
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -149,9 +150,9 @@ async function mockApi(page: Page, signedIn = true) {
       };
     else if (path === '/api/aimodels')
       body =
-        url.searchParams.get('provider') === 'OPEN_AI_CONVERSATION'
+        catalogProvider(url) === 'OPEN_AI_CONVERSATION'
           ? [agent]
-          : catalog.filter((m) => m.reference.provider === url.searchParams.get('provider'));
+          : catalog.filter((m) => m.reference.provider === catalogProvider(url));
     else if (path === '/api/conversation' && method === 'POST') {
       const data = route.request().postDataJSON();
       state.creates.push(data);
@@ -252,7 +253,11 @@ async function mockApi(page: Page, signedIn = true) {
       status = 404;
       body = { message: 'Unexpected endpoint' };
     }
-    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    await route.fulfill({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify(catalogResponse(route.request().url(), body)),
+    });
   });
   return state;
 }
@@ -1345,17 +1350,19 @@ test('workspace history supports rename favorites server archive and a running f
 test('workspace video analysis uploads the original and sends VIDEO_RECOGNITION', async ({ page }) => {
   const state = await mockApi(page);
   const video = { ...file, type: 'VIDEO', mime: 'video/mp4', size: 1000, name: 'Видео.mp4' };
-  await page.route('**/api/aimodels?provider=OPEN_ROUTER_TEXT', (route) =>
-    route.fulfill({
-      json: [
-        {
-          reference: { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' },
-          capabilities: ['VIDEO_INPUT', 'TEXT_OUTPUT'],
-          name: 'Gemini',
-          schema: {},
-        },
-      ],
-    }),
+  await page.route(
+    (url) => url.pathname === '/api/aimodels' && catalogProvider(url) === 'OPEN_ROUTER_TEXT',
+    (route) =>
+      route.fulfill({
+        json: catalogPage([
+          {
+            reference: { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' },
+            capabilities: ['VIDEO_INPUT', 'TEXT_OUTPUT'],
+            name: 'Gemini',
+            schema: {},
+          },
+        ]),
+      }),
   );
   await page.route('**/api/file', (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
@@ -2462,24 +2469,35 @@ test('tag chips and suggestions filter the entire library with explicit all or a
 }) => {
   await mockApi(page);
   const conditions: any[] = [];
+  const tagConditions: any[] = [];
   await page.route('**/api/file?*', (route) => {
     conditions.push(JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!));
     return route.fulfill({ json: pagination([{ ...file, tags: ['Catalog'] }]) });
   });
-  await page.route('**/api/fileTag?*', (route) =>
-    route.fulfill({
+  await page.route('**/api/fileTag?*', (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.has('search')).toBe(false);
+    tagConditions.push(JSON.parse(query.get('conditions')!));
+    return route.fulfill({
       json: pagination([
         { tag: 'catalog', count: 5 },
         { tag: 'summer', count: 2 },
       ]),
-    }),
-  );
+    });
+  });
   await page.goto('/library');
   await page.getByRole('button', { name: 'Файлы с тегом Catalog', exact: true }).click();
   await expect.poll(() => conditions.at(-1)?.tags?.condition).toBe('INCLUDES_ALL');
   expect(conditions.at(-1).directory).toBeUndefined();
   expect(conditions.at(-1).tags.value).toEqual(['catalog']);
   await page.getByText('Фильтр по тегам (1)', { exact: true }).click();
+  await expect.poll(() => tagConditions.at(-1)).toEqual({});
+  await page.getByLabel('Найти тег', { exact: true }).fill('A%_\\');
+  await expect
+    .poll(() => tagConditions.at(-1))
+    .toEqual({
+      tag: { condition: 'CONTAINS', value: 'A\\%\\_\\\\%' },
+    });
   await page.getByRole('button', { name: 'summer 2', exact: true }).click();
   await page.getByLabel('Совпадение тегов', { exact: true }).selectOption('any');
   await expect.poll(() => conditions.at(-1)?.tags?.condition).toBe('INCLUDES_ONE_OF');
@@ -2578,12 +2596,14 @@ async function mockAudio(page: Page) {
   await page.route('**/api/aimodel/OPEN_AI_CONVERSATION', (route) =>
     route.fulfill({ json: { tools: ['TTS', 'STT'].map((uid) => ({ uid, providers: [`TEST_${uid}`] })) } }),
   );
-  await page.route('**/api/aimodels?provider=TEST_*', (route) =>
-    route.fulfill({
-      json: models.filter(
-        (m) => m.reference.provider === new URL(route.request().url()).searchParams.get('provider'),
-      ),
-    }),
+  await page.route(
+    (url) => url.pathname === '/api/aimodels' && !!catalogProvider(url)?.startsWith('TEST_'),
+    (route) =>
+      route.fulfill({
+        json: catalogPage(
+          models.filter((m) => m.reference.provider === catalogProvider(route.request().url())),
+        ),
+      }),
   );
   return state;
 }
@@ -4959,5 +4979,133 @@ for (const hasCurrent of [false, true]) {
       'aria-checked',
       'true',
     );
+  });
+}
+
+for (const status of ['HIDDEN', 'DISABLED'] as const) {
+  test(`saved ${status} model remains visible after reload without replacement`, async ({ page }) => {
+    const state = await mockApi(page);
+    const retained = { ...catalog[0], status };
+    state.conversations.push(savedConversation());
+    await page.route('**/api/aimodels?*', (route) => {
+      if (catalogProvider(route.request().url()) !== retained.reference.provider) return route.fallback();
+      return route.fulfill({
+        json: catalogPage(
+          catalog.filter(
+            (m) =>
+              m.reference.provider === retained.reference.provider &&
+              m.reference.model !== retained.reference.model,
+          ),
+        ),
+      });
+    });
+    await page.route('**/api/aimodels/details?*', (route) => route.fulfill({ json: retained }));
+    await page.goto('/image?conversation=101&studio=advanced');
+    await expect(page.getByLabel('Модель', { exact: true })).toContainText(retained.name);
+    await page.reload();
+    await expect(page.getByLabel('Модель', { exact: true })).toContainText(retained.name);
+    await page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ }).fill('Keep this saved model');
+    await page
+      .getByRole('button', { name: /^(Создать изображение|Собрать изображение)$/, exact: true })
+      .click();
+    if (status === 'DISABLED') {
+      await expect(page.getByRole('alert')).toContainText('Модель отключена администратором');
+      expect(state.sends).toHaveLength(0);
+      expect(state.creates).toHaveLength(0);
+    } else {
+      const choice = page
+        .getByRole('dialog', { name: 'Использовать предыдущий результат?' })
+        .getByRole('button', { name: 'Создать с нуля', exact: true });
+      if (await choice.isVisible()) {
+        await choice.click();
+        await page
+          .getByRole('button', { name: /^(Создать изображение|Собрать изображение)$/, exact: true })
+          .click();
+      }
+      await expect.poll(() => state.sends.length).toBe(1);
+      expect(state.sends[0].settings.tools[0].settings.model).toEqual(retained.reference);
+      expect(state.sends[0].settings.tools[0].settings.options.quality).toBe('high');
+    }
+    await page.screenshot({ path: `test-results/model-status-${status}.png`, fullPage: true });
+  });
+}
+
+test('model status events refresh the catalogue without replacing a saved selection or sending', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  const retained = { ...catalog[0], status: 'DISABLED' as const };
+  state.conversations.push(savedConversation());
+  let disabled = false;
+  await page.route('**/api/aimodels?*', (route) => {
+    if (catalogProvider(route.request().url()) !== retained.reference.provider) return route.fallback();
+    return route.fulfill({
+      json: catalogPage(
+        catalog.filter(
+          (m) =>
+            m.reference.provider === retained.reference.provider &&
+            (!disabled || m.reference.model !== retained.reference.model),
+        ),
+      ),
+    });
+  });
+  await page.route('**/api/aimodels/details?*', (route) => route.fulfill({ json: retained }));
+  await page.goto('/image?conversation=101&studio=advanced');
+  await expect(page.getByLabel('Модель', { exact: true })).toContainText(retained.name);
+  await expect.poll(() => !!state.socket).toBe(true);
+  disabled = true;
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          uid: 'model-status',
+          name: 'AiModelChangedEvent',
+          data: { reference: retained.reference, status: 'DISABLED' },
+        },
+      ]),
+  );
+  await expect(page.getByRole('option', { name: retained.name, exact: true })).toBeDisabled();
+  await page
+    .getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })
+    .fill('Do not submit this disabled model');
+  await page
+    .getByRole('button', { name: /^(Создать изображение|Собрать изображение)$/, exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toContainText('Модель отключена администратором');
+  expect(state.sends).toHaveLength(0);
+  expect(state.creates).toHaveLength(0);
+});
+
+for (const status of ['HIDDEN', 'DISABLED'] as const) {
+  test(`content studio restores saved ${status} model and its options`, async ({ page }) => {
+    const state = await mockApi(page);
+    const retained = { ...catalog[0], name: 'Saved image model', status };
+    state.conversations.push(savedConversation());
+    await page.route('**/api/aimodels?*', (route) => {
+      if (catalogProvider(route.request().url()) !== retained.reference.provider) return route.fallback();
+      return route.fulfill({
+        json: catalogPage(
+          catalog.filter(
+            (m) =>
+              m.reference.provider === retained.reference.provider &&
+              m.reference.model !== retained.reference.model,
+          ),
+        ),
+      });
+    });
+    await page.route('**/api/aimodels/details?*', (route) => route.fulfill({ json: retained }));
+    await page.goto('/chat?conversation=101');
+    await expect(page.getByRole('button', { name: `Модель: ${retained.name}`, exact: true })).toBeVisible();
+    await page.locator('#cw-draft').fill('Continue with this saved model');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    if (status === 'DISABLED') {
+      await expect(page.getByRole('alert')).toContainText('Модель отключена администратором');
+      expect(state.sends).toHaveLength(0);
+    } else {
+      await expect.poll(() => state.sends.length).toBe(1);
+      expect(state.sends[0].settings.tools[0].settings.model).toEqual(retained.reference);
+      expect(state.sends[0].settings.tools[0].settings.options.quality).toBe('high');
+    }
   });
 }

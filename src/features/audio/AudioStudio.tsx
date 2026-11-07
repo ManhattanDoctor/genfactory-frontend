@@ -1,3 +1,4 @@
+import { useRetainedModel } from '../catalog/useRetainedModel';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import type { IUploadProgress } from '../../lib/api';
 import { useEffect, useRef, useState } from 'react';
@@ -98,7 +99,8 @@ function AudioEditor() {
     queryFn: async ({ signal }) => {
       const results = await Promise.allSettled(providers.map((p) => api.catalog(p, signal)));
       const models = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
-      if (!models.length) throw new Error('Не удалось загрузить доступные модели.');
+      if (!models.length && results.some((r) => r.status === 'rejected'))
+        throw new Error('Не удалось загрузить доступные модели.');
       return { models, partial: results.some((r) => r.status === 'rejected') };
     },
   });
@@ -107,8 +109,10 @@ function AudioEditor() {
   const chosenKey =
     selection?.key ||
     (savedSettings ? `${savedSettings.model.provider}:${savedSettings.model.model}` : undefined);
+  const retained = useRetainedModel(savedSettings?.model, catalog.data?.models, auth.user?.id);
   const model = chosenKey
-    ? catalog.data?.models.find((m) => modelKey(m) === chosenKey)
+    ? catalog.data?.models.find((m) => modelKey(m) === chosenKey) ||
+      (retained && modelKey(retained) === chosenKey ? retained : undefined)
     : catalog.data?.models[0];
   const options = selection?.options || {
     ...defaults(model?.schema.properties?.options),
@@ -201,6 +205,10 @@ function AudioEditor() {
     const sid = auth.session;
     const userId = auth.user.id;
     submitting.current = true;
+    if (model?.status === 'DISABLED') {
+      setError('Модель отключена администратором. Выберите другую модель.');
+      return;
+    }
     setPreparing(true);
     setError('');
     try {
@@ -423,6 +431,11 @@ function AudioEditor() {
                   setSelection({ key: modelKey(next), options: defaults(next.schema.properties?.options) });
               }}
             >
+              {model && !catalog.data?.models.some((m) => modelKey(m) === modelKey(model)) && (
+                <option disabled value={modelKey(model)}>
+                  {model.name}
+                </option>
+              )}
               {!model && (
                 <option value="">
                   {chosenKey ? 'Сохранённая модель недоступна — выберите другую' : 'Выберите модель'}

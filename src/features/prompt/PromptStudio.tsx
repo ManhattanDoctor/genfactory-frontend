@@ -1,3 +1,4 @@
+import { useRetainedModel } from '../catalog/useRetainedModel';
 import { promptSystem, videoAnalysisError, videoAnalysisTool } from './videoAnalysis';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -106,16 +107,34 @@ function PromptEditor() {
         (m) => m.capabilities?.includes('VIDEO_INPUT') && m.capabilities?.includes('TEXT_OUTPUT'),
       )
     : imageModels;
-  const model =
-    models.find((m) => m.reference.model === selected) ||
-    models.find((m) => m.reference.model === 'gpt-5.4') ||
-    models[0];
-  const unavailableModel =
-    !!selected &&
-    !!(hasVideo ? videoCatalog.data : catalog.data) &&
-    !models.some((m) => m.reference.model === selected);
+  const savedAnalysis = conversation?.options.tools?.find(
+    (tool) => typeof tool === 'object' && tool.uid === 'VIDEO_RECOGNITION',
+  );
+  const savedReference = hasVideo
+    ? typeof savedAnalysis === 'object'
+      ? savedAnalysis.settings?.model
+      : undefined
+    : conversation
+      ? { provider: conversation.model, model: conversation.options.model }
+      : undefined;
+  const retained = useRetainedModel(
+    savedReference,
+    (hasVideo ? videoCatalog.data : catalog.data) ? models : undefined,
+    auth.user?.id,
+  );
+  const model = selected
+    ? models.find((m) => m.reference.model === selected) ||
+      (retained?.reference.model === selected ? retained : undefined)
+    : models.find((m) => m.reference.model === 'gpt-5.4') || models[0];
+  const unavailableModel = !!selected && !!(hasVideo ? videoCatalog.data : catalog.data) && !model;
+  const retainedAssistant = useRetainedModel(
+    conversation ? { provider: conversation.model, model: conversation.options.model } : undefined,
+    catalog.data,
+    auth.user?.id,
+  );
   const assistantModel = hasVideo
-    ? imageModels.find((m) => m.reference.model === 'gpt-4o-mini' && m.capabilities?.includes('TOOLS')) ||
+    ? (conversation ? retainedAssistant : undefined) ||
+      imageModels.find((m) => m.reference.model === 'gpt-4o-mini' && m.capabilities?.includes('TOOLS')) ||
       imageModels.find((m) => m.capabilities?.includes('TOOLS'))
     : model;
   const messages = useInfiniteQuery({
@@ -267,6 +286,10 @@ function PromptEditor() {
       !input.aspects.length
     )
       return;
+    if (model?.status === 'DISABLED' || assistantModel?.status === 'DISABLED') {
+      setError('Модель отключена администратором. Выберите другую модель.');
+      return;
+    }
     if (rawId && !conversation) {
       setError('Откройте доступную беседу.');
       return;

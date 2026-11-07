@@ -1,3 +1,4 @@
+import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import type { IModelDescription } from '../../src/lib/types';
@@ -49,9 +50,9 @@ async function setup(page: Page, guest = false) {
     if (p === '/api/init') body = { user: { id: 7 }, balances: { RUB: '10000' } };
     else if (p === '/api/aimodels')
       body =
-        url.searchParams.get('provider') === 'OPEN_AI_CONVERSATION'
+        catalogProvider(url) === 'OPEN_AI_CONVERSATION'
           ? [agent]
-          : catalog.filter((m) => m.reference.provider === url.searchParams.get('provider'));
+          : catalog.filter((m) => m.reference.provider === catalogProvider(url));
     else if (p === '/api/conversation' && request.method() === 'POST') {
       state.creates.push(request.postDataJSON());
       state.conversation = {
@@ -97,7 +98,7 @@ async function setup(page: Page, guest = false) {
           : [file],
       );
     else if (p === '/api/fileTag') body = pagination([]);
-    await route.fulfill({ json: body });
+    await route.fulfill({ json: catalogResponse(route.request().url(), body) });
   });
   return state;
 }
@@ -411,9 +412,9 @@ test('image keeps incompatible references and blocks generation instead of switc
   noReferences.reference.model = 'test-no-references';
   delete noReferences.schema.properties!.task.properties!.fileIds;
   await page.route('**/api/aimodels?*', (route) => {
-    const provider = new URL(route.request().url()).searchParams.get('provider');
+    const provider = catalogProvider(route.request().url());
     return provider === catalog[0].reference.provider
-      ? route.fulfill({ json: [catalog[0], noReferences] })
+      ? route.fulfill({ json: catalogPage([catalog[0], noReferences]) })
       : route.fallback();
   });
   await page.goto('/image');

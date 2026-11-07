@@ -1,3 +1,4 @@
+import { useRetainedModel } from '../catalog/useRetainedModel';
 import { AgentWorkspace, agentRequest } from './AgentWorkspace';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import type { IUploadProgress } from '../../lib/api';
@@ -123,14 +124,19 @@ function TextEditor({ mode }: { mode: TextMode }) {
       ? { ...savedVideoTool, settings: { ...savedVideoTool.settings, isLockSelection: true } }
       : videoAnalysisTool(videoModel)
     : undefined;
-  const model =
-    models.data?.find(
-      (m) =>
-        m.reference.model ===
-        (modernAgent ? selected || conversation?.options.model : conversation?.options.model || selected),
-    ) ||
-    (modernAgent ? models.data?.find((m) => m.reference.model === 'gpt-5.4') : undefined) ||
-    models.data?.[0];
+  const retained = useRetainedModel(
+    conversation ? { provider: conversation.model, model: conversation.options.model } : undefined,
+    models.data,
+    auth.user?.id,
+  );
+  const requestedModelKey = modernAgent
+    ? selected || conversation?.options.model
+    : conversation?.options.model || selected;
+  const model = requestedModelKey
+    ? models.data?.find((m) => m.reference.model === requestedModelKey) ||
+      (retained?.reference.model === requestedModelKey ? retained : undefined)
+    : (modernAgent ? models.data?.find((m) => m.reference.model === 'gpt-5.4') : undefined) ||
+      models.data?.[0];
   useEffect(() => {
     if (conversation && !restored.current) {
       setToolIds((conversation.options.tools || []).map((t) => (typeof t === 'string' ? t : t.uid)));
@@ -309,8 +315,12 @@ function TextEditor({ mode }: { mode: TextMode }) {
       setError('Дождитесь загрузки моделей.');
       return;
     }
+    if (model?.status === 'DISABLED') {
+      setError('Модель отключена администратором. Выберите другую модель.');
+      return;
+    }
     const requestedModel = selected || conversation?.options.model;
-    if (modernAgent && requestedModel && !models.data?.some((m) => m.reference.model === requestedModel)) {
+    if (modernAgent && requestedModel && !model) {
       setError('Сохранённая модель недоступна. Выберите модель из списка.');
       return;
     }

@@ -9,6 +9,8 @@ export function apiErrorMessage(data: unknown, status: number): string {
     data && typeof data === 'object'
       ? (data as { code?: unknown; message?: unknown; details?: unknown })
       : {};
+  if (value.code === 'AI_MODEL_DISABLED') return 'Модель отключена администратором. Выберите другую модель.';
+  if (value.code === 'AI_MODEL_HIDDEN') return 'Модель недоступна для нового выбора. Выберите другую модель.';
   if (value.code === 'INSUFFICIENT_FUNDS') return userBalanceError;
   if (
     value.code === 'AI_VENDOR_ERROR' &&

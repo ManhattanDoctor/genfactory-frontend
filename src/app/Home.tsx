@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUp, ChevronDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -11,6 +11,30 @@ import { ModelReviews } from './ModelReviews';
 export function Home() {
   const { user } = useAuth();
   const [prompt, setPrompt] = useState('');
+  const input = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const area = input.current;
+    if (!area) return;
+    let active = true;
+    let width = area.clientWidth;
+    const resize = () => {
+      if (!active) return;
+      area.style.height = 'auto';
+      area.style.height = `${Math.min(168, area.scrollHeight)}px`;
+    };
+    resize();
+    const observer = new ResizeObserver(() => {
+      if (width === area.clientWidth) return;
+      width = area.clientWidth;
+      resize();
+    });
+    observer.observe(area);
+    void document.fonts.ready.then(resize);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [prompt]);
   const navigate = useNavigate();
   return (
     <div className="home studio-home page-enter">
@@ -34,6 +58,7 @@ export function Home() {
             Ваша задача
           </label>
           <textarea
+            ref={input}
             id="home-task"
             rows={1}
             value={prompt}

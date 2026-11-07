@@ -10,7 +10,18 @@ interface IRealtime {
   join: (room: string) => () => void;
 }
 const Context = createContext<IRealtime>({ connected: false, join: () => () => {} });
+const modelResources = [
+  'models',
+  'conversation-models',
+  'video-analysis-models',
+  'content-studio-models',
+  'generation-models',
+  'audio-models',
+  'audio-tools',
+  'retained-model',
+];
 const resources = [
+  ...modelResources,
   'account',
   'conversation',
   'conversations',
@@ -136,6 +147,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       'FileRemovedEvent',
       'FilePreviewChangedEvent',
       'CoinBalanceChangedEvent',
+      'AiModelChangedEvent',
     ];
     const receive = (event: { name?: string; data?: any }) => {
       if (!alive) return;
@@ -158,7 +170,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         client.setQueryData(['conversation-progress', user.id, id], { value: data, at: Date.now() });
         return;
       }
-      if (name.startsWith('Conversation'))
+      if (name === 'AiModelChangedEvent') refresh(modelResources);
+      else if (name.startsWith('Conversation'))
         refresh(['conversation', 'conversations', 'messages', 'active-jobs']);
       else if (name.startsWith('File'))
         refresh(['files', 'file-preview', 'messages', 'conversation', 'conversations']);

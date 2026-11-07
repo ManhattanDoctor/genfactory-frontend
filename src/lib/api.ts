@@ -192,8 +192,23 @@ export const api = {
     request<void>('/logout', { method: 'POST', signal: AbortSignal.timeout(10_000) }, sid),
   downloadFile: (id: number) => request<Blob>(`/file/${id}/content`, {}, getSession(), 'blob'),
   fileText: (id: number, signal?: AbortSignal) => request<{ text: string }>(`/file/${id}/text`, { signal }),
-  catalog: (provider: string, signal?: AbortSignal) =>
-    request<IModelDescription[]>(`/aimodels?provider=${encodeURIComponent(provider)}`, { signal }),
+  catalog: async (provider: string, signal?: AbortSignal) => {
+    const items: IModelDescription[] = [];
+    for (let pageIndex = 0; ; pageIndex++) {
+      const page = await request<IPagination<IModelDescription>>(
+        `/aimodels?${new URLSearchParams({
+          conditions: JSON.stringify({ provider, status: 'ACTIVE' }),
+          pageSize: '500',
+          pageIndex: String(pageIndex),
+        })}`,
+        { signal },
+      );
+      items.push(...page.items);
+      if (pageIndex + 1 >= page.pages) return items;
+    }
+  },
+  modelDescription: (reference: IModelDescription['reference'], signal?: AbortSignal) =>
+    request<IModelDescription>(`/aimodels/details?${new URLSearchParams(reference)}`, { signal }),
   details: (provider: string, signal?: AbortSignal) =>
     request<{ tools?: IToolDescription[] }>(`/aimodel/${encodeURIComponent(provider)}`, { signal }),
   editConversation: (
@@ -283,7 +298,24 @@ export const api = {
   },
   fileTags: (search: string, page: number) =>
     request<IPagination<{ tag: string; count: number }>>(
-      `/fileTag?${new URLSearchParams({ search, pageIndex: String(page), pageSize: '20' })}`,
+      `/fileTag?${new URLSearchParams({
+        conditions: JSON.stringify(
+          search.trim()
+            ? {
+                tag: {
+                  condition: 'CONTAINS',
+                  value:
+                    search
+                      .trim()
+                      .normalize('NFC')
+                      .replace(/[\\%_]/g, '\\$&') + '%',
+                },
+              }
+            : {},
+        ),
+        pageIndex: String(page),
+        pageSize: '20',
+      })}`,
     ),
   mediaFiles: (type: 'IMAGE' | 'VIDEO', page: number, signal?: AbortSignal) =>
     request<IPagination<IGnosisFile>>(

@@ -54,3 +54,12 @@ it('hides provider balance and internal failures', () => {
 it('preserves actionable non-financial client errors', () => {
   expect(apiErrorMessage({ message: 'Выберите файл MP4' }, 400)).toBe('Выберите файл MP4');
 });
+
+it('explains administrative model availability without exposing tariff data', () => {
+  expect(apiErrorMessage({ code: 'AI_MODEL_DISABLED', details: { price: 'private' } }, 400)).toBe(
+    'Модель отключена администратором. Выберите другую модель.',
+  );
+  expect(apiErrorMessage({ code: 'AI_MODEL_HIDDEN' }, 400)).toBe(
+    'Модель недоступна для нового выбора. Выберите другую модель.',
+  );
+});

@@ -1,3 +1,4 @@
+import { useRetainedModel } from '../catalog/useRetainedModel';
 import { followsReferenceRatio } from '../catalog/schema';
 import { bananaDefaults, bananaTitle } from './bananaSettings';
 import { MediaWorkspace } from './MediaWorkspace';
@@ -221,12 +222,16 @@ export function Studio({ kind }: { kind: MediaKind }) {
     )
     .map((m) => (specialized === 'banana' ? { ...m, name: bananaTitle(m) } : m));
   const modelKey = (m: IModelDescription) => `${m.reference.provider}:${m.reference.model}`;
-  const model =
-    models.find((m) => modelKey(m) === selected) ||
-    (specialized === 'banana'
-      ? models.find((m) => /gemini-3\.1-flash-image$/.test(m.reference.model))
-      : undefined) ||
-    models[0];
+  const savedReference = conversation ? connection(conversation, kind)?.settings?.model : undefined;
+  const retained = useRetainedModel(savedReference, catalog.data ? models : undefined, auth.user?.id);
+  const requestedKey =
+    selected || (savedReference ? `${savedReference.provider}:${savedReference.model}` : '');
+  const model = requestedKey
+    ? models.find((m) => modelKey(m) === requestedKey) ||
+      (retained && modelKey(retained) === requestedKey ? retained : undefined)
+    : (specialized === 'banana'
+        ? models.find((m) => /gemini-3\.1-flash-image$/.test(m.reference.model))
+        : undefined) || models[0];
   const currentKey = model ? modelKey(model) : '';
   uploadScope.current = `${auth.session}:${kind}:${currentKey}:${location.key}:${uploadEpoch.current}`;
   useEffect(() => {
@@ -345,12 +350,18 @@ export function Studio({ kind }: { kind: MediaKind }) {
       restored.current = '';
       return;
     }
-    if (!conversation || !models.length || restored.current === key) return;
+    if (!conversation || (!models.length && !retained) || restored.current === key) return;
     const saved = connection(conversation, kind)?.settings;
     if (saved) {
-      const found = models.find(
-        (m) => m.reference.provider === saved.model.provider && m.reference.model === saved.model.model,
-      );
+      const found =
+        models.find(
+          (m) => m.reference.provider === saved.model.provider && m.reference.model === saved.model.model,
+        ) ||
+        (retained?.reference.provider === saved.model.provider &&
+        retained.reference.model === saved.model.model
+          ? retained
+          : undefined);
+      if (!found) return;
       if (found) {
         const values = {
           ...(kind === 'video' && specialized === 'seedance'
@@ -370,7 +381,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       }
     }
     restored.current = key;
-  }, [conversation, conversationId, kind, models, currentKey, auth.user?.id]);
+  }, [conversation, conversationId, kind, models, retained, currentKey, auth.user?.id]);
   const referenceScope = `${auth.user?.id}:${kind}`;
   const previousReference = useRef({ scope: referenceScope, conversationId });
   useEffect(() => {
@@ -568,6 +579,10 @@ export function Studio({ kind }: { kind: MediaKind }) {
   const submit = async () => {
     if (!auth.user || !auth.session) {
       void auth.signIn();
+      return;
+    }
+    if (model?.status === 'DISABLED') {
+      setError('Модель отключена администратором. Выберите другую модель.');
       return;
     }
     if (!model || busy || uploading || submitting.current) return;
@@ -1166,6 +1181,11 @@ export function Studio({ kind }: { kind: MediaKind }) {
                         ? 'Загружаем модели…'
                         : 'Нет доступных моделей'
                       : 'Войдите, чтобы выбрать модель'}
+                  </option>
+                )}
+                {model && !models.some((m) => modelKey(m) === currentKey) && (
+                  <option value={currentKey} disabled>
+                    {model.name}
                   </option>
                 )}
                 {favoritesFirst(models, prefs.value.favoriteModels, modelKey).map((m) => (

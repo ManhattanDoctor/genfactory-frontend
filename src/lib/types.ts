@@ -22,6 +22,9 @@ export interface ISchema {
   [key: string]: unknown;
 }
 export interface IModelDescription {
+  id?: number;
+  status?: 'ACTIVE' | 'HIDDEN' | 'DISABLED';
+  sortOrder?: number;
   reference: { provider: string; model: string };
   name: string;
   schema: ISchema;

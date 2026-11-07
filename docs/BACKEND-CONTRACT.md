@@ -1,12 +1,12 @@
 # Существующий контракт gnosis
 
-Новый frontend использует беседы и универсальные инструменты. Новый backend API не требуется. Все перечисленные ниже пути реализованы в gnosis.
+Новый frontend использует беседы и универсальные инструменты. Ниже описан локальный контракт; изменения каталога от 2026-11-07 ещё не опубликованы. Все перечисленные ниже пути реализованы в gnosis.
 
 | Операция                             | Назначение                                                                                             |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | GET `/api/config`, POST `/api/login` | Конфигурация Keycloak, обмен code на SID                                                               |
 | GET `/api/init`, POST `/api/logout`  | Аккаунт, балансы, локальное завершение входа                                                           |
-| GET `/api/aimodels?provider=...`     | Каталоги ассистентов и image/video-моделей                                                             |
+| GET `/api/aimodels`                  | Каталоги ассистентов и image/video-моделей                                                             |
 | POST `/api/conversation`             | Беседа с моделью ассистента и `options.tools`                                                          |
 | GET `/api/conversation`              | Пагинация собственных бесед: `conditions.userId` обязателен в клиенте, в том числе для администраторов |
 | GET `/api/conversation/:id`          | Настройки и статус рабочей беседы                                                                      |
@@ -26,7 +26,7 @@ Socket.IO `/gnosisai`, путь `/socket.io`, auth `{token: sid}`. Подклю�
 
 ## Редактирование и каталог инструментов
 
-GET `/api/aimodel/:provider` возвращает `tools` с uid, именем и признаком устаревания. Это отдельный маршрут от GET `/api/aimodels?provider=...`. В новом выборе скрываются устаревшие подключения; сохранённые показываются и могут быть сняты пользователем.
+GET `/api/aimodel/:provider` возвращает `tools` с uid, именем и признаком устаревания. Это отдельный маршрут от GET `/api/aimodels`. В новом выборе скрываются устаревшие подключения; сохранённые показываются и могут быть сняты пользователем.
 
 PUT `/api/conversation/:id` используется для переименования и явного сохранения подключений. Клиент предварительно читает текущую беседу и передаёт `model` и все текущие `files` по ID: существующий обработчик обрабатывает массив файлов даже при изменении других полей. При изменении tools остальные options сохраняются. GET `/api/conversation` принимает `conditions.status = LOADING` вместе с обязательным ограничением userId.
 
@@ -86,13 +86,13 @@ Backend сохраняет сообщение и запускает беседу
 
 Conversation create/edit/read supports `fileOutput: { directory?: string | null, tags?: string[] }`. Missing settings keep legacy behavior; null directory means root and [] means no tags. Studios save edited settings before sending the next message. File uploads accept directory UID path and tags (JSON array or repeated multipart fields) in one request. These are not human-readable folder names.
 
-GET /api/fileTag?search=prefix&pageIndex=0&pageSize=20 returns `{ items: [{tag, count}], total, pages, pageIndex, pageSize }`, scoped to the current user. Tag matching via GET /api/file uses `conditions.tags = {type: "ARRAY", condition: "INCLUDES_ALL" | "INCLUDES_ONE_OF", value: ["tag"]}`. Count and result pagination cover all matching files, not just the visible page.
+Local update 2026-11-07: GET /api/fileTag accepts JSON `conditions` and `sort` plus `pageIndex`/`pageSize`, returning `{ items: [{tag, count}], total, pages, pageIndex, pageSize }`, scoped to the current user. Prefix suggestions use `conditions = { tag: { condition: "CONTAINS", value: "prefix%" } }`; the client escapes literal `%`, `_` and backslashes in the typed prefix. Conditions on `count` apply after distinct-file aggregation. Default order is count descending then tag ascending. The former separate `search` parameter is removed; this frontend requires the updated backend. Tag matching via GET /api/file continues to use `conditions.tags = {type: "ARRAY", condition: "INCLUDES_ALL" | "INCLUDES_ONE_OF", value: ["tag"]}`. Count and result pagination cover all matching files, not just the visible page. This contract change has not been deployed.
 
 File `origin` records kind (UPLOAD/GENERATION/PROCESSING), optional operationId and historical sourceFileIds; these are a provenance snapshot rather than foreign keys. Existing conversation/message attachment relations remain authoritative. `origin.directoryFallback` tells the viewer that a finished generated result had to be saved in root after its destination disappeared. The backend validates settings before execution and persists the snapshot in asynchronous video jobs.
 
 ## Audio conversations
 
-`/audio?mode=tts|stt&conversation=<id>` uses the same conversation APIs and socket rooms as the visual studios. Discover tool providers from `/aimodel/<conversation-provider>` and model settings/validation from `/aimodels?provider=...`. Persist `TTS` or `STT` connections in conversation options and send the selected connection in message settings. Model/voice/format lists are not duplicated in the client.
+`/audio?mode=tts|stt&conversation=<id>` uses the same conversation APIs and socket rooms as the visual studios. Discover tool providers from `/aimodel/<conversation-provider>` and model settings/validation from `/aimodels`. Persist `TTS` or `STT` connections in conversation options and send the selected connection in message settings. Model/voice/format lists are not duplicated in the client.
 
 TTS attaches an audio file; STT receives the exact selected audio/video file ID and `isFile=true`, attaching a full TXT transcript with source provenance. Files inherit the conversation output directory/tags. The library and message viewer provide playback/download; an accepted request with a network failure must not be retried automatically. Audio editor and library uploads accept files up to 1 GB (1,000,000,000 bytes); the frontend and public nginx proxies match the existing API limit of 1 GiB per request, leaving room for multipart headers. This upload limit is separate from model capabilities; STT splits long recordings on the backend.
 
@@ -102,3 +102,15 @@ TTS attaches an audio file; STT receives the exact selected audio/video file ID 
 - `GET /api/file/:id/content` streams original bytes with a download filename and original MIME. Used by the viewer download button for images, audio, video and documents. Directories and unresolved links are rejected.
 - Both routes require authentication and send `Cache-Control: private, no-store`. Browser code no longer depends on storage CORS for reading TXT or downloading originals. No AI calls or balance charges for these endpoints.
 - Tool connections carry the model only in `settings.model`; `settings.options` must exclude `model`, even though model catalog validation requires `options.model` in a direct task request.
+
+## Каталог моделей — локальное изменение 2026-11-07
+
+`GET /api/aimodels` теперь возвращает страницу `{items,total,pages,pageIndex,pageSize}`, а не массив. Provider и статус передаются через общий `conditions`: `{"provider":"OPEN_AI_IMAGE_GPT","status":"ACTIVE"}`. Поддерживаются стандартные sort/pageIndex/pageSize (максимум 500); клиент обходит все страницы. Верхнеуровневый provider и специальные флаги видимости не используются.
+
+Описание содержит id/status/sortOrder, но не тариф. ACTIVE доступна для выбора; HIDDEN сохраняется в старых настройках и может запускаться; DISABLED сохраняется для просмотра, но новый запуск отклоняется. Сохранённая модель, которой нет в ACTIVE, загружается через `GET /api/aimodels/details?provider=...&model=...`; клиент не заменяет её первой доступной. Пустой успешный каталог не подменяется встроенным списком. Backend проверяет статус до платного вызова; уже принятые асинхронные задания завершаются.
+
+AiModelChangedEvent обновляет запросы каталогов и сохранённых описаний в открытом Genfactory; тариф в событие не входит. Ошибки AI_MODEL_HIDDEN/AI_MODEL_DISABLED имеют безопасные сообщения для пользователя.
+
+Административные GET `/api/management/aimodel` и PUT `/api/management/aimodel/:id` доступны только ADMINISTRATOR. GET использует общую фильтрацию и возвращает записи с тарифами. PUT изменяет name/status/sortOrder/price; идентичность provider/model неизменяема. Управление реализовано локально в старом Angular-клиенте (/managementAiModels); отдельного экрана в Genfactory нет. Миграция 54 и однократный импорт переносят цены ai_price без изменения их валют/единиц; ai_price сохраняется для отката. Первый успешный импорт адаптера сохраняет исходный активный набор, новые модели последующих синхронизаций создаются HIDDEN. Административные изменения не перезаписываются.
+
+Контракт требует согласованной выкладки backend/common/Angular/Genfactory. Все эти изменения пока локальные; production продолжает работать по прежнему контракту.

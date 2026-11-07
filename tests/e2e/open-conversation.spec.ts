@@ -1,3 +1,4 @@
+import { catalogResponse } from './modelCatalog';
 import { test, expect } from '@playwright/test';
 const pagination = { items: [], total: 0, pages: 0, pageSize: 24, pageIndex: 0 };
 for (const [tag, target] of [
@@ -30,7 +31,7 @@ for (const [tag, target] of [
             : path === '/api/aimodels'
               ? []
               : pagination;
-      return route.fulfill({ json: body });
+      return route.fulfill({ json: catalogResponse(route.request().url(), body) });
     });
     await page.goto('/open?conversation=50');
     await expect(page).toHaveURL(new RegExp(`/${target}\\?conversation=50$`));

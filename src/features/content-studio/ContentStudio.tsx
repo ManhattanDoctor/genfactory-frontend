@@ -1,3 +1,4 @@
+import { useRetainedModel } from '../catalog/useRetainedModel';
 import { scriptReferences } from './script';
 import '../catalog/model-favorites.css';
 import { TemplateEditor } from './TemplateEditor';
@@ -240,9 +241,20 @@ export function ContentStudio() {
     setSelectedTemplate(undefined);
     textarea.current?.focus();
   };
+  const savedTool = work.conversation?.options.tools?.find(
+    (tool) =>
+      typeof tool === 'object' &&
+      (mode === 'image' ? ['IMAGE', 'IMAGE_OPEN_ROUTER'] : ['VIDEO', 'VIDEO_OPEN_ROUTER']).includes(tool.uid),
+  );
+  const savedReference = typeof savedTool === 'object' ? savedTool.settings?.model : undefined;
+  const retained = useRetainedModel(savedReference, catalog.data, user?.id);
   const model =
     catalog.data?.find((item) => modelKey(item) === selectedModel || item.name === selectedModel) ||
-    (selectedModel === 'Auto' ? catalog.data?.[0] : undefined);
+    (retained &&
+    (selectedModel === modelKey(retained) || selectedModel === retained.name || selectedModel === 'Auto')
+      ? retained
+      : undefined) ||
+    (selectedModel === 'Auto' && !savedReference ? catalog.data?.[0] : undefined);
   const modelProperties = model?.schema.properties?.options?.properties || {};
   const sizes = ratioSizes(model);
   const ratioOptions = model
@@ -399,19 +411,22 @@ export function ContentStudio() {
     const conversation = work.conversation;
     if (!conversation || restored.current === conversation.id || readyScope !== draftScope) return;
     const tool = conversation.options.tools?.find(
-      (item) => typeof item !== 'string' && ['IMAGE', 'VIDEO'].includes(item.uid),
+      (item) =>
+        typeof item !== 'string' &&
+        ['IMAGE', 'IMAGE_OPEN_ROUTER', 'VIDEO', 'VIDEO_OPEN_ROUTER'].includes(item.uid),
     );
     if (tool && typeof tool !== 'string') {
-      const target = tool.uid === 'IMAGE' ? 'image' : 'video';
+      const target = ['IMAGE', 'IMAGE_OPEN_ROUTER'].includes(tool.uid) ? 'image' : 'video';
       if (mode !== target) {
         setMode(target);
         return;
       }
-      const selected = catalog.data?.find(
-        (item) =>
-          item.reference.provider === tool.settings?.model.provider &&
-          item.reference.model === tool.settings?.model.model,
-      );
+      const selected =
+        catalog.data?.find(
+          (item) =>
+            item.reference.provider === tool.settings?.model.provider &&
+            item.reference.model === tool.settings?.model.model,
+        ) || retained;
       if (tool.settings && !selected) return;
       if (selected) setSelectedModel(modelKey(selected));
       setWriter(false);
@@ -430,7 +445,7 @@ export function ContentStudio() {
       }
     }
     restored.current = conversation.id;
-  }, [work.conversation, catalog.data, mode, readyScope, draftScope]);
+  }, [work.conversation, catalog.data, retained, mode, readyScope, draftScope]);
   const agent =
     work.agents.find(
       (item) => item.reference.model === 'gpt-4o-mini' && item.capabilities?.includes('TOOLS'),
@@ -606,6 +621,10 @@ export function ContentStudio() {
   async function submit() {
     if (!user || !session) {
       void signIn();
+      return;
+    }
+    if (model?.status === 'DISABLED') {
+      work.setError('Модель отключена администратором. Выберите другую модель.');
       return;
     }
     if (busy || submitting.current) return;

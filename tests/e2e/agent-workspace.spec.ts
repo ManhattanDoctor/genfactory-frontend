@@ -1,3 +1,4 @@
+import { catalogProvider, catalogResponse } from './modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const catalog = JSON.parse(readFileSync(new URL('../fixtures/banana-catalog.json', import.meta.url), 'utf8'));
@@ -66,9 +67,9 @@ async function setup(
     if (path === '/api/init') body = { user: { id: 7 }, balances: { RUB: '10000' } };
     else if (path === '/api/aimodels')
       body =
-        url.searchParams.get('provider') === 'OPEN_AI_CONVERSATION'
+        catalogProvider(url) === 'OPEN_AI_CONVERSATION'
           ? [agent]
-          : catalog.filter((m: any) => m.reference.provider === url.searchParams.get('provider'));
+          : catalog.filter((m: any) => m.reference.provider === catalogProvider(url));
     else if (path === '/api/conversation' && req.method() === 'POST') {
       state.creates.push(req.postDataJSON());
       body = state.conversation = {
@@ -102,7 +103,7 @@ async function setup(
           : [source],
       );
     else if (path === '/api/fileTag') body = pagination([]);
-    await route.fulfill({ json: body });
+    await route.fulfill({ json: catalogResponse(route.request().url(), body) });
   });
   return state;
 }
