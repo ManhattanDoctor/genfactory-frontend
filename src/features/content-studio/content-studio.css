@@ -21,6 +21,12 @@
 .content-studio button {
   cursor: pointer;
 }
+.content-studio .content-error {
+  margin: 16px 0;
+  color: #ff8d7a;
+  font-size: 14px;
+  line-height: 1.5;
+}
 .content-studio #creatives {
   height: 100%;
 }

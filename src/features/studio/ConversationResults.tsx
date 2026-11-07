@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { IConversation, IGnosisFile, MediaKind } from '../../lib/types';
 import { useConversationProgress } from './useConversationProgress';
+import { useConversationError } from './useConversationError';
 import { toolLabel } from './progress';
 import { displayMessageText } from './conversations';
 import { MessageContent } from '../../components/MessageContent';
@@ -22,6 +23,7 @@ export function ConversationResults({
 }) {
   const navigate = useNavigate();
   const progress = useConversationProgress(conversation);
+  const error = useConversationError(conversation);
   const [page, setPage] = useState(0);
   useEffect(() => {
     if (latestRequest) setPage(0);
@@ -57,7 +59,8 @@ export function ConversationResults({
       )}
       {conversation.status === 'ERROR' && (
         <p className="inline-error" role="status">
-          Выполнение завершилось с ошибкой. Проверьте сообщения и библиотеку перед новым запуском.
+          {error ||
+            'Выполнение завершилось с ошибкой. Проверьте сообщения и библиотеку перед новым запуском.'}
         </p>
       )}
       {messages.isPending && <p className="muted">Загружаем сообщения…</p>}

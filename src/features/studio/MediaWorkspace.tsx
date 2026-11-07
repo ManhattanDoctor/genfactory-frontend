@@ -23,7 +23,8 @@ import {
 } from 'lucide-react';
 import { api, safeMediaUrl } from '../../lib/api';
 import type { IConversation, IGnosisFile, IModelDescription, MediaKind } from '../../lib/types';
-import { modelKey, modelTitle, modelSummary } from '../catalog/presentation';
+import { favoritesFirst, modelKey, modelTitle, modelSummary } from '../catalog/presentation';
+import { useConversationError } from './useConversationError';
 import { choices, ratioSizes, sizeRatio, suggestedRatios } from '../content-studio/controls';
 import templates from '../content-studio/templates.json';
 import type { ITemplate } from '../content-studio/materials';
@@ -131,6 +132,7 @@ export function MediaWorkspace({
     setTemplateError('');
   }, [templateText, references.length]);
   const [notice, setNotice] = useState('');
+  const conversationError = useConversationError(conversation);
   const [answerView, setAnswerView] = useState<string>();
   useEffect(() => setAnswerView(undefined), [conversation?.id]);
   const downloading = useRef(new Set<number>());
@@ -334,7 +336,7 @@ export function MediaWorkspace({
       ? [
           <article key="failed" className="img-tile video-result-failed" role="alert">
             <img src="/media/prototype/content/video/fail-cry.jpg" alt="Ролик не собрался" />
-            <p className="video-failure-note">Ролик не собрался.</p>
+            <p className="video-failure-note">{conversationError || 'Ролик не собрался.'}</p>
           </article>,
         ]
       : []),
@@ -699,10 +701,11 @@ export function MediaWorkspace({
             {busy ? <span className="spinner" /> : <ArrowUp size={20} />}
           </button>
         </div>
-        {(templateError || error || notice || prefs.error || history.error) && (
+        {(templateError || error || conversationError || notice || prefs.error || history.error) && (
           <p className="img-guard" role="alert">
             {templateError ||
               error ||
+              conversationError ||
               notice ||
               prefs.error ||
               (history.error ? `Не удалось загрузить историю ${video ? 'видео' : 'изображений'}.` : '')}
@@ -813,7 +816,11 @@ export function ImageMenu({
     root.current?.querySelector('button')?.focus();
   };
   const [onlyFavorites, setOnlyFavorites] = useState(false);
-  const visible = models?.filter((model) => !onlyFavorites || favorites.includes(modelKey(model)));
+  const visible =
+    models &&
+    favoritesFirst(models, favorites, modelKey).filter(
+      (model) => !onlyFavorites || favorites.includes(modelKey(model)),
+    );
   return (
     <div
       className={`image-menu ${note ? 'video-setting-menu' : ''} ${models ? 'image-model-menu' : ''}`}

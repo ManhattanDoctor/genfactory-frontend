@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { TransportSocket, TransportSocketClient } from '@ts-core/socket-client';
 import type { ILogger } from '@ts-core/common';
 import { useAuth } from '../auth/AuthProvider';
+import { apiErrorMessage } from '../../lib/errorMessages';
 
 interface IRealtime {
   connected: boolean;
@@ -139,6 +140,19 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     const receive = (event: { name?: string; data?: any }) => {
       if (!alive) return;
       const { name = '', data = {} } = event || {};
+      if (name === 'ConversationErroredEvent' && Number.isSafeInteger(data.id) && data.id > 0) {
+        client.setQueryData(
+          ['conversation-error', user.id, data.id],
+          apiErrorMessage(data.error, data.error?.status || 500),
+        );
+      }
+      if (
+        (name === 'ConversationChangedEvent' && ['LOADING', 'LOADED'].includes(data.item?.status)) ||
+        name === 'ConversationClearedEvent' ||
+        name === 'ConversationRemovedEvent'
+      ) {
+        client.setQueryData(['conversation-error', user.id, data.id], '');
+      }
       if (name === 'TaskProgressedEvent' && /^conversation[1-9]\d*$/.test(data.session || '')) {
         const id = Number(data.session.slice('conversation'.length));
         client.setQueryData(['conversation-progress', user.id, id], { value: data, at: Date.now() });

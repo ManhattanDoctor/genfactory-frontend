@@ -655,6 +655,72 @@ test('HTTP progress restores video activity after reload without resubmitting', 
   expect(state.sends).toHaveLength(0);
 });
 
+for (const route of ['/chat', '/image', '/video']) {
+  test(`saved moderation reason survives a reload in ${route}`, async ({ page }) => {
+    const state = await mockApi(page);
+    const conversation: IConversation = {
+      ...savedConversation(),
+      status: 'ERROR',
+      error: { code: 'AI_VENDOR_ERROR', message: 'Generated video rejected by content moderation.' },
+    };
+    state.conversations.push(conversation);
+    state.messages.set(conversation.id, [
+      { id: 1, role: 'USER', text: 'Создай видео', files: [file], createdDate: file.createdDate },
+    ]);
+    await page.goto(`${route}?conversation=101`);
+    await expect(
+      page.getByText('Видео отклонено модерацией провайдера', { exact: false }).first(),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByText('Видео отклонено модерацией провайдера', { exact: false }).first(),
+    ).toBeVisible();
+    conversation.status = 'LOADING';
+    delete conversation.error;
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
+    await expect(page.getByText('Видео отклонено модерацией провайдера', { exact: false })).toHaveCount(0);
+    expect(state.sends).toHaveLength(0);
+  });
+}
+
+test('content studio explains moderation from the socket and clears it on the next run', async ({ page }) => {
+  const state = await mockApi(page);
+  const conversation = { ...savedConversation(), status: 'LOADING' as IConversation['status'] };
+  state.conversations.push(conversation);
+  state.messages.set(conversation.id, [
+    { id: 1, role: 'USER', text: 'Создай видео', files: [file], createdDate: file.createdDate },
+  ]);
+  await page.goto('/chat?conversation=101');
+  await expect.poll(() => state.joinedRooms.includes('conversation101')).toBe(true);
+  const emit = (name: string, data: unknown) =>
+    state.socket!.send(
+      '42/gnosisai,' + JSON.stringify(['transportSocketEvent', { uid: crypto.randomUUID(), name, data }]),
+    );
+  conversation.status = 'ERROR';
+  emit('ConversationErroredEvent', {
+    id: 101,
+    error: {
+      code: 'AI_VENDOR_ERROR',
+      message: 'AiVendorError',
+      details: 'Generated video rejected by content moderation.',
+      status: 400,
+    },
+  });
+  await expect(page.getByRole('alert')).toContainText('Видео отклонено модерацией провайдера');
+  conversation.status = 'LOADING';
+  emit('ConversationChangedEvent', { id: 101, item: { status: 'LOADING' } });
+  await expect(page.getByText('Видео отклонено модерацией провайдера', { exact: false })).toHaveCount(0);
+  conversation.status = 'ERROR';
+  emit('ConversationErroredEvent', {
+    id: 101,
+    error: { code: 'AI_VENDOR_ERROR', details: 'OpenRouter insufficient funds', status: 400 },
+  });
+  await expect(page.getByRole('alert')).toContainText('Сервис временно недоступен');
+  await expect(page.getByText('OpenRouter insufficient funds')).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
+});
+
 test('advanced editor: select arrows stay inside controls at desktop and mobile widths with long model names', async ({
   page,
 }) => {
@@ -1445,6 +1511,30 @@ test('advanced editor: searches models and keeps favorite models after reload', 
   ).toBeVisible();
 });
 
+test('favorite models rise to the top across image and content studio without changing selection', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/image');
+  const picker = page.getByRole('button', { name: 'Модель', exact: true });
+  await expect(picker).toContainText('GPT Image 2');
+  await picker.click();
+  await page.getByRole('button', { name: 'В избранные: GPT Image 1 Mini', exact: true }).click();
+  await expect(page.locator('.image-model-row').first()).toHaveAttribute('aria-label', 'GPT Image 1 Mini');
+  await expect(picker).toContainText('GPT Image 2');
+  await page.reload();
+  await picker.click();
+  await expect(page.locator('.image-model-row').first()).toHaveAttribute('aria-label', 'GPT Image 1 Mini');
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.locator('.cw-model').click();
+  await expect(page.getByRole('option').nth(0)).toHaveAttribute('aria-label', 'Auto');
+  await expect(page.getByRole('option').nth(1)).toHaveAttribute('aria-label', 'GPT Image 1 Mini');
+  await page.getByRole('button', { name: 'Убрать из избранных: GPT Image 1 Mini', exact: true }).click();
+  await expect(page.getByRole('option').nth(1)).toHaveAttribute('aria-label', 'GPT Image 2');
+  expect(state.sends).toHaveLength(0);
+});
+
 test('imports settings only after review and excludes session from export', async ({ page }) => {
   await mockApi(page);
   await page.goto('/brand');
@@ -1480,9 +1570,21 @@ test('tracks running jobs and confirms terminal state before notifying', async (
   const c = savedConversation();
   c.status = 'LOADING';
   state.conversations.push(c);
+  state.messages.set(c.id, [
+    { id: 1, role: 'ASSISTANT', files: [file], createdDate: file.createdDate },
+    {
+      id: 2,
+      role: 'USER',
+      text: 'Создай видео по исходному кадру',
+      files: [{ ...file, id: 82, name: 'Исходный кадр' }],
+      createdDate: file.createdDate,
+    },
+  ]);
   await page.goto('/library');
   await page.getByRole('button', { name: 'Активные работы: 1' }).click();
   await expect(page.getByRole('dialog').getByText('Saved creative work')).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('img', { name: 'Исходный кадр' })).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('img', { name: 'Test result' })).toHaveCount(0);
   c.status = 'ERROR';
   await page.getByRole('button', { name: 'Обновить статусы' }).click();
   await expect(page.getByRole('dialog').getByText('Нет выполняющихся работ.')).toBeVisible();
@@ -3190,8 +3292,9 @@ test('content studio uploads a reference and sends video with its file id', asyn
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].settings.tools[0]).toMatchObject({
     uid: 'VIDEO',
-    settings: { options: { duration: 8, aspectRatio: '9:16', generateAudio: false } },
+    settings: { options: { duration: 8, generateAudio: false } },
   });
+  expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('aspectRatio');
   await expect(page.locator('.cw-thread video')).toBeVisible();
 });
 
@@ -3436,12 +3539,145 @@ test('content studio sends sound duration scene structure and quality independen
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].text).toContain('Структура: Набор сцен');
+  expect(state.sends[0].text).toContain('Общая длительность всех сцен вместе');
+  expect(state.sends[0].text).not.toContain('Адаптируй сюжет в один непрерывный план');
   expect(state.sends[0].settings.tools[0].settings.options).toMatchObject({
     generateAudio: true,
     duration: 10,
     resolution: '720p',
     aspectRatio: '16:9',
   });
+});
+
+test('content studio adapts a multi-shot template to the selected continuous take', async ({ page }) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  const card = page
+    .locator('.cw-card')
+    .filter({ has: page.locator('strong', { hasText: 'Macro: detail and texture' }) });
+  await card.locator('.cw-card-media').click();
+  await card.locator('.cw-add').click();
+  const dialog = page.getByRole('dialog', { name: 'Macro: detail and texture', exact: true });
+  await expect(dialog.getByRole('region', { name: 'Настройки после применения' })).toContainText(
+    'Структура: Один кадр',
+  );
+  for (const input of await dialog.locator('[data-template-variable]').all()) await input.fill('Синяя чашка');
+  await dialog.getByRole('button', { name: 'Из библиотеки' }).click();
+  await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
+  await dialog.getByRole('button', { name: /Адаптировать под/ }).click();
+  await dialog.getByRole('button', { name: 'Использовать шаблон' }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue(/Shot 2/);
+  expect(state.sends).toHaveLength(0);
+  await page.reload();
+  await expect(page.locator('.cw-files')).toContainText('Начальный кадр: Test result');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].text).toContain('Структура: Один кадр');
+  expect(state.sends[0].text).toContain(
+    'она важнее структуры шаблона, готового сценария и предыдущих сообщений',
+  );
+  expect(state.sends[0].text).toContain('один непрерывный план без склеек');
+  expect(state.sends[0].text).toContain('не переноси это разбиение в сценарий и промпт инструмента VIDEO');
+  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].settings.tools[0]).toMatchObject({
+    uid: 'VIDEO',
+    isRequired: true,
+    settings: { isLockSelection: true },
+  });
+});
+
+test('content studio keeps unavailable draft references and blocks generation until removed', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
+  await page.locator('#cw-draft').fill('Поверни чашку');
+  await page.route('**/api/file/12', (route) =>
+    route.fulfill({ status: 404, json: { message: 'Not found' } }),
+  );
+  await page.reload();
+  await expect(page.locator('.cw-files')).toContainText('Test result · Недоступен');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Референс недоступен');
+  expect(state.sends).toHaveLength(0);
+  expect(state.creates).toHaveLength(0);
+  await page.getByRole('button', { name: 'Убрать Test result', exact: true }).click();
+  await page.reload();
+  await expect(page.locator('.cw-files')).toHaveCount(0);
+});
+
+test('content studio does not leak a delayed draft reference into another conversation', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation(101), savedConversation(102));
+  await page.goto('/chat?conversation=101');
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.content-studio.101')))
+    .toContain('Test result');
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/file/12', async (route) => {
+    await gate;
+    await route.fulfill({ json: file });
+  });
+  const requested = page.waitForRequest('**/api/file/12');
+  await page.reload();
+  await requested;
+  await page.evaluate(() => {
+    history.pushState(null, '', '/chat?conversation=102');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page.getByRole('button', { name: 'Добавить файл', exact: true })).toBeEnabled();
+  release();
+  await expect(page.locator('.cw-files')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.cw-files')).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('content studio sends the visible structure after restoring video parameters and reloading', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  const generation = {
+    model: { provider: 'OPEN_ROUTER_VIDEO', model: 'x-ai/grok-imagine-video-1.5-lite' },
+    prompt: 'Shot 1: blue cup. Shot 2: close-up of its handle.',
+    options: { duration: 8, resolution: '720p', aspectRatio: '9:16', generateAudio: false },
+  };
+  state.messages.set(101, [
+    {
+      id: 2,
+      role: 'ASSISTANT',
+      text: 'Готово',
+      createdDate: file.createdDate,
+      files: [
+        {
+          ...file,
+          id: 13,
+          type: 'VIDEO',
+          mime: 'video/mp4',
+          path: '/test-video.mp4',
+          origin: { kind: 'GENERATION', sourceFileIds: [], generation },
+        },
+      ],
+    },
+  ]);
+  await page.goto('/chat?conversation=101');
+  await page.getByRole('button', { name: 'Использовать параметры', exact: true }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue(generation.prompt);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Один кадр', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].text).toContain('Структура: Один кадр');
+  expect(state.sends[0].text).toContain('один непрерывный план без склеек');
+  expect(state.sends[0].settings.tools[0].settings.options).toEqual(generation.options);
 });
 
 test('content studio preserves presentation recipe and draft across reload', async ({ page }) => {
@@ -3509,6 +3745,8 @@ test('content studio applies a saved script with references without generating u
   expect(state.sends[0].settings.tools).toEqual([]);
   expect(state.sends[0].text).toContain('[Genfactory:context]');
   expect(state.sends[0].text).toContain('Структура: Один кадр');
+  expect(state.sends[0].text).toContain('предложи сценарий с выбранной структурой');
+  expect(state.sends[0].text).not.toContain('предложи сценарий по сценам');
   await expect(page.locator('.as-ask').first()).toHaveText('Подготовь сценарий для этой чашки');
   await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toBeVisible();
   await page.reload();

@@ -1,10 +1,44 @@
 import { expect, it } from 'vitest';
-import { apiErrorMessage, serviceError, userBalanceError } from '../src/lib/errorMessages';
+import {
+  apiErrorMessage,
+  serviceError,
+  userBalanceError,
+  videoModerationError,
+} from '../src/lib/errorMessages';
+it('explains the confirmed video moderation refusal without exposing arbitrary vendor details', () => {
+  expect(
+    apiErrorMessage(
+      {
+        code: 'AI_VENDOR_ERROR',
+        message: 'AiVendorError',
+        details: 'Generated video rejected by content moderation.',
+      },
+      400,
+    ),
+  ).toBe(videoModerationError);
+  expect(apiErrorMessage({ code: 'AI_VENDOR_ERROR', details: 'OpenRouter insufficient funds' }, 400)).toBe(
+    serviceError,
+  );
+  expect(apiErrorMessage({ code: 'AI_VENDOR_ERROR', details: { private: 'upstream data' } }, 400)).toBe(
+    serviceError,
+  );
+});
 it('only identifies application balance by its explicit code', () => {
   expect(apiErrorMessage({ code: 'INSUFFICIENT_FUNDS', message: 'InsufficientFundsError' }, 402)).toBe(
     userBalanceError,
   );
   expect(apiErrorMessage({ message: 'InsufficientFundsError' }, 400)).toBe(serviceError);
+});
+it('reads the saved moderation error without requiring raw provider details', () => {
+  expect(
+    apiErrorMessage(
+      { code: 'AI_VENDOR_ERROR', message: 'Generated video rejected by content moderation.' },
+      400,
+    ),
+  ).toBe(videoModerationError);
+  expect(apiErrorMessage({ code: 'AI_VENDOR_ERROR', message: 'OpenRouter insufficient funds' }, 400)).toBe(
+    serviceError,
+  );
 });
 it('hides provider balance and internal failures', () => {
   for (const data of [

@@ -81,105 +81,116 @@ export function TemplateEditor({
   };
   return (
     <>
-      <Modal title={item.title} onClose={onClose} wide>
+      <Modal title={item.title} onClose={onClose} wide className="template-dialog">
         <div className="template-editor">
-          {item.kind === 'video' ? (
-            <video src={item.src} controls playsInline preload="metadata" />
-          ) : (
-            <img src={item.src} alt={item.title} />
-          )}
-          <p className="muted">Пример приёма. Превью не передаётся генератору как референс.</p>
-          {item.kind === 'presentation' && (
-            <>
-              <p>Результат — текст по слайдам, не готовый файл PPTX/PDF.</p>
-              <label>
-                Тема и исходные факты
-                <textarea rows={4} value={brief} onChange={(e) => setBrief(e.target.value)} />
-              </label>
-            </>
-          )}
-          {variables.map((key) => (
-            <label key={key}>
-              {templateVariableLabel(key)}
-              <input
-                data-template-variable={key}
-                value={values[key] || ''}
-                onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-              />
-            </label>
-          ))}
-          <details>
-            <summary>Редактировать исходный шаблон</summary>
-            <label>
-              Текст шаблона
-              <textarea
-                rows={7}
-                value={text}
-                onChange={(e) => {
-                  setText(e.target.value);
-                  setError('');
-                }}
-              />
-            </label>
-          </details>
-          {policy !== 'none' && (
-            <fieldset>
-              <legend>Изображение-референс — {policy === 'required' ? 'обязательно' : 'по желанию'}</legend>
-              <p>{source?.name || 'Референс не выбран'}</p>
-              {source && (
-                <button type="button" className="text-button" onClick={() => setSource(undefined)}>
-                  Убрать референс
-                </button>
-              )}
-              {user && (
-                <button type="button" className="button" onClick={() => setLibrary(true)}>
-                  Из библиотеки
-                </button>
-              )}
-
-              {!user && (
-                <p>Войдите в аккаунт студии, чтобы выбрать или загрузить изображение в библиотеке.</p>
-              )}
-            </fieldset>
-          )}
-          {conflict && (
-            <div role="status">
-              <p>
-                В шаблоне {seconds} с, в редакторе {duration} с.
-              </p>
-              <button
-                type="button"
-                className="button"
-                onClick={() => {
-                  setText(adaptTemplateDuration(text, duration));
-                  setError('');
-                }}
-              >
-                Адаптировать под {duration} с
-              </button>
+          <aside className="template-example">
+            {item.kind === 'video' ? (
+              <video src={item.src} controls playsInline preload="metadata" />
+            ) : (
+              <img src={item.src} alt={item.title} />
+            )}
+            <p className="template-caption">Пример приёма · не используется как референс</p>
+            <section className="template-settings" aria-label="Настройки после применения">
+              <h3>Настройки после применения</h3>
+              <p>{launchSettings}</p>
+              <p>{item.kind === 'presentation' ? 'Текст по слайдам' : 'Сценарист выключен'}</p>
+            </section>
+          </aside>
+          <div className="template-fields">
+            {item.kind === 'presentation' && (
+              <>
+                <p>Результат — текст по слайдам, не готовый файл PPTX/PDF.</p>
+                <label>
+                  Тема и исходные факты
+                  <textarea rows={4} value={brief} onChange={(e) => setBrief(e.target.value)} />
+                </label>
+              </>
+            )}
+            <div className="template-variables">
+              {variables.map((key) => (
+                <label key={key}>
+                  {templateVariableLabel(key)}
+                  <input
+                    data-template-variable={key}
+                    value={values[key] || ''}
+                    onChange={(e) => setValues({ ...values, [key]: e.target.value })}
+                  />
+                </label>
+              ))}
             </div>
-          )}
-          <label>
-            Готовый текст для редактора
-            <textarea rows={7} value={prompt} readOnly />
-          </label>
-          <section aria-label="Настройки после применения">
-            <h3>Настройки после применения</h3>
-            <p>{launchSettings}</p>
-            <p>
-              {item.kind === 'presentation' ? 'Текст по слайдам.' : 'Сценарист: выключен.'} Референс:{' '}
-              {source?.name || 'без референса'}.
+            <details>
+              <summary>Редактировать исходный шаблон</summary>
+              <label>
+                Текст шаблона
+                <textarea
+                  rows={7}
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setError('');
+                  }}
+                />
+              </label>
+            </details>
+            {policy !== 'none' && (
+              <section className="template-reference" aria-label="Изображение-референс">
+                <h3>
+                  Изображение-референс <span>{policy === 'required' ? 'Обязательно' : 'По желанию'}</span>
+                </h3>
+                <p>{source?.name || 'Референс не выбран'}</p>
+                <div className="template-reference-actions">
+                  {source && (
+                    <button type="button" className="text-button" onClick={() => setSource(undefined)}>
+                      Убрать референс
+                    </button>
+                  )}
+                  {user && (
+                    <button type="button" className="button" onClick={() => setLibrary(true)}>
+                      Из библиотеки
+                    </button>
+                  )}
+                </div>
+                {!user && (
+                  <p>Войдите в аккаунт студии, чтобы выбрать или загрузить изображение в библиотеке.</p>
+                )}
+              </section>
+            )}
+            {conflict && (
+              <div className="template-duration" role="status">
+                <p>
+                  В шаблоне {seconds} с, в редакторе {duration} с.
+                </p>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => {
+                    setText(adaptTemplateDuration(text, duration));
+                    setError('');
+                  }}
+                >
+                  Адаптировать под {duration} с
+                </button>
+              </div>
+            )}
+            <label>
+              Готовый текст для редактора
+              <textarea rows={7} value={prompt} readOnly />
+            </label>
+          </div>
+        </div>
+        <footer className="template-footer">
+          {error && (
+            <p className="template-error" role="alert">
+              {error}
             </p>
-          </section>
-          <p className="muted small">
-            Задание заменит текст редактора. Вложения будут заменены выбранным референсом или очищены. Модель
-            и настройки редактора сохранятся; проверьте соответствие текста этим настройкам перед отправкой.
+          )}
+          <p className="template-caption">
+            Заменит текст и вложения редактора. Настройки сохранятся. Генерация начнётся после отправки.
           </p>
-          {error && <p role="alert">{error}</p>}
           <button type="button" className="button primary" onClick={apply}>
             Использовать шаблон
           </button>
-        </div>
+        </footer>
       </Modal>
       {library && (
         <LibraryPicker

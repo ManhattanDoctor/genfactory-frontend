@@ -116,6 +116,7 @@ export interface IConversation {
   userId: number;
   name: string;
   status: 'LOADED' | 'LOADING' | 'ERROR';
+  error?: { code: string; message: string };
   model: string;
   options: { model: string; tools?: (IToolConnection | string)[]; [key: string]: unknown };
   tags?: string[];

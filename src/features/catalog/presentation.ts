@@ -3,6 +3,16 @@ import { referenceLimit, supportsReferences } from './schema';
 
 export const modelKey = (model: IModelDescription) => `${model.reference.provider}:${model.reference.model}`;
 
+/** Sort display copies only: favorites must not change Auto or the selected model. */
+export function favoritesFirst<T>(
+  items: Array<T>,
+  favorites: Array<string>,
+  key: (item: T) => string,
+): Array<T> {
+  const selected = new Set(favorites);
+  return [...items].sort((a, b) => Number(selected.has(key(b))) - Number(selected.has(key(a))));
+}
+
 /** Presentation only: never change the provider/model identifiers sent to the API. */
 export function modelTitle(model: Pick<IModelDescription, 'reference' | 'name'>): string {
   if (model.name !== model.reference.model) return model.name;

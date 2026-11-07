@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
 import type { IModelDescription, IMessageCreate, IToolConnection } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
+import { videoModerationError } from '../../lib/errorMessages';
 
 export function useContentConversation() {
   const auth = useAuth();
@@ -47,7 +48,9 @@ export function useContentConversation() {
     onSettled: (_data, failure, variables) => {
       if (failure && getSession() === variables.sid)
         setError(
-          `${failure.message} Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
+          failure.message === videoModerationError
+            ? failure.message
+            : `${failure.message} Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
         );
       for (const key of ['conversation', 'messages', 'conversations', 'account'])
         void client.invalidateQueries({ queryKey: [key] });
@@ -117,10 +120,12 @@ export function useContentConversation() {
       await send.mutateAsync({ id: conversation.id, body, sid });
       return current();
     } catch (e) {
-      if (current())
+      if (current()) {
+        const message = e instanceof Error ? e.message : 'Запрос не выполнен.';
         setError(
-          `${e instanceof Error ? e.message : 'Запрос не выполнен.'}${sent ? ' Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.' : ''}`,
+          `${message}${sent && message !== videoModerationError ? ' Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.' : ''}`,
         );
+      }
       return false;
     } finally {
       lock.current = false;

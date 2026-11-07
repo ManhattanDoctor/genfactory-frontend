@@ -8,6 +8,8 @@ import type { IGnosisFile, IModelDescription, IMessageCreate, IToolConnection } 
 import { useAuth } from '../auth/AuthProvider';
 import { defaults, optionFields, validateRequest } from '../catalog/schema';
 import { ModelField } from '../catalog/ModelField';
+import { favoritesFirst } from '../catalog/presentation';
+import { usePreferences } from '../workspace/preferences';
 import { ConversationResults } from '../studio/ConversationResults';
 import { FileOutputEditor, useFileOutputSettings } from '../../components/FileOutputEditor';
 import { LibraryPicker } from '../../components/LibraryPicker';
@@ -23,6 +25,7 @@ export function AudioStudio() {
 }
 function AudioEditor() {
   const auth = useAuth();
+  const prefs = usePreferences();
   const location = useLocation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -425,7 +428,7 @@ function AudioEditor() {
                   {chosenKey ? 'Сохранённая модель недоступна — выберите другую' : 'Выберите модель'}
                 </option>
               )}
-              {catalog.data?.models.map((m) => (
+              {favoritesFirst(catalog.data?.models || [], prefs.value.favoriteModels, modelKey).map((m) => (
                 <option key={modelKey(m)} value={modelKey(m)}>
                   {m.name} · {m.reference.provider}
                 </option>

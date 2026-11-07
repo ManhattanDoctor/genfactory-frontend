@@ -22,7 +22,7 @@ import { ModelMark } from './ModelMark';
 import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
 import { toggleItem, usePreferences } from '../workspace/preferences';
-import { modelKey, modelTitle, modelSummary } from '../catalog/presentation';
+import { favoritesFirst, modelKey, modelTitle, modelSummary } from '../catalog/presentation';
 import templates from './templates.json';
 import icons from './icons.json';
 import fieldIcons from './fieldIcons.json';
@@ -38,6 +38,14 @@ interface IAttachment {
   slot?: 'start' | 'end';
   file?: File;
   saved?: IGnosisFile;
+  restoreId?: number;
+  isUnavailable?: boolean;
+}
+interface IReferenceDraft {
+  id?: number;
+  userId?: number;
+  name: string;
+  slot?: 'start' | 'end';
 }
 const modes: [StudioMode, string][] = [
   ['image', 'Изображение'],
@@ -161,6 +169,10 @@ export function ContentStudio() {
   const [shape, setShape] = useState('Один кадр');
   const [picked, setPicked] = useState<ITemplate[]>([]);
   const [attachments, setAttachments] = useState<IAttachment[]>([]);
+  const [restoringReferences, setRestoringReferences] = useState<{
+    scope: string;
+    values: Array<IReferenceDraft>;
+  }>();
   const [frameSlot, setFrameSlot] = useState<'start' | 'end'>();
   const [frameMenu, setFrameMenu] = useState<'start' | 'end'>();
   const [library, setLibrary] = useState<{ scope: string; slot?: 'start' | 'end' }>();
@@ -268,6 +280,12 @@ export function ContentStudio() {
     templateStartsFresh,
     templateIds: picked.map((item) => item.id),
     draft,
+    references: attachments.map((item): IReferenceDraft => ({
+      id: item.saved?.id ?? item.restoreId,
+      userId: item.saved?.userId ?? user?.id,
+      name: item.name,
+      slot: item.slot,
+    })),
   };
   const initialStudioValue = useRef({ ...studioValue, draft: '' });
   const studioDraft = useDraft(`content-studio.${work.id ?? 'new'}`, studioValue, true);
@@ -325,15 +343,58 @@ export function ContentStudio() {
         setPicked((templates as ITemplate[]).filter((item) => saved.templateIds.includes(item.id)));
       setRestoredGeneration(saved.restoredGeneration);
       if (typeof saved.draft === 'string') setDraft(saved.draft);
+      if (Array.isArray(saved.references) && saved.references.length) {
+        setRestoringReferences({ scope: draftScope, values: saved.references });
+      } else setRestoringReferences(undefined);
       if (stored) restored.current = work.id;
     }
     createdConversation.current = undefined;
     setReadyScope(draftScope);
   }, [draftScope, readyScope, work.conversation, studioDraft.available]);
+  useEffect(() => {
+    if (!restoringReferences || restoringReferences.scope !== draftScope || !user || !session) return;
+    let cancelled = false;
+    const sid = session;
+    const values = restoringReferences.values.filter((item) => item && typeof item.name === 'string');
+    void Promise.all(
+      values.map(async (item): Promise<IAttachment> => {
+        const slot = item.slot === 'start' || item.slot === 'end' ? item.slot : undefined;
+        const id =
+          item.userId === user.id && Number.isSafeInteger(item.id) && item.id! > 0 ? item.id : undefined;
+        if (id) {
+          try {
+            const file = await api.file(id, sid);
+            if (file.userId === user.id && file.type === 'IMAGE') {
+              return { id: String(id), name: file.name, url: file.path, type: file.mime, saved: file, slot };
+            }
+          } catch {
+            // Keep an unavailable reference visible; never silently generate without it.
+          }
+        }
+        return {
+          id: crypto.randomUUID(),
+          name: item.name,
+          url: '',
+          type: 'image/',
+          slot,
+          restoreId: id,
+          isUnavailable: true,
+        };
+      }),
+    ).then((items) => {
+      if (cancelled || getSession() !== sid) return;
+      setAttachments(items);
+      setRestoringReferences(undefined);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [restoringReferences, draftScope, session, user?.id]);
   const studioSerialized = JSON.stringify(studioValue);
   useEffect(() => {
-    if (readyScope === draftScope && (!work.id || restored.current === work.id)) studioDraft.changed();
-  }, [readyScope, draftScope, studioSerialized, work.conversation]);
+    if (!restoringReferences && readyScope === draftScope && (!work.id || restored.current === work.id))
+      studioDraft.changed();
+  }, [readyScope, draftScope, studioSerialized, work.conversation, restoringReferences]);
   useEffect(() => {
     const conversation = work.conversation;
     if (!conversation || restored.current === conversation.id || readyScope !== draftScope) return;
@@ -374,7 +435,8 @@ export function ContentStudio() {
     work.agents.find(
       (item) => item.reference.model === 'gpt-4o-mini' && item.capabilities?.includes('TOOLS'),
     ) || work.agents.find((item) => item.capabilities?.includes('TOOLS'));
-  const busy = work.busy || uploading || preparingFrame || restoringResult;
+  const busy =
+    work.busy || uploading || preparingFrame || restoringResult || restoringReferences?.scope === draftScope;
   useEffect(() => {
     if (!busy && focusRestoredDraft.current) {
       focusRestoredDraft.current = false;
@@ -556,6 +618,10 @@ export function ContentStudio() {
     const sourceAttachments = attachments;
     const preparingScript = writer;
     try {
+      if (sourceAttachments.some((item) => item.isUnavailable))
+        throw new Error(
+          'Референс недоступен. Выберите файл заново в библиотеке или уберите его перед отправкой.',
+        );
       if (picked.some((item) => item.kind !== mode))
         throw new Error('Выбран шаблон другого типа. Вернитесь в его режим или уберите шаблон.');
       if (sourceAttachments.some((item) => item.slot) && sourceAttachments.some((item) => !item.slot))
@@ -642,8 +708,13 @@ export function ContentStudio() {
               ...creative,
             ]
           : []),
-        ...(mode === 'video' && (!restoredGeneration || shape !== 'Один кадр')
-          ? [`Структура: ${shape}`]
+        ...(mode === 'video'
+          ? [
+              `Структура: ${shape}. Это настройка текущего запуска; она важнее структуры шаблона, готового сценария и предыдущих сообщений.`,
+              shape === 'Один кадр'
+                ? 'Адаптируй сюжет в один непрерывный план без склеек, монтажных переходов и смен сцен. Сохрани героев, предметы и основное действие; движение камеры допустимо. Если исходный текст разбит на несколько планов, не переноси это разбиение в сценарий и промпт инструмента VIDEO: опиши действие непрерывно.'
+                : 'Построй последовательность сцен; монтажные переходы допустимы. Общая длительность всех сцен вместе должна соответствовать длительности текущего запуска, а не назначаться каждой сцене отдельно.',
+            ]
           : []),
         ...(brand && prefs.value.brand ? [`Правила бренда: ${prefs.value.brand}`] : []),
       ]
@@ -861,10 +932,12 @@ export function ContentStudio() {
                           <span>
                             {file.slot ? `${file.slot === 'start' ? 'Начальный' : 'Конечный'} кадр: ` : ''}
                             {file.name}
+                            {file.isUnavailable ? ' · Недоступен' : ''}
                           </span>
                           <button
                             type="button"
                             aria-label={`Убрать ${file.name}`}
+                            disabled={busy}
                             onClick={() => {
                               setAttachments((p) => p.filter((f) => f !== file));
                               setTemplateNotice('');
@@ -1332,6 +1405,7 @@ export function ContentStudio() {
           item={editingTemplate}
           launchSettings={[
             `Модель: ${model ? modelTitle(model) : 'Auto'}`,
+            ...(mode === 'video' ? [`Структура: ${shape}`] : []),
             referenceRatio
               ? 'Формат: по исходному кадру'
               : ratioOptions.length
@@ -1344,7 +1418,7 @@ export function ContentStudio() {
             .filter(Boolean)
             .join(' · ')}
           duration={duration}
-          reference={attachments.find((file) => !file.slot || file.slot === 'start')}
+          reference={attachments.find((file) => !file.isUnavailable && (!file.slot || file.slot === 'start'))}
           onClose={() => setEditingTemplate(undefined)}
           onApply={(prompt, reference) => {
             if (reference && model && referenceLimit(model) < 1) {
@@ -1460,17 +1534,19 @@ function StudioMenu({
   const [search, setSearch] = useState('');
   const [info, setInfo] = useState<number>();
   const [onlyFavorites, setOnlyFavorites] = useState(false);
-  const visibleOptions = options
-    .map((option, i) => ({ option, i }))
-    .filter(
-      ({ option, i }) =>
-        !searchTerms ||
-        option === 'Auto' ||
-        ((!onlyFavorites || favorites?.includes(option)) &&
-          `${titles?.[i]} ${descriptions?.[i]} ${searchTerms[i]}`
-            .toLowerCase()
-            .includes(search.trim().toLowerCase())),
-    );
+  const visibleOptions = favoritesFirst(
+    options.map((option, i) => ({ option, i })),
+    ['Auto', ...(favorites || [])],
+    ({ option }) => option,
+  ).filter(
+    ({ option, i }) =>
+      !searchTerms ||
+      option === 'Auto' ||
+      ((!onlyFavorites || favorites?.includes(option)) &&
+        `${titles?.[i]} ${descriptions?.[i]} ${searchTerms[i]}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase())),
+  );
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;

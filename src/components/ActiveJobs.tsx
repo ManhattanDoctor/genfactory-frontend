@@ -1,13 +1,49 @@
 import { conversationUrl as workUrl } from '../lib/conversationUrl';
 import './active-jobs.css';
-import { History, RefreshCw } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { History, Image, LoaderCircle, RefreshCw } from 'lucide-react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../lib/api';
 import type { IConversation } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { Modal } from './Modal';
+const JobMedia = lazy(() => import('./MediaPreview').then(({ Media }) => ({ default: Media })));
+
+function JobCard({ conversation, onOpen }: { conversation: IConversation; onOpen: () => void }) {
+  // Mounted only while the window is open; shares the conversation's message cache.
+  const messages = useQuery({
+    queryKey: ['messages', conversation.userId, conversation.id, 0],
+    queryFn: ({ signal }) => api.messages(conversation.id, 0, signal),
+    retry: false,
+  });
+  const ask = messages.data?.items.find((message) => message.role === 'USER');
+  const files = ask?.files?.filter((file) => file.userId === conversation.userId) || [];
+  const reference = files.find((file) => ['IMAGE', 'VIDEO'].includes(file.type)) || files[0];
+  return (
+    <Link className="job-card" to={workUrl(conversation)} onClick={onOpen}>
+      <div className="job-card-preview">
+        {reference ? (
+          <Suspense fallback={<Image size={24} strokeWidth={1.5} aria-hidden="true" />}>
+            <JobMedia file={reference} isPlaybackDisabled />
+          </Suspense>
+        ) : (
+          <Image size={24} strokeWidth={1.5} aria-hidden="true" />
+        )}
+      </div>
+      <div className="job-card-content">
+        <b className="job-card-title" title={conversation.name}>
+          {conversation.name}
+        </b>
+        <span className="job-card-status">
+          <LoaderCircle size={14} aria-hidden="true" />
+          Выполняется
+        </span>
+      </div>
+    </Link>
+  );
+}
+
 export function ActiveJobs() {
   const auth = useAuth();
   return auth.user ? (
@@ -133,13 +169,10 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
             ) : !running.length ? (
               <p>Нет выполняющихся работ.</p>
             ) : (
-              <ul className="jobs-list">
+              <ul className="jobs-grid">
                 {running.map((c) => (
                   <li key={c.id}>
-                    <Link to={workUrl(c)} onClick={() => setOpen(false)}>
-                      {c.name}
-                    </Link>
-                    <span className="small muted">Выполняется</span>
+                    <JobCard conversation={c} onOpen={() => setOpen(false)} />
                   </li>
                 ))}
               </ul>

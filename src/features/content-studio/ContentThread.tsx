@@ -7,6 +7,7 @@ import { MessageContent } from '../../components/MessageContent';
 import { MediaPreview } from '../../components/MediaPreview';
 import { displayMessageText } from '../studio/conversations';
 import { useConversationProgress } from '../studio/useConversationProgress';
+import { useConversationError } from '../studio/useConversationError';
 import { toolLabel } from '../studio/progress';
 import { modelTitle } from '../catalog/presentation';
 import { useAuth } from '../auth/AuthProvider';
@@ -39,6 +40,7 @@ export function ContentThread({
   const [copyError, setCopyError] = useState(false);
   const [jump, setJump] = useState(false);
   const progress = useConversationProgress(conversation);
+  const error = useConversationError(conversation);
   const messages = useQuery({
     queryKey: ['messages', conversation.userId, conversation.id, page],
     queryFn: ({ signal }) => api.messages(conversation.id, page, signal),
@@ -296,7 +298,9 @@ export function ContentThread({
       )}
       {copyError && <p role="status">Не удалось скопировать текст.</p>}
       {conversation.status === 'ERROR' && (
-        <p role="alert">Работа завершилась с ошибкой. Проверьте сообщения перед новым запуском.</p>
+        <p className="inline-error content-error" role="alert">
+          {error || 'Работа завершилась с ошибкой. Проверьте сообщения перед новым запуском.'}
+        </p>
       )}
       {!!messages.data && messages.data.pages > 1 && (
         <nav aria-label="Страницы сообщений">

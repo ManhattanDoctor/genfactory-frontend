@@ -12,6 +12,8 @@ import { useDraft, DraftBar, restoreDraftFiles } from '../workspace/drafts';
 import { UploadSurface } from '../../components/UploadSurface';
 import { ReferenceList } from '../../components/ReferenceList';
 import { ModelBrowser } from '../catalog/ModelBrowser';
+import { favoritesFirst } from '../catalog/presentation';
+import { useConversationError } from './useConversationError';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation, useIsMutating } from '@tanstack/react-query';
@@ -109,6 +111,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     retry: false,
   });
   const conversation = conversationQuery.data;
+  const conversationError = useConversationError(conversation);
   const fileOutput = useFileOutputSettings(
     `${auth.user?.id}:${location.pathname}:${location.search}`,
     conversation,
@@ -815,7 +818,8 @@ export function Studio({ kind }: { kind: MediaKind }) {
           (draft.status.startsWith('Не удалось') ? draft.status : '') ||
           (send.error instanceof Error ? imageSendError(send.error) : '') ||
           (conversation?.status === 'ERROR'
-            ? 'Предыдущий запрос завершился с ошибкой. Проверьте результаты перед новым запуском.'
+            ? conversationError ||
+              'Предыдущий запрос завершился с ошибкой. Проверьте результаты перед новым запуском.'
             : '') ||
           (catalog.error instanceof Error ? catalog.error.message : '') ||
           (conversationQuery.error instanceof Error ? conversationQuery.error.message : '')
@@ -1164,7 +1168,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
                       : 'Войдите, чтобы выбрать модель'}
                   </option>
                 )}
-                {models.map((m) => (
+                {favoritesFirst(models, prefs.value.favoriteModels, modelKey).map((m) => (
                   <option key={modelKey(m)} value={modelKey(m)}>
                     {m.name}
                   </option>
