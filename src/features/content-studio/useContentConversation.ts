@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
 import type { IModelDescription, IMessageCreate, IToolConnection } from '../../lib/types';
@@ -9,18 +9,31 @@ import { videoModerationError } from '../../lib/errorMessages';
 export function useContentConversation() {
   const auth = useAuth();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const raw = params.get('conversation');
   const id = raw && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : undefined;
   const client = useQueryClient();
   const [error, setError] = useState('');
   const [preparing, setPreparing] = useState(false);
   const lock = useRef(false);
-  const scope = useRef('');
-  const active = `${auth.session}:${raw}`;
-  scope.current = active;
+  const route = `${auth.session}:${location.key}:${raw}`;
+  const scope = useRef({ route, token: {} });
+  const pendingCreation = useRef<{ from: string; session: string; id: number } | undefined>(undefined);
+  if (scope.current.route !== route) {
+    const pending = pendingCreation.current;
+    const ownNavigation =
+      pending?.from === scope.current.route && pending.session === auth.session && pending.id === id;
+    if (!ownNavigation) scope.current.token = {};
+    scope.current.route = route;
+    pendingCreation.current = undefined;
+  }
+  // Own creation keeps its token through intermediate renders and the new route.
+  // Any other navigation, including the same URL with another history key, cancels it.
+  const active = scope.current.token;
   useEffect(
     () => () => {
-      scope.current = '';
+      scope.current.token = {};
+      pendingCreation.current = undefined;
     },
     [],
   );
@@ -65,7 +78,7 @@ export function useContentConversation() {
     agent?: IModelDescription,
     onCreated?: (id: number) => void,
   ) {
-    if (!auth.user || !auth.session || lock.current || busy || scope.current !== active) return false;
+    if (!auth.user || !auth.session || lock.current || busy || scope.current.token !== active) return false;
     if (raw && !detail.data) {
       setError('Дождитесь загрузки беседы.');
       return false;
@@ -79,8 +92,8 @@ export function useContentConversation() {
     setError('');
     const sid = auth.session;
     const userId = auth.user.id;
-    let currentScope = active;
-    const current = () => getSession() === sid && scope.current === currentScope;
+    const currentScope = active;
+    const current = () => getSession() === sid && scope.current.token === currentScope;
     let sent = false;
     try {
       let conversation = detail.data;
@@ -112,8 +125,7 @@ export function useContentConversation() {
       client.setQueryData(['conversation', userId, conversation.id], conversation);
       if (!id) {
         onCreated?.(conversation.id);
-        currentScope = `${sid}:${conversation.id}`;
-        scope.current = currentScope;
+        pendingCreation.current = { from: route, session: sid, id: conversation.id };
         setParams({ conversation: String(conversation.id) }, { replace: true });
       }
       sent = true;

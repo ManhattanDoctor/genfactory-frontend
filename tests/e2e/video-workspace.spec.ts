@@ -103,6 +103,12 @@ async function setup(page: Page, guest = false) {
 
 test('video canvas shows designer templates, guest composer and responsive geometry', async ({ page }) => {
   const state = await setup(page, true);
+  await page.route('**/api/config', (route) =>
+    route.fulfill({
+      json: { keycloak: { url: 'https://sso.example.test', realm: 'gnosis', clientId: 'gnosis' } },
+    }),
+  );
+  await page.route('https://sso.example.test/**', (route) => route.fulfill({ body: 'Mock sign-in' }));
   await page.goto('/video');
   await expect(page.locator('.video-workspace')).toBeVisible();
   await expect(page.locator('.ds-template-card')).toHaveCount(30);
@@ -110,7 +116,8 @@ test('video canvas shows designer templates, guest composer and responsive geome
   await expect(page.getByRole('button', { name: 'Убрать шаблон', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Редактировать шаблон', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
+  expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
 });
 

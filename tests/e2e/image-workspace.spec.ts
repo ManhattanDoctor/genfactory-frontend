@@ -102,17 +102,24 @@ async function setup(page: Page, guest = false) {
   });
   return state;
 }
-test('image canvas matches designer geometry and guest can open login from the composer', async ({
+test('image canvas matches designer geometry and guest starts direct login from the composer', async ({
   page,
 }) => {
   const state = await setup(page, true);
+  await page.route('**/api/config', (route) =>
+    route.fulfill({
+      json: { keycloak: { url: 'https://sso.example.test', realm: 'gnosis', clientId: 'gnosis' } },
+    }),
+  );
+  await page.route('https://sso.example.test/**', (route) => route.fulfill({ body: 'Mock sign-in' }));
   await page.goto('/image');
   await expect(page.locator('.ds-template-card')).toHaveCount(130);
   expect(await page.locator('.img-dock').boundingBox()).toEqual({ x: 484, y: 782, width: 720, height: 146 });
   await expect(page.getByRole('button', { name: 'Собрать изображение', exact: true })).toBeDisabled();
   await page.getByRole('textbox', { name: 'Идея', exact: true }).fill('Закат над лесом');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
+  expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
 });
 test('image model controls send actual settings, show result and recover it on reload', async ({ page }) => {
@@ -632,14 +639,26 @@ test('a completed image clears the earlier clarification from the workspace', as
     createdDate: file.createdDate,
   };
   state.messages = [question, ...state.messages];
+  const restoredMessages = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/conversation/101/message' &&
+      response.request().method() === 'GET',
+  );
   await page.reload();
+  await restoredMessages;
   await expect(page.locator('.media-answer-card')).toContainText(question.text);
   await page.locator('#img-draft').fill('Синяя чашка');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(2);
   // The old question remains in the conversation history after a successful answer.
   state.messages.push(question);
+  const completedMessages = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/conversation/101/message' &&
+      response.request().method() === 'GET',
+  );
   await page.reload();
+  await completedMessages;
   await expect(page.locator('.image-result')).toHaveCount(1);
   await expect(page.locator('.media-answer-card')).toHaveCount(0);
 });

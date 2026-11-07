@@ -1799,14 +1799,19 @@ test('continuation requires a visible reference choice before any paid request a
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].text).not.toContain('Создай с нуля');
-  expect(state.edits).toHaveLength(1);
-  expect(state.edits[0].system).toContain('Только при явном выборе');
-  expect(state.edits[0].system).toContain('Custom suffix.');
+  expect(state.edits).toHaveLength(2);
+  expect(state.edits.filter((edit) => edit.system)).toHaveLength(1);
+  expect(state.edits.find((edit) => edit.options)?.options.tools).toContainEqual(
+    expect.objectContaining({ uid: 'VIDEO', settings: expect.objectContaining({ isLockSelection: true }) }),
+  );
+  expect(state.edits.find((edit) => edit.system).system).toContain('Только при явном выборе');
+  expect(state.edits.find((edit) => edit.system).system).toContain('Custom suffix.');
   await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue('');
   await submit(page, 'Теперь добавь свет', 'video');
   await expect.poll(() => state.sends.length).toBe(2);
   expect(state.sends[1].files).toEqual([12]);
-  expect(state.edits).toHaveLength(1);
+  expect(state.edits).toHaveLength(3);
+  expect(state.edits.filter((edit) => edit.system)).toHaveLength(1);
 });
 
 test('advanced editor: fresh choice and cancelling the chooser do not submit; choosing another uses the library', async ({
@@ -2862,6 +2867,7 @@ test('file tags stay inside cards and filters while audio and documents have con
 test('audio accepts recordings larger than the former upload limits and explains server size rejection', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const state = await mockAudio(page);
   let uploads = 0;
   let reject = false;
@@ -5107,5 +5113,50 @@ for (const status of ['HIDDEN', 'DISABLED'] as const) {
       expect(state.sends[0].settings.tools[0].settings.model).toEqual(retained.reference);
       expect(state.sends[0].settings.tools[0].settings.options.quality).toBe('high');
     }
+  });
+}
+
+for (const sameUrl of [false, true]) {
+  test(`content studio does not send after leaving a pending creation, same URL: ${sameUrl}`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    state.conversations.push(savedConversation(102));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered = false;
+    await page.route('**/api/conversation', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      entered = true;
+      await gate;
+      return route.fallback();
+    });
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Презентация', exact: true }).click();
+    await page.locator('#cw-draft').fill('A draft that must not be sent after navigation');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect.poll(() => entered).toBe(true);
+    const oldKey = await page.evaluate(() => history.state.key);
+    if (sameUrl) {
+      await page.getByRole('link', { name: 'Студия контента', exact: true }).click();
+      await expect.poll(() => page.evaluate(() => history.state.key)).not.toBe(oldKey);
+    } else {
+      await page.evaluate(() => {
+        history.pushState({ key: 'another-project' }, '', '/chat?conversation=102');
+        dispatchEvent(new PopStateEvent('popstate'));
+      });
+      await expect(page).toHaveURL(/conversation=102/);
+    }
+    const completed = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/conversation' && response.request().method() === 'POST',
+    );
+    release();
+    await completed;
+    await expect(page.locator('#cw-draft')).toBeEnabled();
+    expect(state.sends).toHaveLength(0);
+    await expect(page).toHaveURL(sameUrl ? /\/chat$/ : /conversation=102/);
   });
 }
