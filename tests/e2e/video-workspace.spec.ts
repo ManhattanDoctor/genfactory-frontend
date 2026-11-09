@@ -1,4 +1,5 @@
 import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
+import { modelTitle } from '../../src/features/catalog/presentation';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const catalog = JSON.parse(readFileSync(new URL('../fixtures/catalog.json', import.meta.url), 'utf8')).filter(
@@ -8,7 +9,10 @@ for (const [index, model] of catalog.entries()) {
   Object.assign(model.schema.properties.options.properties, {
     duration: { type: 'integer', enum: [4, 6, 8, 10] },
     aspectRatio: { type: 'string', enum: ['9:16', '16:9', '1:1'] },
-    generateAudio: index === 0 ? { type: 'boolean', const: true, default: true } : { type: 'boolean' },
+    generateAudio: ['x-ai/grok-imagine-video-1.5-lite', 'alibaba/wan-3.0'].includes(model.reference.model)
+      ? { type: 'boolean', const: true, default: true }
+      : { type: 'boolean' },
+    resolution: { type: 'string', enum: index === 2 ? ['480p', '720p'] : ['480p', '720p', '1080p'] },
   });
 }
 const agent = JSON.parse(readFileSync(new URL('../fixtures/agent.json', import.meta.url), 'utf8'));
@@ -37,7 +41,7 @@ const result = {
     generation: {
       model: catalog[0].reference,
       prompt: 'Медленный поворот чашки',
-      options: { duration: 4, aspectRatio: '1:1', generateAudio: true },
+      options: { duration: 4, aspectRatio: '1:1', resolution: '720p', generateAudio: true },
     },
   },
 };
@@ -101,6 +105,33 @@ async function setup(page: Page, guest = false) {
   return state;
 }
 
+test('Wan keeps audio enabled when restoring a saved draft that requested silence', async ({ page }) => {
+  const state = await setup(page);
+  const wan = catalog.find((model: any) => model.reference.model === 'alibaba/wan-3.0');
+  expect(wan).toBeDefined();
+  await page.goto('/video');
+  await page.getByRole('button', { name: 'Модель', exact: true }).click();
+  await page.getByRole('option', { name: modelTitle(wan), exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveText('Со звуком');
+  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toBeDisabled();
+  await page.locator('#vd-draft').fill('Чашка медленно поворачивается');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.video:new:all')))
+    .toContain('Чашка');
+  await page.evaluate(() => {
+    const key = 'genfactory.draft.v1.7.video:new:all';
+    const draft = JSON.parse(localStorage.getItem(key)!);
+    draft.value.options.generateAudio = false;
+    localStorage.setItem(key, JSON.stringify(draft));
+  });
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveText('Со звуком');
+  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].settings.tools[0].settings.options.generateAudio).toBe(true);
+});
+
 test('video canvas shows designer templates, guest composer and responsive geometry', async ({ page }) => {
   const state = await setup(page, true);
   await page.route('**/api/config', (route) =>
@@ -133,6 +164,8 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Чашка.png', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toHaveText('По исходному кадру');
   await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Разрешение', exact: true }).click();
+  await page.getByRole('option', { name: '720p', exact: true }).click();
   await page.getByRole('button', { name: 'Длительность', exact: true }).click();
   await page.getByRole('option', { name: '4 с', exact: true }).click();
   await page.getByRole('button', { name: 'Структура ролика', exact: true }).click();
@@ -144,6 +177,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await page.reload();
   await expect(page.locator('#vd-draft')).toHaveValue('Покажи чашку с разных сторон');
   await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('4 с');
+  await expect(page.getByRole('button', { name: 'Разрешение', exact: true })).toHaveText('720p');
   await expect(page.getByRole('button', { name: 'Структура ролика', exact: true })).toHaveText('Набор сцен');
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect(page.locator('.video-result')).toHaveCount(1);
@@ -152,7 +186,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].settings.tools[0]).toMatchObject({
     uid: 'VIDEO',
-    settings: { options: { duration: 4, generateAudio: true } },
+    settings: { options: { duration: 4, resolution: '720p', generateAudio: true } },
   });
   expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('aspectRatio');
   expect(state.sends[0].text).toContain('Шаблон:');
@@ -163,6 +197,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await expect(page.locator('#vd-draft')).toHaveValue(/Покажи чашку с разных сторон[\s\S]*Ролик не подошёл/);
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Убрать Чашка.mp4', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Разрешение', exact: true })).toHaveText('720p');
   expect(state.sends).toHaveLength(1);
   await page.locator('.video-result-open, .video-result .image-result-open').click();
   await expect(page.getByRole('dialog', { name: 'Чашка.mp4' }).locator('video')).toHaveAttribute(
@@ -183,7 +218,7 @@ for (const width of [390, 1440])
     expect(menu!.x).toBeGreaterThanOrEqual(0);
     expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
     await page.keyboard.press('Escape');
-    for (const name of ['Стороны', 'Длительность', 'Структура ролика']) {
+    for (const name of ['Стороны', 'Разрешение', 'Длительность', 'Структура ролика']) {
       await page.getByRole('button', { name, exact: true }).click();
       const list = page.getByRole('listbox', { name, exact: true });
       const box = await list.boundingBox();
@@ -367,10 +402,13 @@ test('Wan uses both catalog-supported frames in order and restores them for a re
     .toContain('Конечный кадр.png');
   await page.reload();
   await expect(page.getByRole('button', { name: 'Убрать Конечный кадр.png', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toHaveText('По исходному кадру');
+  await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect(page.locator('.video-result')).toHaveCount(1);
   expect(state.sends).toHaveLength(1);
   expect(state.sends[0].files).toEqual([12, 14]);
+  expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('aspectRatio');
   expect(state.sends[0].settings.tools[0].settings).toMatchObject({
     model: wan.reference,
     isLockSelection: true,

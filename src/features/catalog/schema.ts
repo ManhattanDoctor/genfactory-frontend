@@ -70,11 +70,11 @@ export function referenceMinimum(model?: IModelDescription): number {
   return 0;
 }
 
-/** Grok Lite's verified image-to-video contract uses the first frame's aspect ratio. */
+/** Grok Lite and Wan follow the first frame's aspect ratio in the verified integration. */
 export function followsReferenceRatio(model: IModelDescription | undefined, count: number): boolean {
   return (
     count > 0 &&
     model?.reference.provider === 'OPEN_ROUTER_VIDEO' &&
-    model.reference.model === 'x-ai/grok-imagine-video-1.5-lite'
+    ['x-ai/grok-imagine-video-1.5-lite', 'alibaba/wan-3.0'].includes(model.reference.model)
   );
 }

@@ -649,6 +649,17 @@ export function MediaWorkspace({
           )}
           {video && (
             <>
+              {fields.resolution && (
+                <ImageMenu
+                  label={String(options.resolution || 'Не задаётся')}
+                  name="Разрешение"
+                  note="Размер видео. Влияет на детализацию и стоимость."
+                  values={choices(fields.resolution, []).map(String)}
+                  selection={String(options.resolution || '')}
+                  disabled={busy || !choices(fields.resolution, []).length}
+                  onSelect={(value) => onOptions({ ...options, resolution: value })}
+                />
+              )}
               <ImageMenu
                 label={options.duration ? `${options.duration} с` : 'Не задаётся'}
                 name="Длительность"

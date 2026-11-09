@@ -60,5 +60,6 @@ export function modelSummary(model: IModelDescription): string {
     parts.push(`${consecutive ? `${values[0]}–${values.at(-1)}` : values.join(' / ')} с`);
   } else if (duration?.minimum !== undefined && duration.maximum !== undefined)
     parts.push(`${duration.minimum}–${duration.maximum} с`);
+  if (model.schema.description) parts.push(model.schema.description);
   return parts.join(' · ');
 }
