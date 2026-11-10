@@ -1,3 +1,4 @@
+import { mediaTaskResponse } from './mediaTaskMock';
 import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
 import { modelTitle } from '../../src/features/catalog/presentation';
 import { test, expect, type Page } from '@playwright/test';
@@ -58,19 +59,28 @@ async function setup(page: Page, guest = false) {
   const state = {
     creates: [] as any[],
     sends: [] as any[],
+    tasks: [] as any[],
+    completed: undefined as any,
     conversation: undefined as any,
     messages: [] as any[],
     uploads: 0,
   };
   await page.route('**/api/**', async (route) => {
+    if (new URL(route.request().url()).pathname === '/api/task' && route.request().method() === 'GET')
+      return route.fulfill({ json: [] });
     const req = route.request(),
       url = new URL(req.url()),
       path = url.pathname;
     let body: any = {};
     if (path === '/api/init') body = { user: { id: 7 }, balances: { RUB: '10000' } };
     else if (path === '/api/aimodels')
-      body = catalogProvider(url) === 'OPEN_AI_CONVERSATION' ? [agent] : catalog;
-    else if (path === '/api/conversation' && req.method() === 'POST') {
+      body = catalogProvider(url) === 'OPEN_ROUTER_CONVERSATION' ? [agent] : catalog;
+    else if (path === '/api/task' && req.method() === 'POST') {
+      const input = req.postDataJSON();
+      state.tasks.push(input);
+      body = mediaTaskResponse(result, input);
+      state.completed = body.files[0];
+    } else if (path === '/api/conversation' && req.method() === 'POST') {
       state.creates.push(req.postDataJSON());
       body = state.conversation = {
         ...req.postDataJSON(),
@@ -87,15 +97,15 @@ async function setup(page: Page, guest = false) {
       state.messages = [{ id: 2, role: 'ASSISTANT', text: 'Готово', files: [result] }, body];
     } else if (path === '/api/conversation/101/message') body = pagination(state.messages);
     else if (path === '/api/file/12') body = source;
-    else if (path === '/api/file/13') body = result;
+    else if (path === '/api/file/13') body = state.completed || result;
     else if (path === '/api/file' && req.method() === 'POST') {
       state.uploads++;
       body = source;
     } else if (path === '/api/file')
       body = pagination(
         JSON.parse(url.searchParams.get('conditions') || '{}').type === 'VIDEO'
-          ? state.sends.length
-            ? [result]
+          ? state.tasks.length || state.sends.length
+            ? [state.completed || result]
             : []
           : [source],
       );
@@ -128,8 +138,8 @@ test('Wan keeps audio enabled when restoring a saved draft that requested silenc
   await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveText('Со звуком');
   await expect(page.getByRole('button', { name: 'Звук', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].settings.tools[0].settings.options.generateAudio).toBe(true);
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].options.generateAudio).toBe(true);
 });
 
 test('video canvas shows designer templates, guest composer and responsive geometry', async ({ page }) => {
@@ -145,11 +155,11 @@ test('video canvas shows designer templates, guest composer and responsive geome
   await expect(page.locator('.ds-template-card')).toHaveCount(30);
   await page.locator('.ds-template-card').first().click();
   await expect(page.getByRole('button', { name: 'Убрать шаблон', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Редактировать шаблон', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Редактировать шаблон', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
   expect(state.creates).toHaveLength(0);
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
 });
 
 test('video sends template, first frame and real settings through VIDEO and restores redo without attaching the output', async ({
@@ -181,16 +191,19 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await expect(page.getByRole('button', { name: 'Структура ролика', exact: true })).toHaveText('Набор сцен');
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect(page.locator('.video-result')).toHaveCount(1);
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
   expect(state.uploads).toBe(0);
-  expect(state.sends[0].files).toEqual([12]);
-  expect(state.sends[0].settings.tools[0]).toMatchObject({
-    uid: 'VIDEO',
-    settings: { options: { duration: 4, resolution: '720p', generateAudio: true } },
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0]).toMatchObject({
+    isSaveResult: true,
+    model: 'OPEN_ROUTER_VIDEO',
+    options: { duration: 4, resolution: '720p', generateAudio: true },
   });
-  expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('aspectRatio');
-  expect(state.sends[0].text).toContain('Шаблон:');
-  expect(state.sends[0].text).toContain('Несколько последовательных сцен');
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+  expect(state.tasks[0].options).not.toHaveProperty('aspectRatio');
+  expect(state.tasks[0].task.prompt).toContain('Шаблон:');
+  expect(state.tasks[0].task.prompt).toContain('несколько сцен');
   await page.locator('.video-result').hover();
   await expect(page.locator('.video-result .img-actions')).toHaveCSS('opacity', '1');
   await page.getByRole('button', { name: 'Переделать Чашка.mp4', exact: true }).click();
@@ -198,7 +211,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Убрать Чашка.mp4', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Разрешение', exact: true })).toHaveText('720p');
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
   await page.locator('.video-result-open, .video-result .image-result-open').click();
   await expect(page.getByRole('dialog', { name: 'Чашка.mp4' }).locator('video')).toHaveAttribute(
     'controls',
@@ -243,7 +256,7 @@ test('all 30 video templates apply without sending and model information closes 
     await expect(page.locator('.img-files .img-file')).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Собрать видео', exact: true })).toBeEnabled();
   }
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
   await page
     .getByRole('button', { name: /^О модели / })
@@ -254,37 +267,40 @@ test('all 30 video templates apply without sending and model information closes 
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('video shows actual running, clarification and failure states without retrying generation', async ({
+test('existing video conversations show running, clarification and failure states without retrying', async ({
   page,
 }) => {
   const state = await setup(page);
-  await page.goto('/video');
-  await page.locator('#vd-draft').fill('Чашка');
-  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  state.conversation = {
+    id: 101,
+    userId: 7,
+    status: 'LOADED',
+    model: agent.reference.provider,
+    options: {
+      model: agent.reference.model,
+      tools: [{ uid: 'VIDEO', settings: { model: catalog[0].reference } }],
+    },
+  };
+  state.messages = [{ id: 2, role: 'ASSISTANT', text: 'Готово', files: [result] }];
+  await page.goto('/video?conversation=101');
   await expect(page.locator('.video-result')).toHaveCount(1);
   state.messages = [{ id: 3, role: 'ASSISTANT', text: 'Как должна двигаться камера?', files: [] }];
   state.conversation.status = 'LOADING';
   await page.reload();
   await expect(page.locator('.image-result-pending')).toContainText('Создаём видео');
   await expect(page.getByRole('button', { name: 'Собрать видео', exact: true })).toBeDisabled();
-  await page.locator('.video-result').hover();
-  await expect(page.getByRole('button', { name: 'Переделать Чашка.mp4', exact: true })).toBeDisabled();
   await expect(page.locator('.media-answer-card')).toHaveCount(0);
-  await page.screenshot({ path: '/tmp/video-running-app.png' });
   state.conversation.status = 'LOADED';
   await page.reload();
   await expect(page.locator('.media-answer-card')).toContainText('Как должна двигаться камера?');
   await expect(page.locator('.image-result-pending')).toHaveCount(0);
-  await page.locator('#vd-draft').fill('Плавное приближение');
-  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(2);
-  await expect(page.locator('.media-answer-card')).toHaveCount(0);
   state.conversation.status = 'ERROR';
   await page.reload();
   await expect(page.locator('.video-result-failed')).toContainText('Ролик не собрался.');
   await expect(page.locator('.image-result-pending')).toHaveCount(0);
-  await page.screenshot({ path: '/tmp/video-error-app.png' });
-  expect(state.sends).toHaveLength(2);
+  expect(state.tasks).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+  expect(state.creates).toHaveLength(0);
 });
 
 test('video download failure allows manual download retry and viewer failure does not generate again', async ({
@@ -324,7 +340,7 @@ test('video download failure allows manual download retry and viewer failure doe
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Видео не открылось.');
   await page.keyboard.press('Escape');
   await expect(open).toBeFocused();
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
 });
 
 test('broken short video preview falls back to the poster without loading the original', async ({ page }) => {
@@ -352,7 +368,7 @@ test('broken short video preview falls back to the poster without loading the or
     /\/media\/gallery-1\.jpg$/,
   );
   expect(originals).toBe(0);
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
 });
 
 test('Wan uses both catalog-supported frames in order and restores them for a revision', async ({ page }) => {
@@ -367,18 +383,19 @@ test('Wan uses both catalog-supported frames in order and restores them for a re
       generation: { ...result.origin.generation, model: wan.reference },
     },
   };
-  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([source, endFrame]) }));
+  await page.route('**/api/file?*', (route) =>
+    route.fulfill({
+      json: pagination(state.completed ? [state.completed, source, endFrame] : [source, endFrame]),
+    }),
+  );
   await page.route('**/api/file/14', (route) => route.fulfill({ json: endFrame }));
   await page.route('**/api/file/13', (route) => route.fulfill({ json: video }));
-  await page.route('**/api/conversation/101/message', (route) => {
-    if (route.request().method() !== 'POST') return route.fallback();
-    const body = route.request().postDataJSON();
-    state.sends.push(body);
-    state.messages = [
-      { id: 2, role: 'ASSISTANT', text: 'Готово', files: [video] },
-      { ...body, id: 1 },
-    ];
-    return route.fulfill({ json: { ...body, id: 1 } });
+  await page.route('**/api/task', (route) => {
+    const input = route.request().postDataJSON();
+    state.tasks.push(input);
+    const body = mediaTaskResponse(video, input);
+    state.completed = body.files[0];
+    return route.fulfill({ json: body });
   });
   await page.goto('/video');
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
@@ -406,18 +423,19 @@ test('Wan uses both catalog-supported frames in order and restores them for a re
   await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect(page.locator('.video-result')).toHaveCount(1);
-  expect(state.sends).toHaveLength(1);
-  expect(state.sends[0].files).toEqual([12, 14]);
-  expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('aspectRatio');
-  expect(state.sends[0].settings.tools[0].settings).toMatchObject({
-    model: wan.reference,
-    isLockSelection: true,
+  expect(state.tasks).toHaveLength(1);
+  expect(state.tasks[0].task.fileIds).toEqual([12, 14]);
+  expect(state.tasks[0].options).not.toHaveProperty('aspectRatio');
+  expect(state.tasks[0]).toMatchObject({
+    isSaveResult: true,
+    model: wan.reference.provider,
+    options: { model: wan.reference.model },
   });
   await page.locator('.video-result').hover();
   await page.getByRole('button', { name: 'Переделать Чашка.mp4', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Убрать Конечный кадр.png', exact: true })).toBeVisible();
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
 });
 
 test('a video model limited to one frame still blocks the second attachment', async ({ page }) => {
@@ -440,5 +458,5 @@ test('a video model limited to one frame still blocks the second attachment', as
     page.getByText('Для выбранной модели можно добавить до 1 референсов.', { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Библиотека' })).toHaveCount(0);
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
 });

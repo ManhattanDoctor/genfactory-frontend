@@ -13,7 +13,7 @@ interface IAuth {
   signingIn: boolean;
   acceptSession: (sid: string) => void;
   signOut: () => Promise<void>;
-  refresh: () => void;
+  refresh: () => Promise<boolean>;
 }
 const Context = createContext<IAuth | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -125,8 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signingIn,
         signOut,
         acceptSession,
-        refresh: () => {
-          void query.refetch();
+        refresh: async () => {
+          const result = await query.refetch();
+          return !result.isError;
         },
       }}
     >

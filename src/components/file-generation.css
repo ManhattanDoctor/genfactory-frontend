@@ -40,12 +40,6 @@
   padding: 0 16px 16px;
   min-width: 0;
 }
-.file-generation .file-generation-hint {
-  margin: 0 0 16px;
-  color: #9a9aa0;
-  font-size: 12px;
-  line-height: 1.5;
-}
 .file-generation-model {
   display: grid;
   gap: 4px;

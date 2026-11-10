@@ -1,3 +1,4 @@
+import { FilePlaceholder } from '../../components/FilePlaceholder';
 import { modelTitle, modelSummary } from '../catalog/presentation';
 import { ModelMark } from '../content-studio/ModelMark';
 import { useEffect, useRef, useState } from 'react';
@@ -40,6 +41,9 @@ export function VideoTemplateMedia({ item }: { item: ITemplate }) {
   useEffect(() => {
     if (!playing) setReady(false);
   }, [playing]);
+  useEffect(() => {
+    if (playing && clip.current) void clip.current.play().catch(() => setReady(false));
+  }, [playing]);
   const name = item.src.split('/').at(-1);
   return (
     <span ref={root} className="video-template-media">
@@ -54,6 +58,9 @@ export function VideoTemplateMedia({ item }: { item: ITemplate }) {
           playsInline
           autoPlay
           preload="metadata"
+          onCanPlay={(event) => {
+            void event.currentTarget.play().catch(() => setReady(false));
+          }}
           onPlaying={() => setReady(true)}
           onError={() => setReady(false)}
         />
@@ -92,15 +99,21 @@ export function VideoViewer({ file, onClose }: { file: IGnosisFile; onClose: () 
       }}
     >
       <div className="video-viewer-card">
-        <video
-          ref={player}
-          src={safeMediaUrl(file.path)}
-          poster={file.preview?.image?.status === 'READY' ? safeMediaUrl(file.preview.image.url) : undefined}
-          controls
-          autoPlay
-          playsInline
-          onError={() => setError(true)}
-        />
+        {error ? (
+          <FilePlaceholder file={file} />
+        ) : (
+          <video
+            ref={player}
+            src={safeMediaUrl(file.path)}
+            poster={
+              file.preview?.image?.status === 'READY' ? safeMediaUrl(file.preview.image.url) : undefined
+            }
+            controls
+            autoPlay
+            playsInline
+            onError={() => setError(true)}
+          />
+        )}
         {error && <p role="alert">Видео не открылось.</p>}
       </div>
     </dialog>,

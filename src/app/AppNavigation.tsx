@@ -10,6 +10,7 @@ export function AppNavigation({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const { user } = useAuth();
   const [expanded, setExpanded] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const dialogs = useInfiniteQuery({
     queryKey: ['conversations', user?.id, 'agent-navigation', 'chat'],
     enabled: !!user,
@@ -55,56 +56,70 @@ export function AppNavigation({ onNavigate }: { onNavigate?: () => void }) {
       {primary.map(renderDestination)}
       {user && renderDestination({ to: '/library', label: 'Библиотека', icon: 'assets' })}
       {user && renderDestination({ to: '/history', label: 'История', icon: 'history' })}
-      <p className="shell-nav-heading">Инструменты</p>
-      {destinations.slice(3).map((item) =>
-        item.to !== '/agent' ? (
-          renderDestination(item)
-        ) : (
-          <div key={item.to} className="agent-nav-group">
-            <div className="agent-nav-row">
-              {renderDestination(item)}
-              {(chats.length > 0 || dialogs.hasNextPage) && (
-                <button
-                  className="agent-nav-fold"
-                  aria-label={expanded ? 'Свернуть диалоги' : 'Развернуть диалоги'}
-                  aria-expanded={expanded}
-                  onClick={() => setExpanded((v) => !v)}
-                />
-              )}
-            </div>
-            {expanded && (
-              <div className="agent-nav-projects">
-                {chats.map((c) => (
-                  <Link
-                    key={c.id}
-                    className="agent-nav-project"
-                    aria-current={
-                      location.pathname === '/agent' &&
-                      new URLSearchParams(location.search).get('conversation') === String(c.id)
-                        ? 'page'
-                        : undefined
-                    }
-                    to={`/agent?conversation=${c.id}`}
-                    onClick={onNavigate}
-                    title={c.name}
-                  >
-                    <span>{c.name}</span>
-                  </Link>
-                ))}
-                {dialogs.hasNextPage && (
-                  <button
-                    className="agent-nav-project"
-                    disabled={dialogs.isFetchingNextPage}
-                    onClick={() => void dialogs.fetchNextPage()}
-                  >
-                    Ещё диалоги
-                  </button>
+      <button
+        type="button"
+        className="shell-tools-toggle"
+        aria-label="Дополнительные инструменты"
+        aria-expanded={toolsOpen}
+        onClick={() => setToolsOpen(!toolsOpen)}
+      >
+        <span>Инструменты</span>
+        <span aria-hidden="true">{toolsOpen ? '−' : '+'}</span>
+      </button>
+      {toolsOpen && (
+        <div className="shell-tools">
+          {destinations.slice(3).map((item) =>
+            item.to !== '/agent' ? (
+              renderDestination(item)
+            ) : (
+              <div key={item.to} className="agent-nav-group">
+                <div className="agent-nav-row">
+                  {renderDestination(item)}
+                  {(chats.length > 0 || dialogs.hasNextPage) && (
+                    <button
+                      className="agent-nav-fold"
+                      aria-label={expanded ? 'Свернуть диалоги' : 'Развернуть диалоги'}
+                      aria-expanded={expanded}
+                      onClick={() => setExpanded((v) => !v)}
+                    />
+                  )}
+                </div>
+                {expanded && (
+                  <div className="agent-nav-projects">
+                    {chats.map((c) => (
+                      <Link
+                        key={c.id}
+                        className="agent-nav-project"
+                        aria-current={
+                          location.pathname === '/agent' &&
+                          new URLSearchParams(location.search).get('conversation') === String(c.id)
+                            ? 'page'
+                            : undefined
+                        }
+                        to={`/agent?conversation=${c.id}`}
+                        onClick={onNavigate}
+                        title={c.name}
+                      >
+                        <span>{c.name}</span>
+                      </Link>
+                    ))}
+                    {dialogs.hasNextPage && (
+                      <button
+                        className="agent-nav-project"
+                        disabled={dialogs.isFetchingNextPage}
+                        onClick={() => void dialogs.fetchNextPage()}
+                      >
+                        Ещё диалоги
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        ),
+            ),
+          )}
+        </div>
       )}
+      {onNavigate && renderDestination({ to: '/company', label: 'О компании', icon: 'company' })}
     </nav>
   );
 }

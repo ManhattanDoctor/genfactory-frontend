@@ -1,65 +1,64 @@
 import type { IModelDescription } from '../../lib/types';
-import { referenceLimit, supportsReferences } from './schema';
-
 export const modelKey = (model: IModelDescription) => `${model.reference.provider}:${model.reference.model}`;
-
-/** Sort display copies only: favorites must not change Auto or the selected model. */
-export function favoritesFirst<T>(
-  items: Array<T>,
-  favorites: Array<string>,
-  key: (item: T) => string,
-): Array<T> {
+/** Favorites affect display order only, never the default used to execute a request. */
+export function favoritesFirst<T>(items: T[], favorites: string[], key: (item: T) => string): T[] {
   const selected = new Set(favorites);
   return [...items].sort((a, b) => Number(selected.has(key(b))) - Number(selected.has(key(a))));
 }
-
-/** Presentation only: never change the provider/model identifiers sent to the API. */
 export function modelTitle(model: Pick<IModelDescription, 'reference' | 'name'>): string {
-  if (model.name !== model.reference.model) return model.name;
   const words: Record<string, string> = {
     gpt: 'GPT',
     ai: 'AI',
+    flux: 'FLUX',
+    mai: 'MAI',
+    hy: 'HY',
     o1: 'o1',
     o3: 'o3',
     o4: 'o4',
   };
-  return model.name
-    .split('/')
-    .at(-1)!
-    .split('-')
-    .map((word) => words[word] || word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  const raw =
+    model.name === model.reference.model
+      ? model.reference.model
+          .split('/')
+          .at(-1)!
+          .split('-')
+          .map((w) => words[w] || w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ')
+      : model.name;
+  return raw
+    .replace(/^[^:]+:\s*/, '')
+    .replace(
+      /^(?:Open\s?AI|Google|Black Forest Labs|Microsoft|ByteDance(?: Seed)?|Alibaba|Tencent|Sourceful|Meta|xAI)\s*[-–·]?\s+/i,
+      '',
+    )
+    .trim();
 }
-
+/** Short use cases describe the task, without unsupported quality rankings. */
 export function modelSummary(model: IModelDescription): string {
-  const properties = model.schema.properties?.options?.properties || {};
-  const media =
-    model.capabilities?.includes('VIDEO_OUTPUT') || model.reference.provider.includes('VIDEO')
-      ? 'Видео'
-      : model.capabilities?.includes('IMAGE_OUTPUT') || model.reference.provider.includes('IMAGE')
-        ? 'Изображения'
-        : 'Текст';
-  const parts = [media];
-  if (media !== 'Текст') {
-    parts.push(
-      supportsReferences(model)
-        ? referenceLimit(model)
-          ? `Референсы: до ${referenceLimit(model)}`
-          : 'Поддерживает референсы'
-        : 'Без референсов',
-    );
-  }
-  const resolution = properties.resolution?.enum;
-  if (resolution?.length) parts.push(resolution.join(' / '));
-  const duration = properties.duration;
-  if (duration?.enum?.length) {
-    const values = duration.enum;
-    const consecutive =
-      values.length > 2 &&
-      values.every((value, i) => typeof value === 'number' && (!i || value === Number(values[i - 1]) + 1));
-    parts.push(`${consecutive ? `${values[0]}–${values.at(-1)}` : values.join(' / ')} с`);
-  } else if (duration?.minimum !== undefined && duration.maximum !== undefined)
-    parts.push(`${duration.minimum}–${duration.maximum} с`);
-  if (model.schema.description) parts.push(model.schema.description);
-  return parts.join(' · ');
+  const id = model.reference.model.toLowerCase();
+  if (id.startsWith('krea/krea-2-'))
+    return 'Визуальные идеи и стилизация по фото. При правке форма предмета может измениться.';
+  const cases: Array<[RegExp, string]> = [
+    [/recraft.*vector/, 'Векторные иллюстрации, иконки и графика для масштабирования.'],
+    [/recraft/, 'Иллюстрации, предметные изображения и графика для макетов.'],
+    [/gpt.*image|image.*gpt/, 'Создание изображений по описанию и редактирование готового фото.'],
+    [/qwen.*image/, 'Постеры, изображения с надписями и правка фото по описанию.'],
+    [/seedream/, 'Предметные кадры, рекламные композиции и варианты готового изображения.'],
+    [/flux/, 'Предметные изображения, визуальные концепции и редактирование по фото.'],
+    [/riverflow/, 'Вариации изображений и правка отдельных деталей по описанию.'],
+    [/mai.*image/, 'Новые визуальные идеи и изображения по вашему описанию.'],
+    [/grok.*image/, 'Изображения по описанию и творческие варианты готового фото.'],
+    [/gemini.*image|banana/, 'Создание и редактирование изображений с учётом загруженных фото.'],
+    [/k3.*edit/, 'Редактирование загруженного фото по вашему описанию.'],
+    [/wan/, 'Видео по сценарию или исходному фото, со звуком.'],
+    [/seedance/, 'Видео по описанию, первому и последнему кадрам.'],
+    [/runway/, 'Короткие видеосцены по описанию или исходному кадру.'],
+    [/veo/, 'Видеосцены по описанию и фото с настройкой звука.'],
+    [/grok.*video/, 'Короткие видеосцены и оживление фото со звуком.'],
+  ];
+  const match = cases.find(([pattern]) => pattern.test(id));
+  if (match) return match[1];
+  if (model.capabilities?.includes('IMAGE_OUTPUT')) return 'Создание изображений по вашему описанию.';
+  if (model.capabilities?.includes('VIDEO_OUTPUT')) return 'Создание видео по сценарию и материалам проекта.';
+  return 'Тексты, ответы на вопросы и подготовка материалов для вашего проекта.';
 }

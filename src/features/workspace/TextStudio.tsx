@@ -1,3 +1,5 @@
+import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
+import { modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { AgentWorkspace, agentRequest } from './AgentWorkspace';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
@@ -101,7 +103,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user,
     staleTime: 300000,
-    queryFn: ({ signal }) => api.catalog('OPEN_AI_CONVERSATION', signal),
+    queryFn: ({ signal }) => api.conversationModels(signal),
   });
   const videoModels = useQuery({
     queryKey: ['video-analysis-models', auth.user?.id],
@@ -256,7 +258,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
           continue;
         }
         const isVideo = ['video/mp4', 'video/webm', 'video/quicktime'].includes(source.type);
-        const isImage = ['image/png', 'image/jpeg', 'image/webp'].includes(source.type);
+        const isImage = isImageUpload(source);
         const isDocument = /\.(pdf|docx?|xlsx?|csv|json)$/i.test(source.name);
         const isAudio = /\.(mp3|wav|ogg|m4a)$/i.test(source.name);
         if (isImage && !imageCapable) throw new Error('Выбранная модель не поддерживает анализ изображений.');
@@ -673,7 +675,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
               type="file"
               hidden
               ref={input}
-              accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime,.txt,.md,.pdf,.doc,.docx,.csv,.xls,.xlsx,.json,.mp3,.wav,.ogg,.m4a"
+              accept={`${IMAGE_UPLOAD_ACCEPT},video/mp4,video/webm,video/quicktime,.txt,.md,.pdf,.doc,.docx,.csv,.xls,.xlsx,.json,.mp3,.wav,.ogg,.m4a`}
               onChange={(e) => void upload(e.target.files)}
             />
             <p className="small muted">
@@ -692,11 +694,13 @@ function TextEditor({ mode }: { mode: TextMode }) {
                   }}
                 >
                   {!models.data?.length && <option>Загружаем модели…</option>}
-                  {models.data?.map((m) => (
-                    <option key={m.reference.model} value={m.reference.model}>
-                      {m.name}
-                    </option>
-                  ))}
+                  {[...(models.data || [])]
+                    .sort((a, b) => modelTitle(a).localeCompare(modelTitle(b), 'ru', { numeric: true }))
+                    .map((m) => (
+                      <option key={m.reference.model} value={m.reference.model}>
+                        {modelTitle(m)}
+                      </option>
+                    ))}
                 </SelectControl>
               </label>
             )}

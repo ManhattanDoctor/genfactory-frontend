@@ -61,6 +61,8 @@ async function setup(
     uploads: 0,
   };
   await page.route('**/api/**', async (route) => {
+    if (new URL(route.request().url()).pathname === '/api/task' && route.request().method() === 'GET')
+      return route.fulfill({ json: [] });
     const req = route.request(),
       url = new URL(req.url()),
       path = url.pathname;
@@ -68,7 +70,7 @@ async function setup(
     if (path === '/api/init') body = { user: { id: 7 }, balances: { RUB: '10000' } };
     else if (path === '/api/aimodels')
       body =
-        catalogProvider(url) === 'OPEN_AI_CONVERSATION'
+        catalogProvider(url) === 'OPEN_ROUTER_CONVERSATION'
           ? [agent]
           : catalogProvider(url) === 'OPEN_ROUTER_TEXT'
             ? [

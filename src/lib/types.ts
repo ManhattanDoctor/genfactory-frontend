@@ -87,11 +87,37 @@ export interface IPagination<T> {
   pageSize: number;
   pages: number;
 }
-// Used only to validate model inputs against the catalog, never submitted to /task.
+// The same model request is validated against the catalog and submitted to /task.
+export interface ITaskExecution {
+  sourceFileIds?: number[];
+  id: string;
+  parentTaskId?: string;
+  session?: string;
+  model: string;
+  createdDate: string;
+}
+export interface ITaskFinished {
+  id: string;
+  item: ITaskExecution;
+  result: 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  fileIds?: number[];
+  error?: { code: string; message: string };
+}
 export interface ITaskRequest {
   model: string;
   task: { session?: string; prompt?: string; fileIds?: number[]; text?: string; file?: number };
   options: Record<string, unknown>;
+  isSaveResult?: boolean;
+  fileOutput?: IFileOutputSettings;
+}
+export interface ITaskResponse {
+  result: unknown;
+  cost: {
+    status: 'FINAL' | 'PENDING' | 'UNAVAILABLE';
+    amounts: Array<{ amount: string; coinId: string }>;
+    pending?: Array<{ operationId: string }>;
+  };
+  files?: IGnosisFile[];
 }
 export interface IToolConnection {
   uid: string;

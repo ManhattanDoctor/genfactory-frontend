@@ -14,6 +14,12 @@ import {
   ArrowLeft,
   CircleAlert,
   House,
+  LayoutGrid,
+  Image as ImageIcon,
+  Video,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { api, getSession } from '../lib/api';
 import { directoryPath, folderTrail, mediaType, resolveFile } from '../lib/files';
@@ -307,24 +313,27 @@ export function FileBrowser({
       )}
       {!foldersOnly && (
         <div className="chips" aria-label="Тип файлов">
-          {[
-            ['', 'Все'],
-            ['IMAGE', 'Изображения'],
-            ['VIDEO', 'Видео'],
-            ['DOCUMENT', 'Документы'],
-            ['AUDIO', 'Аудио'],
-          ].map(([value, label]) => (
+          {(
+            [
+              ['', 'Все', LayoutGrid],
+              ['IMAGE', 'Изображения', ImageIcon],
+              ['VIDEO', 'Видео', Video],
+              ['DOCUMENT', 'Документы', FileText],
+            ] as const
+          ).map(([value, label, Icon]) => (
             <button
               type="button"
               key={value}
               className={`chip ${type === value ? 'active' : ''}`}
               aria-pressed={type === value}
+              aria-label={label}
+              title={label}
               onClick={() => {
                 setType(value);
                 setPage(0);
               }}
             >
-              {label}
+              <Icon size={18} aria-hidden="true" />
             </button>
           ))}
         </div>
@@ -449,7 +458,12 @@ export function FileBrowser({
                   <summary aria-label={`Действия с «${file.name}»`}>
                     <MoreHorizontal size={18} />
                   </summary>
-                  <div>
+                  <div
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest('button'))
+                        event.currentTarget.closest('details')?.removeAttribute('open');
+                    }}
+                  >
                     <button type="button" className="text-button" disabled={busy} onClick={() => edit(file)}>
                       Название и теги
                     </button>
@@ -465,21 +479,6 @@ export function FileBrowser({
                         }}
                       >
                         Переместить
-                      </button>
-                    )}
-                    {!folder && file.type !== 'LINK' && (
-                      <button
-                        type="button"
-                        className="text-button"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(
-                            () => api.createFileLink(file.id, file.directory || null),
-                            'Ссылка создана рядом с оригиналом',
-                          )
-                        }
-                      >
-                        Создать ссылку
                       </button>
                     )}
                     <button
@@ -500,21 +499,33 @@ export function FileBrowser({
           );
         })}
       </div>
-      {files.data && !files.data.items.length && !directory && !query && onCreate && (
-        <div className="empty-state">
-          <h2>Здесь начинается ваша коллекция</h2>
-          <button type="button" className="button primary" onClick={onCreate}>
-            Создать изображение
-          </button>
-        </div>
-      )}
+      {files.data &&
+        !files.data.items.length &&
+        !directory &&
+        !query &&
+        !type &&
+        !selectedTags.length &&
+        onCreate && (
+          <div className="empty-state">
+            <h2>Здесь начинается ваша коллекция</h2>
+            <button type="button" className="button primary" onClick={onCreate}>
+              Создать изображение
+            </button>
+          </div>
+        )}
       {files.data && !files.data.items.length && (
         <p className="empty-state">
           {query || selectedTags.length
             ? 'По вашему запросу ничего не найдено.'
             : foldersOnly
               ? 'Нет вложенных папок. Можно выбрать текущую.'
-              : 'В этой папке пока нет файлов.'}
+              : type === 'DOCUMENT'
+                ? 'Документов пока нет. Загрузите первый файл.'
+                : type === 'VIDEO'
+                  ? 'Видео пока нет.'
+                  : type === 'IMAGE'
+                    ? 'Изображений пока нет.'
+                    : 'В этой папке пока нет файлов.'}
         </p>
       )}
       {files.data && files.data.pages > 1 && (
@@ -522,10 +533,12 @@ export function FileBrowser({
           <button
             type="button"
             className="button"
+            aria-label="Предыдущая страница"
+            title="Предыдущая страница"
             disabled={!page || busy}
             onClick={() => setPage((p) => p - 1)}
           >
-            Назад
+            <ChevronLeft size={18} aria-hidden="true" />
           </button>
           <span>
             {page + 1} / {files.data.pages}
@@ -533,10 +546,12 @@ export function FileBrowser({
           <button
             type="button"
             className="button"
+            aria-label="Следующая страница"
+            title="Следующая страница"
             disabled={page + 1 >= files.data.pages || busy}
             onClick={() => setPage((p) => p + 1)}
           >
-            Далее
+            <ChevronRight size={18} aria-hidden="true" />
           </button>
         </div>
       )}

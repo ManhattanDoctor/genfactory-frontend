@@ -1,3 +1,4 @@
+import { modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import type { IUploadProgress } from '../../lib/api';
@@ -83,13 +84,13 @@ function AudioEditor() {
     enabled: !!auth.user,
     staleTime: 300000,
     queryFn: async ({ signal }) =>
-      (await api.catalog('OPEN_AI_CONVERSATION', signal)).filter((m) => m.capabilities?.includes('TOOLS')),
+      (await api.conversationModels(signal)).filter((m) => m.capabilities?.includes('TOOLS')),
   });
   const tools = useQuery({
-    queryKey: ['audio-tools', auth.user?.id, conversation?.model || 'OPEN_AI_CONVERSATION'],
+    queryKey: ['audio-tools', auth.user?.id, conversation?.model || 'OPEN_ROUTER_CONVERSATION'],
     enabled: !!auth.user,
     staleTime: 300000,
-    queryFn: ({ signal }) => api.details(conversation?.model || 'OPEN_AI_CONVERSATION', signal),
+    queryFn: ({ signal }) => api.details(conversation?.model || 'OPEN_ROUTER_CONVERSATION', signal),
   });
   const providers = tools.data?.tools?.find((t) => t.uid === toolId)?.providers || [];
   const catalog = useQuery({
@@ -433,7 +434,7 @@ function AudioEditor() {
             >
               {model && !catalog.data?.models.some((m) => modelKey(m) === modelKey(model)) && (
                 <option disabled value={modelKey(model)}>
-                  {model.name}
+                  {modelTitle(model)}
                 </option>
               )}
               {!model && (
@@ -441,9 +442,15 @@ function AudioEditor() {
                   {chosenKey ? 'Сохранённая модель недоступна — выберите другую' : 'Выберите модель'}
                 </option>
               )}
-              {favoritesFirst(catalog.data?.models || [], prefs.value.favoriteModels, modelKey).map((m) => (
+              {favoritesFirst(
+                [...(catalog.data?.models || [])].sort((a, b) =>
+                  modelTitle(a).localeCompare(modelTitle(b), 'ru', { numeric: true }),
+                ),
+                prefs.value.favoriteModels,
+                modelKey,
+              ).map((m) => (
                 <option key={modelKey(m)} value={modelKey(m)}>
-                  {m.name} · {m.reference.provider}
+                  {modelTitle(m)}
                 </option>
               ))}
             </SelectControl>

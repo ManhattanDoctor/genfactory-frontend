@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, safeMediaUrl } from '../../lib/api';
 import type { IConversation, IConversationMessage, IGnosisFile, MediaKind } from '../../lib/types';
 import { MessageContent } from '../../components/MessageContent';
-import { MediaPreview } from '../../components/MediaPreview';
+import { Media, MediaPreview } from '../../components/MediaPreview';
 import { displayMessageText } from '../studio/conversations';
 import { useConversationProgress } from '../studio/useConversationProgress';
 import { useConversationError } from '../studio/useConversationError';
@@ -106,7 +106,7 @@ export function ContentThread({
                             aria-label={`Открыть ${file.name}`}
                             onClick={() => setPreview(file)}
                           >
-                            <img src={safeMediaUrl(file.preview?.image?.url || file.path)} alt={file.name} />
+                            <Media file={file} isPlaybackDisabled />
                           </button>
                         ))}
                     </div>
@@ -153,35 +153,31 @@ export function ContentThread({
                   ))}
                 {files.map((file) =>
                   file.type === 'VIDEO' ? (
-                    <video
+                    <Media
                       key={file.id}
-                      className="as-pic cw-shot"
+                      file={file}
                       controls
-                      src={safeMediaUrl(file.path)}
-                      onLoadedMetadata={() => {
+                      autoPlay={false}
+                      className="as-pic cw-shot"
+                      onReady={() => {
                         if (follow.current) scrollToEnd();
                       }}
                     />
-                  ) : file.type === 'IMAGE' ? (
+                  ) : (
                     <button
                       className="content-result-preview"
                       key={file.id}
                       aria-label={`Открыть ${file.name}`}
                       onClick={() => setPreview(file)}
                     >
-                      <img
+                      <Media
+                        file={file}
                         className="as-pic cw-shot"
-                        src={safeMediaUrl(file.path)}
-                        alt={file.name}
-                        onLoad={() => {
+                        onReady={() => {
                           if (follow.current) scrollToEnd();
                         }}
                       />
                     </button>
-                  ) : (
-                    <p className="as-file" key={file.id}>
-                      {file.name}
-                    </p>
                   ),
                 )}
                 {!!files.length && (
@@ -298,7 +294,7 @@ export function ContentThread({
       )}
       {copyError && <p role="status">Не удалось скопировать текст.</p>}
       {conversation.status === 'ERROR' && (
-        <p className="inline-error content-error" role="alert">
+        <p className="cw-turn inline-error content-error" role="alert">
           {error || 'Работа завершилась с ошибкой. Проверьте сообщения перед новым запуском.'}
         </p>
       )}

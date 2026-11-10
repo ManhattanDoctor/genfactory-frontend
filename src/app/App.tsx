@@ -9,6 +9,7 @@ import { AppNavigation } from './AppNavigation';
 import { Modal } from '../components/Modal';
 import { formatBalance } from '../lib/money';
 import { Home } from './Home';
+import { Company } from './Company';
 const ContentStudio = lazy(() =>
   import('../features/content-studio/ContentStudio').then((m) => ({ default: m.ContentStudio })),
 );
@@ -52,7 +53,7 @@ export function App() {
     return () => window.removeEventListener('genfactory:generation-finished', finish);
   }, [client]);
   return (
-    <div className={`app studio-shell ${collapsed ? 'nav-collapsed' : ''}`}>
+    <div translate="no" className={`app studio-shell ${collapsed ? 'nav-collapsed' : ''}`}>
       <a href="#main" className="skip-link">
         К содержимому
       </a>
@@ -139,7 +140,7 @@ export function App() {
         </div>
       </aside>
       {mobileNav && (
-        <Modal title="Меню" onClose={() => setMobileNav(false)}>
+        <Modal title="Меню" className="mobile-navigation-modal" onClose={() => setMobileNav(false)}>
           <AppNavigation onNavigate={() => setMobileNav(false)} />
         </Modal>
       )}
@@ -149,51 +150,46 @@ export function App() {
             {auth.signInError}
           </p>
         )}
-        <Suspense
-          fallback={
-            <div className="empty-state" role="status">
-              <span className="spinner" /> Открываем студию…
-            </div>
-          }
-        >
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route
-              path="/company"
-              element={
-                <section className="page-content">
-                  <h2>О компании</h2>
-                </section>
-              }
-            />
-            <Route path="/chat" element={<ContentStudio key={auth.user?.id} />} />
-            <Route path="/agent" element={<TextStudio mode="chat" />} />
-            <Route path="/prompt" element={<PromptStudio />} />
-            <Route path="/script" element={<TextStudio mode="script" />} />
-            <Route path="/templates" element={<Templates />} />
-            <Route path="/brand" element={<Brand />} />
-            <Route path="/image" element={<Studio kind="image" />} />
-            <Route path="/video" element={<Studio kind="video" />} />
-            <Route path="/audio" element={<AudioStudio />} />
-            <Route path="/library" element={<Library />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/open" element={<OpenConversation />} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route
-              path="*"
-              element={
-                <div className="empty-state">
-                  <h1>Здесь пока нет кадра</h1>
-                  <p>Страница не найдена.</p>
-                  <Link className="button primary" to="/">
-                    Вернуться в студию
-                  </Link>
-                </div>
-              }
-            />
-          </Routes>
-        </Suspense>
+        <div className="route-view" key={location.pathname}>
+          <Suspense
+            fallback={
+              <div className="empty-state" role="status">
+                <span className="spinner" /> Открываем студию…
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/company" element={<Company />} />
+              <Route path="/chat" element={<ContentStudio key={auth.user?.id} />} />
+              <Route path="/agent" element={<TextStudio mode="chat" />} />
+              <Route path="/prompt" element={<PromptStudio />} />
+              <Route path="/script" element={<TextStudio mode="script" />} />
+              <Route path="/templates" element={<Templates />} />
+              <Route path="/brand" element={<Brand />} />
+              <Route path="/image" element={<Studio kind="image" />} />
+              <Route path="/video" element={<Studio kind="video" />} />
+              <Route path="/audio" element={<AudioStudio />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/open" element={<OpenConversation />} />
+              <Route path="/account" element={<Account />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route
+                path="*"
+                element={
+                  <div className="empty-state">
+                    <h1>Здесь пока нет кадра</h1>
+                    <p>Страница не найдена.</p>
+                    <Link className="button primary" to="/">
+                      Вернуться в студию
+                    </Link>
+                  </div>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </div>
       </main>
       <AppUpdateNotice />
     </div>

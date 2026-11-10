@@ -3705,3 +3705,41 @@ button[aria-busy='true'] {
   opacity: 1;
   cursor: progress;
 }
+
+.history-cover .file-placeholder {
+  min-height: 0;
+  padding: 12px;
+  gap: 8px;
+}
+.history-cover .file-placeholder-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+.history-cover .file-placeholder-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.history-cover .file-placeholder-format {
+  display: none;
+}
+.history-cover-status {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #111c;
+  color: #ddd;
+  font-size: 11px;
+}
+.home-image-view-fallback {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 48px));
+  height: min(400px, calc(100dvh - 120px));
+  overflow: hidden;
+  border-radius: 16px;
+}

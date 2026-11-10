@@ -604,3 +604,21 @@
 .content-studio #cw-compose .content-model-row strong {
   font-family: inherit;
 }
+
+.content-thumb .file-placeholder {
+  min-height: 0;
+  padding: 6px;
+}
+.content-thumb .file-placeholder-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+.content-thumb .file-placeholder-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.content-thumb .file-placeholder-label,
+.content-thumb .file-placeholder-format {
+  display: none;
+}

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, hasPendingWrites, MAX_UPLOAD_BYTES, type IUploadProgress } from '../src/lib/api';
+const heic = vi.hoisted(() => ({ isHeic: vi.fn(), heicTo: vi.fn() }));
+vi.mock('heic-to/csp', () => heic);
 class FakeXHR {
   static current: FakeXHR;
   upload: {
@@ -26,7 +28,10 @@ class FakeXHR {
 }
 beforeEach(() => {
   vi.stubGlobal('XMLHttpRequest', FakeXHR);
-  vi.stubGlobal('localStorage', { getItem: () => 'session', removeItem: vi.fn() });
+  vi.stubGlobal('localStorage', {
+    getItem: () => 'session',
+    removeItem: vi.fn(),
+  });
   vi.stubGlobal('sessionStorage', { getItem: () => null, removeItem: vi.fn() });
   vi.stubGlobal('window', { dispatchEvent: vi.fn() });
 });
@@ -45,7 +50,11 @@ describe('upload lifecycle', () => {
     expect(xhr.setRequestHeader).toHaveBeenCalledWith('Authorization', 'Bearer session');
     expect((xhr.send.mock.calls[0][0] as FormData).get('tags')).toBe('["speech"]');
     xhr.upload.onprogress?.({ loaded: 25, total: 100, lengthComputable: true });
-    expect(events.at(-1)).toMatchObject({ loaded: 25, total: 100, phase: 'uploading' });
+    expect(events.at(-1)).toMatchObject({
+      loaded: 25,
+      total: 100,
+      phase: 'uploading',
+    });
     xhr.upload.onload?.();
     expect(events.at(-1)?.phase).toBe('processing');
     expect(hasPendingWrites()).toBe(true);
@@ -83,6 +92,67 @@ describe('upload lifecycle', () => {
     const file = new File(['x'], 'audio.wav');
     Object.defineProperty(file, 'size', { value: MAX_UPLOAD_BYTES + 1 });
     await expect(api.upload(file, 'session')).rejects.toThrow('1 ГБ');
+    expect(hasPendingWrites()).toBe(false);
+  });
+});
+
+describe('HEIC upload boundary', () => {
+  it('posts converted JPEG bytes and keeps conversion inside the pending write', async () => {
+    let finishConversion!: (blob: Blob) => void;
+    heic.isHeic.mockResolvedValue(true);
+    heic.heicTo.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishConversion = resolve;
+        }),
+    );
+    const previousRequest = FakeXHR.current;
+    const upload = api.upload(new File(['heic'], 'phone.HEIC'), 'session');
+    expect(hasPendingWrites()).toBe(true);
+    await vi.waitFor(() => expect(finishConversion).toBeTypeOf('function'));
+    finishConversion(new Blob(['jpeg'], { type: 'image/jpeg' }));
+    await vi.waitFor(() => expect(FakeXHR.current).not.toBe(previousRequest));
+    const uploaded = (FakeXHR.current.send.mock.calls[0][0] as FormData).get('file') as File;
+    expect(uploaded.name).toBe('phone.jpg');
+    expect(uploaded.type).toBe('image/jpeg');
+    expect(await uploaded.text()).toBe('jpeg');
+    FakeXHR.current.finish(201, { id: 7 });
+    await upload;
+    expect(hasPendingWrites()).toBe(false);
+  });
+
+  it('does not send a corrupt HEIC and releases the pending write', async () => {
+    const create = vi.fn();
+    vi.stubGlobal('XMLHttpRequest', create);
+    heic.isHeic.mockResolvedValue(false);
+    await expect(api.upload(new File(['bad'], 'broken.heic'), 'session')).rejects.toThrow(
+      'Не удалось преобразовать',
+    );
+    expect(create).not.toHaveBeenCalled();
+    expect(hasPendingWrites()).toBe(false);
+  });
+
+  it('does not upload after the account changes during conversion', async () => {
+    const create = vi.fn();
+    vi.stubGlobal('XMLHttpRequest', create);
+    let finishConversion!: (blob: Blob) => void;
+    heic.isHeic.mockResolvedValue(true);
+    heic.heicTo.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishConversion = resolve;
+        }),
+    );
+    const upload = api.upload(new File(['heic'], 'private.heic'), 'session');
+    const failed = expect(upload).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.waitFor(() => expect(finishConversion).toBeTypeOf('function'));
+    vi.stubGlobal('localStorage', {
+      getItem: () => 'other-session',
+      removeItem: vi.fn(),
+    });
+    finishConversion(new Blob(['jpeg'], { type: 'image/jpeg' }));
+    await failed;
+    expect(create).not.toHaveBeenCalled();
     expect(hasPendingWrites()).toBe(false);
   });
 });

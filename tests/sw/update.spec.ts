@@ -126,6 +126,18 @@ test('update is disabled while a server generation is running', async ({ page })
   await release(page);
   await expect(page.getByRole('button', { name: 'Обновить приложение' })).toBeDisabled();
 });
+test('a busy update notice can be dismissed without reloading or sending a request', async ({ page }) => {
+  const writes = await setup(page, true);
+  await page.getByLabel('Вопрос', { exact: true }).fill('Не терять черновик');
+  await release(page);
+  await expect(page.getByRole('button', { name: 'Обновить приложение' })).toBeDisabled();
+  const navigation = await page.evaluate(() => performance.timeOrigin);
+  await page.getByRole('button', { name: 'Позже', exact: true }).click();
+  await expect(page.getByRole('status', { name: 'Обновление приложения' })).toHaveCount(0);
+  await expect(page.getByLabel('Вопрос', { exact: true })).toHaveValue('Не терять черновик');
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(navigation);
+  expect(writes()).toBe(0);
+});
 test('storage failure prevents reload and preserves the typed draft', async ({ page }) => {
   await setup(page);
   await page.evaluate(() => {

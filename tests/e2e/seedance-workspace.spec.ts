@@ -1,3 +1,4 @@
+import { mediaTaskResponse } from './mediaTaskMock';
 import { catalogProvider, catalogResponse } from './modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -47,11 +48,15 @@ async function setup(page: Page, guest = false) {
   const state = {
     creates: [] as any[],
     sends: [] as any[],
+    tasks: [] as any[],
+    completed: undefined as any,
     conversation: undefined as any,
     messages: [] as any[],
     uploads: 0,
   };
   await page.route('**/api/**', async (route) => {
+    if (new URL(route.request().url()).pathname === '/api/task' && route.request().method() === 'GET')
+      return route.fulfill({ json: [] });
     const req = route.request(),
       url = new URL(req.url()),
       path = url.pathname;
@@ -59,10 +64,15 @@ async function setup(page: Page, guest = false) {
     if (path === '/api/init') body = { user: { id: 7 }, balances: { RUB: '10000' } };
     else if (path === '/api/aimodels')
       body =
-        catalogProvider(url) === 'OPEN_AI_CONVERSATION'
+        catalogProvider(url) === 'OPEN_ROUTER_CONVERSATION'
           ? [agent]
           : catalog.filter((m: any) => m.reference.provider === catalogProvider(url));
-    else if (path === '/api/conversation' && req.method() === 'POST') {
+    else if (path === '/api/task' && req.method() === 'POST') {
+      const input = req.postDataJSON();
+      state.tasks.push(input);
+      body = mediaTaskResponse(result, input);
+      state.completed = body.files[0];
+    } else if (path === '/api/conversation' && req.method() === 'POST') {
       state.creates.push(req.postDataJSON());
       body = state.conversation = {
         ...req.postDataJSON(),
@@ -79,15 +89,15 @@ async function setup(page: Page, guest = false) {
       state.messages = [{ id: 2, role: 'ASSISTANT', text: 'Готово', files: [result] }, body];
     } else if (path === '/api/conversation/101/message') body = pagination(state.messages);
     else if (path === '/api/file/12') body = source;
-    else if (path === '/api/file/13') body = result;
+    else if (path === '/api/file/13') body = state.completed || result;
     else if (path === '/api/file' && req.method() === 'POST') {
       state.uploads++;
       body = source;
     } else if (path === '/api/file')
       body = pagination(
         JSON.parse(url.searchParams.get('conditions') || '{}').type === 'VIDEO'
-          ? state.sends.length
-            ? [result]
+          ? state.tasks.length || state.sends.length
+            ? [state.completed || result]
             : []
           : [source],
       );
@@ -115,18 +125,20 @@ test('seedance preserves selected settings, start frame and route through send a
   await page.getByRole('button', { name: 'Длительность', exact: true }).click();
   await page.getByRole('option', { name: '4 с', exact: true }).click();
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
-  await expect(page).toHaveURL(/conversation=101&studio=seedance/);
+  await expect(page).toHaveURL(/\/video\?studio=seedance$/);
   await expect(page.locator('.image-result')).toHaveCount(1);
-  expect(state.sends[0].files).toEqual([12]);
-  expect(state.sends[0].settings.tools[0]).toMatchObject({
-    isRequired: true,
-    uid: 'VIDEO',
-    settings: { model: catalog[0].reference, options: { duration: 4, resolution: '480p' } },
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0]).toMatchObject({
+    isSaveResult: true,
+    model: catalog[0].reference.provider,
+    options: { model: catalog[0].reference.model, duration: 4, resolution: '480p' },
   });
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
   await page.locator('.image-result').hover();
   await page.getByRole('button', { name: 'Переделать Чашка.png', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toHaveCount(1);
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
   expect(state.uploads).toBe(0);
 });
 for (const width of [390, 1440])

@@ -2,7 +2,7 @@ import { GenerationDetails } from './FileGeneration';
 import { FilePlaceholder } from './FilePlaceholder';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, ImageOff, MoreHorizontal } from 'lucide-react';
+import { ExternalLink, MoreHorizontal } from 'lucide-react';
 import { api, safeMediaUrl } from '../lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
@@ -11,10 +11,16 @@ export function Media({
   file,
   controls = false,
   isPlaybackDisabled = false,
+  className,
+  autoPlay,
+  onReady,
 }: {
   file: IGnosisFile;
   controls?: boolean;
   isPlaybackDisabled?: boolean;
+  className?: string;
+  autoPlay?: boolean;
+  onReady?: () => void;
 }) {
   const original = safeMediaUrl(file.path);
   const [failedSources, setFailedSources] = useState<string[]>([]);
@@ -37,29 +43,50 @@ export function Media({
   if (!isImage && !isVideo) {
     if (!controls || !isAudio) {
       if (!controls && poster && !failedSources.includes(poster))
-        return <img src={poster} alt={file.name} loading="lazy" onError={() => failSource(poster)} />;
-      return <FilePlaceholder file={file} />;
+        return (
+          <img
+            className={className}
+            onLoad={onReady}
+            src={poster}
+            alt={file.name}
+            loading="lazy"
+            onError={() => failSource(poster)}
+          />
+        );
+      return <FilePlaceholder file={file} className={className} />;
     }
     if (src && !failedSources.includes(src))
-      return <audio src={src} controls onError={() => failSource(src)} />;
+      return (
+        <audio
+          className={className}
+          onLoadedMetadata={onReady}
+          src={src}
+          controls
+          onError={() => failSource(src)}
+        />
+      );
   }
-  if (isVideo && isPlaybackDisabled && !src) return <FilePlaceholder file={file} />;
-  if (!src || failedSources.includes(src))
-    return (
-      <div className="media-missing">
-        <ImageOff />
-        <span>{isAudio ? 'Аудиозапись недоступна' : 'Предпросмотр недоступен'}</span>
-      </div>
-    );
+  if (isVideo && isPlaybackDisabled && !src) return <FilePlaceholder file={file} className={className} />;
+  if (!src || failedSources.includes(src)) return <FilePlaceholder file={file} className={className} />;
   if (isVideo && !controls && src === poster)
-    return <img src={src} alt={file.name} loading="lazy" onError={() => failSource(src)} />;
+    return (
+      <img
+        className={className}
+        onLoad={onReady}
+        src={src}
+        alt={file.name}
+        loading="lazy"
+        onError={() => failSource(src)}
+      />
+    );
   return isVideo ? (
     <video
+      className={className}
       src={src}
       poster={poster}
       onError={() => failSource(src)}
       controls={controls}
-      autoPlay={controls && !isPlaybackDisabled}
+      autoPlay={autoPlay ?? (controls && !isPlaybackDisabled)}
       muted={!controls}
       preload="metadata"
       playsInline
@@ -72,12 +99,20 @@ export function Media({
       }}
       onLoadedMetadata={(event) => {
         const video = event.currentTarget;
+        onReady?.();
         if (!controls && video.currentTime === 0 && Number.isFinite(video.duration) && video.duration > 0)
           video.currentTime = Math.min(0.1, video.duration / 2);
       }}
     />
   ) : (
-    <img src={src} alt={file.name} loading="lazy" onError={() => failSource(src)} />
+    <img
+      className={className}
+      onLoad={onReady}
+      src={src}
+      alt={file.name}
+      loading="lazy"
+      onError={() => failSource(src)}
+    />
   );
 }
 export function MediaPreview({
@@ -378,7 +413,10 @@ export function MediaPreview({
           textFile.isPending ? (
             <p role="status">Загружаем текст…</p>
           ) : textFile.error ? (
-            <p role="alert">{textFile.error.message}</p>
+            <>
+              <FilePlaceholder file={current} />
+              <p role="alert">{textFile.error.message}</p>
+            </>
           ) : (
             <pre className="file-text-preview">{textFile.data}</pre>
           )

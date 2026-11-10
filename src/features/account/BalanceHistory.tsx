@@ -140,12 +140,12 @@ function History({ userId }: { userId: number }) {
                     hidden={!expanded.includes(t.id)}
                   >
                     <div className="details-content">
-                      <div className="cost-line">
-                        <span>Точная сумма {t.activatedDate ? 'операции' : 'к проведению'}</span>
-                        <strong>{transactionAmount(t.amount, t.coinId, true)}</strong>
-                      </div>
-                      {parts ? (
+                      {parts && (
                         <>
+                          <div className="cost-line">
+                            <span>Точная сумма {t.activatedDate ? 'операции' : 'к проведению'}</span>
+                            <strong>{transactionAmount(t.amount, t.coinId, true)}</strong>
+                          </div>
                           <div className="cost-breakdown">
                             {parts.map((part, index) => (
                               <div className="cost-line" key={index}>
@@ -156,10 +156,6 @@ function History({ userId }: { userId: number }) {
                           </div>
                           <p className="small muted">Входит в общую сумму.</p>
                         </>
-                      ) : (
-                        <p className="small muted">
-                          Разбивка для этой операции не сохранена или не подтверждена.
-                        </p>
                       )}
                       <dl className="transaction-facts">
                         {t.details?.options?.model && (

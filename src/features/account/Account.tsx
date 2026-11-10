@@ -1,13 +1,20 @@
 import './account.css';
 import { BalanceHistory } from './BalanceHistory';
 import { formatBalance } from '../../lib/money';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Wallet, UserRound, RefreshCw, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { Modal } from '../../components/Modal';
 export function Account() {
   const auth = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshed, setRefreshed] = useState('');
   const [error, setError] = useState('');
+  useEffect(() => {
+    if (!refreshed) return;
+    const timer = setTimeout(() => setRefreshed(''), 4000);
+    return () => clearTimeout(timer);
+  }, [refreshed]);
   const [confirmLogout, setConfirmLogout] = useState(false);
   return (
     <div className="page-content page-enter account-page">
@@ -43,9 +50,36 @@ export function Account() {
               <p>Нет доступных балансов</p>
             )}
             <p className="muted">Онлайн-пополнение пока недоступно.</p>
-            <button className="button" onClick={auth.refresh}>
-              <RefreshCw size={16} /> Обновить баланс
+            <button
+              className="button"
+              disabled={refreshing}
+              aria-busy={refreshing}
+              onClick={async () => {
+                setRefreshing(true);
+                setRefreshed('');
+                try {
+                  setRefreshed((await auth.refresh()) ? 'Баланс обновлён' : 'Не удалось обновить баланс');
+                } finally {
+                  setRefreshing(false);
+                }
+              }}
+            >
+              <RefreshCw size={16} className={refreshing ? 'spin' : undefined} />{' '}
+              {refreshing ? 'Обновляем…' : 'Обновить баланс'}
             </button>
+            {refreshed && (
+              <div className="account-refresh-notice" role="status">
+                <span>{refreshed}</span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Закрыть уведомление"
+                  onClick={() => setRefreshed('')}
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </section>
         </div>
       ) : (

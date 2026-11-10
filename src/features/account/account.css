@@ -352,3 +352,21 @@
     font-size: 14px;
   }
 }
+
+.account-page .transaction-preview .file-placeholder {
+  min-height: 0;
+  padding: 8px;
+}
+.account-page .transaction-preview .file-placeholder-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.account-page .transaction-preview .file-placeholder-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.account-page .transaction-preview .file-placeholder-label,
+.account-page .transaction-preview .file-placeholder-format {
+  display: none;
+}

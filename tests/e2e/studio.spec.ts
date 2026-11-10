@@ -73,6 +73,8 @@ async function mockApi(page: Page, signedIn = true) {
     messages: new Map<number, IConversationMessage[]>(),
     creates: [] as any[],
     sends: [] as any[],
+    tasks: [] as any[],
+    generated: [] as any[],
     forbidden: [] as string[],
     abortAfterAccept: false,
     scriptReply: undefined as string | undefined,
@@ -123,6 +125,8 @@ async function mockApi(page: Page, signedIn = true) {
     route.fulfill({ contentType: 'text/html', body: '<h1>SSO logout</h1>' }),
   );
   await page.route('**/api/**', async (route) => {
+    if (new URL(route.request().url()).pathname === '/api/task' && route.request().method() === 'GET')
+      return route.fulfill({ json: [] });
     const url = new URL(route.request().url());
     const path = url.pathname;
     const method = route.request().method();
@@ -137,7 +141,34 @@ async function mockApi(page: Page, signedIn = true) {
       };
     else if (path === '/api/config')
       body = { keycloak: { url: 'https://sso.example.test', realm: 'gnosis', clientId: 'gnosis' } };
-    else if (path.startsWith('/api/task/conversation')) body = state.progress;
+    else if (path === '/api/task' && method === 'POST') {
+      const input = route.request().postDataJSON();
+      state.tasks.push(input);
+      const video = input.model === 'OPEN_ROUTER_VIDEO';
+      const result = {
+        ...file,
+        ...(video ? { type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' } : {}),
+        origin: {
+          kind: 'GENERATION',
+          sourceFileIds: input.task.fileIds || [],
+          generation: {
+            model: { provider: input.model, model: input.options.model },
+            prompt: input.task.prompt,
+            options: input.options,
+          },
+        },
+      };
+      state.generated = [result];
+      body = {
+        result: video ? { externalId: 'video-test', fileId: result.id } : [],
+        cost: { status: 'FINAL', amounts: [{ amount: '1', coinId: 'RUB' }] },
+        files: [result],
+      };
+      if (state.abortAfterAccept) {
+        await route.abort('failed');
+        return;
+      }
+    } else if (path.startsWith('/api/task/conversation')) body = state.progress;
     else if (path === '/api/aimodel/OPEN_AI_CONVERSATION')
       body = {
         tools: [
@@ -150,7 +181,7 @@ async function mockApi(page: Page, signedIn = true) {
       };
     else if (path === '/api/aimodels')
       body =
-        catalogProvider(url) === 'OPEN_AI_CONVERSATION'
+        catalogProvider(url) === 'OPEN_ROUTER_CONVERSATION'
           ? [agent]
           : catalog.filter((m) => m.reference.provider === catalogProvider(url));
     else if (path === '/api/conversation' && method === 'POST') {
@@ -241,7 +272,8 @@ async function mockApi(page: Page, signedIn = true) {
         status = 404;
         body = { message: 'Conversation not found' };
       }
-    } else if (path === '/api/file' && method === 'GET') body = pagination([file]);
+    } else if (path === '/api/file' && method === 'GET')
+      body = pagination(state.generated.length ? state.generated : [file]);
     else if (path === '/api/file' && method === 'POST') body = { ...file, id: 12 + state.uploads++ };
     else if (path === '/api/file/12') body = file;
     else if (/^\/api\/file\/\d+$/.test(path) && Number(path.split('/').pop()) < 12 + state.uploads)
@@ -282,9 +314,9 @@ async function chooseModel(page: Page, key: string) {
   }
 }
 async function expectCompleted(page: Page) {
-  await expect(page.locator('.image-workspace, .studio').first()).toBeVisible();
-  if (await page.locator('.image-workspace').count())
-    await expect(page.locator('.image-result')).toHaveCount(1);
+  await expect(page.locator('.image-workspace, .video-workspace, .studio').first()).toBeVisible();
+  if (await page.locator('.image-workspace, .video-workspace').count())
+    await expect(page.locator('.image-result, .video-result')).toHaveCount(1);
   else await expect(page.getByText('Готово: результат сохранён.', { exact: true })).toBeVisible();
 }
 async function expectQuality(page: Page, quality: string) {
@@ -303,21 +335,26 @@ test('guest can explore and open a studio without fabricated models', { tag: '@s
   expect(new URL(page.url()).searchParams.get('theme')).toBe('genfactory');
 });
 test(
-  'image studio creates a configured conversation and sends tool preferences, never task or fileBuffer',
+  'image studio sends a direct task with saved results and creates no conversation',
   { tag: '@smoke' },
   async ({ page }) => {
     const state = await mockApi(page);
     await page.goto('/image');
     await submit(page);
     await expectCompleted(page);
-    expect(state.creates[0].model).toBe('OPEN_AI_CONVERSATION');
-    expect(state.creates[0].options.tools.map((t: any) => t.uid)).toEqual(['IMAGE', 'VIDEO']);
-    expect(state.sends[0].settings.tools[0].settings.model).toEqual(catalog[0].reference);
-    expect(state.sends[0].settings.tools[0].isRequired).toBe(true);
-    expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
-    expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('model');
+    expect(state.creates).toHaveLength(0);
+    expect(state.sends).toHaveLength(0);
+    expect(state.tasks).toHaveLength(1);
+    expect(state.tasks[0]).toMatchObject({
+      model: catalog.find((model) => model.reference.provider === 'OPEN_ROUTER_IMAGE')!.reference.provider,
+      isSaveResult: true,
+      options: {
+        model: catalog.find((model) => model.reference.provider === 'OPEN_ROUTER_IMAGE')!.reference.model,
+      },
+    });
+    expect(state.tasks[0].task.prompt).toBe('A calm cinematic forest');
     expect(state.forbidden).toEqual([]);
-    await expect(page).toHaveURL(/conversation=101/);
+    await expect(page).not.toHaveURL(/conversation=/);
     await page.screenshot({ path: 'test-results/studio-desktop.png', fullPage: true });
     await navigateLegacyRoute(page, '/library');
     await expect(page.getByRole('button', { name: /Test result/ })).toBeVisible();
@@ -333,20 +370,20 @@ test('advanced editor: invalid parameters do not create or execute a conversatio
   expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
 });
-test('video settings use VIDEO and server message attachments', { tag: '@smoke' }, async ({ page }) => {
+test('video settings use a direct video task and server-saved files', { tag: '@smoke' }, async ({ page }) => {
   const state = await mockApi(page);
   await page.goto('/video');
   await submit(page, 'City camera movement', 'video');
   await expectCompleted(page);
-  expect(state.sends[0].settings.tools[0].uid).toBe('VIDEO');
-  expect(state.sends[0].settings.tools[0].isRequired).toBe(true);
-  expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
-  expect(state.sends[0].settings.tools[0].settings.model.provider).toBe('OPEN_ROUTER_VIDEO');
+  expect(state.tasks).toHaveLength(1);
+  expect(state.tasks[0]).toMatchObject({ model: 'OPEN_ROUTER_VIDEO', isSaveResult: true });
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
   await expect(page.locator('.result-grid video, .video-result video')).toHaveCount(1);
   expect(state.forbidden).toEqual([]);
 });
 test(
-  'accepted message with lost response recovers from server after reload without a second POST',
+  'saved direct task result recovers from the library after a lost response without a second POST',
   { tag: '@smoke' },
   async ({ page }) => {
     const state = await mockApi(page);
@@ -356,16 +393,37 @@ test(
     await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
     await page.reload();
     await expectCompleted(page);
-    expect(state.sends).toHaveLength(1);
-    expect(state.creates).toHaveLength(1);
+    expect(state.tasks).toHaveLength(1);
+    expect(state.sends).toHaveLength(0);
+    expect(state.creates).toHaveLength(0);
     expect(
       await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('genfactory.jobs'))),
     ).toBe(false);
   },
 );
-test('history opens server conversation on a fresh visit and continues it', async ({ page }) => {
+test('history opens existing conversation results and a new generation uses a direct task', async ({
+  page,
+}) => {
   const state = await mockApi(page);
-  state.conversations.push(savedConversation());
+  const saved = savedConversation();
+  const selected = catalog.find((model) => model.reference.provider === 'OPEN_ROUTER_IMAGE')!;
+  saved.options.tools = [
+    { uid: 'IMAGE', settings: { model: selected.reference, options: { resolution: '2K' } } },
+  ];
+  state.conversations.push(saved);
+  state.generated = [
+    {
+      ...file,
+      origin: {
+        kind: 'GENERATION',
+        generation: {
+          model: selected.reference,
+          prompt: 'Existing server result',
+          options: { resolution: '2K' },
+        },
+      },
+    },
+  ];
   state.messages.set(101, [
     {
       id: 1,
@@ -376,14 +434,17 @@ test('history opens server conversation on a fresh visit and continues it', asyn
     },
   ]);
   await page.goto('/history');
-  await page.locator('.history-actions summary').click();
-  await page.getByRole('link', { name: 'Студия изображений' }).click();
+  await expect(page.locator('.history-card')).toHaveCount(1);
+  await page.goto('/image?conversation=101');
   await expect(page.locator('.image-result')).toHaveCount(1);
-  await expectQuality(page, 'high');
+  await expectQuality(page, '2K');
   await submit(page, 'Another landscape');
+  await expect.poll(() => state.tasks.length).toBe(1);
   await expectCompleted(page);
   expect(state.creates).toHaveLength(0);
-  expect(state.sends[0].id).toBe(101);
+  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(1);
+  expect(state.tasks[0].task.prompt).toBe('Another landscape');
 });
 test('advanced editor: image to video keeps the same conversation and sends the chosen file ID', async ({
   page,
@@ -423,8 +484,8 @@ test('library reference survives returning to a studio with a cached catalog', a
   await page.getByRole('button', { name: 'Использовать как референс' }).click();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Use this reference');
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
 });
 test('running conversation survives page load and blocks a second send until server completion', async ({
   page,
@@ -480,7 +541,7 @@ test('mobile navigation and layout remain usable', { tag: '@smoke' }, async ({ p
     .getByRole('navigation', { name: 'Основное меню' })
     .getByRole('link', { name: 'Видео', exact: true })
     .click();
-  await expect(page.getByRole('heading', { name: 'Видео', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Видео', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/studio-mobile.png', fullPage: true, animations: 'disabled' });
 });
@@ -591,7 +652,7 @@ test('leaving during conversation creation never starts a paid message in the ba
       body: JSON.stringify(savedConversation()),
     });
   });
-  await page.goto('/image');
+  await page.goto('/image?studio=advanced');
   const started = page.waitForRequest(
     (r) => new URL(r.url()).pathname === '/api/conversation' && r.method() === 'POST',
   );
@@ -994,7 +1055,7 @@ test('history and messages request the selected server page', async ({ page }) =
   await page.getByRole('button', { name: 'Далее', exact: true }).click();
   await expect(page.getByText('Work page 1')).toBeVisible();
   await page.locator('.history-actions summary').click();
-  await page.getByRole('link', { name: 'Студия изображений' }).click();
+  await page.getByRole('link', { name: 'Открыть', exact: true }).click();
   await expect(page.getByText('Messages page 0')).toBeVisible();
   await page.getByRole('button', { name: 'Далее', exact: true }).click();
   await expect(page.getByText('Messages page 1')).toBeVisible();
@@ -1022,7 +1083,7 @@ test('catalog failure is recoverable and prevents generation', async ({ page }) 
   failing = false;
   await page.getByRole('button', { name: 'Загрузить снова' }).click();
   await submit(page);
-  await expect.poll(() => state.sends.length).toBe(1);
+  await expect.poll(() => state.tasks.length).toBe(1);
 });
 
 test('server errors in library can be retried without losing the session', async ({ page }) => {
@@ -1167,9 +1228,11 @@ test('unavailable image and video previews show a readable fallback', async ({ p
   await mockApi(page);
   await page.route('**/media/gallery-1.jpg', (route) => route.fulfill({ status: 404, body: '' }));
   await page.goto('/library');
-  await expect(page.getByText('Предпросмотр недоступен')).toBeVisible();
+  await expect(page.getByRole('img', { name: /^(Изображение|Видео): Test result$/ })).toBeVisible();
   await page.getByRole('button', { name: /Test result/ }).click();
-  await expect(page.getByRole('dialog').getByText('Предпросмотр недоступен')).toBeVisible();
+  await expect(
+    page.getByRole('dialog').getByRole('img', { name: 'Изображение: Test result', exact: true }),
+  ).toBeVisible();
   await page.keyboard.press('Escape');
   await page.route('**/api/file?*', (route) =>
     route.fulfill({
@@ -1178,7 +1241,7 @@ test('unavailable image and video previews show a readable fallback', async ({ p
   );
   await page.route('**/missing-audit-video.mp4', (route) => route.fulfill({ status: 404, body: '' }));
   await page.getByRole('button', { name: 'Видео', exact: true }).click();
-  await expect(page.getByText('Предпросмотр недоступен')).toBeVisible();
+  await expect(page.getByRole('img', { name: /^(Изображение|Видео): Test result$/ })).toBeVisible();
 });
 
 test('workspace chat defaults to no tools, continues a server conversation and shows plain user text', async ({
@@ -1313,8 +1376,8 @@ test('workspace library picker attaches a reference without leaving the image ed
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await submit(page, 'Use the selected image');
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
 });
 
 test('workspace history supports rename favorites server archive and a running filter', async ({ page }) => {
@@ -2235,7 +2298,7 @@ test('an unavailable preview and original settle on a fallback without repeated 
     }),
   );
   await page.goto('/library');
-  await expect(page.getByText('Предпросмотр недоступен')).toBeVisible();
+  await expect(page.getByRole('img', { name: /^(Изображение|Видео): Test result$/ })).toBeVisible();
   expect(previewRequests).toBe(1);
   expect(originalRequests).toBe(1);
 });
@@ -2290,7 +2353,7 @@ test('history displays ready covers and refreshes pending covers from socket', a
   state.conversations.push(conversation, { ...savedConversation(102), name: 'Old work' });
   await page.goto('/history');
   await expect(page.getByText('Создаётся…', { exact: true })).toBeVisible();
-  await expect(page.getByText('Без превью', { exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Изображение: Old work', exact: true })).toBeVisible();
   await expect.poll(() => !!state.socket).toBeTruthy();
   conversation.preview = { image: { status: 'READY', url: '/media/gallery-1.jpg' } };
   state.socket!.send(
@@ -2305,9 +2368,7 @@ test('history displays ready covers and refreshes pending covers from socket', a
       ]),
   );
   await expect(page.getByAltText('Превью: Saved creative work')).toBeVisible();
-  await expect(
-    page.getByRole('link', { name: 'Открыть беседу Saved creative work', exact: true }),
-  ).toBeVisible();
+  await expect(page.locator('.history-cover img').first()).toBeVisible();
 });
 
 test('socket reconnect restores the conversation room', async ({ page }) => {
@@ -4229,11 +4290,11 @@ for (const width of [390, 1440]) {
 }
 
 test(
-  'history card opens the conversation from cover title date and free space',
+  'history card opens its result from cover title date and free space',
   { tag: '@smoke' },
   async ({ page }) => {
     const state = await mockApi(page);
-    state.conversations.push(savedConversation());
+    state.conversations.push({ ...savedConversation(), previewMode: 'MANUAL', previewFileId: 12 });
     for (const selector of ['.history-cover', 'h2', 'time', '.history-card']) {
       await page.goto('/history');
       const target = page.locator('.history-card').first();
@@ -4244,8 +4305,8 @@ test(
         box.x + box.width / 2,
         box.y + (selector === '.history-card' ? box.height - 5 : box.height / 2),
       );
-      await expect(page, selector).toHaveURL(/\/chat\?conversation=101$/);
-      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page, selector).toHaveURL(/\/history$/);
+      await expect(page.getByRole('dialog')).toBeVisible();
     }
     expect(state.sends).toHaveLength(0);
     expect(state.edits).toHaveLength(0);
@@ -4254,9 +4315,9 @@ test(
 
 test('history conversation link supports keyboard without a generated file', async ({ page }) => {
   const state = await mockApi(page);
-  state.conversations.push(savedConversation());
+  state.conversations.push({ ...savedConversation(), tags: ['genfactory', 'content-studio'] });
   await page.goto('/history');
-  const link = page.getByRole('link', { name: 'Открыть беседу Saved creative work', exact: true });
+  const link = page.getByRole('button', { name: 'Открыть файл Saved creative work', exact: true });
   await link.focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/chat\?conversation=101$/);
@@ -4476,7 +4537,7 @@ test('image submission clears its reference after a response but keeps it on unc
     .click();
   await submit(page, 'Preserve the reference cup');
   await expectCompleted(page);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
   await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
   await page
@@ -4487,7 +4548,7 @@ test('image submission clears its reference after a response but keeps it on unc
   await submit(page, 'Try another angle');
   await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
   await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeVisible();
-  expect(state.sends).toHaveLength(2);
+  expect(state.tasks).toHaveLength(2);
 });
 
 test('prompt cards keep their geometry with multiple long responses and a portrait reference', async ({
@@ -4802,7 +4863,7 @@ test('history searches all server pages by title or prompt and resets pagination
 });
 
 test(
-  'history ignores browser flags, persists server flags and rolls back failed patches',
+  'history ignores browser flags, persists archive and rolls back failed patches',
   { tag: '@smoke' },
   async ({ page }) => {
     const state = await mockApi(page);
@@ -4818,20 +4879,23 @@ test(
     await expect(card).toBeVisible();
     await expect(card.locator('.history-favorite-mark')).toHaveCount(0);
     await card.locator('summary').click();
-    await card.getByRole('button', { name: 'В избранное', exact: true }).click();
-    await expect.poll(() => state.patches).toEqual([{ isFavorite: true }]);
-    await expect(card.locator('.history-favorite-mark')).toHaveCount(1);
+    await expect(card.getByRole('button', { name: 'В избранное', exact: true })).toHaveCount(0);
+    await card.getByRole('button', { name: 'В архив', exact: true }).click();
+    await expect.poll(() => state.patches).toEqual([{ isArchived: true }]);
+    await page.getByRole('button', { name: 'Архив', exact: true }).click();
+    await expect(card).toBeVisible();
     await page.reload();
-    await expect(card.locator('.history-favorite-mark')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Архив', exact: true }).click();
+    await expect(card).toBeVisible();
     await page.route('**/api/conversation/101', async (route) => {
       if (route.request().method() !== 'PATCH') return route.fallback();
       await route.fulfill({ status: 500, json: { message: 'Save failed' } });
     });
     await card.locator('summary').click();
-    await card.getByRole('button', { name: 'В архив', exact: true }).click();
+    await card.getByRole('button', { name: 'Вернуть из архива', exact: true }).click();
     await expect(page.locator('.work-history > [role="alert"]')).toBeVisible();
     await expect(card).toBeVisible();
-    expect(state.conversations[0].isArchived).toBeUndefined();
+    expect(state.conversations[0].isArchived).toBe(true);
   },
 );
 
@@ -4851,6 +4915,7 @@ test(
     state.messages.set(101, [request]);
     await page.goto('/video?conversation=101');
     await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
+    await expect(page.getByRole('textbox', { name: 'Идея ролика', exact: true })).toBeDisabled();
     await page.reload();
     await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
     await expect.poll(() => !!state.socket).toBeTruthy();
@@ -4874,6 +4939,7 @@ test(
     );
     await expect(page.locator('.image-result-pending')).toHaveCount(0);
     await expect(page.locator('.image-result')).toHaveCount(1);
+    await expect(page.getByRole('textbox', { name: 'Идея ролика', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible();
     expect(state.sends).toHaveLength(0);
     expect(state.creates).toHaveLength(0);
@@ -5160,3 +5226,132 @@ for (const sameUrl of [false, true]) {
     await expect(page).toHaveURL(sameUrl ? /\/chat$/ : /conversation=102/);
   });
 }
+
+for (const existing of [false, true]) {
+  test(`content studio ${existing ? 'keeps the model of an existing conversation' : 'creates new conversations with Claude Opus through OpenRouter'}`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    const opus = structuredClone(agent);
+    opus.reference = { provider: 'OPEN_ROUTER_CONVERSATION', model: 'anthropic/claude-opus-5.5' };
+    opus.name = 'Claude Opus 5.5';
+    opus.status = 'ACTIVE';
+    opus.schema.properties!.model = { type: 'string', const: opus.reference.provider };
+    opus.schema.properties!.options.properties!.model = {
+      type: 'string',
+      enum: [opus.reference.model],
+      default: opus.reference.model,
+    };
+    await page.route('**/api/aimodels?*', (route) => {
+      if (catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_CONVERSATION')
+        return route.fulfill({ json: catalogPage([opus]) });
+      return route.fallback();
+    });
+    if (existing)
+      state.conversations.push({
+        ...savedConversation(),
+        options: { model: 'deepseek/deepseek-chat', tools: [] },
+      });
+    await page.goto(existing ? '/chat?conversation=101' : '/chat');
+    await page.locator('#cw-draft').fill('Предложи короткую идею для рекламы чашки');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect.poll(() => state.sends.length).toBe(1);
+    if (existing) {
+      expect(state.creates).toHaveLength(0);
+      expect(state.conversations[0].model).toBe(agent.reference.provider);
+      expect(state.conversations[0].options.model).toBe('deepseek/deepseek-chat');
+    } else {
+      expect(state.creates).toHaveLength(1);
+      expect(state.creates[0]).toMatchObject({
+        model: opus.reference.provider,
+        options: { model: opus.reference.model },
+      });
+    }
+  });
+}
+
+for (const savedError of [true, false]) {
+  test(`content studio shows a failed request once, saved error: ${savedError}`, async ({ page }) => {
+    const state = await mockApi(page);
+    const conversation = savedConversation();
+    conversation.options.tools = [];
+    state.conversations.push(conversation);
+    let posts = 0;
+    await page.route('**/api/conversation/101/message', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      posts++;
+      conversation.status = 'ERROR';
+      if (savedError) conversation.error = { code: 'AI_VENDOR_ERROR', message: 'Provider returned error' };
+      await route.fulfill({ status: 502, json: { message: 'Service unavailable' } });
+    });
+    await page.goto('/chat?conversation=101');
+    await page.locator('#cw-draft').fill('Проверка единственного сообщения об ошибке');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect(page.locator('.content-error')).toBeVisible();
+    await expect(page.locator('.content-feedback.error')).toHaveCount(0);
+    await expect(page.locator('#cw-draft')).toHaveValue('Проверка единственного сообщения об ошибке');
+    expect(posts).toBe(1);
+    await page.reload();
+    await expect(page.locator('.content-error')).toBeVisible();
+    await expect(page.locator('.content-feedback.error')).toHaveCount(0);
+    expect(posts).toBe(1);
+  });
+}
+
+test('content studio keeps an unconfirmed transport error beside the draft', async ({ page }) => {
+  const state = await mockApi(page);
+  const conversation = savedConversation();
+  conversation.options.tools = [];
+  state.conversations.push(conversation);
+  let posts = 0;
+  await page.route('**/api/conversation/101/message', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    posts++;
+    await route.abort('failed');
+  });
+  await page.goto('/chat?conversation=101');
+  await page.locator('#cw-draft').fill('Сохранить черновик при обрыве связи');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect(page.locator('.content-feedback.error')).toBeVisible();
+  await expect(page.locator('.content-error')).toHaveCount(0);
+  await expect(page.locator('#cw-draft')).toHaveValue('Сохранить черновик при обрыве связи');
+  expect(posts).toBe(1);
+});
+
+test('content studio shows progress on the send button and restores the arrow after completion', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  const conversation = { ...savedConversation(), status: 'LOADING' as IConversation['status'] };
+  conversation.options.tools = [];
+  state.conversations.push(conversation);
+  state.messages.set(101, [
+    { id: 1, role: 'USER', text: 'Подготовь идею', files: [], createdDate: file.createdDate },
+  ]);
+  await page.goto('/chat?conversation=101');
+  const send = page.getByRole('button', { name: 'Отправить запрос', exact: true });
+  await expect(send).toHaveAttribute('aria-busy', 'true');
+  await expect(send.locator('.spinner')).toBeVisible();
+  await expect(send).toBeDisabled();
+  await expect(page.getByText('Ассистент работает…', { exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(send.locator('.spinner')).toBeVisible();
+  await expect.poll(() => state.joinedRooms.includes('conversation101') && !!state.socket).toBe(true);
+  conversation.status = 'LOADED';
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          uid: crypto.randomUUID(),
+          name: 'ConversationChangedEvent',
+          data: { id: 101, item: { status: 'LOADED' } },
+        },
+      ]),
+  );
+  await expect(send).toHaveAttribute('aria-busy', 'false');
+  await expect(send.locator('.spinner')).toHaveCount(0);
+  await page.locator('#cw-draft').fill('Следующий запрос');
+  await expect(send).toBeEnabled();
+  expect(state.sends).toHaveLength(0);
+});

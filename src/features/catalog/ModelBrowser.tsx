@@ -1,7 +1,9 @@
+import { isAllowedProvider } from '../../lib/modelPolicy';
+import { modelTitle, modelSummary } from './presentation';
 import { useState } from 'react';
 import { Modal } from '../../components/Modal';
 import type { IModelDescription } from '../../lib/types';
-import { referenceLimit, referenceMinimum, supportsReferences } from './schema';
+import { referenceMinimum, supportsReferences } from './schema';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { useAuth } from '../auth/AuthProvider';
 import { favoritesFirst, modelKey as key } from './presentation';
@@ -20,9 +22,17 @@ export function ModelBrowser({
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const matches = favoritesFirst(models, prefs.value.favoriteModels, key).filter(
+  const matches = favoritesFirst(
+    models
+      .filter((model) => isAllowedProvider(model.reference.provider))
+      .sort((a, b) => modelTitle(a).localeCompare(modelTitle(b), 'ru', { numeric: true })),
+    prefs.value.favoriteModels,
+    key,
+  ).filter(
     (m) =>
-      `${m.name} ${m.reference.model} ${m.reference.provider}`.toLowerCase().includes(search.toLowerCase()) &&
+      `${modelTitle(m)} ${m.reference.model} ${m.reference.provider}`
+        .toLowerCase()
+        .includes(search.toLowerCase()) &&
       (filter === 'all' ||
         (filter === 'favorite' && prefs.value.favoriteModels.includes(key(m))) ||
         (filter === 'references' && supportsReferences(m)) ||
@@ -33,16 +43,15 @@ export function ModelBrowser({
       <input
         aria-label="Поиск моделей"
         autoFocus
-        placeholder="Название модели или провайдер"
+        placeholder="Название модели"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
       <div className="chips model-filters">
         {[
           ['all', 'Все'],
-          ['favorite', 'Избранные'],
-          ['references', 'С референсами'],
-          ['new', 'Без исходного кадра'],
+          ['references', 'С исходным фото'],
+          ['new', 'Без исходного фото'],
         ].map(([id, label]) => (
           <button key={id} className={`chip ${filter === id ? 'active' : ''}`} onClick={() => setFilter(id)}>
             {label}
@@ -53,13 +62,8 @@ export function ModelBrowser({
         {matches.map((m) => (
           <article className="model-browser-card" key={key(m)}>
             <div>
-              <h3>{m.name}</h3>
-              <p className="small muted">{m.reference.provider}</p>
-              <p className="small">
-                {supportsReferences(m)
-                  ? `Референсы: ${referenceMinimum(m) ? 'обязательны' : 'необязательны'}${referenceLimit(m) ? ` · максимум модели ${referenceLimit(m)}` : ''}. В редакторе — до ${Math.min(4, referenceLimit(m))}.`
-                  : 'Создание без референсов.'}
-              </p>
+              <h3>{modelTitle(m)}</h3>
+              <p className="small">{modelSummary(m)}</p>
               <div className="workspace-actions">
                 <button
                   className="button primary"
@@ -73,7 +77,7 @@ export function ModelBrowser({
                 <button
                   className="button"
                   disabled={!user}
-                  aria-label={`${prefs.value.favoriteModels.includes(key(m)) ? 'Убрать из избранных' : 'В избранные'}: ${m.name}`}
+                  aria-label={`${prefs.value.favoriteModels.includes(key(m)) ? 'Убрать из избранных' : 'В избранные'}: ${modelTitle(m)}`}
                   onClick={() =>
                     prefs.update((p) => ({ ...p, favoriteModels: toggleItem(p.favoriteModels, key(m)) }))
                   }

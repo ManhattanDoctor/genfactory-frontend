@@ -1,3 +1,4 @@
+import { isAllowedProvider } from '../../lib/modelPolicy';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { promptSystem, videoAnalysisError, videoAnalysisTool } from './videoAnalysis';
 import { useEffect, useRef, useState } from 'react';
@@ -91,7 +92,7 @@ function PromptEditor() {
   const catalog = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user,
-    queryFn: ({ signal }) => api.catalog('OPEN_AI_CONVERSATION', signal),
+    queryFn: ({ signal }) => api.conversationModels(signal),
     staleTime: 300000,
   });
   const videoCatalog = useQuery({
@@ -207,7 +208,7 @@ function PromptEditor() {
       (t) => typeof t !== 'string' && t.uid === 'VIDEO_RECOGNITION',
     );
     if (video) setSelected(typeof analysis === 'object' ? analysis.settings?.model.model || '' : '');
-    else if (conversation?.model === 'OPEN_AI_CONVERSATION') setSelected(conversation.options.model);
+    else if (conversation && isAllowedProvider(conversation.model)) setSelected(conversation.options.model);
     restored.current = true;
   }, [messages.data, draft.available]);
   useEffect(() => {

@@ -7,6 +7,7 @@ import type { IConversation, IPagination } from '../lib/types';
 export function AppUpdateNotice() {
   const client = useQueryClient();
   const [available, setAvailable] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const updater = useRef<ReturnType<typeof watchAppUpdate> | undefined>(undefined);
@@ -39,7 +40,7 @@ export function AppUpdateNotice() {
       updater.current?.dispose();
     };
   }, [client]);
-  if (!available) return null;
+  if (!available || dismissed) return null;
   return (
     <aside className="update-notice" role="status" aria-label="Обновление приложения">
       <strong>Доступна новая версия</strong>
@@ -49,9 +50,19 @@ export function AppUpdateNotice() {
           : 'Обновите страницу, когда будете готовы. Черновик будет сохранён.'}
       </p>
       {error && <p role="alert">{error}</p>}
-      <button className="button primary" disabled={busy} onClick={() => updater.current?.apply()}>
-        Обновить приложение
-      </button>
+      <div className="update-notice-actions">
+        <button
+          aria-label="Обновить приложение"
+          className="button primary"
+          disabled={busy}
+          onClick={() => updater.current?.apply()}
+        >
+          {busy ? 'Дождитесь завершения работы' : 'Обновить приложение'}
+        </button>
+        <button type="button" className="button" onClick={() => setDismissed(true)}>
+          Позже
+        </button>
+      </div>
     </aside>
   );
 }

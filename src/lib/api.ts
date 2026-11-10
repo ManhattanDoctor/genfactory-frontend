@@ -1,4 +1,11 @@
+import {
+  DEFAULT_ASSISTANT,
+  isAllowedProvider,
+  assertAllowedProvider,
+  assertAllowedTools,
+} from './modelPolicy';
 import { apiErrorMessage } from './errorMessages';
+import { isHeicUpload, prepareImageUpload } from './image-upload';
 import type {
   IGnosisFile,
   IFileOutputSettings,
@@ -13,6 +20,9 @@ import type {
   IMessageCreate,
   IConversationProgress,
   IToolDescription,
+  ITaskRequest,
+  ITaskResponse,
+  ITaskExecution,
 } from './types';
 // Leave room for multipart headers under the existing nginx 1 GiB request limit.
 export const MAX_UPLOAD_BYTES = 1_000_000_000;
@@ -98,13 +108,19 @@ async function uploadFile(
 ): Promise<IGnosisFile> {
   if (file.size > MAX_UPLOAD_BYTES) throw new Error('Максимальный размер загружаемого файла — 1 ГБ.');
   const session = sid ?? getSession();
-  const data = new FormData();
-  data.append('file', file);
-  if (context?.directory) data.append('directory', context.directory);
-  if (context?.tags !== undefined) data.append('tags', JSON.stringify(context.tags));
   pendingWrites++;
   notifyWrites();
   try {
+    if (isHeicUpload(file)) {
+      onProgress?.({ loaded: 0, total: file.size, phase: 'processing', fileName: file.name });
+      file = await prepareImageUpload(file);
+      if (session !== getSession())
+        throw new DOMException('Загрузка отменена после смены аккаунта.', 'AbortError');
+    }
+    const data = new FormData();
+    data.append('file', file);
+    if (context?.directory) data.append('directory', context.directory);
+    if (context?.tags !== undefined) data.append('tags', JSON.stringify(context.tags));
     return await new Promise<IGnosisFile>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${base}/file`);
@@ -148,6 +164,16 @@ async function uploadFile(
   }
 }
 export const api = {
+  tasks: (signal?: AbortSignal, sid?: string) =>
+    request<ITaskExecution[]>('/task', { signal }, sid).then((items) => {
+      if (!Array.isArray(items)) throw new Error('Не удалось прочитать список задач.');
+      return items;
+    }),
+  task: (body: ITaskRequest, sid: string) => {
+    assertAllowedProvider(body.model);
+    assertAllowedTools(body.options.tools as unknown[] | undefined);
+    return request<ITaskResponse>('/task', { method: 'POST', body: JSON.stringify(body) }, sid);
+  },
   transactions: (
     userId: number,
     page: number,
@@ -193,6 +219,7 @@ export const api = {
   downloadFile: (id: number) => request<Blob>(`/file/${id}/content`, {}, getSession(), 'blob'),
   fileText: (id: number, signal?: AbortSignal) => request<{ text: string }>(`/file/${id}/text`, { signal }),
   catalog: async (provider: string, signal?: AbortSignal) => {
+    if (!isAllowedProvider(provider)) return [];
     const items: IModelDescription[] = [];
     for (let pageIndex = 0; ; pageIndex++) {
       const page = await request<IPagination<IModelDescription>>(
@@ -203,9 +230,17 @@ export const api = {
         })}`,
         { signal },
       );
-      items.push(...page.items);
+      items.push(...page.items.filter((item) => isAllowedProvider(item.reference.provider)));
       if (pageIndex + 1 >= page.pages) return items;
     }
+  },
+  conversationModels: async (signal?: AbortSignal) => {
+    const models = await api.catalog('OPEN_ROUTER_CONVERSATION', signal);
+    return [...models].sort(
+      (a, b) =>
+        Number(b.reference.model === DEFAULT_ASSISTANT.model) -
+        Number(a.reference.model === DEFAULT_ASSISTANT.model),
+    );
   },
   modelDescription: (reference: IModelDescription['reference'], signal?: AbortSignal) =>
     request<IModelDescription>(`/aimodels/details?${new URLSearchParams(reference)}`, { signal }),
@@ -264,8 +299,11 @@ export const api = {
     request<IConversation>(`/conversation/${id}`, { method: 'PATCH', body: JSON.stringify(flags) }, sid),
   conversation: (id: number, signal?: AbortSignal, sid?: string) =>
     request<IConversation>(`/conversation/${id}`, { signal }, sid),
-  createConversation: (body: IConversationCreate, sid: string) =>
-    request<IConversation>('/conversation', { method: 'POST', body: JSON.stringify(body) }, sid),
+  createConversation: (body: IConversationCreate, sid: string) => {
+    assertAllowedProvider(body.model);
+    assertAllowedTools(body.options.tools);
+    return request<IConversation>('/conversation', { method: 'POST', body: JSON.stringify(body) }, sid);
+  },
   messages: (id: number, page: number, signal?: AbortSignal, sid?: string) =>
     request<IPagination<IConversationMessage>>(
       `/conversation/${id}/message?${new URLSearchParams({
@@ -277,12 +315,16 @@ export const api = {
       { signal },
       sid,
     ),
-  sendMessage: (id: number, body: IMessageCreate, sid: string) =>
-    request<IConversationMessage>(
+  sendMessage: async (id: number, body: IMessageCreate, sid: string) => {
+    const conversation = await api.conversation(id, undefined, sid);
+    assertAllowedProvider(conversation.model);
+    assertAllowedTools(body.settings?.tools);
+    return request<IConversationMessage>(
       `/conversation/${id}/message`,
       { method: 'POST', body: JSON.stringify(body) },
       sid,
-    ),
+    );
+  },
   editFileOutput: (id: number, fileOutput: IFileOutputSettings, sid: string) =>
     request<IConversation>(
       `/conversation/${id}`,

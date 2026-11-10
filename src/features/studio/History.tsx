@@ -1,14 +1,16 @@
 import { conversationUrl } from '../../lib/conversationUrl';
 import {
   Heart,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  LayoutGrid,
   Pencil,
   Archive,
   ArchiveRestore,
   Clock3,
   CircleAlert,
   MessageCircle,
-  Image,
-  Video,
   AudioLines,
   MoreHorizontal,
 } from 'lucide-react';
@@ -23,6 +25,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getSession } from '../../lib/api';
 import type { IConversation, IPagination } from '../../lib/types';
 import { connection } from './conversations';
+import { historyResult } from './historyResult';
+import { MediaPreview } from '../../components/MediaPreview';
+import type { IGnosisFile } from '../../lib/types';
 function historyDate(value: string | number | Date) {
   const date = new Date(value);
   const today = new Date();
@@ -52,6 +57,45 @@ function historyDay(value: string) {
 
 export function History() {
   const auth = useAuth();
+  const [preview, setPreview] = useState<IGnosisFile>();
+  const [opening, setOpening] = useState<number>();
+  const resultRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => resultRequest.current?.abort(), []);
+  useEffect(() => {
+    resultRequest.current?.abort();
+    setPreview(undefined);
+    setOpening(undefined);
+  }, [auth.session]);
+  async function openResult(c: IConversation, download = false) {
+    if (!auth.session || c.userId !== auth.user?.id) return;
+    resultRequest.current?.abort();
+    const controller = new AbortController();
+    resultRequest.current = controller;
+    const sid = auth.session;
+    const timer = setTimeout(() => controller.abort(), 30000);
+    setOpening(c.id);
+    setError('');
+    try {
+      const file = await historyResult(c, sid, controller.signal);
+      if (controller.signal.aborted || getSession() !== sid) return;
+      if (download) {
+        const blob = await api.downloadFile(file.id);
+        if (controller.signal.aborted || getSession() !== sid) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else setPreview(file);
+    } catch (e) {
+      if (!controller.signal.aborted && getSession() === sid)
+        setError(e instanceof Error ? e.message : 'Не удалось открыть результат.');
+    } finally {
+      clearTimeout(timer);
+      if (resultRequest.current === controller) setOpening(undefined);
+    }
+  }
   const client = useQueryClient();
   const [filter, setFilter] = useState('all');
   const flagRequest = useRef(false);
@@ -180,6 +224,7 @@ export function History() {
       ) || [];
   return (
     <div className="page-content work-history" ref={historyRoot}>
+      {preview && <MediaPreview file={preview} files={[preview]} onClose={() => setPreview(undefined)} />}
       {!auth.user ? (
         <div className="empty-state">
           <p>Войдите, чтобы открыть историю.</p>
@@ -191,22 +236,26 @@ export function History() {
         <>
           <div className="library-toolbar">
             <div className="chips">
-              {[
-                ['all', 'Все'],
-                ['running', 'В работе'],
-                ['favorite', 'Избранное'],
-                ['archive', 'Архив'],
-              ].map(([id, label]) => (
+              {(
+                [
+                  ['all', 'Все', LayoutGrid],
+                  ['running', 'В работе', Clock3],
+                  ['favorite', 'Избранное', Heart],
+                  ['archive', 'Архив', Archive],
+                ] as const
+              ).map(([id, label, Icon]) => (
                 <button
                   key={id}
                   className={`chip ${filter === id ? 'active' : ''}`}
+                  aria-label={label}
+                  title={label}
                   aria-pressed={filter === id}
                   onClick={() => {
                     setFilter(id);
                     setPagination({ userId: auth.user?.id, page: 0, query });
                   }}
                 >
-                  {label}
+                  <Icon size={18} aria-hidden="true" />
                 </button>
               ))}
             </div>
@@ -312,10 +361,12 @@ export function History() {
                   <h3 className="history-day">{historyDay(c.lastMessageDate || c.createdDate)}</h3>
                 )}
                 <article className="generation-card history-card">
-                  <Link
+                  <button
+                    type="button"
                     className="history-card-link"
-                    to={`/chat?conversation=${c.id}`}
-                    aria-label={`Открыть беседу ${c.name}`}
+                    aria-label={`Открыть результат ${c.name}`}
+                    aria-busy={opening === c.id}
+                    onClick={() => void openResult(c)}
                   />
                   <header>
                     <div className="history-visual">
@@ -418,7 +469,7 @@ export function History() {
                             Беседа
                           </Link>
                         )}
-                        {(connection(c, 'image') || connection(c, 'video')) && (
+                        {c.tags?.includes('content-studio') && (
                           <Link
                             className="button"
                             aria-label="Обсудить работу"
@@ -428,38 +479,14 @@ export function History() {
                             Беседа
                           </Link>
                         )}
-                        {connection(c, 'image') && (
-                          <Link
-                            className="button"
-                            aria-label="Студия изображений"
-                            title="Продолжить работу в студии изображений"
-                            to={`/image?conversation=${c.id}`}
-                          >
-                            <Image size={16} aria-hidden="true" />
-                            Студия изображений
-                          </Link>
-                        )}
-                        {connection(c, 'video') && (
-                          <Link
-                            className="button"
-                            aria-label="Видеостудия"
-                            title="Продолжить работу в видеостудии"
-                            to={`/video?conversation=${c.id}`}
-                          >
-                            <Video size={16} aria-hidden="true" />
-                            Видеостудия
-                          </Link>
-                        )}
                         <button
+                          type="button"
                           className="history-icon-button"
-                          aria-label={!!c.isFavorite ? 'В избранном' : 'В избранное'}
-                          title={!!c.isFavorite ? 'Убрать из избранного' : 'В избранное'}
-                          aria-pressed={!!c.isFavorite}
-                          disabled={!!optimistic}
-                          onClick={() => void changeFlags(c, { isFavorite: !c.isFavorite })}
+                          disabled={opening === c.id}
+                          onClick={() => void openResult(c, true)}
                         >
-                          <Heart size={16} fill={!!c.isFavorite ? 'currentColor' : 'none'} />
-                          {!!c.isFavorite ? 'Убрать из избранного' : 'В избранное'}
+                          <Download size={16} />
+                          Скачать
                         </button>
                         <button
                           className="history-icon-button"
@@ -496,20 +523,24 @@ export function History() {
             <div className="pagination">
               <button
                 className="button"
+                aria-label="Предыдущая страница"
+                title="Предыдущая страница"
                 disabled={!page}
                 onClick={() => setPagination({ userId: auth.user?.id, page: page - 1, query })}
               >
-                Назад
+                <ChevronLeft size={18} aria-hidden="true" />
               </button>
               <span>
                 {page + 1} / {list.data.pages}
               </span>
               <button
                 className="button"
+                aria-label="Следующая страница"
+                title="Следующая страница"
                 disabled={page + 1 >= list.data.pages}
                 onClick={() => setPagination({ userId: auth.user?.id, page: page + 1, query })}
               >
-                Далее
+                <ChevronRight size={18} aria-hidden="true" />
               </button>
             </div>
           )}

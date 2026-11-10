@@ -1,3 +1,4 @@
+import { mediaTaskResponse } from './mediaTaskMock';
 import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -38,11 +39,15 @@ async function setup(page: Page, guest = false) {
   const state = {
     creates: [] as any[],
     sends: [] as any[],
+    tasks: [] as any[],
+    completed: undefined as any,
     messages: [] as any[],
     conversation: undefined as any,
     uploads: 0,
   };
   await page.route('**/api/**', async (route) => {
+    if (new URL(route.request().url()).pathname === '/api/task' && route.request().method() === 'GET')
+      return route.fulfill({ json: [] });
     const request = route.request(),
       url = new URL(request.url()),
       p = url.pathname;
@@ -50,10 +55,16 @@ async function setup(page: Page, guest = false) {
     if (p === '/api/init') body = { user: { id: 7 }, balances: { RUB: '10000' } };
     else if (p === '/api/aimodels')
       body =
-        catalogProvider(url) === 'OPEN_AI_CONVERSATION'
+        catalogProvider(url) === 'OPEN_ROUTER_CONVERSATION'
           ? [agent]
           : catalog.filter((m) => m.reference.provider === catalogProvider(url));
-    else if (p === '/api/conversation' && request.method() === 'POST') {
+    else if (p === '/api/task' && request.method() === 'POST') {
+      const input = request.postDataJSON();
+      state.tasks.push(input);
+      const response = mediaTaskResponse(file, input);
+      state.completed = response.files[0];
+      body = response;
+    } else if (p === '/api/conversation' && request.method() === 'POST') {
       state.creates.push(request.postDataJSON());
       state.conversation = {
         id: 101,
@@ -85,15 +96,15 @@ async function setup(page: Page, guest = false) {
       ];
     } else if (p === '/api/conversation/101/message') body = pagination(state.messages);
     else if (p === '/api/conversation/101') body = state.conversation;
-    else if (p === '/api/file/12') body = file;
+    else if (p === '/api/file/12') body = state.completed || file;
     else if (p === '/api/file' && request.method() === 'POST') {
       state.uploads++;
       body = file;
     } else if (p === '/api/file')
       body = pagination(
         JSON.parse(url.searchParams.get('conditions') || '{}').type === 'IMAGE'
-          ? state.sends.length
-            ? [file]
+          ? state.tasks.length || state.sends.length
+            ? [state.completed || file]
             : []
           : [file],
       );
@@ -120,7 +131,7 @@ test('image canvas matches designer geometry and guest starts direct login from 
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
   expect(state.creates).toHaveLength(0);
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
 });
 test('image model controls send actual settings, show result and recover it on reload', async ({ page }) => {
   const state = await setup(page);
@@ -133,13 +144,13 @@ test('image model controls send actual settings, show result and recover it on r
   await page.locator('#img-draft').fill('Закат над лесом');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect(page.locator('.image-result')).toHaveCount(1);
-  expect(state.creates).toHaveLength(1);
-  expect(state.sends).toHaveLength(1);
-  expect(state.sends[0].settings.tools[0].settings.options).toMatchObject({
+  expect(state.creates).toHaveLength(0);
+  expect(state.tasks).toHaveLength(1);
+  expect(state.tasks[0].options).toMatchObject({
     size: '1536x1024',
     quality: 'high',
   });
-  expect(state.sends[0].files).toEqual([]);
+  expect(state.tasks[0].task.fileIds).toEqual([]);
   await page.reload();
   await expect(page.locator('.image-result')).toHaveCount(1);
   const restoredResult = page.locator('.image-result');
@@ -153,11 +164,11 @@ test('image model controls send actual settings, show result and recover it on r
   await expect(restoredResult.locator('.img-actions')).toHaveCSS('opacity', '1');
   await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
   await expect(page.locator('#img-draft')).toHaveValue(/Закат над лесом[\s\S]*Последний референс/);
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
   await expect(page.locator('.img-files .img-file')).toHaveCount(1);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(2);
-  expect(state.sends[1].files).toEqual([12]);
+  await expect.poll(() => state.tasks.length).toBe(2);
+  expect(state.tasks[1].task.fileIds).toEqual([12]);
 });
 test('image library reuses a saved file without reupload or sending on selection', async ({ page }) => {
   const state = await setup(page);
@@ -170,12 +181,12 @@ test('image library reuses a saved file without reupload or sending on selection
     .first()
     .click();
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
   expect(state.uploads).toBe(0);
   await page.locator('#img-draft').fill('Сделай свет теплее');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
 });
 test('image draft and selected options survive reload without executing a request', async ({ page }) => {
   const state = await setup(page);
@@ -190,22 +201,29 @@ test('image draft and selected options survive reload without executing a reques
   await page.reload();
   await expect(page.locator('#img-draft')).toHaveValue('Неотправленный черновик');
   await expect(page.getByRole('button', { name: 'Качество', exact: true })).toHaveText('high');
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
 });
-test('image model favorites preserve actual catalog selection', async ({ page }) => {
-  await setup(page);
+test('image model favorites change ordering without changing actual model selection', async ({ page }) => {
+  const state = await setup(page);
   await page.goto('/image');
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
+  const chosen = page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true });
   await page.getByRole('button', { name: 'В избранные: GPT Image 1 Mini', exact: true }).click();
-  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
-  await expect(page.getByRole('option')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Убрать из избранных: GPT Image 1 Mini', exact: true }).click();
-  await expect(page.getByRole('option')).toHaveCount(0);
-  await expect(page.getByText('Нет избранных моделей.', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
-  await page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true }).click();
+  await expect(page.getByRole('option').first()).toHaveAccessibleName('GPT Image 1 Mini');
+  await expect(
+    page.getByRole('button', { name: 'Убрать из избранных: GPT Image 1 Mini', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await chosen.click();
   await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 1 Mini');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 1 Mini');
+  await page.locator('#img-draft').fill('Чашка');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].options.model).toBe('gpt-image-1-mini');
+  expect(state.creates).toHaveLength(0);
 });
+
 for (const width of [390, 768, 1440, 1920])
   test(`image canvas and menus fit viewport ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -246,12 +264,13 @@ test.describe('complete image template catalog', () => {
         );
         await input.fill(prepared);
         await expect(input).toHaveValue(prepared);
+        await page.getByRole('button', { name: 'Готово', exact: true }).click();
         await expect(page.locator('#img-draft')).toHaveValue('');
         expect(prepared).not.toMatch(/\[[A-Za-z][A-Za-z_0-9 ]*\]/);
       }
       await page.getByRole('button', { name: 'Убрать шаблон', exact: true }).click();
       await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(0);
-      expect(state.sends).toHaveLength(0);
+      expect(state.tasks).toHaveLength(0);
       expect(state.creates).toHaveLength(0);
       expect(state.uploads).toBe(0);
     });
@@ -319,11 +338,11 @@ test('template placeholders survive reload and are sent separately from the idea
   await page.reload();
   await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(1);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].text).toContain('Идея:\nКрасная чашка, мягкий вечерний свет');
-  expect(state.sends[0].text).toContain('Шаблон:\n' + template);
-  expect(state.sends[0].text).toContain('НЕ вызывай IMAGE');
-  expect(state.sends[0].files).toEqual([]);
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.prompt).toContain('Основной запрос:\nКрасная чашка, мягкий вечерний свет');
+  expect(state.tasks[0].task.prompt).toContain('Шаблон:\n' + template);
+  expect(state.tasks[0].task.prompt).not.toMatch(/вызови IMAGE|Genfactory:/);
+  expect(state.tasks[0].task.fileIds).toEqual([]);
 });
 
 test('image blocks a nonpositive balance without creating or submitting a conversation', async ({ page }) => {
@@ -336,7 +355,7 @@ test('image blocks a nonpositive balance without creating or submitting a conver
   await expect(page.getByRole('alert')).toContainText('Недостаточно средств на балансе');
   await expect(page.getByRole('button', { name: 'Собрать изображение', exact: true })).toBeDisabled();
   expect(state.creates).toHaveLength(0);
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
   await expect(page.locator('#img-draft')).toHaveValue('Моё задание');
 });
 
@@ -358,11 +377,11 @@ test('image lets the user explicitly continue a failed conversation without an a
   await page.locator('#img-draft').fill('Сохранить моё задание');
   await expect(page.getByRole('alert')).toContainText('Предыдущий запрос завершился с ошибкой');
   await expect(page.getByRole('button', { name: 'Собрать изображение', exact: true })).toBeEnabled();
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
+  await expect.poll(() => state.tasks.length).toBe(1);
   expect(state.creates).toHaveLength(0);
-  expect(state.sends[0].text).toContain('Сохранить моё задание');
+  expect(state.tasks[0].task.prompt).toContain('Сохранить моё задание');
 });
 
 test('image translates an insufficient funds response and keeps the draft without retry', async ({
@@ -370,7 +389,7 @@ test('image translates an insufficient funds response and keeps the draft withou
 }) => {
   const state = await setup(page);
   let sends = 0;
-  await page.route('**/api/conversation/101/message', async (route) => {
+  await page.route('**/api/task', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
     sends++;
     await route.fulfill({
@@ -385,7 +404,7 @@ test('image translates an insufficient funds response and keeps the draft withou
   await expect(page.getByRole('alert')).not.toContainText('InsufficientFundsError');
   await expect(page.locator('#img-draft')).toHaveValue('Сохранить мой промпт');
   expect(sends).toBe(1);
-  expect(state.creates).toHaveLength(1);
+  expect(state.creates).toHaveLength(0);
 });
 
 test('image keeps a library reference when the user changes model before sending', async ({ page }) => {
@@ -399,14 +418,15 @@ test('image keeps a library reference when the user changes model before sending
     .click();
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
-  await page.getByRole('option', { name: 'Qwen: Qwen Image 2.1 Turbo', exact: true }).click();
+  await page.getByRole('option', { name: 'Qwen Image 2.1 Turbo', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
   await page.locator('#img-draft').fill('Пусть пьют вино, сохрани людей с исходного изображения');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
-  expect(state.sends[0].text).toContain('Референсы (fileIds, порядок важен): 12.');
-  expect(state.sends[0].text).not.toContain('Создай с нуля');
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].options.model).toBe('qwen/qwen-image-2.1-turbo');
+  expect(state.tasks[0].task.prompt).toBe('Пусть пьют вино, сохрани людей с исходного изображения');
+  expect(state.tasks[0].task.prompt).not.toContain('Создай с нуля');
   expect(state.uploads).toBe(0);
 });
 
@@ -438,7 +458,7 @@ test('image keeps incompatible references and blocks generation instead of switc
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Выберите модель с поддержкой выбранных референсов');
   expect(state.creates).toHaveLength(0);
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
 });
 
@@ -446,9 +466,9 @@ test('image viewer reports a failed original and returns focus without retrying 
   page,
 }) => {
   const state = await setup(page);
-  await page.route('**/api/conversation/101/message', async (route) => {
+  await page.route('**/api/task', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
-    state.sends.push(route.request().postDataJSON());
+    state.tasks.push(route.request().postDataJSON());
     const result = {
       id: 1,
       role: 'ASSISTANT',
@@ -487,7 +507,7 @@ test('image viewer reports a failed original and returns focus without retrying 
   await page.keyboard.press('Escape');
   await expect(viewer).toHaveCount(0);
   await expect(opener).toBeFocused();
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
 });
 
 test('image loading uses the selected frame and does not submit on reload', async ({ page }) => {
@@ -517,7 +537,7 @@ test('image loading uses the selected frame and does not submit on reload', asyn
   await expect(pending.locator('.img-spin')).toBeVisible();
   await page.reload();
   await expect(pending).toBeVisible({ timeout: 15_000 });
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
 });
 
 test('image result reserves its frame while loading and keeps actions under the pointer', async ({
@@ -552,7 +572,7 @@ test('image result reserves its frame while loading and keeps actions under the 
   expect(await result.boundingBox()).toEqual(before);
   await repeat.click();
   await expect(page.locator('#img-draft')).toHaveValue(/^Закат\n\nПоследний референс/);
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
 });
 
 test('redo restores the original idea and template of a new request and attaches the result', async ({
@@ -564,8 +584,18 @@ test('redo restores the original idea and template of a new request and attaches
   await page.locator('.ds-template-card').first().click();
   await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
   const template = await page.getByRole('textbox', { name: 'Текст шаблона', exact: true }).inputValue();
+  await page.getByRole('button', { name: 'Готово', exact: true }).click();
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
+  await expect.poll(() => state.tasks.length).toBe(1);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem('genfactory.file-recipes.v1.7') || '{}')['12']?.workspaceInput
+            ?.templateText,
+      ),
+    )
+    .toBe(template);
   await page.reload();
   const result = page.locator('.image-result');
   await expect
@@ -581,7 +611,7 @@ test('redo restores the original idea and template of a new request and attaches
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toHaveCount(1);
   await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Текст шаблона', exact: true })).toHaveValue(template);
-  expect(state.sends).toHaveLength(1);
+  expect(state.tasks).toHaveLength(1);
 });
 
 test('image viewer shows the thumbnail while the original loads and replaces it when ready', async ({
@@ -622,51 +652,36 @@ test('image viewer shows the thumbnail while the original loads and replaces it 
   await opener.click();
   await expect(viewer.locator('img:not([aria-hidden])')).toHaveCSS('opacity', '1');
   await expect(viewer.getByRole('status')).toHaveCount(0);
-  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
 });
 
-test('a completed image clears the earlier clarification from the workspace', async ({ page }) => {
+test('direct image results do not depend on conversation clarification messages', async ({ page }) => {
   const state = await setup(page);
+  state.messages = [
+    { id: 10, role: 'ASSISTANT', text: 'Как называется товар?', files: [], createdDate: file.createdDate },
+  ];
   await page.goto('/image');
   await page.locator('#img-draft').fill('Карточка товара');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect(page.locator('.image-result')).toHaveCount(1);
-  const question = {
-    id: 10,
-    role: 'ASSISTANT',
-    text: 'Как называется товар?',
-    files: [],
-    createdDate: file.createdDate,
-  };
-  state.messages = [question, ...state.messages];
-  const restoredMessages = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === '/api/conversation/101/message' &&
-      response.request().method() === 'GET',
-  );
   await page.reload();
-  await restoredMessages;
-  await expect(page.locator('.media-answer-card')).toContainText(question.text);
-  await page.locator('#img-draft').fill('Синяя чашка');
-  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(2);
-  // The old question remains in the conversation history after a successful answer.
-  state.messages.push(question);
-  const completedMessages = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === '/api/conversation/101/message' &&
-      response.request().method() === 'GET',
-  );
-  await page.reload();
-  await completedMessages;
   await expect(page.locator('.image-result')).toHaveCount(1);
   await expect(page.locator('.media-answer-card')).toHaveCount(0);
+  await page.locator('#img-draft').fill('Синяя чашка');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.tasks.length).toBe(2);
+  await page.reload();
+  await expect(page.locator('.image-result')).toHaveCount(1);
+  await expect(page.locator('.media-answer-card')).toHaveCount(0);
+  expect(state.creates).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+  expect(state.messages[0].text).toBe('Как называется товар?');
 });
 
 test('image hides provider funding errors without suggesting a top-up or retrying', async ({ page }) => {
   await setup(page);
   let sends = 0;
-  await page.route('**/api/conversation/101/message', async (route) => {
+  await page.route('**/api/task', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
     sends++;
     await route.fulfill({

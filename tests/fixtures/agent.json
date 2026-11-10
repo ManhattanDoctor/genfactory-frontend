@@ -1,23 +1,24 @@
 {
   "reference": {
-    "provider": "OPEN_AI_CONVERSATION",
-    "model": "gpt-5.6-terra"
+    "provider": "OPEN_ROUTER_CONVERSATION",
+    "model": "anthropic/claude-opus-5.5"
   },
-  "name": "gpt-5.6-terra",
-  "capabilities": ["TEXT_INPUT", "TEXT_OUTPUT", "IMAGE_INPUT", "TOOLS", "STRUCTURED_OUTPUT"],
+  "name": "Claude Opus 5.5",
+  "capabilities": ["TEXT_INPUT", "TEXT_OUTPUT", "IMAGE_INPUT", "TOOLS"],
   "schema": {
     "type": "object",
     "properties": {
       "model": {
-        "const": "OPEN_AI_CONVERSATION"
+        "type": "string",
+        "const": "OPEN_ROUTER_CONVERSATION"
       },
       "options": {
         "type": "object",
         "properties": {
           "model": {
             "type": "string",
-            "enum": ["gpt-5.6-terra"],
-            "default": "gpt-5.6-terra"
+            "enum": ["anthropic/claude-opus-5.5"],
+            "default": "anthropic/claude-opus-5.5"
           },
           "temperature": {
             "type": "number",

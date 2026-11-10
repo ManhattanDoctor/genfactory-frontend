@@ -1,34 +1,143 @@
 import { conversationUrl as workUrl } from '../lib/conversationUrl';
 import './active-jobs.css';
-import { History, Image, LoaderCircle, RefreshCw } from 'lucide-react';
+import { History, LoaderCircle, RefreshCw, BriefcaseBusiness, ListX } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { IDirectMediaTask } from '../features/studio/useDirectMediaTask';
+import { useRealtime } from '../features/realtime/RealtimeProvider';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../lib/api';
-import type { IConversation } from '../lib/types';
+import { taskView, visibleTasks } from '../features/studio/activeTasks';
+import { FilePlaceholder } from './FilePlaceholder';
+import type { IGnosisFile, ITaskExecution, ITaskResponse, ITaskFinished, IConversation } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { Modal } from './Modal';
 const JobMedia = lazy(() => import('./MediaPreview').then(({ Media }) => ({ default: Media })));
 
-function JobCard({ conversation, onOpen }: { conversation: IConversation; onOpen: () => void }) {
+function TaskPreview({
+  item,
+  userId,
+  sid,
+  file,
+  fileId,
+}: {
+  item: ITaskExecution;
+  userId: number;
+  sid: string;
+  file?: IGnosisFile;
+  fileId?: number;
+}) {
+  const details = useQuery({
+    queryKey: ['file-preview', userId, fileId],
+    queryFn: () => api.file(fileId!, sid),
+    enabled: !!fileId && !file,
+    retry: false,
+  });
+  const source = file || details.data;
+  const preview = source?.userId === userId ? source : undefined;
+  const view = taskView(item);
+  return preview ? (
+    <Suspense fallback={<FilePlaceholder file={{ name: view.title, type: view.type, mime: view.mime }} />}>
+      <JobMedia
+        file={preview}
+        isPlaybackDisabled={preview.type !== 'VIDEO' || preview.preview?.image?.status === 'READY'}
+      />
+    </Suspense>
+  ) : (
+    <FilePlaceholder file={{ name: view.title, type: view.type, mime: view.mime }} />
+  );
+}
+
+function TaskCard({
+  item,
+  userId,
+  sid,
+  title,
+  status,
+  file,
+  fileId,
+  completed = false,
+  onOpen,
+}: {
+  item: ITaskExecution;
+  userId: number;
+  sid: string;
+  title?: string;
+  status?: string;
+  file?: IGnosisFile;
+  fileId?: number;
+  completed?: boolean;
+  onOpen: () => void;
+}) {
+  const view = taskView(item);
+  return (
+    <Link className={`job-card${completed ? ' completed-job' : ''}`} to={view.path} onClick={onOpen}>
+      <div className="job-card-preview">
+        {completed ? (
+          <TaskPreview item={item} userId={userId} sid={sid} file={file} fileId={fileId} />
+        ) : (
+          <FilePlaceholder file={{ name: view.title, type: view.type, mime: view.mime }} />
+        )}
+      </div>
+      <div className="job-card-content">
+        <b className="job-card-title">{title || view.title}</b>
+        <span className="job-card-status">
+          {!completed && <LoaderCircle size={14} aria-hidden="true" />}
+          {status || 'Выполняется'}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function JobCard({
+  conversation,
+  onOpen,
+  completed = false,
+}: {
+  conversation: IConversation;
+  onOpen: () => void;
+  completed?: boolean;
+}) {
   // Mounted only while the window is open; shares the conversation's message cache.
   const messages = useQuery({
     queryKey: ['messages', conversation.userId, conversation.id, 0],
     queryFn: ({ signal }) => api.messages(conversation.id, 0, signal),
+    enabled: completed && conversation.status === 'LOADED',
     retry: false,
   });
-  const ask = messages.data?.items.find((message) => message.role === 'USER');
-  const files = ask?.files?.filter((file) => file.userId === conversation.userId) || [];
+  const latest = messages.data?.items.find((message) => message.role !== 'COMMAND');
+  const result =
+    completed && conversation.status === 'LOADED' && latest?.role === 'ASSISTANT' ? latest : undefined;
+  const placeholder = {
+    name: conversation.name,
+    mime: '',
+    type: conversation.tags?.includes('image')
+      ? 'IMAGE'
+      : conversation.tags?.includes('video')
+        ? 'VIDEO'
+        : conversation.tags?.includes('audio') && !conversation.tags?.includes('stt')
+          ? 'AUDIO'
+          : 'DOCUMENT',
+  };
+  const files = result?.files?.filter((file) => file.userId === conversation.userId) || [];
   const reference = files.find((file) => ['IMAGE', 'VIDEO'].includes(file.type)) || files[0];
   return (
-    <Link className="job-card" to={workUrl(conversation)} onClick={onOpen}>
+    <Link
+      className={`job-card${completed ? ' completed-job' : ''}`}
+      to={workUrl(conversation)}
+      onClick={onOpen}
+    >
       <div className="job-card-preview">
         {reference ? (
-          <Suspense fallback={<Image size={24} strokeWidth={1.5} aria-hidden="true" />}>
-            <JobMedia file={reference} isPlaybackDisabled />
+          <Suspense fallback={<FilePlaceholder file={placeholder} />}>
+            <JobMedia
+              file={reference}
+              isPlaybackDisabled={reference.type !== 'VIDEO' || reference.preview?.image?.status === 'READY'}
+            />
           </Suspense>
         ) : (
-          <Image size={24} strokeWidth={1.5} aria-hidden="true" />
+          <FilePlaceholder file={placeholder} />
         )}
       </div>
       <div className="job-card-content">
@@ -36,8 +145,8 @@ function JobCard({ conversation, onOpen }: { conversation: IConversation; onOpen
           {conversation.name}
         </b>
         <span className="job-card-status">
-          <LoaderCircle size={14} aria-hidden="true" />
-          Выполняется
+          {!completed && <LoaderCircle size={14} aria-hidden="true" />}
+          {completed ? (conversation.status === 'ERROR' ? 'Нужна проверка' : 'Готово') : 'Выполняется'}
         </span>
       </div>
     </Link>
@@ -52,6 +161,51 @@ export function ActiveJobs() {
 }
 function Jobs({ userId, sid }: { userId: number; sid: string }) {
   const client = useQueryClient();
+  const { join } = useRealtime();
+  const tasks = useMutationState({
+    filters: { mutationKey: ['media-task', userId] },
+    select: (mutation) => ({
+      id: mutation.mutationId,
+      status: mutation.state.status,
+      output: mutation.state.data as ITaskResponse | undefined,
+      input: mutation.state.variables as IDirectMediaTask,
+    }),
+  }).filter((task) => task.input?.sid === sid);
+  const pendingTasks = tasks.filter((task) => task.status === 'pending');
+  const executions = useQuery({
+    queryKey: ['active-tasks', userId],
+    queryFn: ({ signal }) => api.tasks(signal, sid),
+    retry: 1,
+    refetchInterval: (query) => (query.state.data?.length || pendingTasks.length ? 5000 : false),
+  });
+  const taskNotices = useQuery<ITaskFinished[]>({
+    queryKey: ['task-notices', userId],
+    queryFn: () => [],
+    initialData: [],
+    enabled: false,
+  });
+  const remoteTasks = visibleTasks(
+    executions.data || [],
+    pendingTasks.map((task) => task.input.body.task.session),
+  );
+  const remoteNotices = taskNotices.data.filter(
+    (task) =>
+      !task.item.model.includes('CONVERSATION') &&
+      !tasks.some((local) => local.input.body.task.session === task.item.session),
+  );
+  const [dismissedTasks, setDismissedTasks] = useState<number[]>([]);
+  const finishedTasks = tasks
+    .filter((task) => ['success', 'error'].includes(task.status) && !dismissedTasks.includes(task.id))
+    .slice(-8)
+    .reverse();
+  const taskRooms = pendingTasks
+    .map((task) => task.input.body.task.session)
+    .filter(Boolean)
+    .join('|');
+  useEffect(() => {
+    const leave = taskRooms ? taskRooms.split('|').map(join) : [];
+    return () => leave.forEach((release) => release());
+  }, [taskRooms, join]);
   const [open, setOpen] = useState(false);
   const [notices, setNotices] = useState<IConversation[]>([]);
   const tracked = useRef(new Map<number, IConversation>());
@@ -67,7 +221,10 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
         : false,
   });
   useEffect(() => {
-    const handler = () => void query.refetch();
+    const handler = () => {
+      void query.refetch();
+      void executions.refetch();
+    };
     window.addEventListener('genfactory:generation-finished', handler);
     return () => window.removeEventListener('genfactory:generation-finished', handler);
   }, [userId]);
@@ -102,37 +259,22 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
     };
   }, [query.dataUpdatedAt, query.isError, userId, sid]);
   const running = query.data?.items.filter((c) => c.userId === userId && c.status === 'LOADING') || [];
+  const count = running.length + pendingTasks.length + remoteTasks.length;
+  const unavailable = query.isError || executions.isError;
+  const hasNotices = !!(notices.length || finishedTasks.length || remoteNotices.length);
   return (
     <>
       <button
         className="button jobs-button"
-        aria-label={query.isError ? 'Статусы работ недоступны' : `Активные работы: ${running.length}`}
+        aria-label={unavailable ? 'Статусы работ недоступны' : `Активные работы: ${count}`}
         onClick={() => setOpen(true)}
       >
-        Работы{' '}
+        <BriefcaseBusiness size={18} aria-hidden="true" /> Работы{' '}
         <span>
-          {query.isError ? '—' : running.length}
-          {notices.length ? ' •' : ''}
+          {unavailable ? '—' : count}
+          {hasNotices ? ' •' : ''}
         </span>
       </button>
-      {!!notices.length && (
-        <div className="job-notice" role="status">
-          <span>
-            {notices[0].status === 'ERROR' ? 'Работа завершилась с ошибкой' : 'Работа завершена'}:{' '}
-            {notices[0].name}
-          </span>
-          <Link to={workUrl(notices[0])} onClick={() => setNotices((n) => n.slice(1))}>
-            Открыть
-          </Link>
-          <button
-            className="icon-button"
-            aria-label="Скрыть уведомление"
-            onClick={() => setNotices((n) => n.slice(1))}
-          >
-            ×
-          </button>
-        </div>
-      )}
       {open && (
         <Modal
           title="Активные работы"
@@ -141,6 +283,20 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
           onClose={() => setOpen(false)}
           headerActions={
             <>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Очистить уведомления"
+                title="Очистить уведомления"
+                disabled={!hasNotices}
+                onClick={() => {
+                  setNotices([]);
+                  client.setQueryData(['task-notices', userId], []);
+                  setDismissedTasks(tasks.map((task) => task.id));
+                }}
+              >
+                <ListX size={18} aria-hidden="true" />
+              </button>
               <Link
                 to="/history"
                 className="icon-button"
@@ -153,8 +309,11 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
               <button
                 className="icon-button"
                 aria-label="Обновить статусы"
-                onClick={() => void query.refetch()}
-                disabled={query.isFetching}
+                onClick={() => {
+                  void query.refetch();
+                  void executions.refetch();
+                }}
+                disabled={query.isFetching || executions.isFetching}
               >
                 <RefreshCw size={18} />
               </button>
@@ -162,14 +321,33 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
           }
         >
           <div className="active-jobs-content">
-            {query.isPending ? (
+            {query.isPending || executions.isPending ? (
               <p role="status">Загружаем работы…</p>
-            ) : query.isError ? (
+            ) : unavailable ? (
               <p role="alert">Не удалось обновить статусы. Попробуйте ещё раз.</p>
-            ) : !running.length ? (
+            ) : !count ? (
               <p>Нет выполняющихся работ.</p>
             ) : (
               <ul className="jobs-grid">
+                {pendingTasks.map((task) => (
+                  <li key={`task:${task.id}`}>
+                    <TaskCard
+                      item={{ id: String(task.id), model: task.input.body.model, createdDate: '' }}
+                      userId={userId}
+                      sid={sid}
+                      title={(task.input.recipe.workspaceInput?.idea || task.input.recipe.prompt).slice(
+                        0,
+                        100,
+                      )}
+                      onOpen={() => setOpen(false)}
+                    />
+                  </li>
+                ))}
+                {remoteTasks.map((task) => (
+                  <li key={task.id}>
+                    <TaskCard item={task} userId={userId} sid={sid} onOpen={() => setOpen(false)} />
+                  </li>
+                ))}
                 {running.map((c) => (
                   <li key={c.id}>
                     <JobCard conversation={c} onOpen={() => setOpen(false)} />
@@ -179,6 +357,45 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
             )}
             {!!query.data && query.data.total > running.length && (
               <p>Всего в работе: {query.data.total}. Здесь показана первая страница.</p>
+            )}
+            {hasNotices && (
+              <section className="completed-jobs" aria-label="Завершённые работы">
+                <h3>Завершённые</h3>
+                {notices.map((c) => (
+                  <JobCard key={c.id} conversation={c} completed onOpen={() => setOpen(false)} />
+                ))}
+                {finishedTasks.map((task) => (
+                  <TaskCard
+                    key={`task:${task.id}`}
+                    item={{ id: String(task.id), model: task.input.body.model, createdDate: '' }}
+                    userId={userId}
+                    sid={sid}
+                    completed
+                    title={(task.input.recipe.workspaceInput?.idea || task.input.recipe.prompt).slice(0, 100)}
+                    status={task.status === 'success' ? 'Готово' : 'Проверьте результат'}
+                    file={task.output?.files?.[0]}
+                    onOpen={() => setOpen(false)}
+                  />
+                ))}
+                {remoteNotices.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    item={task.item}
+                    userId={userId}
+                    sid={sid}
+                    completed
+                    fileId={task.fileIds?.[0]}
+                    status={
+                      task.result === 'COMPLETED'
+                        ? 'Готово'
+                        : task.result === 'CANCELLED'
+                          ? 'Отменено'
+                          : 'Проверьте результат'
+                    }
+                    onOpen={() => setOpen(false)}
+                  />
+                ))}
+              </section>
             )}
           </div>
         </Modal>

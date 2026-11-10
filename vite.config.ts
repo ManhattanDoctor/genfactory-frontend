@@ -32,6 +32,7 @@ self.addEventListener('message', event => {
     ],
     resolve: { alias: { util: require.resolve('util/') } },
     server: {
+      watch: { usePolling: true, interval: 250 },
       port: 5173,
       strictPort: true,
       proxy: {

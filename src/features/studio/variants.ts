@@ -10,6 +10,33 @@ export interface IGenerationRecipe {
   references: IGnosisFile[];
 }
 const event = 'genfactory:recipes';
+export function readFileRecipe(userId: number, fileId: number): IGenerationRecipe | undefined {
+  try {
+    const rows: unknown = JSON.parse(localStorage.getItem(`genfactory.file-recipes.v1.${userId}`) || '{}');
+    if (!record(rows)) return;
+    const recipe = rows[String(fileId)];
+    return validRow({ conversationId: 1, messageId: 1, recipe })
+      ? (recipe as unknown as IGenerationRecipe)
+      : undefined;
+  } catch {
+    return;
+  }
+}
+export function saveFileRecipe(userId: number, fileId: number, recipe: IGenerationRecipe): boolean {
+  try {
+    const key = `genfactory.file-recipes.v1.${userId}`;
+    const rows: unknown = JSON.parse(localStorage.getItem(key) || '{}');
+    const entries = record(rows) ? Object.entries(rows).filter(([id]) => id !== String(fileId)) : [];
+    localStorage.setItem(
+      key,
+      JSON.stringify(Object.fromEntries([...entries, [String(fileId), recipe]].slice(-200))),
+    );
+    window.dispatchEvent(new Event(event));
+    return true;
+  } catch {
+    return false;
+  }
+}
 interface IStoredRecipe {
   conversationId: number;
   messageId: number;

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { TransportSocket, TransportSocketClient } from '@ts-core/socket-client';
 import type { ILogger } from '@ts-core/common';
 import { useAuth } from '../auth/AuthProvider';
+import type { ITaskExecution, ITaskFinished } from '../../lib/types';
 import { apiErrorMessage } from '../../lib/errorMessages';
 
 interface IRealtime {
@@ -28,6 +29,7 @@ const resources = [
   'messages',
   'agent-messages',
   'active-jobs',
+  'active-tasks',
   'files',
   'file-preview',
   'transactions',
@@ -170,6 +172,22 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         client.setQueryData(['conversation-progress', user.id, id], { value: data, at: Date.now() });
         return;
       }
+      if (name === 'TaskStartedEvent' && typeof data.id === 'string' && data.item?.id === data.id) {
+        client.setQueryData<ITaskExecution[]>(['active-tasks', user.id], (previous) => [
+          ...(previous || []).filter((item) => item.id !== data.id),
+          data.item,
+        ]);
+      }
+      if (name === 'TaskFinishedEvent' && typeof data.id === 'string') {
+        client.setQueryData<ITaskExecution[]>(['active-tasks', user.id], (previous) =>
+          (previous || []).filter((item) => item.id !== data.id),
+        );
+        if (data.item?.id === data.id && ['COMPLETED', 'FAILED', 'CANCELLED'].includes(data.result)) {
+          client.setQueryData<ITaskFinished[]>(['task-notices', user.id], (previous) =>
+            [data, ...(previous || []).filter((item) => item.id !== data.id)].slice(0, 8),
+          );
+        }
+      }
       if (name === 'AiModelChangedEvent') refresh(modelResources);
       else if (name.startsWith('Conversation'))
         refresh(['conversation', 'conversations', 'messages', 'active-jobs']);
@@ -183,6 +201,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           'messages',
           'agent-messages',
           'active-jobs',
+          'active-tasks',
           'conversation-progress',
           ...(name === 'TaskFinishedEvent'
             ? ['account', 'transactions', 'transaction-results', 'files']

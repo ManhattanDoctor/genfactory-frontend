@@ -1,3 +1,5 @@
+import { IMAGE_UPLOAD_ACCEPT, isImageUpload, prepareImageUpload } from '../../lib/image-upload';
+import { useComposerMenu } from '../../components/useComposerMenu';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { scriptReferences } from './script';
 import '../catalog/model-favorites.css';
@@ -23,6 +25,7 @@ import { ModelMark } from './ModelMark';
 import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
 import { toggleItem, usePreferences } from '../workspace/preferences';
+import { defaultAssistant } from '../catalog/defaultAssistant';
 import { favoritesFirst, modelKey, modelTitle, modelSummary } from '../catalog/presentation';
 import templates from './templates.json';
 import icons from './icons.json';
@@ -133,16 +136,18 @@ export function ContentStudio() {
     enabled: !!user,
     staleTime: 300000,
     queryFn: async ({ signal }) =>
-      (
-        await Promise.all(
-          (mode === 'image'
-            ? ['OPEN_AI_IMAGE_GPT', 'OPEN_ROUTER_IMAGE']
-            : mode === 'video'
-              ? ['OPEN_ROUTER_VIDEO']
-              : ['OPEN_AI_CONVERSATION']
-          ).map((provider) => api.catalog(provider, signal)),
-        )
-      ).flat(),
+      mode === 'presentation'
+        ? api.conversationModels(signal)
+        : (
+            await Promise.all(
+              (mode === 'image'
+                ? ['OPEN_ROUTER_IMAGE']
+                : mode === 'video'
+                  ? ['OPEN_ROUTER_VIDEO']
+                  : ['OPEN_ROUTER_CONVERSATION']
+              ).map((provider) => api.catalog(provider, signal)),
+            )
+          ).flat(),
   });
   const [width, setWidth] = useState(() => {
     const saved = localStorage.getItem('genfactory.content-gallery-width');
@@ -182,6 +187,7 @@ export function ContentStudio() {
   const [templateStartsFresh, setTemplateStartsFresh] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ITemplate>();
   const [selectedTemplate, setSelectedTemplate] = useState<string>();
+  const [mobileGallery, setMobileGallery] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const focusRestoredDraft = useRef(false);
@@ -202,11 +208,12 @@ export function ContentStudio() {
   const genres = [...new Set(current.map((t) => t.genre).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, 'ru'),
   );
-  const visible = current.filter(
-    (t) => (!genre || t.genre === genre) && (!favoritesOnly || favorites.includes(t.id)),
-  );
+  const visible = current
+    .filter((t) => (!genre || t.genre === genre) && (!favoritesOnly || favorites.includes(t.id)))
+    .sort((a, b) => Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)));
   const pick = async (item: ITemplate) => {
     if (preparingFrame || work.busy || uploading) return;
+    setMobileGallery(false);
     if (frameSlot) {
       const slot = frameSlot;
       const epoch = ++frameEpoch.current;
@@ -254,7 +261,11 @@ export function ContentStudio() {
     (selectedModel === modelKey(retained) || selectedModel === retained.name || selectedModel === 'Auto')
       ? retained
       : undefined) ||
-    (selectedModel === 'Auto' && !savedReference ? catalog.data?.[0] : undefined);
+    (selectedModel === 'Auto' && !savedReference
+      ? mode === 'presentation'
+        ? defaultAssistant(catalog.data || [])
+        : catalog.data?.[0]
+      : undefined);
   const modelProperties = model?.schema.properties?.options?.properties || {};
   const sizes = ratioSizes(model);
   const ratioOptions = model
@@ -302,6 +313,14 @@ export function ContentStudio() {
   const initialStudioValue = useRef({ ...studioValue, draft: '' });
   const studioDraft = useDraft(`content-studio.${work.id ?? 'new'}`, studioValue, true);
   const draftScope = `${user?.id ?? 'guest'}:${work.id ?? 'new'}`;
+  const imageSelectionScope = useRef<object>({});
+  useEffect(() => {
+    imageSelectionScope.current = {};
+    setPreparingFrame(false);
+    return () => {
+      imageSelectionScope.current = {};
+    };
+  }, [draftScope, session, location.key, mode]);
   const [readyScope, setReadyScope] = useState('');
   const createdConversation = useRef<number | undefined>(undefined);
   const restored = useRef<number | undefined>(undefined);
@@ -446,10 +465,7 @@ export function ContentStudio() {
     }
     restored.current = conversation.id;
   }, [work.conversation, catalog.data, retained, mode, readyScope, draftScope]);
-  const agent =
-    work.agents.find(
-      (item) => item.reference.model === 'gpt-4o-mini' && item.capabilities?.includes('TOOLS'),
-    ) || work.agents.find((item) => item.capabilities?.includes('TOOLS'));
+  const agent = defaultAssistant(work.agents);
   const busy =
     work.busy || uploading || preparingFrame || restoringResult || restoringReferences?.scope === draftScope;
   useEffect(() => {
@@ -834,24 +850,10 @@ export function ContentStudio() {
     }
   }
   return (
-    <div className="content-studio">
+    <div className={`content-studio ${mobileGallery ? 'mobile-gallery-open' : ''}`}>
       <div id="creatives" className="panel ms-dots">
         <div className="cw" id="creative-workspace" data-gallery={width}>
           <section className="cw-chat" aria-label="Чат проекта">
-            <div className="ms-block">
-              <div className="ms-hint ms-hint-right">
-                <p>
-                  Шаблоны справа. Возьмите <em>готовый приём</em>.
-                </p>
-                <Icon name="right" />
-              </div>
-              <div className="ms-hint ms-hint-down">
-                <p>
-                  Поле внизу. <em>Опишите сцену</em> и отправьте.
-                </p>
-                <Icon name="down" />
-              </div>
-            </div>
             <div className="cw-stage">
               <div className="cw-thread">
                 {work.conversation && (
@@ -995,6 +997,14 @@ export function ContentStudio() {
                 </div>
                 <div className="cw-tools">
                   <button
+                    type="button"
+                    className="mobile-gallery-toggle"
+                    aria-expanded={mobileGallery}
+                    onClick={() => setMobileGallery(!mobileGallery)}
+                  >
+                    Шаблоны и настройки
+                  </button>
+                  <button
                     className="cw-plus ds-icon-button"
                     type="button"
                     aria-label="Добавить файл"
@@ -1017,28 +1027,24 @@ export function ContentStudio() {
                   <StudioMenu
                     key={mode}
                     disabled={busy}
-                    label={model ? modelTitle(model) : selectedModel}
-                    selection={selectedModel === 'Auto' ? 'Auto' : model ? modelKey(model) : selectedModel}
+                    label={model ? modelTitle(model) : 'Выбрать модель'}
+                    selection={model ? modelKey(model) : selectedModel}
                     ariaLabel={`Модель: ${model ? modelTitle(model) : selectedModel}`}
                     className="cw-model"
                     modelIcon={mode}
-                    options={
-                      user ? ['Auto', ...(catalog.data || []).map(modelKey)] : ['Auto', 'Сменить модель']
-                    }
+                    options={user ? (catalog.data || []).map(modelKey) : ['Сменить модель']}
                     onSelect={(value) => {
                       if (!user && value !== 'Auto') void signIn();
                       else setSelectedModel(value);
                     }}
-                    titles={user ? ['Auto', ...(catalog.data || []).map(modelTitle)] : undefined}
+                    titles={user ? (catalog.data || []).map(modelTitle) : undefined}
                     descriptions={
                       user
-                        ? ['Первая доступная модель раздела.', ...(catalog.data || []).map(modelSummary)]
+                        ? (catalog.data || []).map(modelSummary)
                         : ['Модель раздела подбирается сама.', 'Нужен вход в аккаунт.']
                     }
                     searchTerms={
-                      user
-                        ? ['Auto', ...(catalog.data || []).map((item) => `${item.name} ${modelKey(item)}`)]
-                        : undefined
+                      user ? (catalog.data || []).map((item) => `${item.name} ${modelKey(item)}`) : undefined
                     }
                     favorites={user ? prefs.value.favoriteModels : undefined}
                     onFavorite={(key) =>
@@ -1111,9 +1117,10 @@ export function ContentStudio() {
                     className="cw-send"
                     type="submit"
                     aria-label="Отправить запрос"
+                    aria-busy={busy}
                     disabled={busy || (!draft.trim() && !picked.length && !attachments.length)}
                   >
-                    <ArrowUp size={24} />
+                    {busy ? <span className="spinner" aria-hidden="true" /> : <ArrowUp size={24} />}
                   </button>
                 </div>
                 {templateNotice && (
@@ -1121,7 +1128,7 @@ export function ContentStudio() {
                     {templateNotice}
                   </p>
                 )}
-                {work.error && (
+                {work.error && !(work.isExecutionError && work.conversation?.status === 'ERROR') && (
                   <p className="content-feedback error" role="alert">
                     {work.error}
                   </p>
@@ -1131,16 +1138,19 @@ export function ContentStudio() {
                     Подготовка кадра…
                   </p>
                 )}
-                {work.busy && (
-                  <p className="content-feedback" role="status">
-                    Ассистент работает…
-                  </p>
-                )}
               </form>
             </div>
           </section>
           <aside className="cw-gallery" aria-label="Галерея шаблонов" data-gallery-view={panel}>
             <div className="cw-gallery-head">
+              <button
+                type="button"
+                className="mobile-gallery-close icon-button"
+                aria-label="Закрыть шаблоны и настройки"
+                onClick={() => setMobileGallery(false)}
+              >
+                ×
+              </button>
               <div className="cw-gallery-tabs ds-tabs" role="tablist" aria-label="Шаблоны или настройки">
                 {['templates', 'settings'].map((key, index) => (
                   <button
@@ -1233,13 +1243,15 @@ export function ContentStudio() {
                           <button
                             type="button"
                             className="cw-add ds-template-add"
+                            aria-label="Добавить"
                             disabled={busy}
                             onClick={(e) => {
                               e.stopPropagation();
                               void pick(item);
                             }}
                           >
-                            Добавить
+                            <Plus className="template-add-icon" size={18} aria-hidden="true" />
+                            <span className="template-add-label">Добавить</span>
                           </button>
                           <button
                             type="button"
@@ -1275,13 +1287,6 @@ export function ContentStudio() {
                       description="Включён — обсуждаем сценарий. Выключен — создаём результат."
                       value={writer}
                       onChange={setWriter}
-                    />
-                    <Toggle
-                      label="Дизайн-система"
-                      description="Добавляет в запрос правила оформления из аккаунта. Пока правил нет, выключена."
-                      value={brand}
-                      onChange={setBrand}
-                      disabled={!prefs.value.brand}
                     />
                   </div>
                   {mode === 'presentation' ? (
@@ -1381,11 +1386,13 @@ export function ContentStudio() {
         type="file"
         hidden
         multiple={!frameSlot}
-        accept="image/jpeg,image/png,image/webp"
-        onChange={(e) => {
+        accept={IMAGE_UPLOAD_ACCEPT}
+        onChange={async (e) => {
           const files = Array.from(e.target.files || []);
-          if (files.some((file) => !/^image\/(jpeg|png|webp)$/.test(file.type))) {
-            work.setError('Выберите изображение JPEG, PNG или WebP.');
+          e.target.value = '';
+          if (busy || !files.length) return;
+          if (files.some((file) => !isImageUpload(file))) {
+            work.setError('Выберите изображение JPEG, PNG, WebP или HEIC/HEIF.');
             e.target.value = '';
             return;
           }
@@ -1400,14 +1407,31 @@ export function ContentStudio() {
             e.target.value = '';
             return;
           }
-          const added = files.map((file) => {
-            const url = URL.createObjectURL(file);
-            urls.current.add(url);
-            return { id: crypto.randomUUID(), name: file.name, url, type: file.type, slot: frameSlot, file };
-          });
-          setAttachments((old) => [...old.filter((f) => !frameSlot || f.slot !== frameSlot), ...added]);
-          setFrameSlot(undefined);
-          e.target.value = '';
+          const scope = imageSelectionScope.current;
+          const sid = session;
+          const current = () => imageSelectionScope.current === scope && getSession() === sid;
+          const slot = frameSlot;
+          setPreparingFrame(true);
+          work.setError('');
+          try {
+            const prepared: File[] = [];
+            for (const file of files) {
+              prepared.push(await prepareImageUpload(file));
+              if (!current()) return;
+            }
+            const added = prepared.map((file) => {
+              const url = URL.createObjectURL(file);
+              urls.current.add(url);
+              return { id: crypto.randomUUID(), name: file.name, url, type: file.type, slot, file };
+            });
+            setAttachments((old) => [...old.filter((f) => !slot || f.slot !== slot), ...added]);
+            setFrameSlot(undefined);
+          } catch (error) {
+            if (current())
+              work.setError(error instanceof Error ? error.message : 'Не удалось открыть фотографию.');
+          } finally {
+            if (current()) setPreparingFrame(false);
+          }
         }}
       />
       {library && library.scope === draftScope && !busy && (
@@ -1438,7 +1462,10 @@ export function ContentStudio() {
             .join(' · ')}
           duration={duration}
           reference={attachments.find((file) => !file.isUnavailable && (!file.slot || file.slot === 'start'))}
-          onClose={() => setEditingTemplate(undefined)}
+          onClose={() => {
+            setEditingTemplate(undefined);
+            requestAnimationFrame(() => textarea.current?.focus());
+          }}
           onApply={(prompt, reference) => {
             if (reference && model && referenceLimit(model) < 1) {
               work.setError('Выбранная модель не поддерживает изображение-референс. Выберите другую модель.');
@@ -1552,21 +1579,27 @@ function StudioMenu({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [info, setInfo] = useState<number>();
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const visibleOptions = favoritesFirst(
-    options.map((option, i) => ({ option, i })),
+    options
+      .map((option, i) => ({ option, i }))
+      .sort((a, b) =>
+        searchTerms
+          ? (titles?.[a.i] || a.option).localeCompare(titles?.[b.i] || b.option, 'ru', { numeric: true })
+          : 0,
+      ),
     ['Auto', ...(favorites || [])],
     ({ option }) => option,
   ).filter(
     ({ option, i }) =>
       !searchTerms ||
       option === 'Auto' ||
-      ((!onlyFavorites || favorites?.includes(option)) &&
+      (true &&
         `${titles?.[i]} ${descriptions?.[i]} ${searchTerms[i]}`
           .toLowerCase()
           .includes(search.trim().toLowerCase())),
   );
   const ref = useRef<HTMLDivElement>(null);
+  useComposerMenu(open, ref);
   useEffect(() => {
     if (!open) return;
     const close = (e: PointerEvent) => {
@@ -1597,7 +1630,6 @@ function StudioMenu({
         onClick={() => {
           setOpen(!open);
           setSearch('');
-          setOnlyFavorites(false);
         }}
       >
         {value ? (
@@ -1636,14 +1668,6 @@ function StudioMenu({
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
               />
-              <button
-                type="button"
-                className="content-model-filter"
-                aria-pressed={onlyFavorites}
-                onClick={() => setOnlyFavorites(!onlyFavorites)}
-              >
-                Избранные
-              </button>
             </>
           )}
           {visibleOptions.map(({ option, i }) =>
@@ -1700,8 +1724,6 @@ function StudioMenu({
                     aria-pressed={favorites.includes(option)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (onlyFavorites && favorites.includes(option))
-                        ref.current?.querySelector('input')?.focus();
                       onFavorite?.(option);
                     }}
                   >
@@ -1747,7 +1769,7 @@ function StudioMenu({
           )}
           {searchTerms && visibleOptions.every(({ option }) => option === 'Auto') && (
             <p role="status" className="cw-menu-title">
-              {onlyFavorites ? 'Нет избранных моделей по этому запросу.' : 'Модели не найдены.'}
+              {'Модели не найдены.'}
             </p>
           )}
           {error && <p role="alert">{error}</p>}

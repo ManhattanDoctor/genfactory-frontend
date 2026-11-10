@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { FilePlaceholder } from '../components/FilePlaceholder';
 import { createPortal } from 'react-dom';
 
 /** Shared image viewer follows prototype/home-board.js, images-wall.js and krea.css. */
@@ -139,6 +140,11 @@ export function HomeImageViewer({
           objectFit: active && !closing ? 'contain' : 'cover',
         }}
       />
+      {loadState === 'error' && !previewReady && (
+        <div className="home-image-view-fallback">
+          <FilePlaceholder file={{ type: 'IMAGE', mime: 'image/png', name: image.alt }} />
+        </div>
+      )}
       {(loadState === 'error' || (loadState === 'loading' && !previewReady)) && (
         <p className="home-image-view-note" role={loadState === 'error' ? 'alert' : 'status'}>
           {loadState === 'error'

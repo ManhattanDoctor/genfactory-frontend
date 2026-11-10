@@ -1,3 +1,4 @@
+import { useComposerMenu } from '../../components/useComposerMenu';
 import { followsReferenceRatio } from '../catalog/schema';
 import { bananaRatios, bananaDescription } from './bananaSettings';
 import './banana-workspace.css';
@@ -5,8 +6,16 @@ import './seedance-workspace.css';
 import { videoRatios, videoLengths, videoSound, videoShapes } from './videoMenus';
 import { VideoTemplateMedia, VideoViewer, VideoModelInfo } from './VideoMedia';
 import '../catalog/model-favorites.css';
-import { readRecipes, variantGroups, type IGenerationRecipe } from './variants';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { readFileRecipe, readRecipes, variantGroups, type IGenerationRecipe } from './variants';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   ArrowUp,
@@ -18,6 +27,8 @@ import {
   RotateCcw,
   Expand,
   Heart,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Info,
 } from 'lucide-react';
@@ -34,6 +45,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { usePreferences, toggleItem } from '../workspace/preferences';
 import { Media } from '../../components/MediaPreview';
 import { Modal } from '../../components/Modal';
+import { Masonry } from '../../components/Masonry';
 import { HomeImageViewer } from '../../app/HomeImageViewer';
 import { displayMessageText } from './conversations';
 import { useConversationRoom } from '../realtime/RealtimeProvider';
@@ -57,6 +69,7 @@ export function MediaWorkspace({
   references,
   conversation,
   busy,
+  pendingCount = 0,
   unavailable,
   retryCatalog,
   error,
@@ -85,6 +98,7 @@ export function MediaWorkspace({
   references: IGnosisFile[];
   conversation?: IConversation;
   busy: boolean;
+  pendingCount?: number;
   unavailable?: boolean;
   retryCatalog?: () => void;
   error: string;
@@ -112,6 +126,7 @@ export function MediaWorkspace({
   const [bottom, setBottom] = useState(234);
   const selected = imageTemplates.find((item) => item.id === templateId);
   const [editing, setEditing] = useState(false);
+  const [templateDraft, setTemplateDraft] = useState('');
   const templateInput = useRef<HTMLTextAreaElement>(null);
   const focusTemplateInput = () => {
     const area = templateInput.current;
@@ -133,6 +148,7 @@ export function MediaWorkspace({
   }, [templateText, references.length]);
   const [notice, setNotice] = useState('');
   const conversationError = useConversationError(conversation);
+  const composerConversationError = video && conversation?.status === 'ERROR' ? '' : conversationError;
   const [answerView, setAnswerView] = useState<string>();
   useEffect(() => setAnswerView(undefined), [conversation?.id]);
   const downloading = useRef(new Set<number>());
@@ -146,7 +162,7 @@ export function MediaWorkspace({
     queryKey: ['messages', conversation?.userId, conversation?.id, page],
     queryFn: ({ signal }) => api.messages(conversation!.id, page, signal),
     enabled: !!conversation,
-    refetchInterval: busy ? 2000 : false,
+    refetchInterval: busy || pendingCount ? 2000 : false,
   });
   const latestMessage = [...(messages.data?.items || [])]
     .filter((message) => message.role !== 'COMMAND')
@@ -182,6 +198,10 @@ export function MediaWorkspace({
     ).values(),
   ].sort((a, b) => Date.parse(b.createdDate) - Date.parse(a.createdDate) || b.id - a.id);
   const repeatInput = (file: IGnosisFile) => {
+    if (user) {
+      const recipe = readFileRecipe(user.id, file.id);
+      if (recipe?.workspaceInput) return recipe.workspaceInput;
+    }
     if (!user || !conversation) return;
     const group = variantGroups(
       [...(messages.data?.items || [])].sort((a, b) => a.id - b.id),
@@ -218,7 +238,7 @@ export function MediaWorkspace({
   useEffect(() => {
     const measure = () => {
       const width = root.current?.clientWidth || innerWidth;
-      setColumns(width < 560 ? 1 : width < 900 ? 2 : width < 1280 ? 4 : 5);
+      setColumns(width < 900 ? 2 : width < 1280 ? 4 : 5);
       setBottom((dock.current?.offsetHeight || 146) + 88);
     };
     const observer = new ResizeObserver(measure);
@@ -293,26 +313,24 @@ export function MediaWorkspace({
       setDownloadIds([...downloading.current]);
     }
   };
-  const cards: ReactNode[] = [
-    ...(busy
-      ? [
-          <div
-            key="pending"
-            className="image-result-pending"
-            role="status"
-            style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
-          >
-            <span className="img-spin" aria-hidden="true" />
-            {conversation ? (
-              <ImageProgress conversation={conversation} kind={kind} startedAt={startedAt} />
-            ) : video ? (
-              'Создаём видео…'
-            ) : (
-              'Создаём изображение…'
-            )}
-          </div>,
-        ]
-      : []),
+  const cards: ReactElement[] = [
+    ...Array.from({ length: Math.max(pendingCount, busy ? 1 : 0) }, (_, index) => (
+      <div
+        key={`pending:${index}`}
+        className="image-result-pending"
+        role="status"
+        style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
+      >
+        <span className="img-spin" aria-hidden="true" />
+        {conversation ? (
+          <ImageProgress conversation={conversation} kind={kind} startedAt={startedAt} />
+        ) : video ? (
+          'Создаём видео…'
+        ) : (
+          'Создаём изображение…'
+        )}
+      </div>
+    )),
     ...(text?.trim()
       ? [
           <article className="img-tile media-answer-card" key={`answer:${latestAnswer!.id}`}>
@@ -455,7 +473,7 @@ export function MediaWorkspace({
             <span>{seedance ? 'Seedance Studio' : 'Nano Banana'}</span>
           </div>
         )}
-        {(messages.error || (messages.data?.pages || 0) > 1) && (
+        {(messages.error || (!busy && (messages.data?.pages || 0) > 1)) && (
           <div className="image-conversation-note">
             {messages.error && (
               <p role="alert">
@@ -463,27 +481,67 @@ export function MediaWorkspace({
                 <button onClick={() => void messages.refetch()}>Повторить</button>
               </p>
             )}
-            {(messages.data?.pages || 0) > 1 && (
+            {!busy && (messages.data?.pages || 0) > 1 && (
               <nav aria-label="Страницы результатов">
-                <button disabled={!page} onClick={() => setPage(page - 1)}>
-                  Назад
+                <button
+                  aria-label="Предыдущая страница"
+                  title="Предыдущая страница"
+                  disabled={!page}
+                  onClick={() => setPage(page - 1)}
+                >
+                  <ChevronLeft size={18} aria-hidden="true" />
                 </button>
                 <span>{page + 1}</span>
-                <button disabled={page + 1 >= messages.data!.pages} onClick={() => setPage(page + 1)}>
-                  Далее
+                <button
+                  aria-label="Следующая страница"
+                  title="Следующая страница"
+                  disabled={page + 1 >= messages.data!.pages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  <ChevronRight size={18} aria-hidden="true" />
                 </button>
               </nav>
             )}
           </div>
         )}
         <div className="img-masonry" style={{ paddingBottom: bottom }}>
-          {Array.from({ length: columns }, (_, col) => (
-            <div className="img-col" key={col}>
-              {cards.filter((_, index) => index % columns === col)}
-            </div>
-          ))}
+          <Masonry columns={columns}>{cards}</Masonry>
         </div>
       </div>
+      {editing && (
+        <Modal
+          title="Редактировать текст шаблона"
+          className="template-text-dialog"
+          onClose={() => setEditing(false)}
+        >
+          <label className="template-text-field">
+            Текст шаблона
+            <textarea
+              ref={templateInput}
+              aria-label="Текст шаблона"
+              value={templateDraft}
+              disabled={busy}
+              onChange={(event) => setTemplateDraft(event.target.value)}
+            />
+          </label>
+          <div className="modal-actions">
+            <button type="button" className="button" onClick={() => setEditing(false)}>
+              Отмена
+            </button>
+            <button
+              type="button"
+              className="button primary"
+              disabled={busy}
+              onClick={() => {
+                onTemplateText(templateDraft);
+                setEditing(false);
+              }}
+            >
+              Готово
+            </button>
+          </div>
+        </Modal>
+      )}
       <form
         className="img-dock"
         ref={dock}
@@ -506,7 +564,7 @@ export function MediaWorkspace({
                       disabled={busy}
                       onClick={() => onReferences(references.filter((f) => f.id !== file.id))}
                     >
-                      {video ? '×' : <X size={16} />}
+                      <X size={16} />
                     </button>
                   </div>
                 </div>
@@ -522,40 +580,30 @@ export function MediaWorkspace({
                       type="button"
                       className="img-thumb-x"
                       aria-label="Убрать шаблон"
+                      disabled={busy}
                       onClick={() => {
                         onTemplate('');
                         onTemplateText('');
                         promptInput.current?.focus();
                       }}
                     >
-                      {video ? '×' : <X size={16} />}
+                      <X size={16} />
                     </button>
                   </div>
-                  {!video && (
+                  {
                     <button
                       type="button"
                       className="img-file-edit"
                       aria-label="Редактировать шаблон"
+                      disabled={busy}
                       onClick={() => {
+                        setTemplateDraft(templateText);
                         setEditing(true);
-                        templateInput.current?.focus();
                       }}
                     >
-                      <Pencil size={16} />
+                      <Pencil size={13} />
                     </button>
-                  )}
-                  {editing && (
-                    <div className="img-template-editor">
-                      <textarea
-                        ref={templateInput}
-                        aria-label="Текст шаблона"
-                        value={templateText}
-                        disabled={busy}
-                        onChange={(event) => onTemplateText(event.target.value)}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      />
-                    </div>
-                  )}
+                  }
                 </div>
               )}
             </div>
@@ -566,6 +614,7 @@ export function MediaWorkspace({
             aria-label={video ? 'Идея ролика' : 'Идея'}
             rows={3}
             value={prompt}
+            disabled={busy}
             onChange={(e) => onPrompt(e.target.value)}
             placeholder={
               video
@@ -712,11 +761,16 @@ export function MediaWorkspace({
             {busy ? <span className="spinner" /> : <ArrowUp size={20} />}
           </button>
         </div>
-        {(templateError || error || conversationError || notice || prefs.error || history.error) && (
+        {(templateError ||
+          (video && conversation?.status === 'ERROR' ? '' : error) ||
+          composerConversationError ||
+          notice ||
+          prefs.error ||
+          history.error) && (
           <p className="img-guard" role="alert">
             {templateError ||
-              error ||
-              conversationError ||
+              (video && conversation?.status === 'ERROR' ? '' : error) ||
+              composerConversationError ||
               notice ||
               prefs.error ||
               (history.error ? `Не удалось загрузить историю ${video ? 'видео' : 'изображений'}.` : '')}
@@ -799,6 +853,7 @@ export function ImageMenu({
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState<IModelDescription>();
   const root = useRef<HTMLDivElement>(null);
+  useComposerMenu(open, root);
   useLayoutEffect(() => {
     if (!open || !note) return;
     const menu = root.current?.querySelector<HTMLElement>('.cw-model-menu');
@@ -826,11 +881,12 @@ export function ImageMenu({
     setOpen(false);
     root.current?.querySelector('button')?.focus();
   };
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const visible =
     models &&
-    favoritesFirst(models, favorites, modelKey).filter(
-      (model) => !onlyFavorites || favorites.includes(modelKey(model)),
+    favoritesFirst(
+      [...models].sort((a, b) => modelTitle(a).localeCompare(modelTitle(b), 'ru', { numeric: true })),
+      favorites,
+      modelKey,
     );
   return (
     <div
@@ -862,7 +918,6 @@ export function ImageMenu({
         disabled={disabled}
         onClick={() => {
           setOpen(!open);
-          setOnlyFavorites(false);
         }}
       >
         {label}
@@ -871,16 +926,6 @@ export function ImageMenu({
       {open && (
         <div className="cw-model-menu" role="listbox" aria-label={name}>
           {note && <p className="image-menu-note">{note}</p>}
-          {models && (
-            <button
-              type="button"
-              className="content-model-filter"
-              aria-pressed={onlyFavorites}
-              onClick={() => setOnlyFavorites(!onlyFavorites)}
-            >
-              Избранные
-            </button>
-          )}
           {autoOption && (
             <button
               type="button"
@@ -948,11 +993,7 @@ export function ImageMenu({
               <i className="image-choice-mark" aria-hidden="true" />
             </div>
           ))}
-          {models && !visible?.length && (
-            <p className="image-menu-note">
-              {onlyFavorites ? 'Нет избранных моделей.' : 'Модели недоступны'}
-            </p>
-          )}
+          {models && !visible?.length && <p className="image-menu-note">{'Модели недоступны'}</p>}
           {!models &&
             values.map((value) => (
               <button

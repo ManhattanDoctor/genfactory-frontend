@@ -24,7 +24,9 @@
   flex-wrap: wrap;
 }
 .video-template-media {
-  display: contents;
+  position: absolute;
+  inset: 0;
+  display: block;
 }
 .video-template-media video.img-face {
   opacity: 0;

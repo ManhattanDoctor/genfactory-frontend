@@ -62,7 +62,7 @@ export function TemplateEditor({
       return;
     }
     if (policy === 'required' && !source) {
-      setError('Выберите изображение-референс.');
+      setError('Выберите исходное фото.');
       return;
     }
     if (conflict) {
@@ -133,15 +133,15 @@ export function TemplateEditor({
               </label>
             </details>
             {policy !== 'none' && (
-              <section className="template-reference" aria-label="Изображение-референс">
+              <section className="template-reference" aria-label="Исходное фото">
                 <h3>
-                  Изображение-референс <span>{policy === 'required' ? 'Обязательно' : 'По желанию'}</span>
+                  Исходное фото <span>{policy === 'required' ? 'Обязательно' : 'По желанию'}</span>
                 </h3>
-                <p>{source?.name || 'Референс не выбран'}</p>
+                <p>{source?.name || 'Фото не выбрано'}</p>
                 <div className="template-reference-actions">
                   {source && (
                     <button type="button" className="text-button" onClick={() => setSource(undefined)}>
-                      Убрать референс
+                      Убрать фото
                     </button>
                   )}
                   {user && (
@@ -172,10 +172,13 @@ export function TemplateEditor({
                 </button>
               </div>
             )}
-            <label>
-              Готовый текст для редактора
-              <textarea rows={7} value={prompt} readOnly />
-            </label>
+            <details className="template-preview">
+              <summary>Посмотреть задание</summary>{' '}
+              <label>
+                Готовый текст для редактора
+                <textarea rows={7} value={prompt} readOnly />
+              </label>
+            </details>
           </div>
         </div>
         <footer className="template-footer">

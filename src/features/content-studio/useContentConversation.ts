@@ -1,3 +1,4 @@
+import { assertAllowedProvider } from '../../lib/modelPolicy';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +14,10 @@ export function useContentConversation() {
   const raw = params.get('conversation');
   const id = raw && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : undefined;
   const client = useQueryClient();
-  const [error, setError] = useState('');
+  const [failure, setFailure] = useState({ message: '', isExecution: false });
+  function setError(message: string, isExecution = false) {
+    setFailure({ message, isExecution });
+  }
   const [preparing, setPreparing] = useState(false);
   const lock = useRef(false);
   const route = `${auth.session}:${location.key}:${raw}`;
@@ -51,7 +55,7 @@ export function useContentConversation() {
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user,
     staleTime: 300000,
-    queryFn: ({ signal }) => api.catalog('OPEN_AI_CONVERSATION', signal),
+    queryFn: ({ signal }) => api.conversationModels(signal),
   });
   const send = useMutation({
     mutationKey: ['send-message', auth.user?.id],
@@ -64,6 +68,7 @@ export function useContentConversation() {
           failure.message === videoModerationError
             ? failure.message
             : `${failure.message} Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
+          true,
         );
       for (const key of ['conversation', 'messages', 'conversations', 'account'])
         void client.invalidateQueries({ queryKey: [key] });
@@ -100,6 +105,7 @@ export function useContentConversation() {
       if (conversation) {
         const fresh = await api.conversation(conversation.id, undefined, sid);
         if (!current()) return false;
+        assertAllowedProvider(fresh.model);
         if (fresh.userId !== userId || fresh.status === 'LOADING')
           throw new Error('Беседа недоступна или уже выполняет запрос.');
         // Discussion disables tools for this request without deleting saved connections.
@@ -136,6 +142,7 @@ export function useContentConversation() {
         const message = e instanceof Error ? e.message : 'Запрос не выполнен.';
         setError(
           `${message}${sent && message !== videoModerationError ? ' Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.' : ''}`,
+          sent,
         );
       }
       return false;
@@ -147,7 +154,8 @@ export function useContentConversation() {
   return {
     id,
     conversation: detail.data,
-    error: error || detail.error?.message || (raw && !id ? 'Некорректный адрес беседы.' : ''),
+    isExecutionError: !!failure.message && failure.isExecution,
+    error: failure.message || detail.error?.message || (raw && !id ? 'Некорректный адрес беседы.' : ''),
     setError,
     busy,
     submit,

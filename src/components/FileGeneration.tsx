@@ -100,7 +100,6 @@ export function GenerationDetails({ file }: { file: IGnosisFile }) {
         <ChevronDown size={16} aria-hidden="true" />
       </summary>
       <div className="file-generation-content">
-        <p className="file-generation-hint">Параметры запроса. Фактический результат может отличаться.</p>
         <div className="file-generation-model">
           <span className="file-generation-label">Модель</span>
           <strong>{modelName}</strong>

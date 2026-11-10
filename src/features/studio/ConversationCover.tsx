@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ImageOff, Play } from 'lucide-react';
+import { FilePlaceholder } from '../../components/FilePlaceholder';
+import { Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { safeMediaUrl } from '../../lib/api';
 import type { IConversation } from '../../lib/types';
@@ -25,16 +26,27 @@ export function ConversationCover({
       {src && failed !== src ? (
         <img src={src} alt={`Превью: ${conversation.name}`} loading="lazy" onError={() => setFailed(src)} />
       ) : (
-        <span className="history-cover-placeholder">
-          <ImageOff size={22} />
-          <span>
-            {pending
-              ? 'Создаётся…'
-              : image?.status === 'FAILED' || (!!src && failed === src)
-                ? 'Недоступно'
-                : 'Без превью'}
-          </span>
-        </span>
+        <>
+          <FilePlaceholder
+            file={{
+              name: conversation.name,
+              mime: '',
+              type:
+                kind === 'video'
+                  ? 'VIDEO'
+                  : kind === 'image'
+                    ? 'IMAGE'
+                    : conversation.tags?.includes('audio')
+                      ? 'AUDIO'
+                      : 'DOCUMENT',
+            }}
+          />
+          {pending && (
+            <span className="history-cover-status" role="status">
+              Создаётся…
+            </span>
+          )}
+        </>
       )}
       {video && src && failed !== src && <Play className="history-cover-play" size={20} aria-hidden="true" />}
     </>

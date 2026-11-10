@@ -1,3 +1,5 @@
+import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
+import { modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { followsReferenceRatio } from '../catalog/schema';
 import { bananaDefaults, bananaTitle } from './bananaSettings';
@@ -9,6 +11,8 @@ import { ModelField as Field } from '../catalog/ModelField';
 import { FileOutputEditor, useFileOutputSettings } from '../../components/FileOutputEditor';
 import { ReferenceChoice } from './ReferenceChoice';
 import { saveRecipe } from './variants';
+import { useDirectMediaTask } from './useDirectMediaTask';
+import { directMediaPrompt } from './directMediaPrompt';
 import { useDraft, DraftBar, restoreDraftFiles } from '../workspace/drafts';
 import { UploadSurface } from '../../components/UploadSurface';
 import { ReferenceList } from '../../components/ReferenceList';
@@ -43,8 +47,6 @@ import {
   connection,
   createConversationBody,
   createMessageBody,
-  imageRequest,
-  videoRequest,
   migratedReferenceSystem,
   toolSettings,
 } from './conversations';
@@ -54,7 +56,7 @@ import { LibraryPicker } from '../../components/LibraryPicker';
 import { WorkspaceNav } from '../workspace/WorkspaceNav';
 import { usePreferences, type IPreset } from '../workspace/preferences';
 import { creativePrompt } from '../workspace/prompt';
-const providers = { image: ['OPEN_AI_IMAGE_GPT', 'OPEN_ROUTER_IMAGE'], video: ['OPEN_ROUTER_VIDEO'] };
+const providers = { image: ['OPEN_ROUTER_IMAGE'], video: ['OPEN_ROUTER_VIDEO'] };
 const suggestions = {
   image: [
     'Съёмка парфюма на камне в утреннем свете',
@@ -81,6 +83,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [search] = useSearchParams();
+  const specialized = search.get('studio');
+  const legacy = !!specialized && !['banana', 'seedance'].includes(specialized);
+  const directTask = useDirectMediaTask(auth.user?.id, kind);
   const client = useQueryClient();
   const idParam = search.get('conversation');
   const conversationId =
@@ -119,9 +124,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
   );
   const agents = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
-    enabled: !!auth.user && !conversationId,
+    enabled: !!auth.user && !conversationId && legacy,
     queryFn: async ({ signal }) =>
-      (await api.catalog('OPEN_AI_CONVERSATION', signal)).filter((m) => m.capabilities?.includes('TOOLS')),
+      (await api.conversationModels(signal)).filter((m) => m.capabilities?.includes('TOOLS')),
     staleTime: 300000,
   });
   const agent = agents.data?.find((m) => m.reference.model === agentKey) || agents.data?.[0];
@@ -210,8 +215,6 @@ export function Studio({ kind }: { kind: MediaKind }) {
     staleTime: 5 * 60_000,
     retry: 1,
   });
-  const specialized = search.get('studio');
-  const legacy = !!specialized && !['banana', 'seedance'].includes(specialized);
   const models = (catalog.data || [])
     .filter((m) =>
       specialized === 'banana'
@@ -459,6 +462,16 @@ export function Studio({ kind }: { kind: MediaKind }) {
     },
     !!currentKey,
   );
+  const editorSnapshot = useRef('');
+  editorSnapshot.current = JSON.stringify({
+    prompt,
+    currentKey,
+    options,
+    references: references.map((item) => item.id),
+    shot,
+    imageTemplateId,
+    imageTemplateText,
+  });
   const pendingDraft = useRef<{
     value: NonNullable<typeof draft.available>['value'];
     files: IGnosisFile[];
@@ -534,8 +547,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     const isCurrent = () => mounted.current && scope === uploadScope.current && getSession() === sid;
     try {
       const picked = Array.from(files);
-      if (picked.some((f) => !['image/png', 'image/jpeg', 'image/webp'].includes(f.type)))
-        throw new Error('Загрузите PNG, JPEG или WebP.');
+      if (picked.some((f) => !isImageUpload(f))) throw new Error('Загрузите PNG, JPEG, WebP или HEIC/HEIF.');
       if (picked.some((f) => f.size > 20 * 1024 * 1024))
         throw new Error('Для референсов используйте файлы до 20 МБ.');
       if (references.length + picked.length > maxRefs)
@@ -570,7 +582,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     const message = value instanceof Error ? value.message : 'Ответ не получен.';
     if (message.includes('ConversationForbiddenError') && conversation?.status === 'ERROR')
       return failedConversationMessage;
-    return `${message}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`;
+    return `${message.replace(/[.\s]+$/u, '')}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`;
   };
   const imageBlockedReason =
     !legacy && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
@@ -598,7 +610,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setError('В этой беседе не подключён нужный инструмент. Создайте новую работу.');
       return;
     }
-    if (!conversationId && !agent) {
+    if (legacy && !conversationId && !agent) {
       setError('Не удалось выбрать модель ассистента. Обновите каталог.');
       return;
     }
@@ -623,12 +635,9 @@ export function Studio({ kind }: { kind: MediaKind }) {
       !legacy && imageTemplateId
         ? [imageTemplateText.trim(), prompt.trim()].filter(Boolean).join('\n\n')
         : prompt;
-    const preparedPrompt =
-      kind === 'image' && !legacy
-        ? imageRequest(prompt, imageTemplateId ? imageTemplateText : '')
-        : kind === 'video' && !legacy
-          ? videoRequest(prompt, imageTemplateId ? imageTemplateText : '', shot.shape || 'single')
-          : creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
+    const preparedPrompt = !legacy
+      ? directMediaPrompt(kind, prompt, imageTemplateId ? imageTemplateText : '', shot.shape || 'single')
+      : creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
     const body: ITaskRequest = {
       model: model.reference.provider,
       task: { prompt: preparedPrompt, session: crypto.randomUUID() },
@@ -651,6 +660,71 @@ export function Studio({ kind }: { kind: MediaKind }) {
       return;
     }
     setError('');
+    if (!legacy) {
+      const sid = auth.session;
+      const userId = auth.user.id;
+      const activeScope = scopeRef.current;
+      const current = () => mounted.current && getSession() === sid && scopeRef.current === activeScope;
+      submitting.current = true;
+      setCreating(true);
+      try {
+        for (const reference of references) {
+          const actual = await api.file(reference.id, sid);
+          if (actual.userId !== userId || actual.type !== 'IMAGE')
+            throw new Error('Исходное изображение недоступно. Выберите другой референс.');
+          if (!current()) return;
+        }
+        if (!current()) return;
+        const taskBody: ITaskRequest = {
+          ...body,
+          isSaveResult: true,
+          fileOutput: fileOutput.value,
+          task: { ...body.task, fileIds: references.map((file) => file.id) },
+          options: { ...body.options },
+        };
+        // The server resolves owned IDs into first/last frame URLs itself.
+        if (kind === 'video') delete taskBody.options.frameImages;
+        const submittedEditor = editorSnapshot.current;
+        void directTask
+          .mutateAsync({
+            userId,
+            sid,
+            kind,
+            body: taskBody,
+            recipe: {
+              kind,
+              prompt: preparedPrompt,
+              model: model.reference,
+              options: cleanOptions,
+              references,
+              workspaceInput: {
+                idea: prompt,
+                templateId: imageTemplateId,
+                templateText: imageTemplateText,
+                shape: shot.shape,
+              },
+            },
+          })
+          .then(() => {
+            if (current() && editorSnapshot.current === submittedEditor) {
+              draft.clear();
+              setPrompt('');
+              setImageTemplateId('');
+              setImageTemplateText('');
+              setReferences([]);
+            }
+          })
+          .catch((error) => {
+            if (current() && editorSnapshot.current === submittedEditor) setError(imageSendError(error));
+          });
+      } catch (error) {
+        if (current()) setError(imageSendError(error));
+      } finally {
+        submitting.current = false;
+        if (mounted.current) setCreating(false);
+      }
+      return;
+    }
     submitting.current = true;
     let activeScope = scopeRef.current;
     let messageSent = false;
@@ -784,6 +858,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
       <MediaWorkspace
         variant={specialized === 'banana' || specialized === 'seedance' ? specialized : undefined}
         kind={kind}
+        pendingCount={legacy ? 0 : directTask.pendingCount}
         shape={shot.shape || 'single'}
         onShape={(shape) => {
           draft.changed();
@@ -811,7 +886,6 @@ export function Studio({ kind }: { kind: MediaKind }) {
           !!auth.user &&
           (!!imageBlockedReason ||
             !model ||
-            (!conversationId && !agent) ||
             (!!idParam && (!conversation || !connection(conversation, kind))))
         }
         retryCatalog={
@@ -1136,7 +1210,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
               type="file"
               hidden
               ref={input}
-              accept="image/png,image/jpeg,image/webp"
+              accept={IMAGE_UPLOAD_ACCEPT}
               multiple={kind === 'image'}
               onChange={(e) => void upload(e.target.files)}
             />
@@ -1185,12 +1259,18 @@ export function Studio({ kind }: { kind: MediaKind }) {
                 )}
                 {model && !models.some((m) => modelKey(m) === currentKey) && (
                   <option value={currentKey} disabled>
-                    {model.name}
+                    {modelTitle(model)}
                   </option>
                 )}
-                {favoritesFirst(models, prefs.value.favoriteModels, modelKey).map((m) => (
+                {favoritesFirst(
+                  [...models].sort((a, b) =>
+                    modelTitle(a).localeCompare(modelTitle(b), 'ru', { numeric: true }),
+                  ),
+                  prefs.value.favoriteModels,
+                  modelKey,
+                ).map((m) => (
                   <option key={modelKey(m)} value={modelKey(m)}>
-                    {m.name}
+                    {modelTitle(m)}
                   </option>
                 ))}
               </SelectControl>
@@ -1355,7 +1435,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
                   )}
                   {agents.data?.map((m) => (
                     <option key={m.reference.model} value={m.reference.model}>
-                      {m.name}
+                      {modelTitle(m)}
                     </option>
                   ))}
                 </SelectControl>
