@@ -1,3 +1,4 @@
+import { stripStudioContext } from '../content-studio/studioAgent';
 import type {
   IConversation,
   IConversationCreate,
@@ -64,14 +65,20 @@ export function createMessageBody(
   fromScratch = false,
   modelLabel?: string,
   referenceMode?: 'frames' | 'references',
+  autonomous = false,
 ): IMessageCreate {
-  const instruction =
-    kind === 'image' ? 'Создай изображение с помощью IMAGE.' : 'Создай видео с помощью VIDEO.';
+  const instruction = autonomous
+    ? 'Помоги с задачей в Студии контента.'
+    : kind === 'image'
+      ? 'Создай изображение с помощью IMAGE.'
+      : 'Создай видео с помощью VIDEO.';
   const references = fileIds.length
     ? `Референсы (fileIds, порядок важен): ${fileIds.join(', ')}.`
-    : fromScratch
-      ? 'Создай с нуля, без референсов из предыдущих сообщений.'
-      : 'Продолжи беседу с учётом контекста. Если исходное изображение неоднозначно, уточни выбор до генерации.';
+    : autonomous
+      ? 'Прикреплённых файлов в этом запросе нет.'
+      : fromScratch
+        ? 'Создай с нуля, без референсов из предыдущих сообщений.'
+        : 'Продолжи беседу с учётом контекста. Если исходное изображение неоднозначно, уточни выбор до генерации.';
   const selectedModel =
     modelLabel && tool.settings?.model
       ? `[Genfactory:model]\n${JSON.stringify({ name: modelLabel, ...tool.settings.model })}\nНазвание в интерфейсе и технический идентификатор выше обозначают одну выбранную модель. Используй её и сохранённые настройки инструмента; не выбирай похожую модель по названию. Не уточняй выбор из-за различия этих двух названий.\n[/Genfactory:model]\n\n`
@@ -83,9 +90,15 @@ export function createMessageBody(
     settings: {
       tools: [
         {
-          ...tool,
-          isRequired: true,
-          ...(kind === 'video' ? { input: { fileIds, ...(referenceMode ? { referenceMode } : {}) } } : {}),
+          ...(autonomous ? { uid: tool.uid, settings: tool.settings } : tool),
+          ...(!autonomous
+            ? {
+                isRequired: true,
+                ...(kind === 'video'
+                  ? { input: { fileIds, ...(referenceMode ? { referenceMode } : {}) } }
+                  : {}),
+              }
+            : {}),
         },
       ],
     },
@@ -99,8 +112,9 @@ export function withMessageContext(text: string, context: string): string {
 
 // Only our exact envelope is hidden; messages from other clients remain untouched.
 export function displayMessageText(text: string): string {
+  text = stripStudioContext(text);
   const prefix =
-    /^(Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.|Продолжи беседу с учётом контекста\. Если исходное изображение неоднозначно, уточни выбор до генерации\.)\n\n/;
+    /^(Помоги с задачей в Студии контента\.|Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Прикреплённых файлов в этом запросе нет\.|Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.|Продолжи беседу с учётом контекста\. Если исходное изображение неоднозначно, уточни выбор до генерации\.)\n\n/;
   const generated = prefix.test(text) || /^\[Genfactory:(?:chat|prompt|script|presentation)\]\n/.test(text);
   let value = text
     .replace(prefix, '')

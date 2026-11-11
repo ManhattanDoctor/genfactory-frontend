@@ -256,7 +256,6 @@ export function MediaWorkspace({
     const input = promptInput.current;
     if (input) {
       input.style.height = '72px';
-      input.style.height = `${Math.min(122.4, Math.max(72, input.scrollHeight))}px`;
     }
   }, [prompt, promptInput]);
   const fields = model?.schema.properties?.options?.properties || {};

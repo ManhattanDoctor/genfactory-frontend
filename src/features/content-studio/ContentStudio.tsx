@@ -1,3 +1,6 @@
+import { Media, type MediaFile } from '../../components/MediaPreview';
+import { StudioEmptyState } from './StudioEmptyState';
+import { parseStudioQuestion, withStudioContext, type StudioQuestion } from './studioAgent';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload, prepareImageUpload } from '../../lib/image-upload';
@@ -35,6 +38,9 @@ import icons from './icons.json';
 import fieldIcons from './fieldIcons.json';
 import './prototype.css';
 import './content-studio.css';
+
+// Temporarily hidden by user request. Remove the mode entirely later; see docs/IMPLEMENTATION-DIFFERENCES.md.
+const SCRIPT_WRITER_ENABLED = false;
 
 type StudioMode = 'image' | 'video' | 'presentation';
 interface IAttachment {
@@ -159,7 +165,7 @@ export function ContentStudio() {
   const [genre, setGenre] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [draft, setDraft] = useState((location.state as { prompt?: string } | null)?.prompt || '');
-  const [writer, setWriter] = useState(true);
+  const [writer, setWriter] = useState<boolean>(SCRIPT_WRITER_ENABLED);
   const [brand, setBrand] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({
     ...Object.fromEntries(fields.map((f) => [f.id, f.options[0]])),
@@ -177,6 +183,7 @@ export function ContentStudio() {
   const [sound, setSound] = useState('Без звука');
   const [shape, setShape] = useState('Один кадр');
   const [picked, setPicked] = useState<ITemplate[]>([]);
+  const [attachmentPreview, setAttachmentPreview] = useState<MediaFile>();
   const [attachments, setAttachments] = useState<IAttachment[]>([]);
   const [restoringReferences, setRestoringReferences] = useState<{
     scope: string;
@@ -204,7 +211,6 @@ export function ContentStudio() {
   useEffect(() => {
     if (textarea.current) {
       textarea.current.style.height = '72px';
-      textarea.current.style.height = `${Math.min(122, textarea.current.scrollHeight)}px`;
     }
   }, [draft]);
   const current = (templates as ITemplate[]).filter((t) => t.kind === mode);
@@ -319,7 +325,7 @@ export function ContentStudio() {
   };
   const initialStudioValue = useRef({ ...studioValue, draft: '' });
   const studioDraft = useDraft(`content-studio.${work.id ?? 'new'}`, studioValue, true);
-  const draftScope = `${user?.id ?? 'guest'}:${work.id ?? 'new'}`;
+  const draftScope = `${user?.id ?? 'guest'}:${work.id ?? `new:${location.key}`}`;
   const imageSelectionScope = useRef<object>({});
   useEffect(() => {
     imageSelectionScope.current = {};
@@ -333,11 +339,16 @@ export function ContentStudio() {
   const restored = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (readyScope === draftScope || (work.id && !work.conversation)) return;
-    const stored = studioDraft.available?.value;
-    const changingProject = !!readyScope && createdConversation.current !== work.id;
-    const saved = stored || (changingProject ? initialStudioValue.current : undefined);
+    const stored = work.id ? studioDraft.available?.value : undefined;
+    const ownCreation = work.id !== undefined && createdConversation.current === work.id;
+    const changingProject = !!readyScope && !ownCreation;
+    const saved = stored || (changingProject || !work.id ? initialStudioValue.current : undefined);
     if (changingProject) {
       setAttachments([]);
+      setAttachmentPreview(undefined);
+      setPicked([]);
+      setDraft('');
+      setRestoringReferences(undefined);
       setLibrary(undefined);
       setEditingTemplate(undefined);
       setTemplateNotice('');
@@ -351,7 +362,7 @@ export function ContentStudio() {
     if (saved && ['image', 'video', 'presentation'].includes(saved.mode)) {
       setMode(saved.mode);
       if (typeof saved.selectedModel === 'string') setSelectedModel(saved.selectedModel);
-      if (typeof saved.writer === 'boolean') setWriter(saved.writer);
+      if (typeof saved.writer === 'boolean') setWriter(SCRIPT_WRITER_ENABLED && saved.writer);
       if (typeof saved.brand === 'boolean') setBrand(saved.brand);
       if (saved.settings && typeof saved.settings === 'object')
         setSettings((current) => ({
@@ -386,6 +397,7 @@ export function ContentStudio() {
       } else setRestoringReferences(undefined);
       if (stored) restored.current = work.id;
     }
+    if (!work.id) studioDraft.clear();
     createdConversation.current = undefined;
     setReadyScope(draftScope);
   }, [draftScope, readyScope, work.conversation, studioDraft.available]);
@@ -394,8 +406,18 @@ export function ContentStudio() {
     let cancelled = false;
     const sid = session;
     const values = restoringReferences.values.filter((item) => item && typeof item.name === 'string');
+    const pending: IAttachment[] = values.map((item) => ({
+      id: crypto.randomUUID(),
+      name: item.name,
+      url: '',
+      type: 'image/',
+      slot: item.slot === 'start' || item.slot === 'end' ? item.slot : undefined,
+      restoreId: item.id,
+      isUnavailable: true,
+    }));
+    setAttachments(pending);
     void Promise.all(
-      values.map(async (item): Promise<IAttachment> => {
+      values.map(async (item, index): Promise<IAttachment> => {
         const slot = item.slot === 'start' || item.slot === 'end' ? item.slot : undefined;
         const id =
           item.userId === user.id && Number.isSafeInteger(item.id) && item.id! > 0 ? item.id : undefined;
@@ -403,7 +425,14 @@ export function ContentStudio() {
           try {
             const file = await api.file(id, sid);
             if (file.userId === user.id && file.type === 'IMAGE') {
-              return { id: String(id), name: file.name, url: file.path, type: file.mime, saved: file, slot };
+              return {
+                id: pending[index].id,
+                name: file.name,
+                url: file.path,
+                type: file.mime,
+                saved: file,
+                slot,
+              };
             }
           } catch {
             // Keep an unavailable reference visible; never silently generate without it.
@@ -421,7 +450,13 @@ export function ContentStudio() {
       }),
     ).then((items) => {
       if (cancelled || getSession() !== sid) return;
-      setAttachments(items);
+      // Keep removals made while file metadata was loading.
+      setAttachments((previous) =>
+        previous.flatMap((item) => {
+          const index = pending.indexOf(item);
+          return index === -1 ? [item] : [items[index]];
+        }),
+      );
       setRestoringReferences(undefined);
     });
     return () => {
@@ -473,8 +508,8 @@ export function ContentStudio() {
     restored.current = conversation.id;
   }, [work.conversation, catalog.data, retained, mode, readyScope, draftScope]);
   const agent = defaultAssistant(work.agents);
-  const busy =
-    work.busy || uploading || preparingFrame || restoringResult || restoringReferences?.scope === draftScope;
+  const attachmentBusy = work.busy || uploading || preparingFrame || restoringResult;
+  const busy = attachmentBusy || restoringReferences?.scope === draftScope;
   useEffect(() => {
     if (!busy && focusRestoredDraft.current) {
       focusRestoredDraft.current = false;
@@ -673,7 +708,7 @@ export function ContentStudio() {
     const current = () => alive.current && getSession() === sid;
     const sourceDraft = draft;
     const sourceAttachments = attachments;
-    const preparingScript = writer;
+    const preparingScript = SCRIPT_WRITER_ENABLED && writer;
     try {
       if (sourceAttachments.some((item) => item.isUnavailable))
         throw new Error(
@@ -857,7 +892,19 @@ export function ContentStudio() {
           !work.id || !!restoredGeneration || templateStartsFresh,
           undefined,
           referenceMode,
+          true,
         );
+        body.text = withStudioContext(body.text, {
+          uid: mode === 'image' ? 'IMAGE' : 'VIDEO',
+          settings: tool.settings!,
+          input:
+            mode === 'image'
+              ? {
+                  request: { task: { fileIds: savedFiles.map((file) => file.id) } },
+                  isDrawNew: savedFiles.length === 0,
+                }
+              : { fileIds: savedFiles.map((file) => file.id), referenceMode },
+        });
       }
       const success = await work.submit(
         body,
@@ -873,9 +920,8 @@ export function ContentStudio() {
         setTemplateNotice('');
         if (!work.id) studioDraft.clear();
         setDraft((value) => (value === draft ? '' : value));
-        setAttachments((previous) =>
-          previous.filter((item) => !sourceAttachments.some((sent) => sent.id === item.id)),
-        );
+        // Studio references belong to the brief and remain selected across clarifications/edits.
+        // The user can explicitly remove or replace them for a new task.
         // Keep the recipe selected for the next iteration and for project restoration.
       }
     } catch (e) {
@@ -888,11 +934,54 @@ export function ContentStudio() {
       }
     }
   }
+  const answeringQuestion = useRef(false);
+  async function answerQuestion(question: StudioQuestion, messageId: number, answer: string) {
+    if (busy || !work.id || !session || answeringQuestion.current) return false;
+    answeringQuestion.current = true;
+    const id = work.id;
+    const sid = session;
+    try {
+      const latest = await api.messages(id, 0, undefined, sid);
+      if (getSession() !== sid || !alive.current) return false;
+      const last = latest.items[0];
+      if (
+        last?.id !== messageId ||
+        last.role !== 'ASSISTANT' ||
+        !parseStudioQuestion(last.text, latest.items.find((item) => item.role === 'USER')?.text)
+      ) {
+        work.setError('На этот вопрос уже ответили. Обновите диалог.');
+        return false;
+      }
+      const connection = { uid: question.context.uid, settings: question.context.settings };
+      const ids =
+        question.context.uid === 'IMAGE'
+          ? (question.context.input as any).request.task.fileIds
+          : question.context.input.fileIds;
+      return await work.submit(
+        {
+          role: 'USER',
+          text: withStudioContext(`Ответ на вопрос «${question.question}»: ${answer}`, question.context),
+          files: ids as number[],
+          settings: { tools: [connection] },
+        },
+        answer,
+        [connection],
+        agent,
+      );
+    } catch (error) {
+      work.setError(error instanceof Error ? error.message : 'Не удалось отправить ответ.');
+      return false;
+    } finally {
+      answeringQuestion.current = false;
+    }
+  }
+
   return (
     <div className={`content-studio ${mobileGallery ? 'mobile-gallery-open' : ''}`}>
       <div id="creatives" className="panel ms-dots">
         <div className="cw" id="creative-workspace" data-gallery={width}>
           <section className="cw-chat" aria-label="Чат проекта">
+            <StudioEmptyState />
             <div className="cw-stage">
               <div className="cw-thread">
                 {work.conversation && (
@@ -900,6 +989,7 @@ export function ContentStudio() {
                     key={work.conversation.id}
                     conversation={work.conversation}
                     busy={busy}
+                    onAnswer={answerQuestion}
                     onUseParameters={(file) => void restoreResult(file)}
                     onUseScript={(text, id) => void applyScript(text, id)}
                     onRepeat={(text) => {
@@ -982,8 +1072,17 @@ export function ContentStudio() {
                             mime: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
                           }}
                           caption={`Шаблон: ${item.title}`}
-                          disabled={busy}
+                          onOpen={() =>
+                            setAttachmentPreview({
+                              name: item.title,
+                              path: item.src,
+                              type: item.kind === 'video' ? 'VIDEO' : 'IMAGE',
+                              mime: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
+                            })
+                          }
+                          disabled={attachmentBusy}
                           onRemove={() => {
+                            if (attachmentBusy || submitting.current) return;
                             setPicked((p) => p.filter((t) => t.id !== item.id));
                             setTemplateNotice('');
                           }}
@@ -1006,9 +1105,22 @@ export function ContentStudio() {
                           }
                           caption={`${file.slot ? `${file.slot === 'start' ? 'Начальный' : 'Конечный'} кадр: ` : ''}${file.name}${file.isUnavailable ? ' · Недоступен' : ''}`}
                           unavailable={file.isUnavailable}
-                          disabled={busy}
+                          onOpen={() =>
+                            setAttachmentPreview(
+                              file.saved || {
+                                name: file.name,
+                                path: file.url,
+                                type: file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
+                                mime: file.type,
+                              },
+                            )
+                          }
+                          disabled={attachmentBusy}
                           onRemove={() => {
-                            setAttachments((p) => p.filter((f) => f !== file));
+                            if (attachmentBusy || submitting.current) return;
+                            setAttachments((p) => p.filter((f) => f.id !== file.id || f.slot !== file.slot));
+                            if (attachments.length === 1) setRestoringReferences(undefined);
+                            studioDraft.changed();
                             setTemplateNotice('');
                           }}
                         />
@@ -1326,14 +1438,16 @@ export function ContentStudio() {
                 </div>
               ) : (
                 <div className="cw-settings-pane">
-                  <div className="cw-extra-toggles">
-                    <Toggle
-                      label="Сценарист"
-                      description="Включён — обсуждаем сценарий. Выключен — создаём результат."
-                      value={writer}
-                      onChange={setWriter}
-                    />
-                  </div>
+                  {SCRIPT_WRITER_ENABLED && (
+                    <div className="cw-extra-toggles">
+                      <Toggle
+                        label="Сценарист"
+                        description="Включён — обсуждаем сценарий. Выключен — создаём результат."
+                        value={writer}
+                        onChange={setWriter}
+                      />
+                    </div>
+                  )}
                   {mode === 'presentation' ? (
                     <p className="cw-settings-empty">Для презентации дополнительных настроек съёмки нет.</p>
                   ) : (
@@ -1479,6 +1593,16 @@ export function ContentStudio() {
           }
         }}
       />
+      {attachmentPreview && (
+        <Modal
+          title={attachmentPreview.name}
+          className="attachment-viewer"
+          onClose={() => setAttachmentPreview(undefined)}
+          wide
+        >
+          <Media file={attachmentPreview} controls autoPlay={false} />
+        </Modal>
+      )}
       {library && library.scope === draftScope && !busy && (
         <LibraryPicker
           selected={library.slot ? [] : attachments.flatMap((file) => (file.saved ? [file.saved.id] : []))}

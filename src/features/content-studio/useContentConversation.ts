@@ -1,3 +1,4 @@
+import { studioSystem } from './studioPrompt';
 import { assertAllowedProvider } from '../../lib/modelPolicy';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
@@ -109,9 +110,14 @@ export function useContentConversation() {
         if (fresh.userId !== userId || fresh.status === 'LOADING')
           throw new Error('Беседа недоступна или уже выполняет запрос.');
         // Discussion disables tools for this request without deleting saved connections.
-        conversation = body.settings.isToolsDisabled
-          ? fresh
-          : await api.editConversation(fresh, { options: { ...fresh.options, tools } }, sid);
+        conversation = await api.editConversation(
+          fresh,
+          {
+            system: studioSystem(fresh.system),
+            ...(body.settings.isToolsDisabled ? {} : { options: { ...fresh.options, tools } }),
+          },
+          sid,
+        );
       } else {
         conversation = await api.createConversation(
           {
@@ -121,8 +127,7 @@ export function useContentConversation() {
             tags: ['genfactory', 'content-studio'],
             history: 32,
             isConsiderHistory: true,
-            system:
-              'Ты — творческий ассистент Genfactory. Сохраняй исходный бриф и учитывай историю проекта. Выполняй инструкции последнего сообщения. При подготовке сценария уточняй существенные детали и предлагай текст отдельно от брифа. При генерации используй выбранный инструмент и его настройки, точные fileIds в указанном порядке. Без явного указания не меняй модель и параметры. Создавай один результат. Не повторяй платный вызов после ошибки. Не выдумывай файлы и ссылки. Отвечай на языке пользователя.',
+            system: studioSystem(),
           },
           sid,
         );

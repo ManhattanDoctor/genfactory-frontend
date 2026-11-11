@@ -10,6 +10,7 @@ export function ComposerAttachment({
   disabled = false,
   className = '',
   onRemove,
+  onOpen,
 }: {
   file: MediaFile;
   caption?: string;
@@ -17,11 +18,25 @@ export function ComposerAttachment({
   disabled?: boolean;
   className?: string;
   onRemove: () => void;
+  onOpen?: () => void;
 }) {
   return (
     <div className={`composer-attachment ${className}`}>
       <div className="composer-attachment-preview">
-        {unavailable ? <FilePlaceholder file={file} /> : <Media file={file} isPlaybackDisabled />}
+        {onOpen && !unavailable ? (
+          <button
+            type="button"
+            className="composer-attachment-open"
+            aria-label={`Открыть ${file.name}`}
+            onClick={onOpen}
+          >
+            <Media file={file} isPlaybackDisabled />
+          </button>
+        ) : unavailable ? (
+          <FilePlaceholder file={file} />
+        ) : (
+          <Media file={file} isPlaybackDisabled />
+        )}
         <button
           type="button"
           className="composer-attachment-remove"

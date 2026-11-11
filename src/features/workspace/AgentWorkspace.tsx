@@ -101,7 +101,6 @@ export function AgentWorkspace({
   useLayoutEffect(() => {
     if (!area.current) return;
     area.current.style.height = '72px';
-    area.current.style.height = `${Math.min(220, Math.max(72, area.current.scrollHeight))}px`;
   }, [prompt]);
   return (
     <div className="image-workspace agent-workspace" aria-label="AI agent">

@@ -1,3 +1,5 @@
+import { parseStudioQuestion, studioReplyText, type StudioQuestion } from './studioAgent';
+import { StudioQuestionCard } from './StudioQuestionCard';
 import { isReadyScript } from './script';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -22,6 +24,7 @@ export function ContentThread({
   onRepeat,
   onUseScript,
   onUseParameters,
+  onAnswer,
   busy,
 }: {
   conversation: IConversation;
@@ -29,6 +32,7 @@ export function ContentThread({
   onRepeat: (text: string) => void;
   onUseScript: (text: string, messageId: number) => void;
   busy: boolean;
+  onAnswer: (question: StudioQuestion, messageId: number, answer: string) => Promise<boolean>;
   onUseParameters: (file: IGnosisFile) => void;
 }) {
   const { user } = useAuth();
@@ -88,7 +92,8 @@ export function ContentThread({
         );
         const waiting = !reply && index === turns.length - 1 && conversation.status === 'LOADING';
         const files = reply?.files || [];
-        const copyText = reply?.text || prompt;
+        const question = reply?.files?.length ? undefined : parseStudioQuestion(reply?.text, ask?.text);
+        const copyText = question?.question || reply?.text || prompt;
         const key = reply?.id || ask!.id;
         return (
           <article className="as-turn cw-turn" key={key}>
@@ -140,7 +145,15 @@ export function ContentThread({
                     )}
                     {reply?.text && (
                       <div className="as-body">
-                        <MessageContent text={reply.text} files={reply.files} />
+                        {question ? (
+                          <StudioQuestionCard
+                            question={question}
+                            disabled={busy || page !== 0 || messages.data?.items[0]?.id !== reply.id}
+                            onAnswer={(answer) => onAnswer(question, reply.id, answer)}
+                          />
+                        ) : (
+                          <MessageContent text={studioReplyText(reply.text)} files={reply.files} />
+                        )}
                       </div>
                     )}
                   </div>
@@ -242,6 +255,7 @@ export function ContentThread({
                     ))}
                   {ask?.text?.startsWith('[Genfactory:script]\n') &&
                     !!reply?.text &&
+                    !question &&
                     isReadyScript(reply.text) &&
                     !files.length && (
                       <button disabled={busy} onClick={() => onUseScript(reply.text!, reply.id)}>

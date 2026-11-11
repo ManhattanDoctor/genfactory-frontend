@@ -200,6 +200,7 @@ test('agent navigation filters conversations on the server before pagination', a
     });
   });
   await page.goto('/agent');
+  await page.getByRole('button', { name: 'Дополнительные инструменты' }).click();
   const nav = page.getByRole('navigation', { name: 'Основное меню' });
   await expect(nav.getByRole('link', { name: 'Первая беседа' })).toBeVisible();
   await expect(nav.getByText('Генерация картинки')).toHaveCount(0);

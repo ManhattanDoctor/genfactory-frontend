@@ -93,7 +93,7 @@ export function TemplateEditor({
             <section className="template-settings" aria-label="Настройки после применения">
               <h3>Настройки после применения</h3>
               <p>{launchSettings}</p>
-              <p>{item.kind === 'presentation' ? 'Текст по слайдам' : 'Сценарист выключен'}</p>
+              {item.kind === 'presentation' && <p>Текст по слайдам</p>}
             </section>
           </aside>
           <div className="template-fields">
