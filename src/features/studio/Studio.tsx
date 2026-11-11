@@ -1075,6 +1075,8 @@ export function Studio({ kind }: { kind: MediaKind }) {
             setUploading(false);
             setUploadProgress(undefined);
             if (input.current) input.current.value = '';
+            // This action clears the editor now; a delayed route commit must not clear a new draft again.
+            previousConversation.current = undefined;
             navigate(`/${kind}${specialized === 'advanced' ? '?studio=advanced' : ''}`);
             setPrompt('');
             setReferences([]);

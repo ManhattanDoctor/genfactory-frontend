@@ -195,22 +195,33 @@ test('a finished parent leaves its independently running child visible', async (
 });
 
 for (const result of ['FAILED', 'CANCELLED'] as const) {
-  test(`${result} removes the execution and shows its terminal status without retry`, async ({ page }) => {
-    const { state, emit } = await setup(page);
-    const item = task('task', 'OPEN_AI_TTS');
-    state.active = [item];
-    await page.goto('/image');
-    const jobs = await openJobs(page, 1);
-    state.active = [];
-    await expect.poll(() => !!state.socket).toBe(true);
-    emit('TaskFinishedEvent', { id: item.id, item, result, error: { code: result, message: 'Task failed' } });
-    await expect(page.getByRole('button', { name: 'Активные работы: 0', exact: true }).first()).toBeVisible();
-    await expect(jobs.locator('.completed-job')).toContainText(
-      result === 'CANCELLED' ? 'Отменено' : 'Проверьте результат',
-    );
-    await expect(jobs.locator('.jobs-grid .job-card')).toHaveCount(0);
-    expect(state.writes).toEqual([]);
-  });
+  for (const parentTaskId of [undefined, 'finished-parent']) {
+    test(`${parentTaskId ? 'Orphaned child: ' : ''}${result} removes the execution and shows its terminal status without retry`, async ({
+      page,
+    }) => {
+      const { state, emit } = await setup(page);
+      const item = task('task', 'OPEN_AI_TTS', { parentTaskId });
+      state.active = [item];
+      await page.goto('/image');
+      const jobs = await openJobs(page, 1);
+      state.active = [];
+      await expect.poll(() => !!state.socket).toBe(true);
+      emit('TaskFinishedEvent', {
+        id: item.id,
+        item,
+        result,
+        error: { code: result, message: 'Task failed' },
+      });
+      await expect(
+        page.getByRole('button', { name: 'Активные работы: 0', exact: true }).first(),
+      ).toBeVisible();
+      await expect(jobs.locator('.completed-job')).toContainText(
+        result === 'CANCELLED' ? 'Отменено' : 'Проверьте результат',
+      );
+      await expect(jobs.locator('.jobs-grid .job-card')).toHaveCount(0);
+      expect(state.writes).toEqual([]);
+    });
+  }
 }
 
 test('a missed socket completion is reconciled by refreshing the active list', async ({ page }) => {
@@ -301,36 +312,44 @@ test('task cards keep their typed placeholders and fit desktop and mobile', asyn
   }
 });
 
-test('a finished video without a generated poster shows its own first frame as preview', async ({ page }) => {
-  const { state, emit } = await setup(page);
-  await page.route('**/test-video.mp4', (route) =>
-    route.fulfill({
-      contentType: 'video/mp4',
-      body: readFileSync(new URL('../fixtures/preview.mp4', import.meta.url)),
-    }),
-  );
-  const item = task('video', 'OPEN_ROUTER_VIDEO');
-  state.active = [item];
-  state.files.push({
-    ...state.files[0],
-    id: 14,
-    name: 'Видео.mp4',
-    type: 'VIDEO',
-    mime: 'video/mp4',
-    path: '/test-video.mp4',
+for (const brokenPoster of [false, true]) {
+  test(`a finished video with ${brokenPoster ? 'a broken' : 'no'} poster shows its own first frame as preview`, async ({
+    page,
+  }) => {
+    const { state, emit } = await setup(page);
+    await page.route('**/test-video.mp4', (route) =>
+      route.fulfill({
+        contentType: 'video/mp4',
+        body: readFileSync(new URL('../fixtures/preview.mp4', import.meta.url)),
+      }),
+    );
+    await page.route('**/broken-poster.jpg', (route) => route.fulfill({ status: 404 }));
+    const item = task('video', 'OPEN_ROUTER_VIDEO');
+    state.active = [item];
+    state.files.push({
+      ...state.files[0],
+      id: 14,
+      name: 'Видео.mp4',
+      type: 'VIDEO',
+      mime: 'video/mp4',
+      path: '/test-video.mp4',
+      ...(brokenPoster ? { preview: { image: { status: 'READY', url: '/broken-poster.jpg' } } } : {}),
+    });
+    await page.goto('/video');
+    const jobs = await openJobs(page, 1);
+    state.active = [];
+    await expect.poll(() => !!state.socket).toBe(true);
+    emit('TaskFinishedEvent', { id: item.id, item, result: 'COMPLETED', fileIds: [14] });
+    const preview = jobs.locator('.completed-job video');
+    await expect(preview).toHaveCount(1);
+    await expect
+      .poll(() =>
+        preview.evaluate((video: HTMLVideoElement) => video.readyState >= 2 && video.videoWidth > 0),
+      )
+      .toBe(true);
+    expect(await preview.evaluate((video: HTMLVideoElement) => video.paused)).toBe(true);
   });
-  await page.goto('/video');
-  const jobs = await openJobs(page, 1);
-  state.active = [];
-  await expect.poll(() => !!state.socket).toBe(true);
-  emit('TaskFinishedEvent', { id: item.id, item, result: 'COMPLETED', fileIds: [14] });
-  const preview = jobs.locator('.completed-job video');
-  await expect(preview).toHaveCount(1);
-  await expect
-    .poll(() => preview.evaluate((video: HTMLVideoElement) => video.readyState >= 2 && video.videoWidth > 0))
-    .toBe(true);
-  expect(await preview.evaluate((video: HTMLVideoElement) => video.paused)).toBe(true);
-});
+}
 
 test('every file type uses the library placeholder when real previews are missing or fail', async ({
   page,
@@ -439,3 +458,118 @@ for (const status of ['LOADED', 'ERROR'] as const) {
     expect(state.writes).toEqual([]);
   });
 }
+
+test('saved non-router tool settings are checked before sending', async ({ page }) => {
+  const { state } = await setup(page);
+  state.conversations = [
+    {
+      id: 134,
+      userId: 7,
+      name: 'Existing',
+      status: 'LOADED',
+      model: 'OPEN_ROUTER_CONVERSATION',
+      options: {
+        model: 'anthropic/claude-opus-5.5',
+        tools: [
+          {
+            uid: 'IMAGE',
+            settings: {
+              model: { provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1' },
+              isLockSelection: true,
+            },
+          },
+        ],
+      },
+    },
+  ];
+  await page.goto('/image');
+  const result = await page.evaluate(async () => {
+    const modulePath = '/src/lib/api.ts';
+    const { api } = await import(modulePath);
+    try {
+      await api.sendMessage(
+        134,
+        { role: 'USER', text: 'Сделай картинку', settings: { tools: [] } },
+        'active-tasks-test',
+      );
+      return 'sent';
+    } catch (error) {
+      return String(error);
+    }
+  });
+  expect(result).toContain('OpenRouter');
+  expect(state.writes).not.toContain('/api/conversation/134/message');
+});
+
+test('completed child does not show ready while its parent is still saving', async ({ page }) => {
+  const { state, emit } = await setup(page);
+  const parent = task('parent', 'OPEN_ROUTER_CONVERSATION', { session: 'conversation134' });
+  const child = task('child', 'OPEN_ROUTER_IMAGE', { parentTaskId: 'parent' });
+  state.active = [parent, child];
+  state.conversations = [
+    {
+      id: 134,
+      userId: 7,
+      name: 'Сохранение картинки',
+      model: 'OPEN_ROUTER_CONVERSATION',
+      status: 'LOADING',
+      options: {},
+      tags: ['genfactory', 'image'],
+      createdDate: parent.createdDate,
+    },
+  ];
+  await page.goto('/image');
+  const jobs = await openJobs(page, 1);
+  await expect.poll(() => !!state.socket).toBe(true);
+  state.active = [parent];
+  const reads = state.taskReads;
+  emit('TaskFinishedEvent', { id: child.id, item: child, result: 'COMPLETED' });
+  await expect.poll(() => state.taskReads).toBeGreaterThan(reads);
+  await expect(jobs.locator('.jobs-grid .job-card')).toHaveCount(1);
+  await expect(jobs.locator('.completed-job')).toHaveCount(0);
+});
+
+test('new generic image tools are pinned to OpenRouter and preserve required-call overrides', async ({
+  page,
+}) => {
+  const { state } = await setup(page);
+  await page.goto('/image');
+  const created = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === '/api/conversation' && request.method() === 'POST',
+  );
+  await page.evaluate(async () => {
+    const modulePath = '/src/lib/api.ts';
+    const { api } = await import(modulePath);
+    await api.createConversation(
+      {
+        name: 'Test',
+        model: 'OPEN_ROUTER_CONVERSATION',
+        options: { model: 'anthropic/claude-opus-5.5', tools: ['IMAGE'] },
+      },
+      'active-tasks-test',
+    );
+  });
+  const body = (await created).postDataJSON();
+  expect(body.options.tools[0]).toMatchObject({
+    uid: 'IMAGE',
+    settings: { model: { provider: 'OPEN_ROUTER_IMAGE' }, isLockSelection: true },
+  });
+  state.conversations.push({ ...body, id: 134, userId: 7, status: 'LOADED' });
+  const sent = page.waitForRequest(
+    (request) =>
+      new URL(request.url()).pathname === '/api/conversation/134/message' && request.method() === 'POST',
+  );
+  await page.evaluate(async () => {
+    const modulePath = '/src/lib/api.ts';
+    const { api } = await import(modulePath);
+    await api.sendMessage(
+      134,
+      { role: 'USER', text: 'Create', settings: { tools: [{ uid: 'IMAGE', isRequired: true }] } },
+      'active-tasks-test',
+    );
+  });
+  expect((await sent).postDataJSON().settings.tools[0]).toMatchObject({
+    ...body.options.tools[0],
+    isRequired: true,
+  });
+});

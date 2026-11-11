@@ -191,6 +191,9 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
   const remoteNotices = taskNotices.data.filter(
     (task) =>
       !task.item.model.includes('CONVERSATION') &&
+      (!task.item.parentTaskId ||
+        ((task.result !== 'COMPLETED' || !!task.fileIds?.length) &&
+          !executions.data?.some((item) => item.id === task.item.parentTaskId))) &&
       !tasks.some((local) => local.input.body.task.session === task.item.session),
   );
   const [dismissedTasks, setDismissedTasks] = useState<number[]>([]);
@@ -292,7 +295,9 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
                 onClick={() => {
                   setNotices([]);
                   client.setQueryData(['task-notices', userId], []);
-                  setDismissedTasks(tasks.map((task) => task.id));
+                  setDismissedTasks(
+                    tasks.filter((task) => ['success', 'error'].includes(task.status)).map((task) => task.id),
+                  );
                 }}
               >
                 <ListX size={18} aria-hidden="true" />

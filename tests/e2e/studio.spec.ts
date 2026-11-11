@@ -39,7 +39,14 @@ function savedConversation(id = 101): IConversation {
     options: {
       model: agent.reference.model,
       tools: [
-        { uid: 'IMAGE', settings: { model: catalog[0].reference, options: { quality: 'high' } } },
+        {
+          uid: 'IMAGE',
+          settings: {
+            model: catalog.find((item) => item.reference.provider === 'OPEN_ROUTER_IMAGE')!.reference,
+            options: {},
+            isLockSelection: true,
+          },
+        },
         { uid: 'VIDEO' },
       ],
     },
@@ -169,7 +176,7 @@ async function mockApi(page: Page, signedIn = true) {
         return;
       }
     } else if (path.startsWith('/api/task/conversation')) body = state.progress;
-    else if (path === '/api/aimodel/OPEN_AI_CONVERSATION')
+    else if (['/api/aimodel/OPEN_AI_CONVERSATION', '/api/aimodel/OPEN_ROUTER_CONVERSATION'].includes(path))
       body = {
         tools: [
           { uid: 'YANDEX' },
@@ -446,7 +453,7 @@ test('history opens existing conversation results and a new generation uses a di
   expect(state.tasks).toHaveLength(1);
   expect(state.tasks[0].task.prompt).toBe('Another landscape');
 });
-test('advanced editor: image to video keeps the same conversation and sends the chosen file ID', async ({
+test('advanced editor: image to video starts a direct video task with the chosen file ID', async ({
   page,
 }) => {
   const state = await mockApi(page);
@@ -457,10 +464,13 @@ test('advanced editor: image to video keeps the same conversation and sends the 
   await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Animate this image', 'video');
-  await expect.poll(() => state.sends.length).toBe(2);
-  expect(state.sends[1].id).toBe(101);
-  expect(state.sends[1].files).toEqual([12]);
-  expect(state.sends[1].settings.tools[0].uid).toBe('VIDEO');
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0]).toMatchObject({
+    model: 'OPEN_ROUTER_VIDEO',
+    isSaveResult: true,
+    task: { fileIds: [12] },
+  });
+  expect(state.sends).toHaveLength(1);
   expect(state.creates).toHaveLength(1);
 });
 test('library reference is attached to a conversation message', async ({ page }) => {

@@ -257,3 +257,45 @@ test('the newest generated video appears first while existing media stay mounted
   }
   expect(state.tasks).toHaveLength(1);
 });
+
+test('video gallery keeps existing cards in their columns on submit', async ({ page }) => {
+  const state = await setup(page, true, true);
+  await page.goto('/video');
+  const card = page.locator('.ds-template-card').first();
+  await expect(card).toBeVisible();
+  const before = await card.boundingBox();
+  await page.locator('#vd-draft').fill('Проверка положения карточек');
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  await expect(page.locator('.image-result-pending')).toHaveCount(1);
+  const during = await card.boundingBox();
+  state.release();
+  expect(during!.x).toBe(before!.x);
+});
+
+test('clearing old notices keeps future completion visible', async ({ page }) => {
+  const state = await setup(page);
+  await page.goto('/image');
+  const input = page.locator('#img-draft');
+  await input.fill('Первый результат');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.files.length).toBe(1);
+  await expect(page.locator('.image-result-pending')).toHaveCount(0);
+  let release!: () => void;
+  const wait = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/task', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    await wait;
+    return route.fulfill({ json: { result: [], cost: {}, files: [{ ...state.files[0], id: 102 }] } });
+  });
+  await input.fill('Второй результат');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect(page.locator('.image-result-pending')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Активные работы: 1', exact: true }).first().click();
+  const jobs = page.getByRole('dialog', { name: 'Активные работы' });
+  await expect(jobs.locator('.completed-job')).toHaveCount(1);
+  await jobs.getByRole('button', { name: 'Очистить уведомления', exact: true }).click();
+  release();
+  await expect(page.getByRole('button', { name: 'Активные работы: 0', exact: true }).first()).toBeVisible();
+  await expect(jobs.locator('.completed-job')).toHaveCount(1);
+});

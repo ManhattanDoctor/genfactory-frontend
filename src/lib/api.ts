@@ -2,7 +2,8 @@ import {
   DEFAULT_ASSISTANT,
   isAllowedProvider,
   assertAllowedProvider,
-  assertAllowedTools,
+  effectiveTools,
+  prepareAllowedTools,
 } from './modelPolicy';
 import { apiErrorMessage } from './errorMessages';
 import { isHeicUpload, prepareImageUpload } from './image-upload';
@@ -169,10 +170,20 @@ export const api = {
       if (!Array.isArray(items)) throw new Error('Не удалось прочитать список задач.');
       return items;
     }),
-  task: (body: ITaskRequest, sid: string) => {
+  task: async (body: ITaskRequest, sid: string) => {
     assertAllowedProvider(body.model);
-    assertAllowedTools(body.options.tools as unknown[] | undefined);
-    return request<ITaskResponse>('/task', { method: 'POST', body: JSON.stringify(body) }, sid);
+    const tools = await prepareAllowedTools(
+      body.options.tools as IConversation['options']['tools'],
+      (provider) => api.catalog(provider, undefined, sid),
+    );
+    return request<ITaskResponse>(
+      '/task',
+      {
+        method: 'POST',
+        body: JSON.stringify({ ...body, options: { ...body.options, ...(tools ? { tools } : {}) } }),
+      },
+      sid,
+    );
   },
   transactions: (
     userId: number,
@@ -218,7 +229,7 @@ export const api = {
     request<void>('/logout', { method: 'POST', signal: AbortSignal.timeout(10_000) }, sid),
   downloadFile: (id: number) => request<Blob>(`/file/${id}/content`, {}, getSession(), 'blob'),
   fileText: (id: number, signal?: AbortSignal) => request<{ text: string }>(`/file/${id}/text`, { signal }),
-  catalog: async (provider: string, signal?: AbortSignal) => {
+  catalog: async (provider: string, signal?: AbortSignal, sid?: string) => {
     if (!isAllowedProvider(provider)) return [];
     const items: IModelDescription[] = [];
     for (let pageIndex = 0; ; pageIndex++) {
@@ -229,6 +240,7 @@ export const api = {
           pageIndex: String(pageIndex),
         })}`,
         { signal },
+        sid,
       );
       items.push(...page.items.filter((item) => isAllowedProvider(item.reference.provider)));
       if (pageIndex + 1 >= page.pages) return items;
@@ -246,23 +258,28 @@ export const api = {
     request<IModelDescription>(`/aimodels/details?${new URLSearchParams(reference)}`, { signal }),
   details: (provider: string, signal?: AbortSignal) =>
     request<{ tools?: IToolDescription[] }>(`/aimodel/${encodeURIComponent(provider)}`, { signal }),
-  editConversation: (
+  editConversation: async (
     conversation: IConversation,
     changes: { name?: string; options?: IConversation['options']; system?: string },
     sid: string,
-  ) =>
-    request<IConversation>(
+  ) => {
+    const tools = await prepareAllowedTools(changes.options?.tools, (provider) =>
+      api.catalog(provider, undefined, sid),
+    );
+    return request<IConversation>(
       `/conversation/${conversation.id}`,
       {
         method: 'PUT',
         body: JSON.stringify({
           ...changes,
+          ...(tools ? { options: { ...changes.options, tools } } : {}),
           model: conversation.model,
           files: (conversation.files || []).map((f) => f.id),
         }),
       },
       sid,
-    ),
+    );
+  },
   progress: async (session: string, signal?: AbortSignal) => {
     try {
       return await request<IConversationProgress | null>(`/task/${encodeURIComponent(session)}`, { signal });
@@ -299,10 +316,19 @@ export const api = {
     request<IConversation>(`/conversation/${id}`, { method: 'PATCH', body: JSON.stringify(flags) }, sid),
   conversation: (id: number, signal?: AbortSignal, sid?: string) =>
     request<IConversation>(`/conversation/${id}`, { signal }, sid),
-  createConversation: (body: IConversationCreate, sid: string) => {
+  createConversation: async (body: IConversationCreate, sid: string) => {
     assertAllowedProvider(body.model);
-    assertAllowedTools(body.options.tools);
-    return request<IConversation>('/conversation', { method: 'POST', body: JSON.stringify(body) }, sid);
+    const tools = await prepareAllowedTools(body.options.tools, (provider) =>
+      api.catalog(provider, undefined, sid),
+    );
+    return request<IConversation>(
+      '/conversation',
+      {
+        method: 'POST',
+        body: JSON.stringify({ ...body, options: { ...body.options, ...(tools ? { tools } : {}) } }),
+      },
+      sid,
+    );
   },
   messages: (id: number, page: number, signal?: AbortSignal, sid?: string) =>
     request<IPagination<IConversationMessage>>(
@@ -318,10 +344,15 @@ export const api = {
   sendMessage: async (id: number, body: IMessageCreate, sid: string) => {
     const conversation = await api.conversation(id, undefined, sid);
     assertAllowedProvider(conversation.model);
-    assertAllowedTools(body.settings?.tools);
+    const tools = body.settings?.isToolsDisabled
+      ? []
+      : await prepareAllowedTools(
+          effectiveTools(conversation.options.tools, body.settings?.tools),
+          (provider) => api.catalog(provider, undefined, sid),
+        );
     return request<IConversationMessage>(
       `/conversation/${id}/message`,
-      { method: 'POST', body: JSON.stringify(body) },
+      { method: 'POST', body: JSON.stringify({ ...body, settings: { ...body.settings, tools } }) },
       sid,
     );
   },

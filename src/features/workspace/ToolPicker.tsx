@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useAuth } from '../auth/AuthProvider';
+import { isAllowedProvider } from '../../lib/modelPolicy';
 export const toolNames: Record<string, string> = {
   IMAGE: 'Создание изображений',
   VIDEO: 'Создание видео',
@@ -37,7 +38,10 @@ export function ToolPicker({
     enabled: !!user && !!provider,
     staleTime: 300000,
   });
-  const tools = catalog.data?.tools?.filter((t) => !t.isDeprecated) || [];
+  const tools =
+    catalog.data?.tools?.filter(
+      (t) => !t.isDeprecated && (!t.providers?.length || t.providers.some(isAllowedProvider)),
+    ) || [];
   return (
     <details className="workspace-details">
       <summary>Инструменты · {value.length}</summary>

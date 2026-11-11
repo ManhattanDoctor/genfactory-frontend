@@ -31,7 +31,7 @@ export function Media({
   const clip = file.preview?.video?.status === 'READY' ? safeMediaUrl(file.preview.video.url) : undefined;
   const sources =
     isVideo && isPlaybackDisabled
-      ? [poster]
+      ? [poster, original]
       : controls
         ? [original]
         : isVideo
@@ -66,7 +66,6 @@ export function Media({
         />
       );
   }
-  if (isVideo && isPlaybackDisabled && !src) return <FilePlaceholder file={file} className={className} />;
   if (!src || failedSources.includes(src)) return <FilePlaceholder file={file} className={className} />;
   if (isVideo && !controls && src === poster)
     return (
