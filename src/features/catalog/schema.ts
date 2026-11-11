@@ -31,8 +31,9 @@ export const fieldNames: Record<string, string> = {
 export function optionFields(model: IModelDescription): [string, ISchema][] {
   return Object.entries(model.schema.properties?.options?.properties || {}).filter(
     ([key, field]) =>
-      !['model', 'provider', 'stream', 'partialImages', 'frameImages', 'prompt'].includes(key) &&
-      ['string', 'integer', 'number', 'boolean'].includes(field.type || ''),
+      !['model', 'provider', 'stream', 'partialImages', 'frameImages', 'inputReferences', 'prompt'].includes(
+        key,
+      ) && ['string', 'integer', 'number', 'boolean'].includes(field.type || ''),
   );
 }
 export function validateRequest(model: IModelDescription, request: ITaskRequest): string[] {

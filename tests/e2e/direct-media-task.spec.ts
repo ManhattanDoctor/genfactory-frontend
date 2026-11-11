@@ -325,3 +325,55 @@ test('an image request clears its input while pending and a late failure preserv
   await expect(draft).toHaveValue('Следующая идея');
   expect(state.tasks).toHaveLength(1);
 });
+
+test('Seedance sends four selected photos without truncation', async ({ page }) => {
+  const state = await setup(page);
+  const seedance = structuredClone(catalog.find((m: any) => m.reference.model === 'bytedance/seedance-2.5'));
+  seedance.schema.properties.task.properties.fileIds = {
+    type: 'array',
+    maxItems: 30,
+    items: { type: 'integer' },
+  };
+  seedance.schema.properties.task.properties.referenceMode = {
+    type: 'string',
+    enum: ['frames', 'references'],
+  };
+  seedance.schema.properties.options.properties.inputReferences = {
+    type: 'array',
+    maxItems: 30,
+    items: {
+      type: 'object',
+      properties: { url: { type: 'string' }, type: { const: 'image' } },
+      required: ['url', 'type'],
+    },
+  };
+  await page.route('**/api/aimodels?*', (route) => {
+    const items = catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_VIDEO' ? [seedance] : [];
+    return route.fulfill({ json: catalogResponse(route.request().url(), items) });
+  });
+  for (const id of [14, 8, 23, 6])
+    state.files.push({
+      id,
+      userId: 7,
+      name: `Фото ${id}`,
+      path: '/media/gallery-1.jpg',
+      mime: 'image/jpeg',
+      type: 'IMAGE',
+      createdDate: '2026-11-11T10:00:00Z',
+    });
+  await page.goto('/video');
+  for (const id of [14, 8, 23, 6]) {
+    await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Библиотека' }).getByText(`Фото ${id}`, { exact: true }).click();
+  }
+  await expect(page.locator('.img-files .composer-attachment')).toHaveCount(4);
+  await page
+    .getByRole('textbox', { name: 'Идея ролика', exact: true })
+    .fill('Все четыре предмета в одной сцене');
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.fileIds).toEqual([14, 8, 23, 6]);
+  expect(state.tasks[0].task.referenceMode).toBe('references');
+  expect(state.tasks[0].options).not.toHaveProperty('frameImages');
+  expect(state.tasks[0].options).not.toHaveProperty('inputReferences');
+});

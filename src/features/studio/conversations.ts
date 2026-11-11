@@ -25,7 +25,9 @@ export function toolSettings(
   const values = Object.fromEntries(
     Object.entries(options).filter(
       ([key, value]) =>
-        !['model', 'prompt', 'frameImages', 'tools', 'stream', 'partialImages'].includes(key) &&
+        !['model', 'prompt', 'frameImages', 'inputReferences', 'tools', 'stream', 'partialImages'].includes(
+          key,
+        ) &&
         value !== undefined &&
         value !== '',
     ),
@@ -61,6 +63,7 @@ export function createMessageBody(
   fileIds: number[],
   fromScratch = false,
   modelLabel?: string,
+  referenceMode?: 'frames' | 'references',
 ): IMessageCreate {
   const instruction =
     kind === 'image' ? 'Создай изображение с помощью IMAGE.' : 'Создай видео с помощью VIDEO.';
@@ -77,7 +80,15 @@ export function createMessageBody(
     role: 'USER',
     text: `${instruction}\n${references}\n\n${selectedModel}${prompt.trim()}`,
     files: fileIds,
-    settings: { tools: [{ ...tool, isRequired: true }] },
+    settings: {
+      tools: [
+        {
+          ...tool,
+          isRequired: true,
+          ...(kind === 'video' ? { input: { fileIds, ...(referenceMode ? { referenceMode } : {}) } } : {}),
+        },
+      ],
+    },
   };
 }
 

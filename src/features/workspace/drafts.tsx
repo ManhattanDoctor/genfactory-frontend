@@ -123,7 +123,7 @@ export function DraftBar<T>({
     </div>
   );
 }
-export async function restoreDraftFiles(values: unknown, userId: number, sid: string) {
+export async function restoreDraftFiles(values: unknown, userId: number, sid: string, limit = 4) {
   if (!Array.isArray(values)) return { files: [] as IGnosisFile[], missing: 0 };
   const ids = [
     ...new Set(
@@ -131,7 +131,7 @@ export async function restoreDraftFiles(values: unknown, userId: number, sid: st
         .filter((f) => f && f.userId === userId && Number.isSafeInteger(f.id) && f.id > 0)
         .map((f) => f.id as number),
     ),
-  ].slice(0, 4);
+  ].slice(0, limit);
   const results = await Promise.allSettled(ids.map((id) => api.file(id, sid)));
   const files = results.flatMap((r) =>
     r.status === 'fulfilled' && r.value?.userId === userId ? [r.value] : [],

@@ -1,3 +1,4 @@
+import { videoInputOptions, videoReferenceMode, type VideoReferenceMode } from '../catalog/videoInputs';
 import { ratioSizes } from './controls';
 import type { IGnosisFile, IModelDescription, ITaskRequest, MediaKind } from '../../lib/types';
 import {
@@ -16,6 +17,7 @@ export function mediaOptions(
   prompt: string,
   files: IGnosisFile[],
   values: Record<string, unknown>,
+  referenceMode?: VideoReferenceMode,
 ) {
   const schema = model.schema.properties?.options;
   const properties = schema?.properties || {};
@@ -43,10 +45,12 @@ export function mediaOptions(
   };
   if (files.length && kind === 'image') request.task.fileIds = files.map((file) => file.id);
   if (files.length && kind === 'video')
-    request.options.frameImages = files.map((file, index) => ({
-      url: file.path,
-      type: index === 0 ? 'first_frame' : 'last_frame',
-    }));
+    Object.assign(
+      request.options,
+      videoInputOptions(model, files, referenceMode || videoReferenceMode(model, files.length)),
+    );
+  if (request.options.inputReferences && model.reference.model === 'google/veo-3.1' && options.duration !== 8)
+    throw new Error('Для референсов Veo выберите длительность 8 секунд.');
   const errors = validateRequest(model, request);
   if (errors.length) throw new Error(`Настройки не подходят выбранной модели. ${errors.join(' ')}`);
   return options;

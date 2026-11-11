@@ -160,7 +160,13 @@ export function VideoModelInfo({
           </button>
         </header>
         <p>{modelSummary(model)}</p>
-        {kind === 'video' && <p>В этом окне модель собирает ролик по тексту и одному стартовому кадру.</p>}
+        {kind === 'video' && (
+          <p>
+            {model.schema.properties?.options?.properties?.inputReferences
+              ? `Видео по тексту и референсам: до ${model.schema.properties.options.properties.inputReferences.maxItems} изображений. Начальный и конечный кадры задаются отдельно в Студии контента.`
+              : `Видео по тексту и ${model.schema.properties?.options?.properties?.frameImages?.maxItems === 2 ? 'начальному и конечному кадрам' : 'одному стартовому кадру'}.`}
+          </p>
+        )}
       </div>
     </dialog>,
     document.body,

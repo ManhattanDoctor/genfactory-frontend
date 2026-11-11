@@ -93,3 +93,10 @@ describe('effective tool policy', () => {
     expect(() => assertAllowedTools(['IMAGE_RECOGNITION'])).toThrow('OpenRouter');
   });
 });
+
+it('preserves fixed per-message video inputs through effective tool preparation', async () => {
+  const selected = { fileIds: [14, 8, 23, 6], referenceMode: 'references' };
+  const effective = effectiveTools([{ uid: 'VIDEO' }], [{ uid: 'VIDEO', isRequired: true, input: selected }]);
+  expect(effective[0].input).toEqual(selected);
+  expect(effective[0].input).not.toBe(selected);
+});

@@ -1,3 +1,4 @@
+import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload, prepareImageUpload } from '../../lib/image-upload';
 import { useComposerMenu } from '../../components/useComposerMenu';
@@ -15,6 +16,7 @@ import { ContentThread } from './ContentThread';
 import { choices, ratioSizes, sizeRatio, suggestedRatios } from './controls';
 import { followsReferenceRatio, referenceLimit, supportsReferences } from '../catalog/schema';
 import { templateFrame, templateInstructions, type ITemplate } from './materials';
+import { videoReferenceMode } from '../catalog/videoInputs';
 import { mediaOptions } from './request';
 import { textInstruction } from '../workspace/prompt';
 import { createMessageBody, toolSettings, withMessageContext } from '../studio/conversations';
@@ -781,18 +783,33 @@ export function ContentStudio() {
             ? restoredGeneration.options
             : undefined;
         const preservedSize = typeof replay?.size === 'string' && sizeRatio(replay.size) === effectiveRatio;
-        const options = mediaOptions(model, mode, prompt, savedFiles, {
-          ...replay,
-          ...(ratioOptions.length && !preservedSize ? { aspectRatio: effectiveRatio } : {}),
-          ...(mode === 'image' && modelProperties.quality ? { quality: effectiveQuality } : {}),
-          ...(mode === 'video'
-            ? {
-                ...(modelProperties.duration ? { duration } : {}),
-                ...(modelProperties.resolution ? { resolution: effectiveQuality } : {}),
-                ...(audioValues.length ? { generateAudio: effectiveSound === 'Со звуком' } : {}),
-              }
-            : {}),
-        });
+        const referenceMode =
+          mode === 'video'
+            ? videoReferenceMode(
+                model,
+                savedFiles.length,
+                sourceAttachments.some((file) => !!file.slot),
+              )
+            : undefined;
+        const options = mediaOptions(
+          model,
+          mode,
+          prompt,
+          savedFiles,
+          {
+            ...replay,
+            ...(ratioOptions.length && !preservedSize ? { aspectRatio: effectiveRatio } : {}),
+            ...(mode === 'image' && modelProperties.quality ? { quality: effectiveQuality } : {}),
+            ...(mode === 'video'
+              ? {
+                  ...(modelProperties.duration ? { duration } : {}),
+                  ...(modelProperties.resolution ? { resolution: effectiveQuality } : {}),
+                  ...(audioValues.length ? { generateAudio: effectiveSound === 'Со звуком' } : {}),
+                }
+              : {}),
+          },
+          referenceMode,
+        );
         const tool = toolSettings(mode, model, options);
         tools = [tool];
         const launch = [
@@ -819,6 +836,8 @@ export function ContentStudio() {
           tool,
           savedFiles.map((file) => file.id),
           !work.id || !!restoredGeneration || templateStartsFresh,
+          undefined,
+          referenceMode,
         );
       }
       const success = await work.submit(
@@ -935,39 +954,45 @@ export function ContentStudio() {
                   {(picked.length > 0 || attachments.length > 0) && (
                     <div className="cw-files">
                       {picked.map((item) => (
-                        <span className="cw-use-tag" key={item.id}>
-                          <span>{item.title}</span>
-                          <button
-                            type="button"
-                            aria-label={`Убрать ${item.title}`}
-                            onClick={() => {
-                              setPicked((p) => p.filter((t) => t.id !== item.id));
-                              setTemplateNotice('');
-                            }}
-                          >
-                            ×
-                          </button>
-                        </span>
+                        <ComposerAttachment
+                          key={item.id}
+                          file={{
+                            name: item.title,
+                            path: item.src,
+                            type: item.kind === 'video' ? 'VIDEO' : 'IMAGE',
+                            mime: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
+                          }}
+                          caption={`Шаблон: ${item.title}`}
+                          disabled={busy}
+                          onRemove={() => {
+                            setPicked((p) => p.filter((t) => t.id !== item.id));
+                            setTemplateNotice('');
+                          }}
+                        />
                       ))}
                       {attachments.map((file) => (
-                        <span className="cw-use-tag" key={file.id + file.slot}>
-                          <span>
-                            {file.slot ? `${file.slot === 'start' ? 'Начальный' : 'Конечный'} кадр: ` : ''}
-                            {file.name}
-                            {file.isUnavailable ? ' · Недоступен' : ''}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={`Убрать ${file.name}`}
-                            disabled={busy}
-                            onClick={() => {
-                              setAttachments((p) => p.filter((f) => f !== file));
-                              setTemplateNotice('');
-                            }}
-                          >
-                            ×
-                          </button>
-                        </span>
+                        <ComposerAttachment
+                          key={file.id + file.slot}
+                          file={
+                            file.saved || {
+                              name: file.name,
+                              path: file.url,
+                              type: file.type.startsWith('video/')
+                                ? 'VIDEO'
+                                : file.type.startsWith('image/')
+                                  ? 'IMAGE'
+                                  : 'DOCUMENT',
+                              mime: file.type,
+                            }
+                          }
+                          caption={`${file.slot ? `${file.slot === 'start' ? 'Начальный' : 'Конечный'} кадр: ` : ''}${file.name}${file.isUnavailable ? ' · Недоступен' : ''}`}
+                          unavailable={file.isUnavailable}
+                          disabled={busy}
+                          onRemove={() => {
+                            setAttachments((p) => p.filter((f) => f !== file));
+                            setTemplateNotice('');
+                          }}
+                        />
                       ))}
                     </div>
                   )}

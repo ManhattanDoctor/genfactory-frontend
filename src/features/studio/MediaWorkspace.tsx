@@ -1,3 +1,4 @@
+import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
 import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
 import { useComposerMenu } from '../../components/useComposerMenu';
@@ -326,7 +327,7 @@ export function MediaWorkspace({
         style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
       >
         <span className="img-spin" aria-hidden="true" />
-        {conversation ? (
+        {conversation && !pendingTasks[index] ? (
           <ImageProgress conversation={conversation} kind={kind} startedAt={startedAt} />
         ) : (
           <span>
@@ -559,20 +560,13 @@ export function MediaWorkspace({
           {(selected || references.length > 0) && (
             <div className="img-files">
               {references.map((file) => (
-                <div className="img-file" key={file.id}>
-                  <div className="img-thumb">
-                    <Media file={file} />
-                    <button
-                      type="button"
-                      className="img-thumb-x"
-                      aria-label={`Убрать ${file.name}`}
-                      disabled={busy}
-                      onClick={() => onReferences(references.filter((f) => f.id !== file.id))}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
+                <ComposerAttachment
+                  key={file.id}
+                  className="img-file"
+                  file={file}
+                  disabled={busy}
+                  onRemove={() => onReferences(references.filter((f) => f.id !== file.id))}
+                />
               ))}
               {selected && (
                 <div className="img-file is-template">

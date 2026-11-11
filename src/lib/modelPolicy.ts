@@ -51,6 +51,7 @@ export function effectiveTools(
       throw new Error('Инструмент не подключён или указан повторно: ' + override.uid);
     used.add(override.uid);
     item.isRequired = override.isRequired;
+    item.input = override.input === undefined ? undefined : structuredClone(override.input);
     if (override.isRequired !== undefined && override.settings === undefined) continue;
     const settings = override.settings;
     const sameModel =

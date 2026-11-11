@@ -53,7 +53,7 @@ describe('Conversation tool contracts', () => {
     const body = createMessageBody('Move closer', 'video', tool, [42, 12]);
     expect(body.files).toEqual([42, 12]);
     expect(body.text).toContain('42, 12');
-    expect(body.settings.tools).toEqual([{ ...tool, isRequired: true }]);
+    expect(body.settings.tools).toEqual([{ ...tool, isRequired: true, input: { fileIds: [42, 12] } }]);
     expect(JSON.stringify(body)).not.toContain('frameImages');
   });
   it('explicitly prevents reuse of old images for a fresh generation', () => {

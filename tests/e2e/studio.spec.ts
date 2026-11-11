@@ -3493,7 +3493,7 @@ test('content studio gallery creates explicit first and last image frames and se
     await page.getByRole('button', { name: 'Выбрать шаблон', exact: true }).click();
     await page.locator('.cw-card-media').first().click();
     await page.locator('.cw-add').first().click();
-    await expect(page.locator('.cw-use-tag').filter({ hasText: `${label} кадр` })).toBeVisible({
+    await expect(page.locator('.composer-attachment').filter({ hasText: `${label} кадр` })).toBeVisible({
       timeout: 20000,
     });
   }
@@ -4046,6 +4046,7 @@ test('content studio library selects and replaces frame slots on mobile', async 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/chat');
   await page.getByRole('button', { name: 'Видео', exact: true }).click();
+  await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
   await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
   await page.getByRole('button', { name: /Начальный кадр/ }).click();
   await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
@@ -4057,7 +4058,7 @@ test('content studio library selects and replaces frame slots on mobile', async 
   await page.getByRole('button', { name: /Начальный кадр Test result/ }).click();
   await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
   await page.getByRole('dialog').getByText('Test result', { exact: true }).click();
-  await expect(page.locator('.cw-files .cw-use-tag')).toHaveCount(1);
+  await expect(page.locator('.cw-files .composer-attachment')).toHaveCount(1);
   expect(state.uploads).toBe(0);
   expect(state.sends).toHaveLength(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -5364,4 +5365,85 @@ test('content studio shows progress on the send button and restores the arrow af
   await page.locator('#cw-draft').fill('Следующий запрос');
   await expect(send).toBeEnabled();
   expect(state.sends).toHaveLength(0);
+});
+
+for (const width of [1440, 390])
+  test(`content studio attachment preview and bottom blur ${width}`, async ({ page }) => {
+    const state = await mockApi(page);
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+    await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
+    const tile = page.locator('.cw-files .composer-attachment');
+    await expect(tile.locator('img')).toBeVisible();
+    const blur = await page.locator('#creatives .cw-chat').evaluate((el) => {
+      const css = getComputedStyle(el, '::after');
+      return { blur: css.backdropFilter, events: css.pointerEvents, background: css.backgroundImage };
+    });
+    expect(blur.blur).toBe('blur(8px)');
+    expect(blur.events).toBe('none');
+    expect(blur.background).toContain('linear-gradient');
+    await page.locator('#cw-draft').fill('Новый запрос');
+    await page.screenshot({ path: `/artifacts/attachments-${width}.png` });
+    await tile.getByRole('button', { name: 'Убрать Test result', exact: true }).click();
+    await expect(tile).toHaveCount(0);
+    expect(state.sends).toHaveLength(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+
+test('content studio binds all four Seedance references to the required VIDEO call', async ({ page }) => {
+  const state = await mockApi(page);
+  const seedance = structuredClone(catalog.find((m) => m.reference.model === 'bytedance/seedance-2.5')!);
+  seedance.schema.properties!.task!.properties!.fileIds = {
+    type: 'array',
+    maxItems: 30,
+    items: { type: 'integer' },
+  };
+  seedance.schema.properties!.task!.properties!.referenceMode = {
+    type: 'string',
+    enum: ['frames', 'references'],
+  };
+  seedance.schema.properties!.options!.properties!.inputReferences = {
+    type: 'array',
+    maxItems: 30,
+    items: {
+      type: 'object',
+      properties: { url: { type: 'string' }, type: { const: 'image' } },
+      required: ['url', 'type'],
+    },
+  };
+  const files = [14, 8, 23, 6].map((id) => ({ ...file, id, name: `Фото ${id}` }));
+  await page.route('**/api/aimodels?*', (route) => {
+    const provider = catalogProvider(new URL(route.request().url()));
+    const items =
+      provider === 'OPEN_ROUTER_VIDEO'
+        ? [seedance]
+        : provider === 'OPEN_ROUTER_CONVERSATION'
+          ? [agent]
+          : catalog.filter((m) => m.reference.provider === provider);
+    return route.fulfill({ json: catalogResponse(route.request().url(), items) });
+  });
+  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination(files) }));
+  await page.route(/\/api\/file\/\d+$/, (route) =>
+    route.fulfill({ json: files.find((file) => file.id === Number(route.request().url().split('/').pop())) }),
+  );
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Видео', exact: true }).click();
+  for (const id of [14, 8, 23, 6]) {
+    await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Библиотека' }).getByText(`Фото ${id}`, { exact: true }).click();
+  }
+  await expect(page.locator('.cw-files .composer-attachment img')).toHaveCount(4);
+  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('switch', { name: 'Сценарист', exact: true }).click();
+  await page.locator('#cw-draft').fill('Все предметы в одной сцене');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.sends[0].files).toEqual([14, 8, 23, 6]);
+  expect(state.sends[0].settings.tools[0].input).toEqual({
+    fileIds: [14, 8, 23, 6],
+    referenceMode: 'references',
+  });
+  expect(state.creates[0].options.tools[0]).not.toHaveProperty('input');
 });

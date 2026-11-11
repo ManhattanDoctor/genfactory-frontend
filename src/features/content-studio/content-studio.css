@@ -623,3 +623,18 @@
 .content-thumb .file-placeholder-format {
   display: none;
 }
+
+/* Fade the conversation beneath the floating composer without intercepting controls. */
+.content-studio #creatives .cw-chat::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 3;
+  height: min(45%, 360px);
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(11, 11, 12, 0.94), rgba(11, 11, 12, 0.62) 45%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 35%);
+  mask-image: linear-gradient(to bottom, transparent, black 35%);
+}

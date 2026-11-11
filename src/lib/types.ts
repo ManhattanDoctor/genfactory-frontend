@@ -105,7 +105,14 @@ export interface ITaskFinished {
 }
 export interface ITaskRequest {
   model: string;
-  task: { session?: string; prompt?: string; fileIds?: number[]; text?: string; file?: number };
+  task: {
+    referenceMode?: 'frames' | 'references';
+    session?: string;
+    prompt?: string;
+    fileIds?: number[];
+    text?: string;
+    file?: number;
+  };
   options: Record<string, unknown>;
   isSaveResult?: boolean;
   fileOutput?: IFileOutputSettings;
@@ -120,6 +127,7 @@ export interface ITaskResponse {
   files?: IGnosisFile[];
 }
 export interface IToolConnection {
+  input?: Record<string, unknown>;
   uid: string;
   isRequired?: boolean;
   settings?: {

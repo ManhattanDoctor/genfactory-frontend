@@ -7,6 +7,7 @@ import { api, safeMediaUrl } from '../lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
+export type MediaFile = Pick<IGnosisFile, 'name' | 'path' | 'type' | 'mime' | 'preview'>;
 export function Media({
   file,
   controls = false,
@@ -15,7 +16,7 @@ export function Media({
   autoPlay,
   onReady,
 }: {
-  file: IGnosisFile;
+  file: MediaFile;
   controls?: boolean;
   isPlaybackDisabled?: boolean;
   className?: string;

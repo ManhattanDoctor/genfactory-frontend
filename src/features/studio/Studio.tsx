@@ -1,3 +1,4 @@
+import { videoInputOptions, videoReferenceMode } from '../catalog/videoInputs';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
 import { modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
@@ -439,9 +440,13 @@ export function Studio({ kind }: { kind: MediaKind }) {
       setError('Выбранная модель не поддерживает референсы. Выберите другую модель.');
       return;
     }
-    const limit = specialized === 'banana' ? referenceLimit(model) : Math.min(4, referenceLimit(model));
-    setReferences(incoming.slice(0, limit));
-    if (incoming.length > limit) setNotice(`Для этой модели оставлены первые ${limit} референса.`);
+    const limit = !legacy ? referenceLimit(model) : Math.min(4, referenceLimit(model));
+    setReferences(kind === 'video' ? incoming : incoming.slice(0, limit));
+    if (incoming.length > limit) {
+      if (kind === 'video')
+        setError(`Эта модель принимает до ${limit} изображений. Уберите лишние или выберите другую модель.`);
+      else setNotice(`Для этой модели оставлены первые ${limit} референса.`);
+    }
     referenceKey.current = location.key;
     setFocusPrompt((value) => value + 1);
   }, [models, currentKey, location.key, location.state, auth.user?.id, conversation, conversationId, kind]);
@@ -512,7 +517,12 @@ export function Studio({ kind }: { kind: MediaKind }) {
     }
     const scope = uploadScope.current;
     setUploading(true);
-    const restored = await restoreDraftFiles(value.references, auth.user.id, auth.session);
+    const restored = await restoreDraftFiles(
+      value.references,
+      auth.user.id,
+      auth.session,
+      kind === 'video' ? 30 : maxRefs,
+    );
     if (scope !== uploadScope.current || getSession() !== auth.session) return;
     pendingDraft.current = {
       value,
@@ -645,11 +655,21 @@ export function Studio({ kind }: { kind: MediaKind }) {
       options: { ...cleanOptions, model: model.reference.model },
     };
     if (references.length && kind === 'image') body.task.fileIds = references.map((f) => f.id);
-    if (references.length && kind === 'video')
-      body.options.frameImages = references.map((f, i) => ({
-        url: f.path,
-        type: i === 0 ? 'first_frame' : 'last_frame',
-      }));
+    if (kind === 'video') {
+      body.task.referenceMode = videoReferenceMode(model, references.length);
+      Object.assign(
+        body.options,
+        videoInputOptions(model, references, body.task.referenceMode as 'frames' | 'references'),
+      );
+      if (
+        body.options.inputReferences &&
+        model.reference.model === 'google/veo-3.1' &&
+        body.options.duration !== 8
+      ) {
+        setError('Для референсов Veo выберите длительность 8 секунд.');
+        return;
+      }
+    }
     let errors: string[];
     try {
       errors = validateRequest(model, body);
@@ -684,7 +704,10 @@ export function Studio({ kind }: { kind: MediaKind }) {
           options: { ...body.options },
         };
         // The server resolves owned IDs into first/last frame URLs itself.
-        if (kind === 'video') delete taskBody.options.frameImages;
+        if (kind === 'video') {
+          delete taskBody.options.frameImages;
+          delete taskBody.options.inputReferences;
+        }
         const submittedEditor = editorSnapshot.current;
         const clearedEditor = JSON.stringify({
           ...JSON.parse(submittedEditor),
@@ -957,7 +980,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
         }}
         onReferences={(value) => {
           draft.changed();
-          setReferences(value.slice(0, maxRefs));
+          setReferences(kind === 'video' ? value : value.slice(0, maxRefs));
         }}
         onLibrary={() => {
           if (!auth.user) {
