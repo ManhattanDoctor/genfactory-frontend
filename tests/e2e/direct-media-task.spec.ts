@@ -165,10 +165,13 @@ test('several direct image tasks run concurrently without blocking the editor or
   await draft.fill('Первая генерация');
   await send.click();
   await expect.poll(() => state.tasks.length).toBe(1);
-  await expect(send).toBeEnabled();
+  await expect(draft).toHaveValue('');
+  await expect(draft).toBeEnabled();
   await draft.fill('Вторая генерация');
+  await expect(send).toBeEnabled();
   await send.click();
   await expect.poll(() => state.tasks.length).toBe(2);
+  await expect(draft).toHaveValue('');
   await expect(page.getByRole('button', { name: 'Активные работы: 2', exact: true }).first()).toBeVisible();
   await expect(page.locator('.image-result-pending')).toHaveCount(2);
   await draft.fill('Следующий черновик');
@@ -298,4 +301,21 @@ test('clearing old notices keeps future completion visible', async ({ page }) =>
   release();
   await expect(page.getByRole('button', { name: 'Активные работы: 0', exact: true }).first()).toBeVisible();
   await expect(jobs.locator('.completed-job')).toHaveCount(1);
+});
+
+test('an image request clears its input while pending and a late failure preserves the next draft', async ({
+  page,
+}) => {
+  const state = await setup(page, true, true);
+  await page.goto('/image');
+  const draft = page.locator('#img-draft');
+  await draft.fill('Уже отправленная идея');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  await expect(draft).toHaveValue('');
+  await draft.fill('Следующая идея');
+  state.release();
+  await expect(page.locator('.image-result-pending')).toHaveCount(0);
+  await expect(draft).toHaveValue('Следующая идея');
+  expect(state.tasks).toHaveLength(1);
 });

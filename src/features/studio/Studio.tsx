@@ -463,6 +463,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
     !!currentKey,
   );
   const editorSnapshot = useRef('');
+  const clearedSubmission = useRef<string | undefined>(undefined);
   editorSnapshot.current = JSON.stringify({
     prompt,
     currentKey,
@@ -685,28 +686,43 @@ export function Studio({ kind }: { kind: MediaKind }) {
         // The server resolves owned IDs into first/last frame URLs itself.
         if (kind === 'video') delete taskBody.options.frameImages;
         const submittedEditor = editorSnapshot.current;
-        void directTask
-          .mutateAsync({
-            userId,
-            sid,
+        const clearedEditor = JSON.stringify({
+          ...JSON.parse(submittedEditor),
+          prompt: '',
+          references: [],
+          imageTemplateId: '',
+          imageTemplateText: '',
+        });
+        const pending = directTask.mutateAsync({
+          userId,
+          sid,
+          kind,
+          body: taskBody,
+          recipe: {
             kind,
-            body: taskBody,
-            recipe: {
-              kind,
-              prompt: preparedPrompt,
-              model: model.reference,
-              options: cleanOptions,
-              references,
-              workspaceInput: {
-                idea: prompt,
-                templateId: imageTemplateId,
-                templateText: imageTemplateText,
-                shape: shot.shape,
-              },
+            prompt: preparedPrompt,
+            model: model.reference,
+            options: cleanOptions,
+            references,
+            workspaceInput: {
+              idea: prompt,
+              templateId: imageTemplateId,
+              templateText: imageTemplateText,
+              shape: shot.shape,
             },
-          })
+          },
+        });
+        if (kind === 'image') {
+          clearedSubmission.current = taskBody.task.session;
+          draft.clear();
+          setPrompt('');
+          setImageTemplateId('');
+          setImageTemplateText('');
+          setReferences([]);
+        }
+        void pending
           .then(() => {
-            if (current() && editorSnapshot.current === submittedEditor) {
+            if (kind !== 'image' && current() && editorSnapshot.current === submittedEditor) {
               draft.clear();
               setPrompt('');
               setImageTemplateId('');
@@ -715,7 +731,20 @@ export function Studio({ kind }: { kind: MediaKind }) {
             }
           })
           .catch((error) => {
-            if (current() && editorSnapshot.current === submittedEditor) setError(imageSendError(error));
+            if (!current()) return;
+            if (kind === 'image') {
+              if (
+                clearedSubmission.current !== taskBody.task.session ||
+                ![submittedEditor, clearedEditor].includes(editorSnapshot.current)
+              )
+                return;
+              setPrompt(prompt);
+              setImageTemplateId(imageTemplateId);
+              setImageTemplateText(imageTemplateText);
+              setReferences(references);
+              draft.changed();
+            } else if (editorSnapshot.current !== submittedEditor) return;
+            setError(imageSendError(error));
           });
       } catch (error) {
         if (current()) setError(imageSendError(error));

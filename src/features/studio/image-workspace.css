@@ -600,8 +600,8 @@
   min-width: 0;
 }
 .image-workspace .image-model-row small {
-  font-size: 14px;
-  line-height: 18px;
+  font-size: 12px;
+  line-height: 16px;
   color: #d0d0d6;
   margin-top: 4px;
 }
