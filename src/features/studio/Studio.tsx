@@ -656,7 +656,13 @@ export function Studio({ kind }: { kind: MediaKind }) {
     };
     if (references.length && kind === 'image') body.task.fileIds = references.map((f) => f.id);
     if (kind === 'video') {
-      body.task.referenceMode = videoReferenceMode(model, references.length);
+      body.task.referenceMode = videoReferenceMode(
+        model,
+        references.length,
+        Array.isArray(options.frameImages) &&
+          options.frameImages.length === references.length &&
+          options.frameImages.every((frame, index) => frame.url === references[index].path),
+      );
       Object.assign(
         body.options,
         videoInputOptions(model, references, body.task.referenceMode as 'frames' | 'references'),

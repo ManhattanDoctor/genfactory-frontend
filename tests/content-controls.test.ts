@@ -49,3 +49,56 @@ it('Grok Lite follows a reference frame while text-to-video keeps the selected r
   expect(withFrame).toMatchObject({ duration: 8, resolution: '720p', generateAudio: true });
   expect(mediaOptions(model, 'video', 'A cup', [], values)).toHaveProperty('aspectRatio', '9:16');
 });
+
+it('restores video conditioning from owned files instead of retaining historical URLs in settings', () => {
+  const seedance = structuredClone(
+    catalog.find((item) => item.reference.model === 'bytedance/seedance-2.5'),
+  ) as unknown as IModelDescription;
+  seedance.schema.properties!.task!.properties!.fileIds = {
+    type: 'array',
+    maxItems: 30,
+    items: { type: 'integer' },
+  };
+  seedance.schema.properties!.options!.properties!.inputReferences = {
+    type: 'array',
+    maxItems: 30,
+    items: {
+      type: 'object',
+      properties: { url: { type: 'string' }, type: { const: 'image' } },
+      required: ['url', 'type'],
+    },
+  };
+  const files = [14, 8, 23, 6].map((id) => ({
+    id,
+    path: `https://storage.test/${id}.png`,
+    type: 'IMAGE',
+  })) as import('../src/lib/types').IGnosisFile[];
+  const options = mediaOptions(
+    seedance,
+    'video',
+    'All four toys',
+    files,
+    {
+      duration: 4,
+      resolution: '480p',
+      inputReferences: [{ url: 'https://old.test/only-one.png', type: 'image' }],
+    },
+    'references',
+  );
+  expect(options).not.toHaveProperty('inputReferences');
+  expect(options).not.toHaveProperty('frameImages');
+  expect(() =>
+    mediaOptions(
+      seedance,
+      'video',
+      'Frames',
+      files.slice(0, 2),
+      {
+        duration: 4,
+        resolution: '480p',
+        frameImages: [{ url: 'https://old.test/one.png', type: 'first_frame' }],
+      },
+      'frames',
+    ),
+  ).not.toThrow();
+});

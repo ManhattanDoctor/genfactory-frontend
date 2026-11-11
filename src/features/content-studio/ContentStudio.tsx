@@ -276,7 +276,11 @@ export function ContentStudio() {
       ? choices(modelProperties.aspectRatio, suggestedRatios)
       : [...sizes.keys()]
     : suggestedRatios;
-  const referenceRatio = followsReferenceRatio(model, attachments.length);
+  const referenceRatio = followsReferenceRatio(
+    model,
+    attachments.length,
+    attachments.some((file) => !!file.slot) ? 'frames' : undefined,
+  );
   const effectiveRatio = ratio;
   const qualityField = modelProperties[mode === 'image' ? 'quality' : 'resolution'];
   const qualityOptions = model
@@ -538,7 +542,18 @@ export function ContentStudio() {
       const properties = selected.schema.properties?.options?.properties || {};
       if (Object.keys(generation.options).some((key) => !properties[key]))
         throw new Error('Некоторые сохранённые параметры больше не поддерживаются моделью.');
-      mediaOptions(selected, target, generation.prompt, sources, generation.options);
+      mediaOptions(
+        selected,
+        target,
+        generation.prompt,
+        sources,
+        generation.options,
+        target === 'video'
+          ? Array.isArray(generation.options.frameImages) && generation.options.frameImages.length
+            ? 'frames'
+            : videoReferenceMode(selected, sources.length)
+          : undefined,
+      );
       if (!current()) return;
       setMode(target);
       setSelectedModel(modelKey(selected));
@@ -576,7 +591,11 @@ export function ContentStudio() {
           url: source.path,
           type: source.mime,
           saved: source,
-          ...(target === 'video' ? { slot: index === 0 ? ('start' as const) : ('end' as const) } : {}),
+          ...(target === 'video' &&
+          Array.isArray(generation.options.frameImages) &&
+          generation.options.frameImages.length
+            ? { slot: index === 0 ? ('start' as const) : ('end' as const) }
+            : {}),
         })),
       );
       setFrameSlot(undefined);

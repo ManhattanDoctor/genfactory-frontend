@@ -1,3 +1,4 @@
+import { followsReferenceRatio } from '../src/features/catalog/schema';
 import { describe, expect, it } from 'vitest';
 import { videoInputOptions, videoReferenceMode } from '../src/features/catalog/videoInputs';
 import { createMessageBody } from '../src/features/studio/conversations';
@@ -59,4 +60,10 @@ describe('video selected references', () => {
     } as IModelDescription;
     expect(() => videoInputOptions(single, files, videoReferenceMode(single, files.length))).toThrow();
   });
+});
+
+it('Wan references keep the chosen aspect ratio while frame conditioning follows the first image', () => {
+  const wan = { ...seedance, reference: { provider: 'OPEN_ROUTER_VIDEO', model: 'alibaba/wan-3.0' } };
+  expect(followsReferenceRatio(wan, 4)).toBe(false);
+  expect(followsReferenceRatio(wan, 2, 'frames')).toBe(true);
 });

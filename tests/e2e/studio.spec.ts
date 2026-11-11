@@ -5447,3 +5447,87 @@ test('content studio binds all four Seedance references to the required VIDEO ca
   });
   expect(state.creates[0].options.tools[0]).not.toHaveProperty('input');
 });
+
+for (const referenceMode of ['references', 'frames'] as const)
+  test(`content studio restores video ${referenceMode} without changing conditioning`, async ({ page }) => {
+    const state = await mockApi(page);
+    const seedance = structuredClone(catalog.find((m) => m.reference.model === 'bytedance/seedance-2.5')!);
+    seedance.schema.properties!.task!.properties!.fileIds = {
+      type: 'array',
+      maxItems: 30,
+      items: { type: 'integer' },
+    };
+    seedance.schema.properties!.options!.properties!.inputReferences = {
+      type: 'array',
+      maxItems: 30,
+      items: {
+        type: 'object',
+        properties: { url: { type: 'string' }, type: { const: 'image' } },
+        required: ['url', 'type'],
+      },
+    };
+    const files = (referenceMode === 'references' ? [14, 8, 23, 6] : [14, 8]).map((id) => ({
+      ...file,
+      id,
+      path: `/media/gallery-${id === 14 ? 1 : 2}.jpg`,
+      name: `Source ${id}`,
+    }));
+    const conditioning =
+      referenceMode === 'references'
+        ? { inputReferences: files.map((f) => ({ url: f.path, type: 'image' })) }
+        : {
+            frameImages: files.map((f, i) => ({ url: f.path, type: i === 0 ? 'first_frame' : 'last_frame' })),
+          };
+    const generation = {
+      model: seedance.reference,
+      prompt: 'Historical video scene',
+      options: { duration: 4, resolution: '480p', ...conditioning },
+    };
+    state.conversations.push(savedConversation());
+    state.messages.set(101, [
+      { id: 1, role: 'USER', text: 'Бриф', files, createdDate: file.createdDate },
+      {
+        id: 2,
+        role: 'ASSISTANT',
+        text: 'Готово',
+        files: [
+          {
+            ...file,
+            id: 99,
+            name: 'Historical.mp4',
+            type: 'VIDEO',
+            mime: 'video/mp4',
+            path: '/test-video.mp4',
+            origin: { kind: 'GENERATION', sourceFileIds: files.map((f) => f.id), generation },
+          },
+        ],
+        createdDate: file.createdDate,
+      },
+    ]);
+    await page.route('**/api/aimodels?*', (route) => {
+      const provider = catalogProvider(new URL(route.request().url()));
+      return route.fulfill({
+        json: catalogResponse(
+          route.request().url(),
+          provider === 'OPEN_ROUTER_VIDEO'
+            ? [seedance]
+            : provider === 'OPEN_ROUTER_CONVERSATION'
+              ? [agent]
+              : catalog.filter((m) => m.reference.provider === provider),
+        ),
+      });
+    });
+    await page.route(/\/api\/file\/\d+$/, (route) =>
+      route.fulfill({ json: files.find((f) => f.id === Number(route.request().url().split('/').pop())) }),
+    );
+    await page.goto('/chat?conversation=101');
+    await page.getByRole('button', { name: 'Использовать параметры', exact: true }).click();
+    await expect(page.locator('#cw-draft')).toHaveValue(generation.prompt);
+    await expect(page.locator('.cw-files .composer-attachment')).toHaveCount(files.length);
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect.poll(() => state.sends.length).toBe(1);
+    expect(state.sends[0].settings.tools[0].input).toEqual({
+      fileIds: files.map((f) => f.id),
+      referenceMode,
+    });
+  });

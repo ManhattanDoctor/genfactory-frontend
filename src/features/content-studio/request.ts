@@ -23,6 +23,7 @@ export function mediaOptions(
   const properties = schema?.properties || {};
   const options = defaults(schema);
   for (const [key, value] of Object.entries(values)) {
+    if (key === 'frameImages' || key === 'inputReferences') continue;
     if (properties[key]) options[key] = value;
     else if (key === 'aspectRatio') {
       const size = ratioSizes(model).get(String(value));
@@ -31,7 +32,14 @@ export function mediaOptions(
     } else if (key === 'generateAudio' && value === true)
       throw new Error('Эта модель не поддерживает настройку звука.');
   }
-  if (followsReferenceRatio(model, files.length)) delete options.aspectRatio;
+  if (
+    followsReferenceRatio(
+      model,
+      files.length,
+      referenceMode || (kind === 'video' ? videoReferenceMode(model, files.length) : undefined),
+    )
+  )
+    delete options.aspectRatio;
   if (files.some((file) => file.type !== 'IMAGE'))
     throw new Error('Для этой генерации доступны только изображения-референсы.');
   if (files.length && (!supportsReferences(model) || files.length > referenceLimit(model)))
