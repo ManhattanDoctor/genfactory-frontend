@@ -1,0 +1,12 @@
+.generation-elapsed {
+  display: block;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.jobs-modal .job-card-status .generation-elapsed {
+  margin: 0;
+  font-size: inherit;
+  white-space: nowrap;
+}

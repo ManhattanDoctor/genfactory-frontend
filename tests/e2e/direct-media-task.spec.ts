@@ -167,6 +167,12 @@ test('several direct image tasks run concurrently without blocking the editor or
   await expect.poll(() => state.tasks.length).toBe(1);
   await expect(draft).toHaveValue('');
   await expect(draft).toBeEnabled();
+  const timer = page.locator('.image-result-pending').first().getByLabel('Время генерации');
+  await expect(timer).toBeVisible();
+  const firstSeconds = Number((await timer.innerText()).split(' ')[0]);
+  await expect
+    .poll(async () => Number((await timer.innerText()).split(' ')[0]))
+    .toBeGreaterThan(firstSeconds);
   await draft.fill('Вторая генерация');
   await expect(send).toBeEnabled();
   await send.click();

@@ -1,3 +1,4 @@
+import { GenerationElapsed } from './GenerationElapsed';
 import { conversationUrl as workUrl } from '../lib/conversationUrl';
 import './active-jobs.css';
 import { History, LoaderCircle, RefreshCw, BriefcaseBusiness, ListX } from 'lucide-react';
@@ -84,6 +85,7 @@ function TaskCard({
         <span className="job-card-status">
           {!completed && <LoaderCircle size={14} aria-hidden="true" />}
           {status || 'Выполняется'}
+          {!completed && <GenerationElapsed startedAt={item.createdDate} />}
         </span>
       </div>
     </Link>
@@ -166,6 +168,7 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
     filters: { mutationKey: ['media-task', userId] },
     select: (mutation) => ({
       id: mutation.mutationId,
+      submittedAt: mutation.state.submittedAt,
       status: mutation.state.status,
       output: mutation.state.data as ITaskResponse | undefined,
       input: mutation.state.variables as IDirectMediaTask,
@@ -337,7 +340,11 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
                 {pendingTasks.map((task) => (
                   <li key={`task:${task.id}`}>
                     <TaskCard
-                      item={{ id: String(task.id), model: task.input.body.model, createdDate: '' }}
+                      item={{
+                        id: String(task.id),
+                        model: task.input.body.model,
+                        createdDate: new Date(task.submittedAt).toISOString(),
+                      }}
                       userId={userId}
                       sid={sid}
                       title={(task.input.recipe.workspaceInput?.idea || task.input.recipe.prompt).slice(
@@ -372,7 +379,11 @@ function Jobs({ userId, sid }: { userId: number; sid: string }) {
                 {finishedTasks.map((task) => (
                   <TaskCard
                     key={`task:${task.id}`}
-                    item={{ id: String(task.id), model: task.input.body.model, createdDate: '' }}
+                    item={{
+                      id: String(task.id),
+                      model: task.input.body.model,
+                      createdDate: new Date(task.submittedAt).toISOString(),
+                    }}
                     userId={userId}
                     sid={sid}
                     completed

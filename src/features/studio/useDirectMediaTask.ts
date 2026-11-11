@@ -47,8 +47,11 @@ export function useDirectMediaTask(userId: number | undefined, kind: MediaKind) 
   // A pending HTTP task remains tracked when its page unmounts and mounts again.
   const local = useMutationState({
     filters: { mutationKey, status: 'pending' },
-    select: (item) => item.state.variables as IDirectMediaTask,
-  }).filter((item) => item?.sid === getSession());
+    select: (item) => ({
+      input: item.state.variables as IDirectMediaTask,
+      submittedAt: item.state.submittedAt,
+    }),
+  }).filter((item) => item.input?.sid === getSession());
   const active = useQuery({
     queryKey: ['active-tasks', userId],
     queryFn: ({ signal }) => api.tasks(signal),
@@ -58,8 +61,16 @@ export function useDirectMediaTask(userId: number | undefined, kind: MediaKind) 
   });
   const remote = visibleTasks(
     active.data || [],
-    local.map((item) => item.body.task.session),
+    local.map((item) => item.input.body.task.session),
   ).filter((item) => item.model.includes(kind.toUpperCase()));
-  const pendingCount = local.length + remote.length;
-  return { ...mutation, pending: pendingCount > 0, pendingCount };
+  const pendingTasks = [
+    ...local.map(({ input, submittedAt }) => ({
+      id: input.body.task.session || `local:${submittedAt}`,
+      model: input.body.model,
+      createdDate: new Date(submittedAt).toISOString(),
+    })),
+    ...remote,
+  ];
+  const pendingCount = pendingTasks.length;
+  return { ...mutation, pending: pendingCount > 0, pendingCount, pendingTasks };
 }

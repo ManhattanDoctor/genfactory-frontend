@@ -573,3 +573,18 @@ test('new generic image tools are pinned to OpenRouter and preserve required-cal
     isRequired: true,
   });
 });
+
+test('a restored generation keeps its elapsed time after reload and shows it in Works', async ({ page }) => {
+  const { state } = await setup(page);
+  const started = new Date(Date.now() - 65000).toISOString();
+  state.active = [task('restore-timer', 'OPEN_ROUTER_IMAGE', { createdDate: started })];
+  await page.goto('/image');
+  const timer = page.locator('.image-result-pending').getByLabel('Время генерации');
+  await expect(timer).toBeVisible();
+  const seconds = () => timer.innerText().then((value) => Number(value.split(' ')[0]));
+  await expect.poll(seconds).toBeGreaterThanOrEqual(65);
+  await page.reload();
+  await expect.poll(seconds).toBeGreaterThanOrEqual(65);
+  await page.getByRole('button', { name: 'Активные работы: 1', exact: true }).first().click();
+  await expect(page.getByRole('dialog').getByLabel('Время генерации')).toBeVisible();
+});

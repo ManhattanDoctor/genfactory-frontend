@@ -1,3 +1,5 @@
+import { GenerationElapsed } from '../../components/GenerationElapsed';
+import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
 import { useComposerMenu } from '../../components/useComposerMenu';
 import { followsReferenceRatio } from '../catalog/schema';
 import { bananaRatios, bananaDescription } from './bananaSettings';
@@ -70,6 +72,7 @@ export function MediaWorkspace({
   conversation,
   busy,
   pendingCount = 0,
+  pendingTasks = [],
   unavailable,
   retryCatalog,
   error,
@@ -99,6 +102,7 @@ export function MediaWorkspace({
   conversation?: IConversation;
   busy: boolean;
   pendingCount?: number;
+  pendingTasks?: Array<{ id: string; createdDate: string }>;
   unavailable?: boolean;
   retryCatalog?: () => void;
   error: string;
@@ -316,7 +320,7 @@ export function MediaWorkspace({
   const cards: ReactElement[] = [
     ...Array.from({ length: Math.max(pendingCount, busy ? 1 : 0) }, (_, index) => (
       <div
-        key={`pending:${index}`}
+        key={`pending:${pendingTasks[index]?.id || index}`}
         className="image-result-pending"
         role="status"
         style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
@@ -324,10 +328,11 @@ export function MediaWorkspace({
         <span className="img-spin" aria-hidden="true" />
         {conversation ? (
           <ImageProgress conversation={conversation} kind={kind} startedAt={startedAt} />
-        ) : video ? (
-          'Создаём видео…'
         ) : (
-          'Создаём изображение…'
+          <span>
+            {video ? 'Создаём видео…' : 'Создаём изображение…'}
+            <GenerationElapsed startedAt={pendingTasks[index]?.createdDate} />
+          </span>
         )}
       </div>
     )),
@@ -961,20 +966,11 @@ export function ImageMenu({
               <ModelMark id={model.reference.model} />
               <span className="image-model-copy">
                 <strong>
-                  {modelTitle(model)}
-                  {details && (
-                    <button
-                      className="video-model-about"
-                      type="button"
-                      aria-label={`О модели ${modelTitle(model)}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setInfo(model);
-                      }}
-                    >
-                      <Info size={14} />
-                    </button>
-                  )}
+                  <ModelTitleWithInfo
+                    title={modelTitle(model)}
+                    onInfo={details ? () => setInfo(model) : undefined}
+                    infoClassName="video-model-about"
+                  />
                 </strong>
                 <small>{describeModel ? describeModel(model) : modelSummary(model)}</small>
               </span>
@@ -1075,11 +1071,7 @@ function ImageProgress({
           : kind === 'video'
             ? 'Создаём видео…'
             : 'Создаём изображение…'}
-      {Number.isFinite(start) && (
-        <span className="generation-elapsed" aria-live="off">
-          {Math.max(0, Math.floor((now - start) / 1000))} с
-        </span>
-      )}
+      <GenerationElapsed startedAt={startedAt} />
     </span>
   );
 }

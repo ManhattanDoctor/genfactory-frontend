@@ -1,0 +1,8 @@
+.model-title-tail {
+  white-space: nowrap;
+}
+.model-title-tail > button[class] {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 5px;
+}

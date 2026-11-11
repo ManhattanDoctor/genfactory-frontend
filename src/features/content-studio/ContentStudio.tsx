@@ -1,3 +1,4 @@
+import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload, prepareImageUpload } from '../../lib/image-upload';
 import { useComposerMenu } from '../../components/useComposerMenu';
 import { useRetainedModel } from '../catalog/useRetainedModel';
@@ -1699,20 +1700,14 @@ function StudioMenu({
                 <ModelMark id={option} />
                 <span className="cw-model-copy">
                   <span className="content-model-title">
-                    <strong>{titles?.[i] || option}</strong>
-                    {searchTerms && option !== 'Auto' && (
-                      <button
-                        type="button"
-                        className="content-model-about"
-                        aria-label={`О модели ${titles?.[i] || option}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setInfo(i);
-                        }}
-                      >
-                        <CircleAlert size={14} />
-                      </button>
-                    )}
+                    <strong>
+                      <ModelTitleWithInfo
+                        title={titles?.[i] || option}
+                        onInfo={searchTerms && option !== 'Auto' ? () => setInfo(i) : undefined}
+                        infoClassName="content-model-about"
+                        icon={CircleAlert}
+                      />
+                    </strong>
                   </span>
                   {descriptions?.[i] && <small>{descriptions[i]}</small>}
                 </span>

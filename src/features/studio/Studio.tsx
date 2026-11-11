@@ -888,6 +888,7 @@ export function Studio({ kind }: { kind: MediaKind }) {
         variant={specialized === 'banana' || specialized === 'seedance' ? specialized : undefined}
         kind={kind}
         pendingCount={legacy ? 0 : directTask.pendingCount}
+        pendingTasks={legacy ? [] : directTask.pendingTasks}
         shape={shot.shape || 'single'}
         onShape={(shape) => {
           draft.changed();
