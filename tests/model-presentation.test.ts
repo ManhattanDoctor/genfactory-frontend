@@ -27,7 +27,7 @@ describe('user-facing model labels', () => {
       'unknown/new-image',
     ]) {
       const summary = modelSummary(model(id, id));
-      expect(summary.length).toBeLessThanOrEqual(150);
+      expect(summary.length).toBeLessThanOrEqual(260);
       expect(summary).not.toMatch(/Референсы|IMAGE_INPUT|OPEN_ROUTER/);
     }
     expect(modelSummary(model('krea/krea-2-large', 'Krea'))).toContain('форма предмета может измениться');

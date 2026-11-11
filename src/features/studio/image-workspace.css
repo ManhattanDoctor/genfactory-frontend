@@ -624,11 +624,13 @@
   height: 32px;
   padding: 0;
   border-radius: 8px;
+  align-self: center;
 }
 .image-workspace [aria-pressed='true'].image-favorite {
   color: #ff5a7a;
 }
 .image-workspace .image-choice-mark {
+  align-self: center;
   display: block;
   flex: none;
   width: 18px;

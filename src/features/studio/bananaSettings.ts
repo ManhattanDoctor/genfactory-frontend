@@ -1,5 +1,6 @@
 import type { IModelDescription } from '../../lib/types';
 import { defaults } from '../catalog/schema';
+import { modelSummary } from '../catalog/presentation';
 export const bananaRatios = [
   '1:1',
   '1:4',
@@ -46,12 +47,5 @@ export function bananaTitle(model: IModelDescription): string {
 }
 
 export function bananaDescription(model: IModelDescription): string {
-  const id = model.reference.model;
-  return id.includes('2.5-flash')
-    ? 'Для правки изображения по фото.'
-    : id.includes('lite-image')
-      ? 'Для правки готового фото в небольшом размере.'
-      : id.includes('pro-image')
-        ? 'Для детального кадра и правки готового фото.'
-        : 'Для нового кадра и правки готового фото.';
+  return modelSummary(model);
 }

@@ -1,4 +1,5 @@
 import type { IModelDescription } from '../../lib/types';
+import { modelDescriptions } from './modelDescriptions';
 export const modelKey = (model: IModelDescription) => `${model.reference.provider}:${model.reference.model}`;
 /** Favorites affect display order only, never the default used to execute a request. */
 export function favoritesFirst<T>(items: T[], favorites: string[], key: (item: T) => string): T[] {
@@ -35,6 +36,8 @@ export function modelTitle(model: Pick<IModelDescription, 'reference' | 'name'>)
 }
 /** Short use cases describe the task, without unsupported quality rankings. */
 export function modelSummary(model: IModelDescription): string {
+  const description = modelDescriptions[model.reference.model];
+  if (description) return description;
   const id = model.reference.model.toLowerCase();
   if (id.startsWith('krea/krea-2-'))
     return 'Визуальные идеи и стилизация по фото. При правке форма предмета может измениться.';

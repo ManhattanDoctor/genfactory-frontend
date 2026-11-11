@@ -556,7 +556,8 @@
   grid-row: 1;
   width: 32px;
   height: 32px;
-  margin-top: 2px;
+  align-self: center;
+  margin-top: 0;
   border-radius: 8px;
   color: #8d8d93;
 }
