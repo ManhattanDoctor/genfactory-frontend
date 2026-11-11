@@ -3649,9 +3649,7 @@ test('content studio adapts a multi-shot template to the selected continuous tak
     .filter({ has: page.locator('strong', { hasText: 'Macro: detail and texture' }) });
   await card.locator('.cw-add').click();
   const dialog = page.getByRole('dialog', { name: 'Macro: detail and texture', exact: true });
-  await expect(dialog.getByRole('region', { name: 'Настройки после применения' })).toContainText(
-    'Структура: Один кадр',
-  );
+  await expect(dialog.locator('.template-settings')).toContainText('Структура: Один кадр');
   for (const input of await dialog.locator('[data-template-variable]').all()) await input.fill('Синяя чашка');
   await dialog.getByRole('button', { name: 'Из библиотеки' }).click();
   await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
