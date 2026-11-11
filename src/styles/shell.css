@@ -964,12 +964,12 @@
 }
 .home-intro {
   width: 100%;
-  padding: 56px 24px 28px;
+  padding: 56px 24px 12px;
 }
 .home-signs {
   display: grid;
   gap: 12px;
-  padding: 88px 0;
+  padding: 72px 0;
 }
 .home-destinations {
   padding: 0;
@@ -1033,10 +1033,10 @@
     padding: 20px 16px 48px;
   }
   .home-intro {
-    padding: 32px 0 28px;
+    padding: 32px 0 12px;
   }
   .home-signs {
-    padding: 32px 0;
+    padding: 24px 0;
   }
   .home-destination {
     height: 300px;

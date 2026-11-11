@@ -143,6 +143,9 @@ export interface IToolDescription {
   providers?: string[];
 }
 export interface IConversation {
+  history?: number;
+  isConsiderHistory?: boolean;
+  historyResetDate?: string | null;
   isFavorite?: boolean;
   isArchived?: boolean;
   previewFileId?: number;

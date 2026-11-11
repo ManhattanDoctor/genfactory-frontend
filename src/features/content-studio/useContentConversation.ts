@@ -1,3 +1,4 @@
+import { studioHistoryFiles } from './studioHistory';
 import { studioSystem } from './studioPrompt';
 import { assertAllowedProvider } from '../../lib/modelPolicy';
 import { useEffect, useRef, useState } from 'react';
@@ -156,7 +157,20 @@ export function useContentConversation() {
       if (getSession() === sid) setPreparing(false);
     }
   }
+  async function historyFiles() {
+    const conversation = detail.data;
+    if (!conversation || !auth.user || !auth.session || conversation.userId !== auth.user.id) return [];
+    const sid = auth.session;
+    return studioHistoryFiles(conversation, (page) =>
+      client.fetchQuery({
+        queryKey: ['messages', auth.user!.id, conversation.id, page],
+        staleTime: 1000,
+        queryFn: ({ signal }) => api.messages(conversation.id, page, signal, sid),
+      }),
+    );
+  }
   return {
+    historyFiles,
     id,
     conversation: detail.data,
     isExecutionError: !!failure.message && failure.isExecution,

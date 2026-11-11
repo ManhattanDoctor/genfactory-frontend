@@ -1,3 +1,4 @@
+import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { isAllowedProvider } from '../../lib/modelPolicy';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { promptSystem, videoAnalysisError, videoAnalysisTool } from './videoAnalysis';
@@ -10,7 +11,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { ArrowUp, Plus, X, Copy, Download, Expand, ArrowUpRight } from 'lucide-react';
+import { ArrowUp, Plus, Copy, Download, Expand, ArrowUpRight } from 'lucide-react';
 import { api, getSession } from '../../lib/api';
 import type { IGnosisFile, IConversationMessage, IToolConnection } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
@@ -197,17 +198,10 @@ function PromptEditor() {
     const value = readPromptInput(latest?.text || '');
     if (value) {
       setInput(value);
-      setFiles(
-        (latest?.files || [])
-          .filter((f) => ['IMAGE', 'VIDEO'].includes(f.type) && f.userId === auth.user?.id)
-          .slice(0, 4),
-      );
+      // Sent references stay on the result card; the composer starts without them.
     }
     const video = latest?.files?.some((f) => f.type === 'VIDEO');
-    const analysis = conversation?.options.tools?.find(
-      (t) => typeof t !== 'string' && t.uid === 'VIDEO_RECOGNITION',
-    );
-    if (video) setSelected(typeof analysis === 'object' ? analysis.settings?.model.model || '' : '');
+    if (video) setSelected('');
     else if (conversation && isAllowedProvider(conversation.model)) setSelected(conversation.options.model);
     restored.current = true;
   }, [messages.data, draft.available]);
@@ -365,7 +359,16 @@ function PromptEditor() {
       });
       if (!id) navigate(`/prompt?conversation=${active.id}`, { replace: true });
       await promise;
-      draft.clear();
+      const sameConversation =
+        getSession() === sid &&
+        window.location.pathname === '/prompt' &&
+        new URLSearchParams(window.location.search).get('conversation') === String(active.id);
+      if (sameConversation) draft.clear();
+      if (sameConversation && mounted.current) {
+        restored.current = true;
+        if (videos.length) setSelected('');
+        setFiles((previous) => previous.filter((item) => !actual.some((source) => source.id === item.id)));
+      }
     } catch (e) {
       setError(
         `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте результат перед повторной отправкой. Автоматического повтора нет.`,
@@ -519,26 +522,18 @@ function PromptEditor() {
         {!!files.length && (
           <div className="img-files">
             {files.map((f) => (
-              <div className="img-file" key={f.id}>
-                <div className="img-thumb">
-                  <Media file={f} />
-                </div>
-                <button
-                  className="prompt-remove"
-                  type="button"
-                  aria-label={`Убрать ${f.name}`}
-                  disabled={busy}
-                  onClick={() => {
-                    dirty.current = true;
-                    draft.changed();
-                    if (f.type === 'VIDEO' && files.filter((x) => x.type === 'VIDEO').length === 1)
-                      setSelected('');
-                    setFiles((v) => v.filter((x) => x.id !== f.id));
-                  }}
-                >
-                  <X size={12} />
-                </button>
-              </div>
+              <ComposerAttachment
+                key={f.id}
+                file={f}
+                disabled={busy}
+                onRemove={() => {
+                  dirty.current = true;
+                  draft.changed();
+                  if (f.type === 'VIDEO' && files.filter((x) => x.type === 'VIDEO').length === 1)
+                    setSelected('');
+                  setFiles((v) => v.filter((x) => x.id !== f.id));
+                }}
+              />
             ))}
           </div>
         )}

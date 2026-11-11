@@ -275,7 +275,10 @@ function AudioEditor() {
       if (!conversation) navigate(`/audio?mode=${mode}&conversation=${active.id}`, { replace: true });
       await request;
       if (getSession() === sid) draft.clear();
-      if (current(sid)) setText('');
+      if (current(sid)) {
+        setText('');
+        setFiles((previous) => previous.filter((item) => !files.some((source) => source.id === item.id)));
+      }
     } catch (e) {
       if (current(sid))
         setError(

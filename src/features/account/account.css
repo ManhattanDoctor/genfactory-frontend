@@ -249,6 +249,10 @@
   padding-top: 12px;
   border-top: 1px solid #35363b;
 }
+.account-page .transaction-facts:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
 .account-page .transaction-facts:empty {
   display: none;
 }

@@ -94,3 +94,31 @@ it('updates a versioned policy in existing conversations without duplicating it 
   expect(updated).toContain(STUDIO_SYSTEM_PROMPT);
   expect(updated.match(/\[Genfactory:studio-policy:v2\]/g)).toHaveLength(1);
 });
+
+it('keeps historical materials in the original question context without reattaching them or forcing a tool', () => {
+  const snapshot = {
+    ...context,
+    input: { fileIds: [], referenceMode: 'frames' },
+    historyFiles: [{ id: 1602, name: 'chair.png', type: 'IMAGE', role: 'USER' as const, messageId: 19622 }],
+  };
+  const body = createMessageBody(
+    'Сделай постер этого кресла',
+    'video',
+    { uid: 'VIDEO', settings: context.settings },
+    [],
+    false,
+    undefined,
+    undefined,
+    true,
+  );
+  body.text = withStudioContext(body.text, snapshot);
+  expect(body.files).toEqual([]);
+  expect(body.settings.tools).toEqual([{ uid: 'VIDEO', settings: context.settings }]);
+  expect(displayMessageText(body.text)).toBe('Сделай постер этого кресла');
+  expect(
+    parseStudioQuestion(
+      STUDIO_QUESTION_PREFIX + JSON.stringify({ ...question, context: undefined }),
+      body.text,
+    )?.context,
+  ).toEqual(snapshot);
+});

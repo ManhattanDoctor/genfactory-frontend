@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { X } from 'lucide-react';
-import { Media, type MediaFile } from './MediaPreview';
+import { Media, MediaPreview, type PreviewFile } from './MediaPreview';
 import { FilePlaceholder } from './FilePlaceholder';
 import './composer-attachment.css';
 
@@ -10,33 +11,35 @@ export function ComposerAttachment({
   disabled = false,
   className = '',
   onRemove,
-  onOpen,
 }: {
-  file: MediaFile;
+  file: PreviewFile;
   caption?: string;
   unavailable?: boolean;
   disabled?: boolean;
   className?: string;
   onRemove: () => void;
-  onOpen?: () => void;
 }) {
+  const label = caption ?? file.name;
+  const [preview, setPreview] = useState(false);
   return (
-    <div className={`composer-attachment ${className}`}>
-      <div className="composer-attachment-preview">
-        {onOpen && !unavailable ? (
-          <button
-            type="button"
-            className="composer-attachment-open"
-            aria-label={`Открыть ${file.name}`}
-            onClick={onOpen}
-          >
-            <Media file={file} isPlaybackDisabled />
-          </button>
-        ) : unavailable ? (
-          <FilePlaceholder file={file} />
-        ) : (
-          <Media file={file} isPlaybackDisabled />
-        )}
+    <>
+      <div className={`composer-attachment ${className}`}>
+        <button
+          type="button"
+          className="composer-attachment-open"
+          aria-label={`Открыть ${file.name}`}
+          disabled={unavailable}
+          onClick={() => setPreview(true)}
+        >
+          <span className="composer-attachment-preview">
+            {unavailable ? <FilePlaceholder file={file} /> : <Media file={file} isPlaybackDisabled />}
+          </span>
+          {label && (
+            <span className="composer-attachment-caption" title={label}>
+              {label}
+            </span>
+          )}
+        </button>
         <button
           type="button"
           className="composer-attachment-remove"
@@ -47,11 +50,7 @@ export function ComposerAttachment({
           <X size={16} />
         </button>
       </div>
-      {caption && (
-        <span className="composer-attachment-caption" title={caption}>
-          {caption}
-        </span>
-      )}
-    </div>
+      {preview && <MediaPreview file={file} autoPlay={false} onClose={() => setPreview(false)} />}
+    </>
   );
 }

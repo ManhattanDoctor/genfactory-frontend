@@ -646,6 +646,16 @@
 .content-studio #creatives .cw-chat:has(.cw-turn) > .ms-block {
   display: none;
 }
+/* The handwritten desktop hints do not belong in the mobile composer. */
+@media (max-width: 900px) {
+  .content-studio #creatives .cw-chat > .ms-block {
+    display: none;
+  }
+  .content-studio #creatives .cw-chat:not(:has(.cw-turn)) > .ms-block {
+    display: none;
+  }
+}
+
 /* Settings no longer have a writer-toggle header: retain a deliberate inset,
    and let the card fit its rows instead of stretching across the entire panel. */
 .content-studio .cw-settings-pane > .cw-shoot {

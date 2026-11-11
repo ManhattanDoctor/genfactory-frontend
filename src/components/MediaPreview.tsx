@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
 export type MediaFile = Pick<IGnosisFile, 'name' | 'path' | 'type' | 'mime' | 'preview'>;
+export type PreviewFile = MediaFile & Partial<IGnosisFile>;
 export function Media({
   file,
   controls = false,
@@ -122,9 +123,11 @@ export function MediaPreview({
   onUse,
   onAnalyze,
   onAnimate,
+  autoPlay,
 }: {
-  file: IGnosisFile;
+  file: PreviewFile;
   files?: IGnosisFile[];
+  autoPlay?: boolean;
   onClose: () => void;
   onUse?: (file: IGnosisFile) => void;
   onAnalyze?: (file: IGnosisFile) => void;
@@ -155,23 +158,40 @@ export function MediaPreview({
     };
   }, []);
   const [current, setCurrent] = useState(file);
+  const saved =
+    typeof current.id === 'number' &&
+    typeof current.userId === 'number' &&
+    typeof current.uid === 'string' &&
+    typeof current.createdDate === 'string'
+      ? (current as IGnosisFile)
+      : undefined;
   const [notice, setNotice] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [creatingPreview, setCreatingPreview] = useState(false);
   const client = useQueryClient();
   const detail = useQuery({
     queryKey: ['file-preview', file.userId, current.id],
-    queryFn: () => api.file(current.id),
+    enabled: !!saved,
+    queryFn: () => api.file(saved!.id),
 
     retry: 1,
   });
-  const isText = current.mime?.split(';')[0] === 'text/plain';
+  const mime = current.mime?.split(';')[0].trim().toLowerCase();
+  const isMarkdown = mime === 'text/markdown';
+  const isText = mime === 'text/plain' || isMarkdown;
   const textFile = useQuery({
     queryKey: ['file-text', current.userId, current.id],
-    enabled: isText,
+    enabled: isText && !!saved,
     retry: false,
     staleTime: 300000,
-    queryFn: async ({ signal }) => (await api.fileText(current.id, signal)).text,
+    queryFn: async ({ signal }) => {
+      if (!isMarkdown) return (await api.fileText(saved!.id, signal)).text;
+      const limit = 2 * 1024 * 1024;
+      if ((current.size ?? 0) > limit) throw new Error('Текст больше 2 МБ. Скачайте оригинал файла.');
+      const blob = await api.downloadFile(saved!.id);
+      if (blob.size > limit) throw new Error('Текст больше 2 МБ. Скачайте оригинал файла.');
+      return blob.text();
+    },
   });
   const mediaPreview = detail.data?.preview || current.preview;
   const statuses = [mediaPreview?.image, mediaPreview?.video].filter(Boolean);
@@ -180,10 +200,11 @@ export function MediaPreview({
   );
   const failedPreview = statuses.some((media) => media?.status === 'FAILED');
   const createPreview = async () => {
+    if (!saved) return;
     setCreatingPreview(true);
     setNotice('');
     try {
-      const preview = await api.createPreview(current.id);
+      const preview = await api.createPreview(saved!.id);
       client.setQueryData(['file-preview', file.userId, current.id], { ...current, preview });
       await client.invalidateQueries({ queryKey: ['files'] });
     } catch {
@@ -193,9 +214,11 @@ export function MediaPreview({
     }
   };
   const collection = [
-    ...new Map([...files, file].filter((f) => f.userId === file.userId).map((f) => [f.id, f])).values(),
+    ...new Map(
+      [...files, file].filter((f) => f.userId === file.userId).map((f) => [f.id ?? f.path, f]),
+    ).values(),
   ];
-  const index = collection.findIndex((f) => f.id === current.id);
+  const index = collection.findIndex((f) => (f.id ?? f.path) === (current.id ?? current.path));
   const move = (delta: number) => {
     const next = collection[index + delta];
     if (next) {
@@ -226,10 +249,17 @@ export function MediaPreview({
   const download = async () => {
     const url = safeMediaUrl(current.path);
     if (!url) return;
+    if (!saved) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = current.name;
+      link.click();
+      return;
+    }
     setDownloading(true);
     setNotice('');
     try {
-      const blob = await api.downloadFile(current.id);
+      const blob = await api.downloadFile(saved.id);
       const object = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = object;
@@ -292,7 +322,7 @@ export function MediaPreview({
               </>
             )}
 
-            {['AUDIO', 'VIDEO'].includes(current.type) && (
+            {saved && ['AUDIO', 'VIDEO'].includes(current.type) && (
               <button
                 className="preview-menu-item"
                 onClick={() => {
@@ -304,34 +334,34 @@ export function MediaPreview({
                 Расшифровать
               </button>
             )}
-            {onAnalyze && current.type === 'IMAGE' && (
+            {saved && onAnalyze && current.type === 'IMAGE' && (
               <button
                 className="preview-menu-item"
                 onClick={() => {
                   closeMenu();
-                  onAnalyze(current);
+                  onAnalyze(saved!);
                 }}
               >
                 Подготовить промпт
               </button>
             )}
-            {onUse && current.type === 'IMAGE' && (
+            {saved && onUse && current.type === 'IMAGE' && (
               <button
                 className="preview-menu-item"
                 onClick={() => {
                   closeMenu();
-                  onUse(current);
+                  onUse(saved!);
                 }}
               >
                 Использовать как референс
               </button>
             )}
-            {onAnimate && current.type === 'IMAGE' && (
+            {saved && onAnimate && current.type === 'IMAGE' && (
               <button
                 className="preview-menu-item"
                 onClick={() => {
                   closeMenu();
-                  onAnimate(current);
+                  onAnimate(saved!);
                 }}
               >
                 Анимировать
@@ -361,7 +391,8 @@ export function MediaPreview({
               </>
             )}
 
-            {(current.type === 'IMAGE' || current.type === 'VIDEO') &&
+            {saved &&
+              (current.type === 'IMAGE' || current.type === 'VIDEO') &&
               (!statuses.length || failedPreview) &&
               !pendingPreview && (
                 <button
@@ -394,9 +425,11 @@ export function MediaPreview({
             ←
           </button>
         )}
-        <time className="muted small preview-date" dateTime={current.createdDate}>
-          {new Date(current.createdDate).toLocaleString('ru-RU')}
-        </time>
+        {current.createdDate && (
+          <time className="muted small preview-date" dateTime={current.createdDate}>
+            {new Date(current.createdDate).toLocaleString('ru-RU')}
+          </time>
+        )}
         {collection.length > 1 && (
           <button
             className="button"
@@ -409,7 +442,7 @@ export function MediaPreview({
         )}
       </div>
       <div className="media-preview">
-        {isText ? (
+        {isText && saved ? (
           textFile.isPending ? (
             <p role="status">Загружаем текст…</p>
           ) : textFile.error ? (
@@ -421,7 +454,12 @@ export function MediaPreview({
             <pre className="file-text-preview">{textFile.data}</pre>
           )
         ) : (
-          <Media key={current.id} file={{ ...current, preview: mediaPreview }} controls />
+          <Media
+            key={current.id ?? current.path}
+            file={{ ...current, preview: mediaPreview }}
+            controls
+            autoPlay={autoPlay}
+          />
         )}
       </div>
       {(current.type === 'IMAGE' || current.type === 'VIDEO') && (pendingPreview || failedPreview) && (
@@ -431,7 +469,7 @@ export function MediaPreview({
           </span>
         </div>
       )}
-      <GenerationDetails key={current.id} file={current} />
+      {saved && <GenerationDetails key={saved.id} file={saved} />}
       {current.origin?.directoryFallback && (
         <p role="status">Папка результатов стала недоступна. Файл сохранён в корне библиотеки.</p>
       )}

@@ -1,3 +1,4 @@
+import type { StudioHistoryFile } from './studioHistory';
 import type { IToolConnection } from '../../lib/types';
 
 export const STUDIO_QUESTION_PREFIX = '[Genfactory:studio-question:v1]\n';
@@ -10,6 +11,7 @@ export interface StudioQuestion {
     uid: 'IMAGE' | 'VIDEO';
     settings: NonNullable<IToolConnection['settings']>;
     input: Record<string, unknown>;
+    historyFiles?: StudioHistoryFile[];
   };
 }
 const CONTEXT_START = '[Genfactory:studio-context:v1]\n';

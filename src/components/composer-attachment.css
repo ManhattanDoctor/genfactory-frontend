@@ -1,18 +1,27 @@
-.composer-attachment,
-.image-workspace .composer-attachment.img-file {
+.composer-attachment {
+  position: relative;
   display: flex;
-  flex: 0 0 56px;
-  flex-direction: column;
+  flex: 0 1 152px;
+  flex-direction: row;
   align-items: center;
-  width: 56px;
-  gap: 6px;
+  box-sizing: border-box;
+  width: 152px;
+  max-width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0;
+  gap: 0;
+  border: 1px solid #303136;
+  border-radius: 10px;
+  background: #1a1b1e;
 }
 .composer-attachment-preview {
   position: relative;
-  width: 56px;
-  height: 56px;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 6px;
   background: #121314;
 }
 .composer-attachment-preview img,
@@ -30,31 +39,47 @@
   padding: 8px;
 }
 .composer-attachment .composer-attachment-remove {
-  position: absolute;
-  top: 2px;
-  right: 2px;
+  position: static;
+  margin-right: 4px;
   display: grid;
+  flex: 0 0 22px;
   place-items: center;
   width: 22px;
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.72);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
   color: white;
   cursor: pointer;
 }
 .composer-attachment-caption {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  width: 100%;
+  display: block;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #b6b6bd;
   font-size: 11px;
-  line-height: 1.35;
-  text-align: center;
+  line-height: 16px;
+}
+.composer-attachment-preview .file-placeholder {
+  padding: 2px;
+}
+.composer-attachment-preview .file-placeholder-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.composer-attachment-preview .file-placeholder-label,
+.composer-attachment-preview .file-placeholder-format {
+  display: none;
+}
+@media (max-width: 600px) {
+  .composer-attachment {
+    flex-basis: 128px;
+    width: 128px;
+  }
 }
 
 .composer-attachment .composer-attachment-remove:disabled {
@@ -63,21 +88,24 @@
 }
 
 .composer-attachment .composer-attachment-open {
-  display: block;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
   height: 100%;
-  padding: 0;
+  padding: 4px;
+  gap: 6px;
   border: 0;
+  border-radius: 10px;
   background: transparent;
-  cursor: zoom-in;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.attachment-viewer > img,
-.attachment-viewer > video {
-  display: block;
-  max-width: 100%;
-  max-height: 75dvh;
-  margin: auto;
-  object-fit: contain;
+.composer-attachment .composer-attachment-open:disabled {
+  cursor: default;
 }
 
 .content-studio #cw-draft,
@@ -90,4 +118,34 @@
   line-height: 24px;
   resize: none;
   overflow-y: auto;
+}
+
+.image-workspace .img-dock .img-files {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+.reference-list.reference-list {
+  gap: 8px;
+}
+.reference-list .reference-item {
+  width: auto;
+  padding: 0;
+  border: 0;
+  gap: 4px;
+  background: transparent;
+}
+.reference-list .reference-actions {
+  gap: 2px;
+}
+.reference-list .reference-actions .icon-button {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+}
+.composer-template {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }

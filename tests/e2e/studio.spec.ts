@@ -1287,6 +1287,7 @@ test('workspace Generate Prompt transfers its answer and reference into image ge
   await page.locator('#gp-note').fill('Сохрани объект и замени фон');
   await page.getByRole('button', { name: 'Собрать промпт', exact: true }).click();
   await expect(page.getByText('Точный промпт для генерации.', { exact: true })).toBeVisible();
+  await expect(page.locator('.img-dock .composer-attachment')).toHaveCount(0);
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].text).toContain('English');
   await page.locator('.prompt-card').hover();
@@ -1297,8 +1298,8 @@ test('workspace Generate Prompt transfers its answer and reference into image ge
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   expect(state.sends).toHaveLength(1);
   await submit(page, 'Готовый промпт с референсом');
-  await expect.poll(() => state.sends.length).toBe(2);
-  expect(state.sends[1].files).toEqual([12]);
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
 });
 
 test('workspace script stays in the same conversation when changing text modes', async ({ page }) => {
@@ -2635,13 +2636,13 @@ test('file viewer centers image and video and keeps actions in an overlay menu a
 async function mockAudio(page: Page) {
   const state = await mockApi(page);
   const models: IModelDescription[] = ['TTS', 'STT'].map((kind): IModelDescription => ({
-    reference: { provider: `TEST_${kind}`, model: `test-${kind.toLowerCase()}` },
+    reference: { provider: `OPEN_ROUTER_${kind}`, model: `test-${kind.toLowerCase()}` },
     name: `Catalog ${kind}`,
     schema: {
       type: 'object',
       required: ['model', 'task', 'options'],
       properties: {
-        model: { const: `TEST_${kind}` },
+        model: { const: `OPEN_ROUTER_${kind}` },
         task:
           kind === 'TTS'
             ? {
@@ -2670,11 +2671,15 @@ async function mockAudio(page: Page) {
       },
     },
   }));
-  await page.route('**/api/aimodel/OPEN_AI_CONVERSATION', (route) =>
-    route.fulfill({ json: { tools: ['TTS', 'STT'].map((uid) => ({ uid, providers: [`TEST_${uid}`] })) } }),
+  await page.route('**/api/aimodel/OPEN_ROUTER_CONVERSATION', (route) =>
+    route.fulfill({
+      json: { tools: ['TTS', 'STT'].map((uid) => ({ uid, providers: [`OPEN_ROUTER_${uid}`] })) },
+    }),
   );
   await page.route(
-    (url) => url.pathname === '/api/aimodels' && !!catalogProvider(url)?.startsWith('TEST_'),
+    (url) =>
+      url.pathname === '/api/aimodels' &&
+      ['OPEN_ROUTER_TTS', 'OPEN_ROUTER_STT'].includes(catalogProvider(url) || ''),
     (route) =>
       route.fulfill({
         json: catalogPage(
@@ -2702,7 +2707,7 @@ test('audio TTS uses catalog settings, validates text, and restores saved prefer
     uid: 'TTS',
     settings: {
       isLockSelection: true,
-      model: { provider: 'TEST_TTS' },
+      model: { provider: 'OPEN_ROUTER_TTS' },
       options: { voice: 'second-voice', format: 'flac' },
     },
   });
@@ -2731,6 +2736,7 @@ test('audio STT takes the exact video from the file menu and saves transcription
   await page.getByLabel('Язык (код, например ru)').fill('ru');
   await page.getByRole('button', { name: 'Расшифровать файл' }).click();
   await expect.poll(() => state.sends.length).toBe(1);
+  await expect(page.locator('.reference-list .composer-attachment')).toHaveCount(0);
   expect(state.sends[0].files).toEqual([12]);
   expect(state.sends[0].text).toContain('fileId=12');
   expect(state.sends[0].text).toContain('isFile=true');
@@ -3192,7 +3198,7 @@ test('prototype navigation selects specialized editors and matches the reference
   await expect(page.locator('#agent-draft')).toBeVisible();
 });
 
-test('home fits the mobile matrix and menu restores keyboard focus', async ({ page }) => {
+test('home fits the mobile matrix and menu restores keyboard focus', async ({ page }, testInfo) => {
   await mockApi(page);
   await page.goto('/');
   for (const [width, height] of [
@@ -3204,9 +3210,15 @@ test('home fits the mobile matrix and menu restores keyboard focus', async ({ pa
     [1440, 1000],
   ]) {
     await page.setViewportSize({ width, height });
-    await expect(page.getByRole('textbox', { name: 'Ваша задача', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Сначала задача. Потом кадр.', exact: true }),
+    ).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
-    await page.screenshot({ path: `test-results/home-prototype-${width}.png`, fullPage: true });
+    await page.screenshot({
+      path: testInfo.outputPath(`home-prototype-${width}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    });
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
@@ -3285,7 +3297,6 @@ test('content studio prototype controls, templates and guest favorites work with
   await expect(page.locator('.cw-card')).toHaveCount(1);
   await page.reload();
   await expect(page.locator('.cw-card').first().locator('.cw-fav')).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('.cw-card-media').first().click();
   await page.locator('.cw-add').first().click();
   await expect(page.getByRole('dialog', { name: 'Studio product turn' })).toBeVisible();
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
@@ -3296,10 +3307,8 @@ test('content studio prototype controls, templates and guest favorites work with
   await expect(page.getByRole('button', { name: 'Камера Сверху', exact: true })).toBeVisible();
 
   await expect(page.getByRole('switch', { name: 'Сценарист', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Презентация', exact: true }).click();
-  await expect(page.locator('.cw-settings-pane')).toContainText(
-    'Для презентации дополнительных настроек съёмки нет.',
-  );
+  await expect(page.getByRole('button', { name: 'Презентация', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
   await page.getByRole('tab', { name: 'Шаблоны', exact: true }).click();
   await expect(page.locator('.cw-card')).not.toHaveCount(0);
   await page.getByRole('button', { name: 'Ширина галереи: средняя', exact: true }).click();
@@ -3563,21 +3572,6 @@ test('content studio forwards all creative controls and brand rules', async ({ p
   expect(state.sends[0].settings.tools[0]).toMatchObject({ uid: 'VIDEO' });
 });
 
-test('content studio presentation template sends text instructions without media tools', async ({ page }) => {
-  const state = await mockApi(page);
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Презентация', exact: true }).click();
-  await page.locator('.cw-add').first().click();
-  await page.getByLabel('Тема и исходные факты').fill('Презентация кофейни. Не придумывай факты.');
-  await page.getByRole('button', { name: 'Использовать шаблон' }).click();
-  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].text).toContain('Подготовь текст по слайдам');
-  expect(state.sends[0].text).toContain('10-slide minimal SaaS');
-  expect(state.sends[0].settings.tools).toEqual([]);
-  expect(state.uploads).toBe(0);
-});
-
 test('content studio restores video technical options on reload', async ({ page }) => {
   const state = await mockApi(page);
   await page.goto('/chat');
@@ -3769,33 +3763,6 @@ test('content studio sends the visible structure after restoring video parameter
   expect(state.sends[0].text).toContain('Структура: Один кадр');
   expect(state.sends[0].text).toContain('один непрерывный план без склеек');
   expect(state.sends[0].settings.tools[0].settings.options).toEqual(generation.options);
-});
-
-test('content studio preserves presentation recipe and draft across reload', async ({ page }) => {
-  const state = await mockApi(page);
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Презентация', exact: true }).click();
-  await page.locator('.cw-card-media').first().click();
-  await page.locator('.cw-add').first().click();
-  await page.getByLabel('Тема и исходные факты').fill('Презентация кофейни');
-  await page.getByRole('button', { name: 'Использовать шаблон' }).click();
-  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
-  await expect(page.locator('#cw-draft')).toHaveValue('');
-  await page.locator('#cw-draft').fill('Добавь слайд с адресом');
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.content-studio.101')))
-    .toContain('Добавь слайд');
-  await page.reload();
-  await expect(page.getByRole('button', { name: 'Презентация', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  expect(
-    await page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.content-studio.101')),
-  ).toContain('Startup');
-  await expect(page.locator('#cw-draft')).toHaveValue('Добавь слайд с адресом');
-  expect(state.sends).toHaveLength(1);
 });
 
 test('content studio restores creative settings without leaking into another project', async ({ page }) => {
@@ -4144,7 +4111,7 @@ for (const title of ['Studio product turn', 'Product in use']) {
 
 test.describe('complete template catalog', () => {
   test.describe.configure({ mode: 'parallel' });
-  for (const kind of ['image', 'video', 'presentation']) {
+  for (const kind of ['image', 'video']) {
     const items = templates.filter((item) => item.kind === kind);
     for (let offset = 0; offset < items.length; offset += 20) {
       test(`all ${kind} templates prepare a complete draft without generation: ${offset + 1}-${Math.min(offset + 20, items.length)}`, async ({
@@ -4153,7 +4120,7 @@ test.describe('complete template catalog', () => {
         test.setTimeout(120_000);
         const state = await mockApi(page);
         await page.goto('/chat');
-        const modeName = { image: 'Изображение', video: 'Видео', presentation: 'Презентация' }[kind]!;
+        const modeName = { image: 'Изображение', video: 'Видео' }[kind]!;
         await page.getByRole('button', { name: modeName, exact: true }).click();
         for (const [index, item] of items.slice(offset, offset + 20).entries()) {
           const card = page.locator('.cw-card').nth(offset + index);
@@ -5191,7 +5158,7 @@ for (const sameUrl of [false, true]) {
       return route.fallback();
     });
     await page.goto('/chat');
-    await page.getByRole('button', { name: 'Презентация', exact: true }).click();
+    await page.getByRole('button', { name: 'Изображение', exact: true }).click();
     await page.locator('#cw-draft').fill('A draft that must not be sent after navigation');
     await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
     await expect.poll(() => entered).toBe(true);
@@ -5348,7 +5315,7 @@ test('content studio shows progress on the send button and restores the arrow af
 });
 
 for (const width of [1440, 390])
-  test(`content studio attachment preview and bottom blur ${width}`, async ({ page }) => {
+  test(`content studio attachment preview and bottom blur ${width}`, async ({ page }, testInfo) => {
     const state = await mockApi(page);
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/chat');
@@ -5365,13 +5332,17 @@ for (const width of [1440, 390])
       .click();
     const blur = await page.locator('#creatives .cw-chat').evaluate((el) => {
       const css = getComputedStyle(el, '::after');
-      return { blur: css.backdropFilter, events: css.pointerEvents, background: css.backgroundImage };
+      return {
+        blur: css.backdropFilter || css.getPropertyValue('-webkit-backdrop-filter'),
+        events: css.pointerEvents,
+        background: css.backgroundImage,
+      };
     });
     expect(blur.blur).toBe('blur(8px)');
     expect(blur.events).toBe('none');
     expect(blur.background).toContain('linear-gradient');
     await page.locator('#cw-draft').fill('Новый запрос');
-    await page.screenshot({ path: `/artifacts/attachments-${width}.png` });
+    await page.screenshot({ path: testInfo.outputPath(`attachments-${width}.png`) });
     await tile.getByRole('button', { name: 'Убрать Test result', exact: true }).click();
     await expect(tile).toHaveCount(0);
     expect(state.sends).toHaveLength(0);
@@ -5690,7 +5661,7 @@ test('studio agent historical question cannot trigger another generation', async
   expect(state.sends).toHaveLength(0);
 });
 
-test('studio blocks attachment removal during a pending request but allows read-only preview', async ({
+test('studio blocks attachment removal during a pending request and clears accepted references', async ({
   page,
 }) => {
   const state = await mockApi(page);
@@ -5728,9 +5699,11 @@ test('studio blocks attachment removal during a pending request but allows read-
   await expect(tile).toHaveCount(1);
   release();
   await expect.poll(() => state.sends.length).toBe(1);
-  await expect(remove).toBeEnabled();
-  await remove.click();
   await expect(tile).toHaveCount(0);
+  await expect(page.locator('#cw-draft')).toHaveValue('');
+  expect(state.sends[0].files).toEqual([12]);
+  await page.reload();
+  await expect(page.locator('.cw-files')).toHaveCount(0);
 });
 
 test('studio clears new conversations and removes restored existing references permanently', async ({
@@ -5809,4 +5782,249 @@ test('studio can remove a restored reference while metadata is delayed without r
   await expect(page.getByRole('button', { name: 'Добавить файл', exact: true })).toBeEnabled();
   await page.reload();
   await expect(page.locator('.cw-files')).toHaveCount(0);
+});
+
+for (const mime of ['text/plain', 'text/markdown'])
+  test(`history opens a generated ${mime} document as text`, async ({ page }) => {
+    const state = await mockApi(page);
+    const text = '# План\n<script>Только текст</script>\nПоследняя строка.';
+    const document = {
+      ...file,
+      type: 'DOCUMENT',
+      mime,
+      name: mime === 'text/plain' ? 'План.txt' : 'План.md',
+    };
+    state.conversations.push(savedConversation());
+    state.messages.set(101, [
+      { id: 2, role: 'ASSISTANT', text: 'Готово', createdDate: file.createdDate, files: [document] },
+    ]);
+    await page.route('**/api/file/12', (route) => route.fulfill({ json: document }));
+    await page.route('**/api/file/12/text', (route) => route.fulfill({ json: { text } }));
+    await page.route('**/api/file/12/content', (route) => route.fulfill({ contentType: mime, body: text }));
+    await page.goto('/history');
+    await page.getByRole('button', { name: 'Открыть результат Saved creative work', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: document.name })).toBeVisible();
+    await expect(page.locator('.file-text-preview')).toHaveText(text);
+    await expect(page.locator('.file-text-preview script')).toHaveCount(0);
+    await expect(
+      page.getByText('В этой беседе пока нет готового изображения или видео.', { exact: true }),
+    ).toHaveCount(0);
+    expect(state.sends).toHaveLength(0);
+    expect(state.edits).toHaveLength(0);
+  });
+
+for (const width of [1440, 390])
+  test(`all attachment editors share compact previews at ${width}`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const state = await mockAudio(page);
+    await page.setViewportSize({ width, height: 1000 });
+    let source = file;
+    await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([source]) }));
+    const routes = [
+      ['/chat', 'Добавить файл'],
+      ['/image', 'Добавить изображение'],
+      ['/video', 'Добавить кадр'],
+      ['/agent', 'Добавить изображение'],
+      ['/prompt', 'Добавить изображение или видео'],
+      ['/script', 'Из библиотеки'],
+      ['/audio?mode=stt', 'Из библиотеки'],
+      ['/image?studio=advanced', 'Из библиотеки'],
+      ['/video?studio=advanced', 'Из библиотеки'],
+    ];
+    for (const [index, [path, button]] of routes.entries()) {
+      source = path.startsWith('/audio') ? { ...file, type: 'AUDIO', mime: 'audio/wav' } : file;
+      await page.goto(path);
+      await page.getByRole('button', { name: button, exact: true }).first().click();
+      await page
+        .getByRole('dialog', { name: 'Библиотека' })
+        .getByText('Test result', { exact: true })
+        .click();
+      const attachment = page.locator('.composer-attachment').first();
+      await expect(attachment).toBeVisible();
+      await expect(attachment).toHaveCSS('height', '40px');
+      await expect(attachment.locator('.composer-attachment-preview')).toHaveCSS('height', '30px');
+      await expect(attachment.locator('.composer-attachment-caption')).toHaveCSS('white-space', 'nowrap');
+      await expect(attachment.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeEnabled();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `/artifacts/attachments-${width}-${index}.png` });
+      await attachment.locator('.composer-attachment-caption').click();
+      const viewer = page.getByRole('dialog', { name: 'Test result', exact: true });
+      await expect(viewer).toBeVisible();
+      await expect(attachment).toHaveCount(1);
+      await viewer.getByRole('button', { name: 'Закрыть', exact: true }).click();
+      await expect(viewer).toHaveCount(0);
+      await attachment.getByRole('button', { name: 'Убрать Test result', exact: true }).click();
+      await expect(page.locator('.composer-attachment')).toHaveCount(0);
+    }
+    expect(state.sends).toHaveLength(0);
+  });
+
+test('studio preserves attachments and text when sending fails', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
+  await page.locator('#cw-draft').fill('Сохрани материалы при ошибке отправки');
+  await page.route('**/api/conversation/*/message', async (route) => {
+    if (route.request().method() === 'POST')
+      return route.fulfill({ status: 500, json: { message: 'Сбой отправки' } });
+    await route.fallback();
+  });
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Сервис временно недоступен');
+  await expect(page.locator('#cw-draft')).toHaveValue('Сохрани материалы при ошибке отправки');
+  await expect(page.locator('.cw-files .composer-attachment')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeEnabled();
+});
+
+test('local attachments use the shared viewer without requesting an unsaved file from the API', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  const reads: string[] = [];
+  page.on('request', (request) => {
+    if (/\/api\/file\//.test(new URL(request.url()).pathname)) reads.push(request.url());
+  });
+  await page.goto('/chat');
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'local.jpg',
+    mimeType: 'image/jpeg',
+    buffer: readFileSync(new URL('../../public/media/gallery-1.jpg', import.meta.url)),
+  });
+  const tile = page.locator('.cw-files .composer-attachment');
+  await expect(tile).toHaveCount(1);
+  await tile.locator('.composer-attachment-caption').click();
+  const viewer = page.getByRole('dialog', { name: 'local.jpg', exact: true });
+  await expect(viewer.locator('.media-preview img')).toBeVisible();
+  await openViewerActions(page);
+  await expect(viewer.getByRole('button', { name: 'Создать превью', exact: true })).toHaveCount(0);
+  await expect(viewer.getByRole('button', { name: 'Скачать файл', exact: true })).toBeVisible();
+  await viewer.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(tile).toHaveCount(1);
+  await tile.getByRole('button', { name: 'Убрать local.jpg', exact: true }).click();
+  await expect(tile).toHaveCount(0);
+  expect(reads).toEqual([]);
+  expect(state.uploads).toBe(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('studio continues an older chair brief with a historical photo while the composer stays empty', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), history: 32, isConsiderHistory: true });
+  state.messages.set(101, [
+    {
+      id: 1,
+      role: 'USER',
+      text: '[Genfactory:script]\nСделай постер этого кресла',
+      files: [file],
+      createdDate: file.createdDate,
+    },
+    {
+      id: 2,
+      role: 'ASSISTANT',
+      text: 'Кресло чёрное, с деревянной отделкой.',
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/chat?conversation=101');
+  await expect(page.locator('.cw-files')).toHaveCount(0);
+  await page.locator('#cw-draft').fill('Сделай рекламный постер этого кресла по прежнему фото');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  const body = state.sends[0];
+  const context = parseStudioContext(body.text)!;
+  expect(context.historyFiles).toEqual([
+    { id: 12, name: file.name, type: 'IMAGE', role: 'USER', messageId: 1 },
+  ]);
+  expect(context.input).toEqual({ request: { task: { fileIds: [] } } });
+  expect(body.files).toEqual([]);
+  expect(body.settings.tools[0].isRequired).toBeUndefined();
+  expect(body.settings.tools[0].input).toBeUndefined();
+  expect(state.edits.some((edit) => edit.system?.includes('historyFiles'))).toBe(true);
+  await expect(page.locator('.cw-files')).toHaveCount(0);
+});
+
+for (const legacy of [false, true])
+  test(`studio only offers image and video, legacy presentation draft: ${legacy}`, async ({
+    page,
+  }, testInfo) => {
+    const state = await mockApi(page);
+    if (legacy) {
+      state.conversations.push(savedConversation());
+      await page.addInitScript(() =>
+        localStorage.setItem(
+          'genfactory.draft.v1.7.content-studio.101',
+          JSON.stringify({
+            version: 1,
+            at: new Date().toISOString(),
+            value: {
+              mode: 'presentation',
+              selectedModel: 'OPEN_ROUTER_CONVERSATION:old-text-model',
+              draft: 'Сохранённый текст',
+              templateIds: ['presentation:startup'],
+              appliedTemplate: 'Startup',
+            },
+          }),
+        ),
+      );
+    }
+    await page.goto(legacy ? '/chat?conversation=101' : '/chat');
+    const modes = page.getByRole('group', { name: 'Вид генерации', exact: true });
+    await expect(modes.getByRole('button')).toHaveCount(2);
+    await expect(modes.getByRole('button', { name: 'Презентация', exact: true })).toHaveCount(0);
+    await expect(
+      modes.getByRole('button', { name: legacy ? 'Изображение' : 'Видео', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.cw-card[data-kind=slides]')).toHaveCount(0);
+    if (legacy) {
+      await expect(page.locator('#cw-draft')).toHaveValue('Сохранённый текст');
+      await expect(page.locator('.cw-files')).toHaveCount(0);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`two-modes-${legacy}.png`) });
+    expect(state.sends).toHaveLength(0);
+    expect(state.creates).toHaveLength(0);
+  });
+
+test('answering a legacy question recovers the older photo without changing the selected model', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  const model = catalog.find((item) => item.reference.provider === 'OPEN_ROUTER_IMAGE')!;
+  const context = {
+    uid: 'IMAGE' as const,
+    settings: { model: model.reference, options: {}, isLockSelection: true },
+    input: { request: { task: { fileIds: [] } }, isDrawNew: true },
+  };
+  const question = {
+    kind: 'question',
+    question: 'Добавить надписи?',
+    choices: ['Без надписей', 'Укажу текст'],
+    allowAuto: false,
+  };
+  state.conversations.push({ ...savedConversation(), history: 32, isConsiderHistory: true });
+  state.messages.set(101, [
+    { id: 1, role: 'USER', text: 'Исходное кресло', files: [file], createdDate: file.createdDate },
+    { id: 2, role: 'ASSISTANT', text: 'Принято', createdDate: file.createdDate },
+    { id: 3, role: 'USER', text: withStudioContext('Сделай постер', context), createdDate: file.createdDate },
+    {
+      id: 4,
+      role: 'ASSISTANT',
+      text: '[Genfactory:studio-question:v1]\n' + JSON.stringify(question),
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/chat?conversation=101');
+  await page
+    .getByRole('group', { name: question.question })
+    .getByRole('button', { name: 'Без надписей', exact: true })
+    .click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  const sent = state.sends[0];
+  expect(sent.files).toEqual([]);
+  expect(sent.settings.tools[0]).toEqual({ uid: 'IMAGE', settings: context.settings });
+  expect(parseStudioContext(sent.text)?.historyFiles?.map((file) => file.id)).toEqual([12]);
+  expect(parseStudioContext(sent.text)?.input).not.toHaveProperty('isDrawNew');
 });

@@ -1,4 +1,3 @@
-import { Media, type MediaFile } from '../../components/MediaPreview';
 import { StudioEmptyState } from './StudioEmptyState';
 import { parseStudioQuestion, withStudioContext, type StudioQuestion } from './studioAgent';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
@@ -63,7 +62,6 @@ interface IReferenceDraft {
 const modes: [StudioMode, string][] = [
   ['image', 'Изображение'],
   ['video', 'Видео'],
-  ['presentation', 'Презентация'],
 ];
 const fields = [
   {
@@ -183,7 +181,6 @@ export function ContentStudio() {
   const [sound, setSound] = useState('Без звука');
   const [shape, setShape] = useState('Один кадр');
   const [picked, setPicked] = useState<ITemplate[]>([]);
-  const [attachmentPreview, setAttachmentPreview] = useState<MediaFile>();
   const [attachments, setAttachments] = useState<IAttachment[]>([]);
   const [restoringReferences, setRestoringReferences] = useState<{
     scope: string;
@@ -345,7 +342,6 @@ export function ContentStudio() {
     const saved = stored || (changingProject || !work.id ? initialStudioValue.current : undefined);
     if (changingProject) {
       setAttachments([]);
-      setAttachmentPreview(undefined);
       setPicked([]);
       setDraft('');
       setRestoringReferences(undefined);
@@ -360,8 +356,10 @@ export function ContentStudio() {
       restored.current = undefined;
     }
     if (saved && ['image', 'video', 'presentation'].includes(saved.mode)) {
-      setMode(saved.mode);
-      if (typeof saved.selectedModel === 'string') setSelectedModel(saved.selectedModel);
+      const removedPresentation = saved.mode === 'presentation';
+      setMode(removedPresentation ? 'image' : saved.mode);
+      if (removedPresentation) setSelectedModel('Auto');
+      else if (typeof saved.selectedModel === 'string') setSelectedModel(saved.selectedModel);
       if (typeof saved.writer === 'boolean') setWriter(SCRIPT_WRITER_ENABLED && saved.writer);
       if (typeof saved.brand === 'boolean') setBrand(saved.brand);
       if (saved.settings && typeof saved.settings === 'object')
@@ -386,11 +384,17 @@ export function ContentStudio() {
       if (typeof saved.duration === 'number' && Number.isFinite(saved.duration)) setDuration(saved.duration);
       if (['Без звука', 'Со звуком'].includes(saved.sound)) setSound(saved.sound);
       if (['Один кадр', 'Набор сцен'].includes(saved.shape)) setShape(saved.shape);
-      setAppliedTemplate(typeof saved.appliedTemplate === 'string' ? saved.appliedTemplate : '');
-      setTemplateStartsFresh(saved.templateStartsFresh === true);
+      setAppliedTemplate(
+        !removedPresentation && typeof saved.appliedTemplate === 'string' ? saved.appliedTemplate : '',
+      );
+      setTemplateStartsFresh(!removedPresentation && saved.templateStartsFresh === true);
       if (Array.isArray(saved.templateIds))
-        setPicked((templates as ITemplate[]).filter((item) => saved.templateIds.includes(item.id)));
-      setRestoredGeneration(saved.restoredGeneration);
+        setPicked(
+          (templates as ITemplate[]).filter(
+            (item) => saved.templateIds.includes(item.id) && modes.some(([kind]) => kind === item.kind),
+          ),
+        );
+      setRestoredGeneration(removedPresentation ? undefined : saved.restoredGeneration);
       if (typeof saved.draft === 'string') setDraft(saved.draft);
       if (Array.isArray(saved.references) && saved.references.length) {
         setRestoringReferences({ scope: draftScope, values: saved.references });
@@ -894,14 +898,21 @@ export function ContentStudio() {
           referenceMode,
           true,
         );
+        const historyFiles = await work.historyFiles();
+        if (!current()) return;
         body.text = withStudioContext(body.text, {
+          ...(historyFiles.length ? { historyFiles } : {}),
           uid: mode === 'image' ? 'IMAGE' : 'VIDEO',
           settings: tool.settings!,
           input:
             mode === 'image'
               ? {
                   request: { task: { fileIds: savedFiles.map((file) => file.id) } },
-                  isDrawNew: savedFiles.length === 0,
+                  ...(savedFiles.length
+                    ? { isDrawNew: false }
+                    : historyFiles.length
+                      ? {}
+                      : { isDrawNew: true }),
                 }
               : { fileIds: savedFiles.map((file) => file.id), referenceMode },
         });
@@ -920,9 +931,12 @@ export function ContentStudio() {
         setTemplateNotice('');
         if (!work.id) studioDraft.clear();
         setDraft((value) => (value === draft ? '' : value));
-        // Studio references belong to the brief and remain selected across clarifications/edits.
-        // The user can explicitly remove or replace them for a new task.
-        // Keep the recipe selected for the next iteration and for project restoration.
+        setAttachments((previous) =>
+          previous.filter((item) => !sourceAttachments.some((source) => source.id === item.id)),
+        );
+        setPicked((previous) => previous.filter((item) => !picked.some((source) => source.id === item.id)));
+        setAppliedTemplate('');
+        setRestoredGeneration(undefined);
       }
     } catch (e) {
       if (current()) work.setError(e instanceof Error ? e.message : 'Не удалось отправить задачу.');
@@ -957,10 +971,18 @@ export function ContentStudio() {
         question.context.uid === 'IMAGE'
           ? (question.context.input as any).request.task.fileIds
           : question.context.input.fileIds;
+      let answerContext = question.context;
+      if (!(ids as number[]).length && !answerContext.historyFiles) {
+        const historyFiles = await work.historyFiles();
+        if (historyFiles.length) {
+          answerContext = { ...answerContext, historyFiles, input: { ...answerContext.input } };
+          delete answerContext.input.isDrawNew;
+        }
+      }
       return await work.submit(
         {
           role: 'USER',
-          text: withStudioContext(`Ответ на вопрос «${question.question}»: ${answer}`, question.context),
+          text: withStudioContext(`Ответ на вопрос «${question.question}»: ${answer}`, answerContext),
           files: ids as number[],
           settings: { tools: [connection] },
         },
@@ -1072,14 +1094,6 @@ export function ContentStudio() {
                             mime: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
                           }}
                           caption={`Шаблон: ${item.title}`}
-                          onOpen={() =>
-                            setAttachmentPreview({
-                              name: item.title,
-                              path: item.src,
-                              type: item.kind === 'video' ? 'VIDEO' : 'IMAGE',
-                              mime: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
-                            })
-                          }
                           disabled={attachmentBusy}
                           onRemove={() => {
                             if (attachmentBusy || submitting.current) return;
@@ -1105,16 +1119,6 @@ export function ContentStudio() {
                           }
                           caption={`${file.slot ? `${file.slot === 'start' ? 'Начальный' : 'Конечный'} кадр: ` : ''}${file.name}${file.isUnavailable ? ' · Недоступен' : ''}`}
                           unavailable={file.isUnavailable}
-                          onOpen={() =>
-                            setAttachmentPreview(
-                              file.saved || {
-                                name: file.name,
-                                path: file.url,
-                                type: file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
-                                mime: file.type,
-                              },
-                            )
-                          }
                           disabled={attachmentBusy}
                           onRemove={() => {
                             if (attachmentBusy || submitting.current) return;
@@ -1593,16 +1597,7 @@ export function ContentStudio() {
           }
         }}
       />
-      {attachmentPreview && (
-        <Modal
-          title={attachmentPreview.name}
-          className="attachment-viewer"
-          onClose={() => setAttachmentPreview(undefined)}
-          wide
-        >
-          <Media file={attachmentPreview} controls autoPlay={false} />
-        </Modal>
-      )}
+
       {library && library.scope === draftScope && !busy && (
         <LibraryPicker
           selected={library.slot ? [] : attachments.flatMap((file) => (file.saved ? [file.saved.id] : []))}

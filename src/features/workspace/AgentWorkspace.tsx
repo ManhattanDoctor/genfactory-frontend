@@ -1,6 +1,7 @@
+import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { ArrowUp, Plus, X } from 'lucide-react';
+import { ArrowUp, Plus } from 'lucide-react';
 import type { IConversation, IGnosisFile, IModelDescription } from '../../lib/types';
 import { api } from '../../lib/api';
 import { useAuth } from '../auth/AuthProvider';
@@ -158,20 +159,12 @@ export function AgentWorkspace({
         {!!files.length && (
           <div className="img-files">
             {files.map((f) => (
-              <div className="img-file" key={f.id}>
-                <div className="img-thumb">
-                  <Media file={f} />
-                </div>
-                <button
-                  className="agent-remove"
-                  type="button"
-                  aria-label={`Убрать ${f.name}`}
-                  disabled={busy}
-                  onClick={() => onFiles(files.filter((x) => x.id !== f.id))}
-                >
-                  <X size={12} />
-                </button>
-              </div>
+              <ComposerAttachment
+                key={f.id}
+                file={f}
+                disabled={busy}
+                onRemove={() => onFiles(files.filter((x) => x.id !== f.id))}
+              />
             ))}
           </div>
         )}

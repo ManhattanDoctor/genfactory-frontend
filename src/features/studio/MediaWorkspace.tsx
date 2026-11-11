@@ -24,7 +24,6 @@ import {
   ArrowUp,
   Plus,
   Check,
-  X,
   Pencil,
   Download,
   RotateCcw,
@@ -561,33 +560,28 @@ export function MediaWorkspace({
               {references.map((file) => (
                 <ComposerAttachment
                   key={file.id}
-                  className="img-file"
                   file={file}
                   disabled={busy}
                   onRemove={() => onReferences(references.filter((f) => f.id !== file.id))}
                 />
               ))}
               {selected && (
-                <div className="img-file is-template">
-                  <div className="img-thumb">
-                    <img
-                      src={video ? selected.src.replace(/\.mp4$/, '.jpg') : selected.src}
-                      alt={selected.title}
-                    />
-                    <button
-                      type="button"
-                      className="img-thumb-x"
-                      aria-label="Убрать шаблон"
-                      disabled={busy}
-                      onClick={() => {
-                        onTemplate('');
-                        onTemplateText('');
-                        promptInput.current?.focus();
-                      }}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
+                <div className="composer-template">
+                  <ComposerAttachment
+                    file={{
+                      name: selected.title,
+                      path: selected.src,
+                      type: video ? 'VIDEO' : 'IMAGE',
+                      mime: video ? 'video/mp4' : 'image/jpeg',
+                    }}
+                    caption={`Шаблон: ${selected.title}`}
+                    disabled={busy}
+                    onRemove={() => {
+                      onTemplate('');
+                      onTemplateText('');
+                      promptInput.current?.focus();
+                    }}
+                  />
                   {
                     <button
                       type="button"

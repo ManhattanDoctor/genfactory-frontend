@@ -1,7 +1,7 @@
 import { api } from '../../lib/api';
 import type { IConversation, IGnosisFile } from '../../lib/types';
 
-// Match the backend cover selection: latest assistant image/video, then greatest file id.
+// Open the latest assistant result, including text documents and audio.
 export async function historyResult(
   conversation: IConversation,
   sid: string,
@@ -18,11 +18,15 @@ export async function historyResult(
     for (const message of messages.items) {
       if (message.role !== 'ASSISTANT') continue;
       const file = (message.files || [])
-        .filter((file) => file.userId === conversation.userId && ['IMAGE', 'VIDEO'].includes(file.type))
+        .filter(
+          (file) =>
+            file.userId === conversation.userId &&
+            ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'].includes(file.type),
+        )
         .sort((a, b) => b.id - a.id)[0];
       if (file) return file;
     }
     if (page + 1 >= messages.pages || !messages.items.length) break;
   }
-  throw new Error('В этой беседе пока нет готового изображения или видео.');
+  throw new Error('В этой беседе пока нет готовых файлов.');
 }

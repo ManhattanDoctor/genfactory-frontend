@@ -456,7 +456,7 @@ function TextEditor({ mode }: { mode: TextMode }) {
       draft.clear();
       if (isCurrent(sid)) {
         setPrompt('');
-        if (modernAgent) setFiles([]);
+        setFiles([]);
       }
     } catch (e) {
       if (isCurrent(sid))

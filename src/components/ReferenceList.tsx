@@ -1,5 +1,5 @@
 import type { IGnosisFile } from '../lib/types';
-import { Media } from './MediaPreview';
+import { ComposerAttachment } from './ComposerAttachment';
 export function ReferenceList({
   files,
   onChange,
@@ -38,14 +38,16 @@ export function ReferenceList({
             onChange(copy);
           }}
         >
-          <div className="reference">
-            <Media file={file} />
-          </div>
-          <div className="reference-meta">
-            <b title={file.name}>{file.name}</b>
-            <span>{video ? (i === 0 ? 'Первый кадр' : 'Последний кадр') : `Материал ${i + 1}`}</span>
+          <ComposerAttachment
+            file={file}
+            caption={video ? `${i === 0 ? 'Первый' : 'Последний'} кадр: ${file.name}` : file.name}
+            disabled={disabled}
+            onRemove={() => onChange(files.filter((f) => f.id !== file.id))}
+          />
+          {files.length > 1 && (
             <div className="reference-actions">
               <button
+                type="button"
                 className="icon-button"
                 disabled={disabled || i === 0}
                 aria-label={`Переместить ${file.name} раньше`}
@@ -54,6 +56,7 @@ export function ReferenceList({
                 ←
               </button>
               <button
+                type="button"
                 className="icon-button"
                 disabled={disabled || i === files.length - 1}
                 aria-label={`Переместить ${file.name} позже`}
@@ -61,16 +64,8 @@ export function ReferenceList({
               >
                 →
               </button>
-              <button
-                className="icon-button"
-                disabled={disabled}
-                aria-label={`Убрать ${file.name}`}
-                onClick={() => onChange(files.filter((f) => f.id !== file.id))}
-              >
-                ×
-              </button>
             </div>
-          </div>
+          )}
         </div>
       ))}
     </div>
