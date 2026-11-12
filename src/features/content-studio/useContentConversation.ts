@@ -1,3 +1,4 @@
+import { scheduleRefresh } from '../realtime/queryRefresh';
 import type { StudioHistoryFile } from './studioHistory';
 import { cachedStudioHistoryFiles } from './historyCache';
 import { studioSystem } from './studioPrompt';
@@ -90,11 +91,14 @@ export function useContentConversation(): ContentConversation {
             : `${failure.message} Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
           true,
         );
-      for (const key of ['conversation', 'messages'])
-        void client.invalidateQueries({ queryKey: [key, auth.user?.id, variables.id] });
-      void client.invalidateQueries({ queryKey: ['conversations', auth.user?.id] });
-      void client.invalidateQueries({ queryKey: ['account', variables.sid] });
-      window.dispatchEvent(new Event('genfactory:generation-finished'));
+      if (!auth.user) return;
+      scheduleRefresh(
+        client,
+        auth.user.id,
+        variables.sid,
+        ['conversation', 'messages', 'conversations', 'files', 'account', 'active-jobs', 'active-tasks'],
+        variables.id,
+      );
     },
   });
   const pending = useIsMutating({

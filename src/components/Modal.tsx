@@ -1,4 +1,4 @@
-import { useEffect, useRef, useId, type ReactNode } from 'react';
+import { useEffect, useRef, useId, type ReactNode, type ReactElement } from 'react';
 import { X } from 'lucide-react';
 export function Modal({
   title,
@@ -7,16 +7,14 @@ export function Modal({
   wide = false,
   headerActions,
   className = '',
-  hideTitle = false,
 }: {
   className?: string;
-  hideTitle?: boolean;
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
   headerActions?: ReactNode;
-}) {
+}): ReactElement {
   const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -32,19 +30,22 @@ export function Modal({
     <dialog
       ref={ref}
       aria-labelledby={titleId}
-      className={`modal ${wide ? 'wide' : ''} ${className} ${hideTitle ? 'modal-title-hidden' : ''}`}
-      onCancel={onClose}
+      className={`modal ${wide ? 'wide' : ''} ${className}`}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="modal-head">
-        <h2 id={titleId} className={hideTitle ? 'sr-only' : undefined}>
+        <h2 id={titleId} title={title}>
           {title}
         </h2>
         <div className="modal-head-actions">
           {headerActions}
-          <button className="icon-button" onClick={onClose} aria-label="Закрыть">
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть">
             <X size={20} />
           </button>
         </div>

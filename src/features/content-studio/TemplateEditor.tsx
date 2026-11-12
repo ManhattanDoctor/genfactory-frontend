@@ -30,7 +30,7 @@ export function TemplateEditor({
   onApply,
 }: {
   item: ITemplate;
-  duration: number;
+  duration?: number;
   reference?: ITemplateReference;
   referenceAllowed: boolean;
   launchSettings: string;
@@ -52,8 +52,8 @@ export function TemplateEditor({
       ? `${filled}\n\nТема и факты пользователя:\n${brief.trim()}\n\nПодготовь только текст по слайдам. Не придумывай цифры, клиентов, достижения и контакты: неизвестные данные помечай «Нужно уточнить».`
       : filled;
   const seconds = item.kind === 'video' ? templateDuration(text) : undefined;
-  const conflict = seconds !== undefined && seconds !== duration;
-  const apply = () => {
+  const conflict = seconds !== undefined && duration !== undefined && seconds !== duration;
+  const apply = (): void => {
     if (source && !referenceAllowed) {
       setError('Выбранная модель не поддерживает референсы. Закройте шаблон и выберите другую модель.');
       return;
@@ -125,6 +125,7 @@ export function TemplateEditor({
                 Текст шаблона
                 <textarea
                   rows={7}
+                  aria-label="Текст шаблона"
                   value={text}
                   onChange={(e) => {
                     setText(e.target.value);
@@ -156,7 +157,7 @@ export function TemplateEditor({
                 )}
               </section>
             )}
-            {conflict && (
+            {conflict && duration !== undefined && (
               <div className="template-duration" role="status">
                 <p>
                   В шаблоне {seconds} с, в редакторе {duration} с.
@@ -177,7 +178,7 @@ export function TemplateEditor({
               <summary>Посмотреть задание</summary>{' '}
               <label>
                 Готовый текст для редактора
-                <textarea rows={7} value={prompt} readOnly />
+                <textarea rows={7} aria-label="Готовый текст для редактора" value={prompt} readOnly />
               </label>
             </details>
           </div>

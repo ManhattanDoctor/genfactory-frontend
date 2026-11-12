@@ -224,24 +224,11 @@
 .modal.prompt-result-modal {
   width: min(760px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
-  padding: 24px;
   overflow: hidden;
 }
 .modal.prompt-result-modal[open] {
   display: flex;
   flex-direction: column;
-}
-.prompt-result-modal .modal-head {
-  flex: none;
-  margin-bottom: 20px;
-}
-.prompt-result-modal .modal-head h2 {
-  margin: 0;
-  font-size: 18px;
-  overflow-wrap: anywhere;
-}
-.prompt-result-modal .modal-head-actions {
-  flex: none;
 }
 .prompt-view {
   min-height: 0;
@@ -266,9 +253,4 @@
 }
 .prompt-view > :last-child {
   margin-bottom: 0;
-}
-@media (max-width: 600px) {
-  .modal.prompt-result-modal {
-    padding: 18px;
-  }
 }

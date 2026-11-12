@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { downloadFile } from '../../lib/files';
+import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LayoutGrid, File, MessageCircle } from 'lucide-react';
@@ -10,7 +11,7 @@ import { FileCard } from '../../components/FileCard';
 import { Modal } from '../../components/Modal';
 import { historyResult } from '../studio/historyResult';
 import { ConversationActions } from '../studio/ConversationActions';
-import { ConversationCard } from '../studio/ConversationCard';
+import { ConversationCard, historyDay } from '../studio/ConversationCard';
 import { MediaPreview } from '../../components/MediaPreview';
 import '../../components/file-browser.css';
 import '../studio/history.css';
@@ -32,7 +33,7 @@ export function Artifacts(): ReactElement {
     };
   }, []);
   useEffect(() => {
-    const close = (event: PointerEvent) => {
+    const close = (event: PointerEvent): void => {
       if (!(event.target instanceof Node)) return;
       document.querySelectorAll<HTMLDetailsElement>('.artifacts-page details[open]').forEach((menu) => {
         if (!menu.contains(event.target as Node)) menu.open = false;
@@ -50,7 +51,7 @@ export function Artifacts(): ReactElement {
     actionLock.current = true;
     setActing(conversation.id);
     setError('');
-    const current = () => alive.current && getSession() === sid;
+    const current = (): boolean => alive.current && getSession() === sid;
     try {
       if (action === 'archive')
         await api.patchConversation(conversation.id, { isArchived: !conversation.isArchived }, sid);
@@ -64,14 +65,7 @@ export function Artifacts(): ReactElement {
           try {
             const file = await historyResult(full, sid, controller.signal);
             if (!current()) return;
-            const blob = await api.downloadFile(file.id, sid);
-            if (!current()) return;
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = file.name.replace(/[\\/:*?"<>|]/g, '_');
-            link.click();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            await downloadFile(file, sid);
           } finally {
             clearTimeout(timer);
           }
@@ -139,7 +133,10 @@ export function Artifacts(): ReactElement {
     setError('');
     try {
       const value = await api.file(file.id, sid);
-      if (request === openRequest.current && getSession() === sid) setPreview(value);
+      if (request === openRequest.current && getSession() === sid) {
+        cache.setQueryData(['file-preview', value.userId, value.id], value);
+        setPreview(value);
+      }
     } catch (error) {
       if (request === openRequest.current && getSession() === sid)
         setError(error instanceof Error ? error.message : 'Не удалось открыть файл.');
@@ -149,10 +146,10 @@ export function Artifacts(): ReactElement {
   }
   return (
     <div className="page-content work-history library-page artifacts-page">
-      <h1 className="sr-only">Артефакты</h1>
+      <h1 className="sr-only">История</h1>
       {!user ? (
         <div className="empty-state">
-          <p>Войдите, чтобы открыть артефакты.</p>
+          <p>Войдите, чтобы открыть историю.</p>
           <button className="button primary" onClick={() => void signIn()}>
             Войти в аккаунт
           </button>
@@ -160,7 +157,7 @@ export function Artifacts(): ReactElement {
       ) : (
         <>
           <div className="library-toolbar">
-            <div className="chips" aria-label="Тип артефактов">
+            <div className="chips" aria-label="Тип записей истории">
               {(
                 [
                   { value: undefined, name: 'Все', icon: LayoutGrid },
@@ -184,17 +181,17 @@ export function Artifacts(): ReactElement {
               ))}
             </div>
             <input
-              aria-label="Поиск артефактов"
+              aria-label="Поиск по истории"
               placeholder="Поиск по названию и запросу"
               maxLength={512}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          {list.isPending && <p role="status">Загружаем артефакты…</p>}
+          {list.isPending && <p role="status">Загружаем историю…</p>}
           {list.error && (
             <div role="alert">
-              <p>Не удалось загрузить артефакты.</p>
+              <p>Не удалось загрузить историю.</p>
               <button className="button" onClick={() => void list.refetch()}>
                 Обновить
               </button>
@@ -203,64 +200,65 @@ export function Artifacts(): ReactElement {
           {error && <p role="alert">{error}</p>}
           {list.data && !list.data.items.length && (
             <div className="empty-state">
-              <h2>{query ? 'Ничего не найдено' : 'Пока нет артефактов'}</h2>
+              <h2>{query ? 'Ничего не найдено' : 'История пока пуста'}</h2>
             </div>
           )}
-          <div className="history-list file-browser" aria-label="Артефакты">
-            {list.data?.items.map((item) =>
-              item.type === 'FILE' ? (
-                <article
-                  className="file-entry"
-                  key={`${item.type}:${item.id}`}
-                  aria-busy={opening === item.id}
-                >
-                  <FileCard
-                    source={item.workspace === 'CONTENT_STUDIO' ? 'Студия контента' : undefined}
-                    file={{
-                      ...item,
-                      type: item.fileType,
-                      origin: item.generation
-                        ? { kind: 'GENERATION', generation: item.generation }
-                        : undefined,
-                    }}
-                    disabled={opening === item.id}
-                    onOpen={() => void openFile(item)}
-                  />
-                  <FileActions file={{ id: item.id, name: item.name, type: item.fileType }} />
-                </article>
-              ) : (
-                <ConversationCard
-                  key={`${item.type}:${item.id}`}
-                  conversation={{
-                    ...item,
-                    lastMessageDate: item.activityDate,
-                    tags: item.workspace
-                      ? [
-                          item.workspace === 'CONTENT_STUDIO'
-                            ? 'content-studio'
-                            : item.workspace.toLowerCase(),
-                        ]
-                      : undefined,
-                  }}
-                  onOpen={() => navigate(`/open?conversation=${item.id}`)}
-                >
-                  <ConversationActions
+          <div className="history-list file-browser" aria-label="История">
+            {list.data?.items.map((item, index) => (
+              <Fragment key={`${item.type}:${item.id}`}>
+                {(index === 0 ||
+                  historyDay(item.activityDate) !== historyDay(list.data!.items[index - 1].activityDate)) && (
+                  <h3 className="history-day">{historyDay(item.activityDate)}</h3>
+                )}
+                {item.type === 'FILE' ? (
+                  <article className="file-entry" aria-busy={opening === item.id}>
+                    <FileCard
+                      source={item.workspace === 'CONTENT_STUDIO' ? 'Студия контента' : undefined}
+                      file={{
+                        ...item,
+                        type: item.fileType,
+                        origin: item.generation
+                          ? { kind: 'GENERATION', generation: item.generation }
+                          : undefined,
+                      }}
+                      disabled={opening === item.id}
+                      onOpen={() => void openFile(item)}
+                    />
+                    <FileActions file={{ id: item.id, name: item.name, type: item.fileType }} />
+                  </article>
+                ) : (
+                  <ConversationCard
                     conversation={{
                       ...item,
-                      tags: item.workspace === 'CONTENT_STUDIO' ? ['content-studio'] : undefined,
+                      lastMessageDate: item.activityDate,
+                      tags: item.workspace
+                        ? [
+                            item.workspace === 'CONTENT_STUDIO'
+                              ? 'content-studio'
+                              : item.workspace.toLowerCase(),
+                          ]
+                        : undefined,
                     }}
-                    busy={acting !== undefined}
-                    onDownload={() => void act(item, 'download')}
-                    onArchive={() => void act(item, 'archive')}
-                    onRename={() => {
-                      setEditing(item);
-                      setName(item.name);
-                      setError('');
-                    }}
-                  />
-                </ConversationCard>
-              ),
-            )}
+                    onOpen={() => navigate(`/open?conversation=${item.id}`)}
+                  >
+                    <ConversationActions
+                      conversation={{
+                        ...item,
+                        tags: item.workspace === 'CONTENT_STUDIO' ? ['content-studio'] : undefined,
+                      }}
+                      busy={acting !== undefined}
+                      onDownload={() => void act(item, 'download')}
+                      onArchive={() => void act(item, 'archive')}
+                      onRename={() => {
+                        setEditing(item);
+                        setName(item.name);
+                        setError('');
+                      }}
+                    />
+                  </ConversationCard>
+                )}
+              </Fragment>
+            ))}
           </div>
           {list.data && list.data.pages > 1 && (
             <div className="pagination">

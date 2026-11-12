@@ -11,6 +11,14 @@ export type IFileCardData = Pick<
 > &
   Partial<Pick<IGnosisFile, 'path'>>;
 
+const typeLabels: Record<string, string> = {
+  IMAGE: 'Изображение',
+  VIDEO: 'Видео',
+  AUDIO: 'Аудио',
+  DOCUMENT: 'Документ',
+  DIRECTORY: 'Папка',
+};
+
 /** Existing library card; shared with the artifact feed. */
 export function FileCard({
   file,
@@ -60,19 +68,22 @@ export function FileCard({
       </CardPreview>
       <div>
         <b title={file.name}>{file.name}</b>
-        <span>
-          {folder ? (
-            'Папка'
-          ) : file.type === 'LINK' ? (
-            <>
-              <LinkIcon size={14} /> Ссылка на файл
-            </>
-          ) : (
-            new Date(file.createdDate).toLocaleDateString('ru-RU')
-          )}
-        </span>
         <GenerationSummary file={file} />
+        {!file.origin?.generation && (
+          <span>
+            {file.type === 'LINK' ? (
+              <>
+                <LinkIcon size={14} /> Ссылка на файл
+              </>
+            ) : (
+              typeLabels[file.type] || 'Файл'
+            )}
+          </span>
+        )}
         {already && <span>Уже добавлен</span>}
+        <span>
+          <time dateTime={file.createdDate}>{new Date(file.createdDate).toLocaleDateString('ru-RU')}</time>
+        </span>
       </div>
     </button>
   );

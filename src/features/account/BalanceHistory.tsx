@@ -35,7 +35,6 @@ function History({ userId }: { userId: number }): ReactElement {
         throw new Error('Сервер вернул операции другого счёта. История не отображена.');
       return data;
     },
-    retry: 1,
   });
   useEffect(() => {
     const refresh = () => void query.refetch();

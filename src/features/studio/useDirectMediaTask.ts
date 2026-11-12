@@ -1,3 +1,4 @@
+import { scheduleRefresh } from '../realtime/queryRefresh';
 import {
   useMutation,
   useMutationState,
@@ -48,13 +49,13 @@ export function useDirectMediaTask(
       response.files?.forEach((file) => saveFileRecipe(input.userId, file.id, input.recipe));
     },
     onSettled: (_response, _error, input) => {
-      void client.invalidateQueries({ queryKey: ['files', input.userId] });
-      void client.invalidateQueries({ queryKey: ['active-tasks', input.userId] });
-      if (getSession() === input.sid) {
-        void client.invalidateQueries({ queryKey: ['account'] });
-        void client.invalidateQueries({ queryKey: ['transactions'] });
-        window.dispatchEvent(new Event('genfactory:generation-finished'));
-      }
+      scheduleRefresh(client, input.userId, input.sid, [
+        'files',
+        'active-tasks',
+        'active-jobs',
+        'account',
+        'transactions',
+      ]);
     },
   });
   // A pending HTTP task remains tracked when its page unmounts and mounts again.
@@ -69,8 +70,6 @@ export function useDirectMediaTask(
     queryKey: ['active-tasks', userId],
     queryFn: ({ signal }) => api.tasks(signal),
     enabled: !!userId,
-    retry: 1,
-    refetchInterval: (query) => (query.state.data?.length || local.length ? 5000 : false),
   });
   const remote = visibleTasks(
     active.data || [],

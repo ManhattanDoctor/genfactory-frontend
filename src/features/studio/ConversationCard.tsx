@@ -9,6 +9,16 @@ export type IConversationCardData = Pick<
 > &
   Partial<Pick<IConversation, 'options'>> & { messageCount?: number };
 
+export function historyDay(value: string): string {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Сегодня';
+  if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
+  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 function historyDate(value: string | number | Date): string {
   const date = new Date(value);
   const today = new Date();
@@ -53,7 +63,7 @@ export function ConversationCard({
         type="button"
         className="history-card-link"
         aria-label={`Открыть результат ${c.name}`}
-        title={title}
+        title={title ? `${c.name}\n${title}` : c.name}
         aria-busy={opening}
         onClick={onOpen}
       />
@@ -81,11 +91,9 @@ export function ConversationCard({
       </header>
       <div className="history-meta">
         <p className="small muted">
-          {c.messageCount !== undefined && (
-            <span className="history-message-count">
-              {c.messageCount} {messageWord(c.messageCount)}
-            </span>
-          )}
+          <span className="history-message-count">
+            {c.messageCount !== undefined ? `${c.messageCount} ${messageWord(c.messageCount)}` : 'Беседа'}
+          </span>
           <time
             dateTime={new Date(c.lastMessageDate || c.createdDate).toISOString()}
             title={new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU')}

@@ -115,6 +115,30 @@ async function setup(page: Page, guest = false) {
   return state;
 }
 
+async function pickSource(page: Page, name = 'Чашка.png'): Promise<void> {
+  const picker = page.getByRole('dialog', { name: 'Библиотека' });
+  await picker.getByRole('button', { name: new RegExp(name) }).click();
+  const confirm = picker.getByRole('button', { name: /^Добавить \(\d+\)$/ });
+  if (await confirm.isVisible()) await confirm.click();
+}
+async function applyVideoTemplate(page: Page, index: number): Promise<void> {
+  await page.locator('.ds-template-card').nth(index).click();
+  const dialog = page.getByRole('dialog');
+  for (const field of await dialog.locator('[data-template-variable]').all()) await field.fill('Синяя чашка');
+  const source = dialog.getByRole('button', { name: 'Из библиотеки', exact: true });
+  if (await source.isVisible()) {
+    await source.click();
+    await pickSource(page);
+  }
+  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+  const adapt = dialog.getByRole('button', { name: /Адаптировать под/ });
+  if (await adapt.isVisible()) {
+    await adapt.click();
+    await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+  }
+  await expect(dialog).toHaveCount(0);
+}
+
 test('Wan keeps audio enabled when restoring a saved draft that requested silence', async ({ page }) => {
   const state = await setup(page);
   const wan = catalog.find((model: any) => model.reference.model === 'alibaba/wan-3.0');
@@ -154,8 +178,11 @@ test('video canvas shows designer templates, guest composer and responsive geome
   await expect(page.locator('.video-workspace')).toBeVisible();
   await expect(page.locator('.ds-template-card')).toHaveCount(30);
   await page.locator('.ds-template-card').first().click();
-  await expect(page.getByRole('button', { name: 'Убрать шаблон', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Редактировать шаблон', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('dialog').getByRole('button', { name: 'Использовать шаблон', exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.locator('#vd-draft').fill('Создай видео');
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
   expect(state.creates).toHaveLength(0);
@@ -169,9 +196,8 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await page.goto('/video');
   await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveText('Со звуком');
   await expect(page.getByRole('button', { name: 'Звук', exact: true })).toBeDisabled();
-  await page.locator('.ds-template-card').first().click();
-  await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Чашка.png', { exact: true }).click();
+  await applyVideoTemplate(page, 0);
+  const templateText = await page.locator('#vd-draft').inputValue();
   await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toHaveText('По исходному кадру');
   await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Разрешение', exact: true }).click();
@@ -180,12 +206,12 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await page.getByRole('option', { name: '4 с', exact: true }).click();
   await page.getByRole('button', { name: 'Структура ролика', exact: true }).click();
   await page.getByRole('option', { name: 'Набор сцен', exact: true }).click();
-  await page.locator('#vd-draft').fill('Покажи чашку с разных сторон');
+  await page.locator('#vd-draft').fill(templateText + '\nПокажи чашку с разных сторон');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.video:new:all')))
     .toContain('Покажи чашку');
   await page.reload();
-  await expect(page.locator('#vd-draft')).toHaveValue('Покажи чашку с разных сторон');
+  await expect(page.locator('#vd-draft')).toHaveValue(templateText + '\nПокажи чашку с разных сторон');
   await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('4 с');
   await expect(page.getByRole('button', { name: 'Разрешение', exact: true })).toHaveText('720p');
   await expect(page.getByRole('button', { name: 'Структура ролика', exact: true })).toHaveText('Набор сцен');
@@ -202,7 +228,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
   expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
   expect(state.tasks[0].options).not.toHaveProperty('aspectRatio');
-  expect(state.tasks[0].task.prompt).toContain('Шаблон:');
+  expect(state.tasks[0].task.prompt).toContain(templateText);
   expect(state.tasks[0].task.prompt).toContain('несколько сцен');
   await page.locator('.video-result').hover();
   await expect(page.locator('.video-result .img-actions')).toHaveCSS('opacity', '1');
@@ -244,7 +270,7 @@ for (const width of [390, 1440])
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
-test('all 30 video templates apply without sending and model information closes cleanly', async ({
+test('all 30 video templates open the shared editor without sending and model information closes cleanly', async ({
   page,
 }) => {
   const state = await setup(page);
@@ -253,8 +279,10 @@ test('all 30 video templates apply without sending and model information closes 
   await expect(cards).toHaveCount(30);
   for (let index = 0; index < 30; index++) {
     await cards.nth(index).click();
-    await expect(page.locator('.img-files .img-file')).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'Собрать видео', exact: true })).toBeEnabled();
+    await expect(
+      page.getByRole('dialog').getByRole('button', { name: 'Использовать шаблон', exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
   }
   expect(state.tasks).toHaveLength(0);
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
@@ -287,14 +315,16 @@ test('existing video conversations show running, clarification and failure state
   state.messages = [{ id: 3, role: 'ASSISTANT', text: 'Как должна двигаться камера?', files: [] }];
   state.conversation.status = 'LOADING';
   await page.reload();
-  await expect(page.locator('.image-result-pending')).toContainText('Создаём видео');
-  await expect(page.getByRole('button', { name: 'Собрать видео', exact: true })).toBeDisabled();
-  await expect(page.locator('.media-answer-card')).toHaveCount(0);
+  await expect(page.locator('.image-result-pending')).toHaveCount(0);
+  await page.locator('#vd-draft').fill('Новый видеозапрос');
+  await expect(page.getByRole('button', { name: 'Собрать видео', exact: true })).toBeEnabled();
+  await expect(page.locator('.media-answer-card')).toContainText('Как должна двигаться камера?');
   state.conversation.status = 'LOADED';
   await page.reload();
   await expect(page.locator('.media-answer-card')).toContainText('Как должна двигаться камера?');
   await expect(page.locator('.image-result-pending')).toHaveCount(0);
   state.conversation.status = 'ERROR';
+  state.messages = [];
   await page.reload();
   await expect(page.locator('.video-result-failed')).toContainText('Ролик не собрался.');
   await expect(page.locator('.image-result-pending')).toHaveCount(0);
@@ -318,6 +348,7 @@ test('video download failure allows manual download retry and viewer failure doe
   // The loaded thumbnail determines the card height and overlay button positions.
   await expect(page.locator('.video-result .image-result-open img')).toHaveJSProperty('complete', true);
   await expect(page.locator('.video-result .image-result-open img')).not.toHaveJSProperty('naturalWidth', 0);
+  await page.locator('.video-result .image-result-open').focus();
   await page.locator('.video-result').hover();
   await download.click();
   await expect(page.getByText('Не удалось скачать файл. Попробуйте ещё раз.', { exact: true })).toBeVisible();
@@ -336,8 +367,10 @@ test('video download failure allows manual download retry and viewer failure doe
   );
   await page.route('**/media/prototype/content/video/previews/01.mp4', (route) => route.abort());
   const open = page.locator('.video-result .image-result-open');
-  await open.click();
-  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Видео не открылось.');
+  await open.focus();
+  await open.press('Enter');
+  await expect(page.getByRole('dialog').locator('.file-placeholder')).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('status', { name: 'Загрузка файла' })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(open).toBeFocused();
   expect(state.tasks).toHaveLength(1);
@@ -391,6 +424,7 @@ test('Wan uses both catalog-supported frames in order and restores them for a re
   await page.route('**/api/file/14', (route) => route.fulfill({ json: endFrame }));
   await page.route('**/api/file/13', (route) => route.fulfill({ json: video }));
   await page.route('**/api/task', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
     const input = route.request().postDataJSON();
     state.tasks.push(input);
     const body = mediaTaskResponse(video, input);
@@ -402,10 +436,7 @@ test('Wan uses both catalog-supported frames in order and restores them for a re
   await page.getByRole('option', { name: /Wan/i }).click();
   for (const name of ['Чашка.png', 'Конечный кадр.png']) {
     await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
-    await page
-      .getByRole('dialog', { name: 'Библиотека' })
-      .getByRole('button', { name: new RegExp(name) })
-      .click();
+    await pickSource(page, name);
     await expect(page.getByRole('button', { name: `Убрать ${name}`, exact: true })).toBeVisible();
   }
   await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
@@ -431,6 +462,7 @@ test('Wan uses both catalog-supported frames in order and restores them for a re
     model: wan.reference.provider,
     options: { model: wan.reference.model },
   });
+  await page.locator('.video-result .image-result-open').focus();
   await page.locator('.video-result').hover();
   await page.getByRole('button', { name: 'Переделать Чашка.mp4', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toBeVisible();
@@ -449,10 +481,7 @@ test('a video model limited to one frame still blocks the second attachment', as
   );
   await page.goto('/video');
   await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
-  await page
-    .getByRole('dialog', { name: 'Библиотека' })
-    .getByRole('button', { name: /Чашка.png/ })
-    .click();
+  await pickSource(page);
   await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
   await expect(
     page.getByText('Для выбранной модели можно добавить до 1 референсов.', { exact: true }),

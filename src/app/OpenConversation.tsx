@@ -1,10 +1,11 @@
+import type { ReactElement } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { conversationUrl } from '../lib/conversationUrl';
 import { useAuth } from '../features/auth/AuthProvider';
 
-export function OpenConversation() {
+export function OpenConversation(): ReactElement {
   const { user, loading, signIn } = useAuth();
   const [params] = useSearchParams();
   const raw = params.get('conversation') || '';

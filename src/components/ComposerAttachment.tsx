@@ -30,7 +30,10 @@ export function ComposerAttachment({
           className="composer-attachment-open"
           aria-label={`Открыть ${file.name}`}
           disabled={unavailable}
-          onClick={() => setPreview(true)}
+          onClick={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
+            setPreview(true);
+          }}
         >
           <span className="composer-attachment-preview">
             {unavailable ? <FilePlaceholder file={file} /> : <Media file={file} isPlaybackDisabled />}

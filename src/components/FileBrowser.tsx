@@ -81,7 +81,7 @@ export function FileBrowser({
   const [type, setType] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagMatch, setTagMatch] = useState<'all' | 'any'>('all');
-  const setTagFilter = (tags: string[]) => {
+  const setTagFilter = (tags: string[]): void => {
     setSelectedTags(tags);
     setPage(0);
   };
@@ -134,7 +134,7 @@ export function FileBrowser({
             .join('\n'),
         );
       await Promise.all(
-        ['files', 'file-preview', 'messages', 'conversation', 'conversations'].map((key) =>
+        ['files', 'artifacts', 'file-preview', 'messages', 'conversation', 'conversations'].map((key) =>
           cache.invalidateQueries({ queryKey: [key] }),
         ),
       );
@@ -207,37 +207,41 @@ export function FileBrowser({
       selectedTags,
       tagMatch,
     ],
-    queryFn: () => api.browseFiles(page, directory, query, foldersOnly, type, selectedTags, tagMatch),
+    queryFn: ({ signal }) =>
+      api.browseFiles(page, directory, query, foldersOnly, type, selectedTags, tagMatch, signal),
     enabled: !!user,
   });
   useEffect(() => {
+    if (search.trim() === query) return;
     const timer = setTimeout(() => {
       setQuery(search.trim());
       setPage(0);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, query]);
   useEffect(() => {
     onDirectory?.(directory);
   }, [directory, onDirectory]);
   useEffect(() => {
     if (files.data && page > 0 && page >= files.data.pages) setPage(Math.max(0, files.data.pages - 1));
   }, [files.data, page]);
-  const refresh = () => cache.invalidateQueries({ queryKey: ['files'] });
+  const refresh = (): Promise<void> => cache.invalidateQueries({ queryKey: ['files'] });
   async function run(work: () => Promise<unknown>, message = ''): Promise<void> {
-    if (busy) return;
+    const sid = getSession();
+    if (busy || !sid) return;
     setBusy(true);
     setError('');
     setNotice('');
     try {
       await work();
-      await refresh();
+      if (!alive.current || getSession() !== sid) return;
       setAction(undefined);
       setNotice(message);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось выполнить действие.');
+      if (alive.current && getSession() === sid)
+        setError(e instanceof Error ? e.message : 'Не удалось выполнить действие.');
     } finally {
-      setBusy(false);
+      if (alive.current && getSession() === sid) setBusy(false);
     }
   }
   function navigate(items: IGnosisFile[]): void {
@@ -249,11 +253,13 @@ export function FileBrowser({
     setPage(0);
   }
   async function open(file: IGnosisFile): Promise<void> {
+    const sid = getSession();
+    if (!sid || busy) return;
     if (file.type === 'DIRECTORY') {
       if (query || selectedTags.length)
         await run(async () => {
           const folders = await folderTrail(file);
-          if (alive.current) navigate(folders);
+          if (alive.current && getSession() === sid) navigate(folders);
         });
       else navigate([...trail, file]);
       return;
@@ -263,11 +269,11 @@ export function FileBrowser({
       return;
     }
     await run(async () => {
-      const original = await resolveFile(file);
+      const original = await resolveFile(file, sid);
       if (acceptedTypes && !acceptedTypes.includes(original.type))
         throw new Error('Этот тип файла не подходит для выбранной задачи.');
       if (selected.includes(original.id)) throw new Error('Этот файл уже добавлен.');
-      if (!alive.current) return;
+      if (!alive.current || getSession() !== sid) return;
       onOpen?.(original, [
         original,
         ...(files.data?.items || []).filter(
@@ -497,7 +503,7 @@ export function FileBrowser({
                   </span>
                 </button>
               )}
-              {!foldersOnly && !!file.tags?.length && (
+              {!foldersOnly && FILE_TAG_FILTER_ENABLED && !!file.tags?.length && (
                 <div className="file-tag-chips" aria-label={`Теги файла ${file.name}`}>
                   {file.tags.map((tag) => (
                     <button
@@ -635,7 +641,10 @@ export function FileBrowser({
             className="file-form"
             onSubmit={(event) => {
               event.preventDefault();
-              void run(() => api.createDirectory(name.trim(), directory), 'Готово');
+              void run(async () => {
+                await api.createDirectory(name.trim(), directory);
+                await refresh();
+              }, 'Готово');
             }}
           >
             <label>

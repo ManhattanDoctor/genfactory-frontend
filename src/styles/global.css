@@ -734,12 +734,15 @@ a svg {
   line-height: 1.7;
 }
 .modal {
+  --modal-gutter: 24px;
+  --modal-padding: var(--modal-gutter);
   border: 1px solid #393b3e;
   background: #17181b;
   color: inherit;
   width: min(460px, calc(100vw - 32px));
   border-radius: 18px;
-  padding: 28px;
+  padding: var(--modal-padding);
+  max-height: calc(100dvh - 32px);
   box-shadow: 0 40px 160px #0009;
 }
 .modal::backdrop {
@@ -750,17 +753,37 @@ a svg {
   width: min(1000px, calc(100vw - 32px));
 }
 .modal-head {
+  flex: none;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin: calc(-1 * var(--modal-padding)) calc(-1 * var(--modal-padding)) 20px;
+  padding: 16px var(--modal-gutter);
+  border-bottom: 1px solid #393b3e;
 }
 .modal-head h2 {
-  font-size: 23px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 16px;
   font-weight: 550;
   line-height: 1.4;
-  letter-spacing: -0.5px;
+  letter-spacing: normal;
+}
+.modal-head-actions > .icon-button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+.modal-head-actions > .icon-button svg {
+  display: block;
 }
 .modal > p {
   font-size: 13px;
@@ -1907,10 +1930,7 @@ a svg {
     font-size: 21px;
   }
   .modal {
-    padding: 22px;
-  }
-  .modal-head h2 {
-    font-size: 21px;
+    --modal-gutter: 16px;
   }
   .modal-actions > .button {
     font-size: 11px;
@@ -2713,13 +2733,6 @@ a svg,
 }
 .modal.wide {
   width: min(1100px, calc(100vw - 32px));
-}
-.preview-navigation {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
-  align-items: center;
-  margin-bottom: 16px;
-  gap: 16px;
 }
 .settings-transfer {
   margin-top: 24px;
@@ -3572,11 +3585,6 @@ a svg,
 .modal-head h2 {
   min-width: 0;
 }
-.preview-date {
-  grid-column: 2;
-  text-align: center;
-  overflow-wrap: anywhere;
-}
 
 .audio-options {
   border: 0;
@@ -3740,4 +3748,22 @@ button[aria-busy='true'] {
   height: min(400px, calc(100dvh - 120px));
   overflow: hidden;
   border-radius: 16px;
+}
+
+.file-preview-dialog .media-preview {
+  position: relative;
+  height: min(60dvh, 640px);
+  min-height: 0;
+}
+.file-preview-dialog .media-preview > :is(img, video, pre) {
+  max-height: 100%;
+}
+.media-preview-loader {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #0b0b0c;
+  z-index: 1;
+  pointer-events: none;
 }

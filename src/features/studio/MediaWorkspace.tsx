@@ -1,15 +1,16 @@
 import { downloadFile } from '../../lib/files';
-import '../content-studio/template-editor.css';
+import { TemplateEditor } from '../content-studio/TemplateEditor';
+import { templateVariables } from '../content-studio/templateRecipe';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
 import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
 import { useComposerMenu } from '../../components/useComposerMenu';
-import { followsReferenceRatio } from '../catalog/schema';
+import { followsReferenceRatio, referenceLimit } from '../catalog/schema';
 import { bananaRatios, bananaDescription } from './bananaSettings';
 import './banana-workspace.css';
 import './seedance-workspace.css';
 import { videoRatios, videoLengths, videoSound, videoShapes } from './videoMenus';
-import { VideoTemplateMedia, VideoViewer, VideoModelInfo } from './VideoMedia';
+import { VideoTemplateMedia, VideoModelInfo } from './VideoMedia';
 import '../catalog/model-favorites.css';
 import { readFileRecipe, readRecipes, variantGroups, type IGenerationRecipe } from './variants';
 import {
@@ -47,7 +48,7 @@ import type { ITemplate } from '../content-studio/materials';
 import { ModelMark } from '../content-studio/ModelMark';
 import { useAuth } from '../auth/AuthProvider';
 import { usePreferences, toggleItem } from '../workspace/preferences';
-import { Media } from '../../components/MediaPreview';
+import { Media, MediaPreview } from '../../components/MediaPreview';
 import { Modal } from '../../components/Modal';
 import { Masonry } from '../../components/Masonry';
 import { HomeImageViewer } from '../../app/HomeImageViewer';
@@ -72,6 +73,7 @@ export function MediaWorkspace({
   onTemplate,
   references,
   conversation,
+  contextError,
   busy,
   pendingCount = 0,
   pendingTasks = [],
@@ -102,6 +104,7 @@ export function MediaWorkspace({
   onTemplate: (value: string) => void;
   references: IGnosisFile[];
   conversation?: IConversation;
+  contextError?: string;
   busy: boolean;
   pendingCount?: number;
   pendingTasks?: Array<{ id: string; createdDate: string }>;
@@ -113,7 +116,7 @@ export function MediaWorkspace({
   onOptions: (value: Record<string, unknown>) => void;
   onReferences: (value: IGnosisFile[]) => void;
   onLibrary: () => void;
-  onSubmit: () => void;
+  onSubmit: (onStarted: () => void) => void;
   onRepeat: (file: IGnosisFile, input?: IGenerationRecipe['workspaceInput']) => void;
   promptInput: RefObject<HTMLTextAreaElement | null>;
   children?: ReactNode;
@@ -122,39 +125,20 @@ export function MediaWorkspace({
   const banana = variant === 'banana';
   const seedance = variant === 'seedance';
   const outputType = video ? 'VIDEO' : 'IMAGE';
+  const generating = busy || pendingCount > 0;
   const imageTemplates = templates.filter((item) => item.kind === kind);
   useConversationRoom(conversation?.id);
   const { user } = useAuth();
   const prefs = usePreferences();
   const root = useRef<HTMLDivElement>(null);
+  const wall = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLFormElement>(null);
   const [columns, setColumns] = useState(4);
   const [bottom, setBottom] = useState(234);
   const selected = imageTemplates.find((item) => item.id === templateId);
-  const [editing, setEditing] = useState(false);
-  const [templateDraft, setTemplateDraft] = useState('');
-  const templateInput = useRef<HTMLTextAreaElement>(null);
-  const focusTemplateInput = () => {
-    const area = templateInput.current;
-    if (!area) return;
-    area.setSelectionRange(area.value.length, area.value.length);
-    area.focus();
-    area.scrollTop = area.scrollHeight;
-  };
-  const [templateError, setTemplateError] = useState('');
-  useEffect(() => {
-    setEditing(false);
-    setTemplateError('');
-  }, [templateId]);
-  useEffect(() => {
-    if (editing) focusTemplateInput();
-  }, [editing]);
-  useEffect(() => {
-    setTemplateError('');
-  }, [templateText, references.length]);
+  const [editingTemplate, setEditingTemplate] = useState<ITemplate>();
   const [notice, setNotice] = useState('');
   const conversationError = useConversationError(conversation);
-  const composerConversationError = video && conversation?.status === 'ERROR' ? '' : conversationError;
   const [answerView, setAnswerView] = useState<string>();
   useEffect(() => setAnswerView(undefined), [conversation?.id]);
   const downloading = useRef(new Set<number>());
@@ -168,7 +152,7 @@ export function MediaWorkspace({
     queryKey: ['messages', conversation?.userId, conversation?.id, page],
     queryFn: ({ signal }) => api.messages(conversation!.id, page, signal),
     enabled: !!conversation,
-    refetchInterval: busy || pendingCount ? 2000 : false,
+    refetchInterval: conversation?.status === 'LOADING' ? 5000 : false,
   });
   const latestMessage = [...(messages.data?.items || [])]
     .filter((message) => message.role !== 'COMMAND')
@@ -240,7 +224,9 @@ export function MediaWorkspace({
 
   const latestAnswer = latestMessage?.role === 'ASSISTANT' ? latestMessage : undefined;
   const text =
-    busy || latestAnswer?.files?.some((file) => file.type === outputType) ? undefined : latestAnswer?.text;
+    generating || latestAnswer?.files?.some((file) => file.type === outputType)
+      ? undefined
+      : latestAnswer?.text;
   useEffect(() => {
     const measure = () => {
       const width = root.current?.clientWidth || innerWidth;
@@ -282,21 +268,18 @@ export function MediaWorkspace({
     : [];
   const chooseRatio = (value: string) =>
     onOptions({ ...options, ...(fields.aspectRatio ? { aspectRatio: value } : { size: sizes.get(value) }) });
-  const applyTemplate = (item: ITemplate) => {
-    if (busy || selected?.id === item.id) return;
-    onTemplate(item.id);
-    onTemplateText(item.prompt);
-    if (ratios.includes(item.ratio)) chooseRatio(item.ratio);
+  const applyTemplate = (item: ITemplate): void => {
+    if (busy) return;
+    setEditingTemplate(item);
   };
-  const submitTemplate = () => {
-    if (selected) {
-      if (!templateText.trim()) {
-        setTemplateError('Введите текст шаблона или уберите его.');
-        setEditing(true);
-        return;
-      }
+  const submitTemplate = (): void => {
+    if (selected && (!templateText.trim() || templateVariables(templateText).length)) {
+      setEditingTemplate({ ...selected, prompt: templateText || selected.prompt });
+      return;
     }
-    onSubmit();
+    onSubmit((): void => {
+      wall.current?.scrollTo({ top: 0, behavior: 'instant' });
+    });
   };
   const download = async (file: IGnosisFile): Promise<void> => {
     if (downloading.current.has(file.id)) return;
@@ -313,24 +296,27 @@ export function MediaWorkspace({
     }
   };
   const cards: ReactElement[] = [
-    ...Array.from({ length: Math.max(pendingCount, busy ? 1 : 0) }, (_, index) => (
-      <div
-        key={`pending:${pendingTasks[index]?.id || index}`}
-        className="image-result-pending"
-        role="status"
-        style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
-      >
-        <span className="img-spin" aria-hidden="true" />
-        {conversation && !pendingTasks[index] ? (
-          <ImageProgress conversation={conversation} kind={kind} startedAt={startedAt} />
-        ) : (
-          <span>
-            {video ? 'Создаём видео…' : 'Создаём изображение…'}
-            <GenerationElapsed startedAt={pendingTasks[index]?.createdDate} />
-          </span>
-        )}
-      </div>
-    )),
+    ...Array.from(
+      { length: Math.max(pendingCount, generating || conversation?.status === 'LOADING' ? 1 : 0) },
+      (_, index) => (
+        <div
+          key={`pending:${pendingTasks[index]?.id || index}`}
+          className="image-result-pending"
+          role="status"
+          style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
+        >
+          <span className="img-spin" aria-hidden="true" />
+          {conversation && !pendingTasks[index] ? (
+            <ImageProgress conversation={conversation} kind={kind} startedAt={startedAt} />
+          ) : (
+            <span>
+              {video ? 'Создаём видео…' : 'Создаём изображение…'}
+              <GenerationElapsed startedAt={pendingTasks[index]?.createdDate} />
+            </span>
+          )}
+        </div>
+      ),
+    ),
     ...(text?.trim()
       ? [
           <article className="img-tile media-answer-card" key={`answer:${latestAnswer!.id}`}>
@@ -350,7 +336,7 @@ export function MediaWorkspace({
           </article>,
         ]
       : []),
-    ...(video && !text && !busy && conversation?.status === 'ERROR'
+    ...(video && !text && !generating && conversation?.status === 'ERROR'
       ? [
           <article key="failed" className="img-tile video-result-failed" role="alert">
             <img src="/media/prototype/content/video/fail-cry.jpg" alt="Ролик не собрался" />
@@ -364,7 +350,10 @@ export function MediaWorkspace({
           type="button"
           className="image-result-open"
           aria-label={`Открыть ${file.name}`}
-          onClick={(e) => setPreview({ file, rect: e.currentTarget.getBoundingClientRect() })}
+          onClick={(e) => {
+            e.currentTarget.focus({ preventScroll: true });
+            setPreview({ file, rect: e.currentTarget.getBoundingClientRect() });
+          }}
         >
           <Media file={file} />
         </button>
@@ -372,9 +361,10 @@ export function MediaWorkspace({
           <button
             type="button"
             aria-label={`Открыть ${file.name}`}
-            onClick={(e) =>
-              setPreview({ file, rect: e.currentTarget.closest('article')!.getBoundingClientRect() })
-            }
+            onClick={(e) => {
+              e.currentTarget.focus({ preventScroll: true });
+              setPreview({ file, rect: e.currentTarget.closest('article')!.getBoundingClientRect() });
+            }}
           >
             <Expand size={18} />
           </button>
@@ -457,6 +447,7 @@ export function MediaWorkspace({
     >
       <div
         className="img-wall"
+        ref={wall}
         aria-label={
           seedance
             ? 'Ролики Seedance'
@@ -467,14 +458,15 @@ export function MediaWorkspace({
                 : 'Шаблоны и изображения'
         }
       >
-        {(banana || seedance) && !files.length && !busy && (
+        {(banana || seedance) && !files.length && !generating && (
           <div className={seedance ? 'banana-brand seedance-brand' : 'banana-brand'} aria-hidden="true">
             <img src={seedance ? '/media/prototype/seedance.webp' : '/media/prototype/banana.webp'} alt="" />
             <span>{seedance ? 'Seedance Studio' : 'Nano Banana'}</span>
           </div>
         )}
-        {(messages.error || (!busy && (messages.data?.pages || 0) > 1)) && (
+        {(contextError || messages.error || (!busy && (messages.data?.pages || 0) > 1)) && (
           <div className="image-conversation-note">
+            {contextError && <p role="alert">{contextError}</p>}
             {messages.error && (
               <p role="alert">
                 Не удалось загрузить результаты.{' '}
@@ -508,40 +500,35 @@ export function MediaWorkspace({
           <Masonry columns={columns}>{cards}</Masonry>
         </div>
       </div>
-      {editing && (
-        <Modal
-          title="Редактировать текст шаблона"
-          className="template-dialog template-text-dialog"
-          onClose={() => setEditing(false)}
-        >
-          <div className="template-editor template-text-editor">
-            <label>
-              <textarea
-                ref={templateInput}
-                aria-label="Текст шаблона"
-                value={templateDraft}
-                disabled={busy}
-                onChange={(event) => setTemplateDraft(event.target.value)}
-              />
-            </label>
-          </div>
-          <div className="template-footer template-text-footer">
-            <button type="button" className="button" onClick={() => setEditing(false)}>
-              Отмена
-            </button>
-            <button
-              type="button"
-              className="button primary"
-              disabled={busy}
-              onClick={() => {
-                onTemplateText(templateDraft);
-                setEditing(false);
-              }}
-            >
-              Готово
-            </button>
-          </div>
-        </Modal>
+      {editingTemplate && !busy && (
+        <TemplateEditor
+          key={editingTemplate.id}
+          item={editingTemplate}
+          duration={typeof options.duration === 'number' ? options.duration : undefined}
+          referenceAllowed={!model || referenceLimit(model) > 0}
+          reference={references[0] ? { saved: references[0], name: references[0].name } : undefined}
+          launchSettings={[
+            `Модель: ${model ? modelTitle(model) : 'Не выбрана'}`,
+            referenceRatio ? 'Формат: по исходному кадру' : ratio ? `Формат: ${ratio}` : '',
+            qualityKey && options[qualityKey] ? `Качество: ${options[qualityKey]}` : '',
+            video && typeof options.duration === 'number' ? `Длительность: ${options.duration} с` : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          onClose={() => {
+            setEditingTemplate(undefined);
+            requestAnimationFrame(() => promptInput.current?.focus());
+          }}
+          onApply={(text, reference) => {
+            onTemplate('');
+            onTemplateText('');
+            onPrompt(text);
+            onReferences(reference?.saved ? [reference.saved] : []);
+            setNotice('');
+            setEditingTemplate(undefined);
+            requestAnimationFrame(() => promptInput.current?.focus());
+          }}
+        />
       )}
       <form
         className="img-dock"
@@ -586,8 +573,7 @@ export function MediaWorkspace({
                       aria-label="Редактировать шаблон"
                       disabled={busy}
                       onClick={() => {
-                        setTemplateDraft(templateText);
-                        setEditing(true);
+                        setEditingTemplate({ ...selected, prompt: templateText || selected.prompt });
                       }}
                     >
                       <Pencil size={13} />
@@ -750,16 +736,9 @@ export function MediaWorkspace({
             {busy ? <span className="spinner" /> : <ArrowUp size={20} />}
           </button>
         </div>
-        {(templateError ||
-          (video && conversation?.status === 'ERROR' ? '' : error) ||
-          composerConversationError ||
-          notice ||
-          prefs.error ||
-          history.error) && (
+        {(error || notice || prefs.error || history.error) && (
           <p className="img-guard" role="alert">
-            {templateError ||
-              (video && conversation?.status === 'ERROR' ? '' : error) ||
-              composerConversationError ||
+            {error ||
               notice ||
               prefs.error ||
               (history.error ? `Не удалось загрузить историю ${video ? 'видео' : 'изображений'}.` : '')}
@@ -781,7 +760,12 @@ export function MediaWorkspace({
         </Modal>
       )}
       {video && preview && (
-        <VideoViewer key={preview.file.id} file={preview.file} onClose={() => setPreview(undefined)} />
+        <MediaPreview
+          key={preview.file.id}
+          file={preview.file}
+          files={files}
+          onClose={() => setPreview(undefined)}
+        />
       )}
       {!video && preview && safeMediaUrl(preview.file.path) && (
         <HomeImageViewer

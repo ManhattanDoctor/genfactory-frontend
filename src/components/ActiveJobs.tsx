@@ -1,3 +1,4 @@
+import { scheduleRefresh } from '../features/realtime/queryRefresh';
 import type { ReactElement } from 'react';
 import { GenerationElapsed } from './GenerationElapsed';
 import { conversationUrl as workUrl } from '../lib/conversationUrl';
@@ -8,6 +9,7 @@ import { useMutationState, useQuery, useQueryClient } from '@tanstack/react-quer
 import type { IDirectMediaTask } from '../features/studio/useDirectMediaTask';
 import { useRealtime } from '../features/realtime/RealtimeProvider';
 import { Link } from 'react-router-dom';
+import { apiErrorMessage } from '../lib/errorMessages';
 import { api, getSession } from '../lib/api';
 import { taskView, visibleTasks } from '../features/studio/activeTasks';
 import { FilePlaceholder } from './FilePlaceholder';
@@ -56,6 +58,7 @@ function TaskCard({
   sid,
   title,
   status,
+  error,
   file,
   fileId,
   completed = false,
@@ -66,6 +69,7 @@ function TaskCard({
   sid: string;
   title?: string;
   status?: string;
+  error?: string;
   file?: IGnosisFile;
   fileId?: number;
   completed?: boolean;
@@ -73,23 +77,33 @@ function TaskCard({
 }): ReactElement {
   const view = taskView(item);
   return (
-    <Link className={`job-card${completed ? ' completed-job' : ''}`} to={view.path} onClick={onOpen}>
-      <div className="job-card-preview">
-        {completed ? (
-          <TaskPreview item={item} userId={userId} sid={sid} file={file} fileId={fileId} />
-        ) : (
-          <FilePlaceholder file={{ name: view.title, type: view.type, mime: view.mime }} />
-        )}
-      </div>
-      <div className="job-card-content">
-        <b className="job-card-title">{title || view.title}</b>
-        <span className="job-card-status">
-          {!completed && <LoaderCircle size={14} aria-hidden="true" />}
-          {status || 'Выполняется'}
-          {!completed && <GenerationElapsed startedAt={item.createdDate} />}
-        </span>
-      </div>
-    </Link>
+    <>
+      <Link className={`job-card${completed ? ' completed-job' : ''}`} to={view.path} onClick={onOpen}>
+        <div className="job-card-preview">
+          {completed ? (
+            <TaskPreview item={item} userId={userId} sid={sid} file={file} fileId={fileId} />
+          ) : (
+            <FilePlaceholder file={{ name: view.title, type: view.type, mime: view.mime }} />
+          )}
+        </div>
+        <div className="job-card-content">
+          <b className="job-card-title" title={title || view.title}>
+            {title || view.title}
+          </b>
+          <span className="job-card-status">
+            {!completed && <LoaderCircle size={14} aria-hidden="true" />}
+            {status || 'Выполняется'}
+            {!completed && <GenerationElapsed startedAt={item.createdDate} />}
+          </span>
+        </div>
+      </Link>
+      {error && (
+        <details className="job-card-error">
+          <summary>Причина ошибки</summary>
+          <p>{error}</p>
+        </details>
+      )}
+    </>
   );
 }
 
@@ -172,6 +186,7 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
       submittedAt: mutation.state.submittedAt,
       status: mutation.state.status,
       output: mutation.state.data as ITaskResponse | undefined,
+      error: mutation.state.error,
       input: mutation.state.variables as IDirectMediaTask,
     }),
   }).filter((task) => task.input?.sid === sid);
@@ -179,7 +194,6 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
   const executions = useQuery({
     queryKey: ['active-tasks', userId],
     queryFn: ({ signal }) => api.tasks(signal, sid),
-    retry: 1,
     refetchInterval: (query) => (query.state.data?.length || pendingTasks.length ? 5000 : false),
   });
   const taskNotices = useQuery<ITaskFinished[]>({
@@ -219,7 +233,6 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
   const query = useQuery({
     queryKey: ['active-jobs', userId],
     queryFn: ({ signal }) => api.conversations(userId, 0, signal, 'LOADING'),
-    retry: 1,
     // Reconcile running jobs even if the final socket event was missed on another page.
     // Completed/idle sessions do not poll.
     refetchInterval: (query) =>
@@ -227,14 +240,6 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
         ? 5000
         : false,
   });
-  useEffect(() => {
-    const handler = () => {
-      void query.refetch();
-      void executions.refetch();
-    };
-    window.addEventListener('genfactory:generation-finished', handler);
-    return () => window.removeEventListener('genfactory:generation-finished', handler);
-  }, [userId]);
   useEffect(() => {
     if (!query.data || query.isError) return;
     let cancelled = false;
@@ -253,11 +258,10 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
       for (const c of finished) {
         tracked.current.delete(c.id);
         client.setQueryData(['conversation', userId, c.id], c);
-        void client.invalidateQueries({ queryKey: ['messages', userId, c.id] });
+        scheduleRefresh(client, userId, sid, ['messages'], c.id);
       }
       if (finished.length) {
-        void client.invalidateQueries({ queryKey: ['files', userId] });
-        void client.invalidateQueries({ queryKey: ['conversations', userId] });
+        scheduleRefresh(client, userId, sid, ['files', 'conversations']);
       }
       if (finished.length) setNotices((previous) => [...finished, ...previous].slice(0, 8));
     });
@@ -286,7 +290,6 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
         <Modal
           title="Активные работы"
           className="jobs-modal"
-          hideTitle
           onClose={() => setOpen(false)}
           headerActions={
             <>
@@ -307,7 +310,7 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
                 <ListX size={18} aria-hidden="true" />
               </button>
               <Link
-                to="/history"
+                to="/artifacts"
                 className="icon-button"
                 aria-label="Вся история"
                 title="Вся история"
@@ -390,6 +393,7 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
                     completed
                     title={(task.input.recipe.workspaceInput?.idea || task.input.recipe.prompt).slice(0, 100)}
                     status={task.status === 'success' ? 'Готово' : 'Проверьте результат'}
+                    error={task.error?.message}
                     file={task.output?.files?.[0]}
                     onOpen={() => setOpen(false)}
                   />
@@ -402,6 +406,9 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
                     sid={sid}
                     completed
                     fileId={task.fileIds?.[0]}
+                    error={
+                      task.result === 'FAILED' && task.error ? apiErrorMessage(task.error, 400) : undefined
+                    }
                     status={
                       task.result === 'COMPLETED'
                         ? 'Готово'

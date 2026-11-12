@@ -114,11 +114,10 @@
   color: #f4f4f5;
   margin: 12px 12px 0;
   min-width: 0;
-  height: 40px;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  height: 20px;
+  white-space: nowrap;
+  display: block;
+  text-overflow: ellipsis;
   overflow: hidden;
 }
 .work-history .history-status {

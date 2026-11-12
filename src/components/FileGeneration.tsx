@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
-import { ChevronDown, Copy, FileImage, ArrowUpRight } from 'lucide-react';
-import { useState } from 'react';
+import { Copy, FileImage, ArrowUpRight } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../features/auth/AuthProvider';
 import { modelTitle } from '../features/catalog/presentation';
@@ -16,7 +16,6 @@ function useGenerationModelName(file: Pick<IGnosisFile, 'origin'>): string {
     queryFn: ({ signal }) => api.catalog(model!.provider, signal),
     enabled: !!user && !!model,
     staleTime: 300000,
-    retry: 1,
   });
   if (!model) return '';
   const match = catalog.data?.find(
@@ -73,9 +72,31 @@ function SourceFile({ id, mask }: { id: number; mask: boolean }): ReactElement {
   );
 }
 
-export function GenerationDetails({ file }: { file: IGnosisFile }): ReactElement | null {
+export function GenerationDetails({
+  file,
+  onClose,
+}: {
+  file: IGnosisFile;
+  onClose: () => void;
+}): ReactElement | null {
   const modelName = useGenerationModelName(file);
-  const [expanded, setExpanded] = useState(false);
+  const details = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const close = (event: PointerEvent | KeyboardEvent): void => {
+      if (event instanceof KeyboardEvent) {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        event.stopPropagation();
+      } else if (details.current?.contains(event.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', close, true);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', close, true);
+    };
+  }, [onClose]);
   const [notice, setNotice] = useState('');
   const generation = file.origin?.generation;
   if (!generation) return null;
@@ -95,11 +116,11 @@ export function GenerationDetails({ file }: { file: IGnosisFile }): ReactElement
     ]),
   ];
   return (
-    <details className="file-generation" onToggle={(event) => setExpanded(event.currentTarget.open)}>
-      <summary>
-        <span>Параметры генерации</span>
-        <ChevronDown size={16} aria-hidden="true" />
-      </summary>
+    <section
+      ref={details}
+      className="file-generation file-generation-popover"
+      aria-label="Параметры генерации"
+    >
       <div className="file-generation-content">
         <div className="file-generation-model">
           <span className="file-generation-label">Модель</span>
@@ -153,12 +174,13 @@ export function GenerationDetails({ file }: { file: IGnosisFile }): ReactElement
           <>
             <h3>Исходные файлы</h3>
             <ol>
-              {expanded &&
-                sources.map((id) => <SourceFile key={id} id={id} mask={id === generation.maskFileId} />)}
+              {sources.map((id) => (
+                <SourceFile key={id} id={id} mask={id === generation.maskFileId} />
+              ))}
             </ol>
           </>
         )}
       </div>
-    </details>
+    </section>
   );
 }

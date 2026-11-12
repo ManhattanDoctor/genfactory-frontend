@@ -56,9 +56,8 @@ export function AppNavigation({ onNavigate }: { onNavigate?: () => void }): Reac
           renderDestination(item)
         ),
       )}
-      {user && renderDestination({ to: '/artifacts', label: 'Артефакты', icon: 'assets' })}
+      {user && renderDestination({ to: '/artifacts', label: 'История', icon: 'history' })}
       {user && renderDestination({ to: '/library', label: 'Библиотека', icon: 'assets' })}
-      {user && renderDestination({ to: '/history', label: 'История', icon: 'history' })}
       <button
         type="button"
         className="shell-tools-toggle"

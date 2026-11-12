@@ -786,7 +786,8 @@
   transform: rotate(180deg);
 }
 /* Homepage image viewer: prototype krea.css .img-view / home-board.js. */
-.home-image-view {
+.modal.home-image-view {
+  --modal-padding: 0px;
   --ds-ease: cubic-bezier(0.22, 1, 0.36, 1);
   position: fixed;
   inset: 0;
@@ -833,35 +834,16 @@
     height 220ms var(--ds-ease, ease),
     border-radius 220ms var(--ds-ease, ease);
 }
-.home-image-view-close {
+.home-image-view > .modal-head {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  inset: 0 0 auto;
   z-index: 82;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(18, 19, 20, 0.88);
-  color: #fff;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 180ms var(--ds-ease, ease);
-}
-.home-image-view.is-on .home-image-view-close {
-  opacity: 1;
-}
-.home-image-view-close svg {
-  width: 22px;
-  height: 22px;
+  margin: 0;
+  background: #17181b;
 }
 @media (prefers-reduced-motion: reduce) {
   .home-image-view,
-  .home-image-view-shot,
-  .home-image-view-close {
+  .home-image-view-shot {
     transition: none;
   }
 }

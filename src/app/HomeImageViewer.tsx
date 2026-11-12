@@ -1,5 +1,6 @@
 import type { ReactPortal } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { Modal } from '../components/Modal';
 import { FilePlaceholder } from '../components/FilePlaceholder';
 import { createPortal } from 'react-dom';
 
@@ -13,12 +14,10 @@ export function HomeImageViewer({
   from: DOMRect;
   onClose: () => void;
 }): ReactPortal {
-  const dialog = useRef<HTMLDialogElement>(null);
   const shot = useRef<HTMLImageElement>(null);
   const thumbnail = useRef<HTMLImageElement>(null);
   const loadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [previewReady, setPreviewReady] = useState(false);
-  const closeButton = useRef<HTMLButtonElement>(null);
   const frames = useRef<number[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const closingRef = useRef(false);
@@ -34,13 +33,21 @@ export function HomeImageViewer({
   function fit(): void {
     const node = shot.current?.naturalWidth ? shot.current : thumbnail.current;
     if (!node?.naturalWidth || closingRef.current) return;
+    const headerHeight =
+      node.closest('dialog')?.querySelector('.modal-head')?.getBoundingClientRect().height || 68;
+    const availableHeight = Math.max(1, innerHeight - headerHeight);
     const scale = Math.min(
       Math.min(innerWidth * 0.86, 1200) / node.naturalWidth,
-      (innerHeight * 0.86) / node.naturalHeight,
+      (availableHeight * 0.86) / node.naturalHeight,
     );
     const width = node.naturalWidth * scale;
     const height = node.naturalHeight * scale;
-    setRect({ left: (innerWidth - width) / 2, top: (innerHeight - height) / 2, width, height });
+    setRect({
+      left: (innerWidth - width) / 2,
+      top: headerHeight + (availableHeight - height) / 2,
+      width,
+      height,
+    });
   }
   function grow(): void {
     if (closingRef.current) return;
@@ -84,10 +91,6 @@ export function HomeImageViewer({
     timer.current = setTimeout(onClose, 240);
   }
   useEffect(() => {
-    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const node = dialog.current;
-    node?.showModal();
-    closeButton.current?.focus();
     window.addEventListener('resize', fit);
     loadTimer.current = setTimeout(fail, 30000);
     if (thumbnail.current?.complete) showPreview();
@@ -97,22 +100,13 @@ export function HomeImageViewer({
       clearTimeout(timer.current);
       clearTimeout(loadTimer.current);
       window.removeEventListener('resize', fit);
-      node?.close();
-      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     };
   }, []);
   return createPortal(
-    <dialog
-      ref={dialog}
+    <Modal
+      title={image.alt}
       className={`home-image-view ${active && !closing ? 'is-on' : ''}`}
-      aria-label={image.alt}
-      onCancel={(event) => {
-        event.preventDefault();
-        close();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) close();
-      }}
+      onClose={close}
     >
       {image.preview && image.preview !== image.src && loadState !== 'ready' && (
         <img
@@ -155,24 +149,7 @@ export function HomeImageViewer({
             : 'Открывается'}
         </p>
       )}
-      <button
-        ref={closeButton}
-        className="home-image-view-close"
-        type="button"
-        aria-label="Закрыть"
-        onClick={close}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M6 6l12 12M18 6 6 18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
-    </dialog>,
+    </Modal>,
     document.body,
   );
 }

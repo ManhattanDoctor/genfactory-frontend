@@ -1,15 +1,5 @@
-.modal.modal-title-hidden > .modal-head {
-  justify-content: flex-end;
-  min-height: 32px;
-  margin-bottom: 12px;
-  align-items: center;
-}
 .modal.jobs-modal {
   width: min(520px, calc(100vw - 32px));
-  padding: 20px;
-  border: 1px solid #2c2c31;
-  border-radius: 20px;
-  background: #17181b;
 }
 .jobs-modal .active-jobs-content {
   display: grid;
@@ -92,11 +82,10 @@
   min-width: 0;
 }
 .jobs-modal .job-card-title {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: block;
+  white-space: nowrap;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
@@ -119,9 +108,6 @@
   }
 }
 @media (max-width: 600px) {
-  .modal.jobs-modal {
-    padding: 16px;
-  }
   .jobs-modal .job-card {
     grid-template-columns: 64px minmax(0, 1fr);
   }
@@ -135,4 +121,21 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
+}
+
+.jobs-modal .job-card-error {
+  margin-top: 8px;
+  color: #b9bbc1;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.jobs-modal .job-card-error > summary {
+  cursor: pointer;
+}
+.jobs-modal .job-card-error > p {
+  max-height: 160px;
+  margin: 8px 0 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }

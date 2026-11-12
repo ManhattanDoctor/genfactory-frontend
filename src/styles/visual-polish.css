@@ -267,20 +267,14 @@
 }
 .studio-shell .template-editor {
   grid-template-columns: 1fr;
-  padding: 18px;
+  padding: var(--modal-gutter);
   gap: 16px;
 }
 .studio-shell .template-example {
   display: none;
 }
-.studio-shell .template-dialog .modal-head {
-  padding: 16px 18px;
-}
-.studio-shell .template-dialog .modal-head h2 {
-  font-size: 17px;
-}
 .studio-shell .template-footer {
-  padding: 14px 18px;
+  padding: 14px var(--modal-gutter);
 }
 .studio-shell .template-variables {
   display: grid;
@@ -428,11 +422,10 @@
     grid-template-columns: 1fr;
   }
   .studio-shell .template-dialog .template-editor {
-    padding: 14px;
+    padding: var(--modal-gutter);
   }
   .studio-shell .modal.template-dialog {
     max-height: 76dvh;
-    border-radius: 16px;
   }
   .studio-shell .content-studio #cw-gallery .cw-add {
     opacity: 1;
@@ -722,17 +715,6 @@
   align-self: center;
   justify-self: center;
   margin: 0;
-}
-.studio-shell .modal-head-actions > .icon-button {
-  display: grid;
-  place-items: center;
-  padding: 0;
-  width: 36px;
-  height: 36px;
-  flex: none;
-}
-.studio-shell .modal-head-actions > .icon-button svg {
-  display: block;
 }
 .studio-shell .template-dialog .template-footer {
   border-top: 0;

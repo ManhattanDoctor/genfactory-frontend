@@ -417,6 +417,10 @@
   background: #2a2b30;
 }
 .image-workspace .img-guard {
+  max-height: min(22dvh, 160px);
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
   margin: 0 4px 8px;
   font-size: 13px;
   line-height: 1.4;
@@ -737,18 +741,10 @@
   width: min(720px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   overflow: hidden;
-  padding: 24px;
 }
 .modal.media-answer-modal[open] {
   display: flex;
   flex-direction: column;
-}
-.media-answer-modal .modal-head {
-  flex: none;
-}
-.media-answer-modal .modal-head h2 {
-  margin: 0;
-  font-size: 18px;
 }
 .media-answer-body {
   min-height: 0;
@@ -757,9 +753,4 @@
   white-space: pre-wrap;
   line-height: 1.6;
   font-size: 15px;
-}
-@media (max-width: 600px) {
-  .modal.media-answer-modal {
-    padding: 18px;
-  }
 }

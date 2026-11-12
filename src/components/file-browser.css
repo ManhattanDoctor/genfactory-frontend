@@ -143,7 +143,7 @@
   overflow: hidden;
 }
 .file-browser .library-card > div:last-child {
-  min-height: 88px;
+  min-height: 68px;
   padding: 12px;
 }
 .file-browser .library-card b {
@@ -156,6 +156,9 @@
   font-size: 12px;
   line-height: 18px;
   color: #9a9aa0;
+}
+.file-browser .library-card time {
+  display: block;
 }
 .file-browser .file-generation-summary {
   display: -webkit-box;

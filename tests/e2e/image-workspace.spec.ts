@@ -678,7 +678,9 @@ test('direct image results do not depend on conversation clarification messages'
   expect(state.messages[0].text).toBe('Как называется товар?');
 });
 
-test('image hides provider funding errors without suggesting a top-up or retrying', async ({ page }) => {
+test('image explains provider funding errors without suggesting an application top-up or retrying', async ({
+  page,
+}) => {
   await setup(page);
   let sends = 0;
   await page.route('**/api/task', async (route) => {
@@ -696,8 +698,65 @@ test('image hides provider funding errors without suggesting a top-up or retryin
   await page.locator('#img-draft').fill('Сохранить мой промпт');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   const alert = page.getByRole('alert');
-  await expect(alert).toContainText('Сервис временно недоступен');
-  await expect(alert).not.toContainText(/OpenRouter|credits|Пополните|InsufficientFunds/i);
+  await expect(alert).toContainText('На стороне провайдера исчерпаны средства или лимит');
+  await expect(alert).toContainText('HTTP 402');
+  await expect(alert).toContainText('OpenRouter: insufficient credits');
+  await expect(alert).not.toContainText('Пополните баланс');
   await expect(page.locator('#img-draft')).toHaveValue('Сохранить мой промпт');
   expect(sends).toBe(1);
+});
+
+test('new image selection excludes hidden models and K3 Edit requires an original before sending', async ({
+  page,
+}) => {
+  const state = await setup(page);
+  const edit = catalog.find((model) => model.reference.model === 'krea/k3-edit')!;
+  const records = [
+    { ...edit, status: 'ACTIVE' },
+    {
+      ...edit,
+      reference: { ...edit.reference, model: 'hidden-image' },
+      name: 'Hidden test model',
+      status: 'HIDDEN',
+    },
+    {
+      ...edit,
+      reference: { ...edit.reference, model: 'disabled-image' },
+      name: 'Disabled test model',
+      status: 'DISABLED',
+    },
+  ];
+  const queries: Array<Record<string, unknown>> = [];
+  await page.route('**/api/aimodels?*', (route) => {
+    const url = new URL(route.request().url());
+    if (catalogProvider(url) !== 'OPEN_ROUTER_IMAGE') return route.fallback();
+    const conditions = JSON.parse(url.searchParams.get('conditions') || '{}');
+    queries.push(conditions);
+    return route.fulfill({
+      json: catalogPage(records.filter((model) => !conditions.status || model.status === conditions.status)),
+    });
+  });
+  await page.goto('/image');
+  await page.getByRole('button', { name: 'Модель', exact: true }).click();
+  await expect(page.getByRole('option', { name: 'K3 Edit', exact: true })).toBeVisible();
+  await expect(page.getByRole('option', { name: /Hidden test model|Disabled test model/ })).toHaveCount(0);
+  await page.getByRole('option', { name: 'K3 Edit', exact: true }).click();
+  await page.locator('#img-draft').fill('Измени цвет лампы на исходном фото');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Добавьте референсы для выбранной модели');
+  expect(state.tasks).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+  expect(state.creates).toHaveLength(0);
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Библиотека', exact: true });
+  await picker.locator('.library-card').filter({ hasText: file.name }).click();
+  const confirm = picker.getByRole('button', { name: 'Добавить (1)', exact: true });
+  if (await confirm.isVisible()) await confirm.click();
+  await expect(picker).toHaveCount(0);
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].options.model).toBe('krea/k3-edit');
+  expect(queries.length).toBeGreaterThan(0);
+  expect(queries.every((conditions) => conditions.status === 'ACTIVE')).toBe(true);
 });

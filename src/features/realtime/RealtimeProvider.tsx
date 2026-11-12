@@ -2,11 +2,30 @@ import type { ReactElement } from 'react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TransportSocket } from '@ts-core/socket-client';
-import { matchesRefresh, refreshTargets, taskConversationId, type RefreshTarget } from './refreshTargets';
+import { taskConversationId } from './refreshTargets';
+import { disposeRefresh, scheduleRefresh } from './queryRefresh';
 import type { ILogger } from '@ts-core/common';
 import { useAuth } from '../auth/AuthProvider';
 import type { ITaskExecution, ITaskFinished } from '../../lib/types';
 import { apiErrorMessage } from '../../lib/errorMessages';
+
+interface IRealtimeEvent {
+  name?: string;
+  data?: {
+    id?: number | string;
+    session?: string;
+    item?: Partial<ITaskExecution> & { status?: string };
+    result?: string;
+    fileIds?: number[];
+    error?: ITaskFinished['error'] & { status?: number };
+  };
+}
+
+function isTaskExecution(item: Partial<ITaskExecution> | undefined): item is ITaskExecution {
+  return (
+    typeof item?.id === 'string' && typeof item.model === 'string' && typeof item.createdDate === 'string'
+  );
+}
 
 interface IRealtime {
   connected: boolean;
@@ -46,7 +65,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<TransportSocket | null>(null);
   const rooms = useRef(new Map<string, number>());
-  const roomCommand = useCallback((name: string, action: 'ADD' | 'REMOVE') => {
+  const roomCommand = useCallback((name: string, action: 'ADD' | 'REMOVE'): void => {
     const transport = socketRef.current;
     if (!transport) return;
     void (action === 'ADD' ? transport.roomAdd(name) : transport.roomRemove(name)).catch(() =>
@@ -54,7 +73,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
     );
   }, []);
   const join = useCallback(
-    (room: string) => {
+    (room: string): (() => void) => {
       rooms.current.set(room, (rooms.current.get(room) || 0) + 1);
       if (socketRef.current && rooms.current.get(room) === 1) roomCommand(room, 'ADD');
       return () => {
@@ -73,27 +92,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
     setConnected(false);
     if (!user || !session) return;
     let alive = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const dirty = new Map<string, RefreshTarget>();
-    const refresh = (keys = resources, conversationId?: unknown, fileId?: unknown) => {
-      const targets =
-        keys.includes('files') || keys.includes('conversations') ? [...keys, 'artifacts'] : keys;
-      refreshTargets(targets, conversationId, fileId).forEach((target) =>
-        dirty.set(`${target.resource}:${target.id ?? '*'}`, target),
-      );
-      if (timer) return;
-      timer = setTimeout(() => {
-        timer = undefined;
-        if (!alive) return;
-        const selected = [...dirty.values()];
-        dirty.clear();
-        void client.invalidateQueries({
-          predicate: (query) => matchesRefresh(query.queryKey, selected, user.id),
-        });
-      }, 100);
+    let hasConnected = false;
+    const refresh = (keys = resources, conversationId?: unknown, fileId?: unknown): void => {
+      scheduleRefresh(client, user.id, session, keys, conversationId, fileId);
     };
     let dispose = () => {};
-    const connect = async () => {
+    const connect = async (): Promise<void> => {
       const { TransportSocket, TransportSocketClient } = await import('./socketTransport');
       if (!alive) return;
       const apiBase = new URL(import.meta.env.VITE_API_BASE || '/api', location.origin);
@@ -133,7 +137,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
         connection.connected.subscribe(() => {
           if (alive) {
             setConnected(true);
-            refresh();
+            if (hasConnected) refresh();
+            hasConnected = true;
           }
         }),
         connection.disconnected.subscribe(() => {
@@ -164,40 +169,64 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
         'CoinBalanceChangedEvent',
         'AiModelChangedEvent',
       ];
-      const receive = (event: { name?: string; data?: any }) => {
+      const receive = (event: IRealtimeEvent): void => {
         if (!alive) return;
         const { name = '', data = {} } = event || {};
-        if (name === 'ConversationErroredEvent' && Number.isSafeInteger(data.id) && data.id > 0) {
+        if (
+          name === 'ConversationErroredEvent' &&
+          typeof data.id === 'number' &&
+          Number.isSafeInteger(data.id) &&
+          data.id > 0
+        ) {
           client.setQueryData(
             ['conversation-error', user.id, data.id],
             apiErrorMessage(data.error, data.error?.status || 500),
           );
         }
         if (
-          (name === 'ConversationChangedEvent' && ['LOADING', 'LOADED'].includes(data.item?.status)) ||
+          (name === 'ConversationChangedEvent' && ['LOADING', 'LOADED'].includes(data.item?.status || '')) ||
           name === 'ConversationClearedEvent' ||
           name === 'ConversationRemovedEvent'
         ) {
           client.setQueryData(['conversation-error', user.id, data.id], '');
         }
-        if (name === 'TaskProgressedEvent' && /^conversation[1-9]\d*$/.test(data.session || '')) {
-          const id = Number(data.session.slice('conversation'.length));
-          client.setQueryData(['conversation-progress', user.id, id], { value: data, at: Date.now() });
+        const progressId = name === 'TaskProgressedEvent' ? taskConversationId(data.session) : undefined;
+        if (progressId) {
+          client.setQueryData(['conversation-progress', user.id, progressId], {
+            value: data,
+            at: Date.now(),
+          });
           return;
         }
-        if (name === 'TaskStartedEvent' && typeof data.id === 'string' && data.item?.id === data.id) {
+        const item = data.item;
+        if (name === 'TaskStartedEvent' && isTaskExecution(item) && item.id === data.id) {
           client.setQueryData<ITaskExecution[]>(['active-tasks', user.id], (previous) => [
-            ...(previous || []).filter((item) => item.id !== data.id),
-            data.item,
+            ...(previous || []).filter((previousItem) => previousItem.id !== data.id),
+            item,
           ]);
         }
         if (name === 'TaskFinishedEvent' && typeof data.id === 'string') {
           client.setQueryData<ITaskExecution[]>(['active-tasks', user.id], (previous) =>
             (previous || []).filter((item) => item.id !== data.id),
           );
-          if (data.item?.id === data.id && ['COMPLETED', 'FAILED', 'CANCELLED'].includes(data.result)) {
+          const result = data.result;
+          if (
+            isTaskExecution(item) &&
+            item.id === data.id &&
+            (result === 'COMPLETED' || result === 'FAILED' || result === 'CANCELLED')
+          ) {
+            const notice: ITaskFinished = {
+              id: data.id,
+              item,
+              result,
+              fileIds: data.fileIds,
+              error: data.error,
+            };
             client.setQueryData<ITaskFinished[]>(['task-notices', user.id], (previous) =>
-              [data, ...(previous || []).filter((item) => item.id !== data.id)].slice(0, 8),
+              [notice, ...(previous || []).filter((previousItem) => previousItem.id !== notice.id)].slice(
+                0,
+                8,
+              ),
             );
           }
         }
@@ -205,27 +234,29 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
         else if (name.startsWith('Conversation'))
           refresh(['conversation', 'conversations', 'messages', 'agent-messages', 'active-jobs'], data.id);
         else if (name.startsWith('File'))
-          refresh(['files', 'file-preview', 'messages', 'conversation', 'conversations'], undefined, data.id);
+          refresh(['files', 'file-preview', 'conversations'], undefined, data.id);
         else if (name === 'CoinBalanceChangedEvent') refresh(['account', 'transactions']);
         else if (name === 'TaskStartedEvent' || name === 'TaskFinishedEvent') {
+          const conversationId = taskConversationId(data.session ?? data.item?.session);
           refresh(
             [
-              'conversation',
+              ...(conversationId
+                ? ['conversation', 'messages', 'agent-messages', 'conversation-progress']
+                : []),
               'conversations',
-              'messages',
-              'agent-messages',
               'active-jobs',
               'active-tasks',
-              'conversation-progress',
               ...(name === 'TaskFinishedEvent'
                 ? ['account', 'transactions', 'transaction-results', 'files']
                 : []),
             ],
-            taskConversationId(data.session ?? data.item?.session),
+            conversationId,
           );
         }
       };
-      subscriptions.push(...events.map((name) => transport.getDispatcher<any>(name).subscribe(receive)));
+      subscriptions.push(
+        ...events.map((name) => transport.getDispatcher<IRealtimeEvent>(name).subscribe(receive)),
+      );
       void transport.connect().catch(() => {
         if (alive) setConnected(false);
       });
@@ -242,7 +273,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
     });
     return () => {
       alive = false;
-      clearTimeout(timer);
+      disposeRefresh(client, session);
       dispose();
     };
   }, [session, user?.id, client, roomCommand]);
@@ -251,7 +282,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
     if (connected || !user || !session) return;
     // One fallback timer for the application, only while the socket is unavailable.
     const timer = setInterval(() => {
-      void client.invalidateQueries({ predicate: (query) => resources.includes(String(query.queryKey[0])) });
+      scheduleRefresh(
+        client,
+        user.id,
+        session,
+        resources.filter((key) => !modelResources.includes(key)),
+      );
     }, 15000);
     return () => clearInterval(timer);
   }, [connected, user?.id, session, client]);

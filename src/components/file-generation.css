@@ -14,28 +14,6 @@
   font-size: 14px;
   line-height: 1.4;
 }
-.file-generation > summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  cursor: pointer;
-  list-style: none;
-  font-size: 14px;
-  font-weight: 500;
-}
-.file-generation > summary::-webkit-details-marker {
-  display: none;
-}
-.file-generation > summary svg {
-  flex: none;
-  color: #9a9aa0;
-  transition: transform 160ms ease;
-}
-.file-generation[open] > summary svg {
-  transform: rotate(180deg);
-}
 .file-generation-content {
   padding: 0 16px 16px;
   min-width: 0;
@@ -171,14 +149,11 @@
 .file-generation li a:hover {
   background: #34353b;
 }
-.file-generation :is(summary, button, a):focus-visible {
+.file-generation :is(button, a):focus-visible {
   outline: 2px solid #d1fe17;
   outline-offset: 2px;
 }
 @media (max-width: 540px) {
-  .file-generation > summary {
-    padding: 12px;
-  }
   .file-generation-content {
     padding: 0 12px 12px;
   }
@@ -186,8 +161,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .file-generation > summary svg {
-    transition: none;
-  }
+.file-generation.file-generation-popover {
+  position: absolute;
+  z-index: 3;
+  top: 72px;
+  right: 28px;
+  width: min(460px, calc(100% - 56px));
+  max-height: calc(100% - 100px);
+  overflow-y: auto;
+  margin: 0;
+  border: 1px solid #393b3e;
+  border-radius: 12px;
+  background: #1a1b1e;
+  box-shadow: 0 12px 40px #0008;
+}
+.file-generation-popover > .file-generation-content {
+  padding: 16px;
 }

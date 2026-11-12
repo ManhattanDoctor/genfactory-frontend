@@ -1,8 +1,9 @@
+import { downloadFile } from '../../lib/files';
 import type { ReactElement } from 'react';
 import { Heart, ChevronLeft, ChevronRight, LayoutGrid, Archive, Clock3 } from 'lucide-react';
 import './history.css';
 import { ConversationActions } from './ConversationActions';
-import { ConversationCard } from './ConversationCard';
+import { ConversationCard, historyDay } from './ConversationCard';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -23,16 +24,6 @@ function historyModelTitle(conversation: IConversation): string {
     ...(models.length ? [`Модель генерации: ${models.join(', ')}`] : []),
     `Ассистент: ${conversation.options.model}`,
   ].join('\n');
-}
-
-function historyDay(value: string): string {
-  const date = new Date(value);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === today.toDateString()) return 'Сегодня';
-  if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 export function History(): ReactElement {
@@ -59,15 +50,11 @@ export function History(): ReactElement {
       const file = await historyResult(c, sid, controller.signal);
       if (controller.signal.aborted || getSession() !== sid) return;
       if (download) {
-        const blob = await api.downloadFile(file.id);
-        if (controller.signal.aborted || getSession() !== sid) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } else setPreview(file);
+        await downloadFile(file, sid);
+      } else {
+        client.setQueryData(['file-preview', file.userId, file.id], file);
+        setPreview(file);
+      }
     } catch (e) {
       if (!controller.signal.aborted && getSession() === sid)
         setError(e instanceof Error ? e.message : 'Не удалось открыть результат.');
@@ -87,7 +74,7 @@ export function History(): ReactElement {
   const changeFlags = async (
     conversation: IConversation,
     flags: Pick<IConversation, 'isFavorite' | 'isArchived'>,
-  ) => {
+  ): Promise<void> => {
     if (!auth.session || conversation.userId !== auth.user?.id || flagRequest.current) return;
     const sid = auth.session;
     const userId = auth.user.id;
@@ -137,7 +124,7 @@ export function History(): ReactElement {
   const [error, setError] = useState('');
   const historyRoot = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const closeOutside = (event: PointerEvent) => {
+    const closeOutside = (event: PointerEvent): void => {
       if (!(event.target instanceof Node)) return;
       for (const menu of historyRoot.current?.querySelectorAll<HTMLDetailsElement>(
         '.history-actions[open]',
@@ -164,7 +151,7 @@ export function History(): ReactElement {
         { isArchived: filter === 'archive', ...(filter === 'favorite' ? { isFavorite: true } : {}) },
       ),
   });
-  const rename = async (c: IConversation) => {
+  const rename = async (c: IConversation): Promise<void> => {
     if (!auth.session || saving) return;
     const sid = auth.session;
     const userId = auth.user!.id;
@@ -204,10 +191,11 @@ export function History(): ReactElement {
       ) || [];
   return (
     <div className="page-content work-history" ref={historyRoot}>
+      <h1 className="sr-only">Беседы</h1>
       {preview && <MediaPreview file={preview} files={[preview]} onClose={() => setPreview(undefined)} />}
       {!auth.user ? (
         <div className="empty-state">
-          <p>Войдите, чтобы открыть историю.</p>
+          <p>Войдите, чтобы открыть беседы.</p>
           <button className="button primary" onClick={() => void auth.signIn()}>
             Войти
           </button>
@@ -249,12 +237,12 @@ export function History(): ReactElement {
           </div>
           {(list.isPending || searching) && (
             <p className="history-feedback" role="status">
-              Загружаем историю…
+              Загружаем беседы…
             </p>
           )}
           {list.error && (
             <p className="error" role="alert">
-              Не удалось загрузить историю.{' '}
+              Не удалось загрузить беседы.{' '}
               <button className="button" onClick={() => void list.refetch()}>
                 Обновить
               </button>
@@ -271,26 +259,26 @@ export function History(): ReactElement {
                 {search.trim()
                   ? 'Ничего не найдено'
                   : filter === 'running'
-                    ? 'Нет работ в процессе'
+                    ? 'Нет бесед в работе'
                     : filter === 'favorite'
-                      ? 'Нет избранных работ'
+                      ? 'Нет избранных бесед'
                       : filter === 'archive'
                         ? 'Архив пуст'
                         : !list.data.items.length
-                          ? 'Пока нет работ'
-                          : 'Работы на этой странице в архиве'}
+                          ? 'Пока нет бесед'
+                          : 'Беседы на этой странице в архиве'}
               </h2>
               <p>
                 {search.trim()
                   ? 'Попробуйте другие слова или сбросьте поиск.'
                   : filter === 'favorite'
-                    ? 'Отмечайте работы сердечком, чтобы возвращаться к ним.'
+                    ? 'Отмечайте беседы сердечком, чтобы возвращаться к ним.'
                     : filter === 'archive'
-                      ? 'Здесь доступны работы, которые вы убрали в архив.'
+                      ? 'Здесь доступны беседы, которые вы убрали в архив.'
                       : filter === 'running'
-                        ? 'Запущенные работы появятся здесь.'
+                        ? 'Беседы с выполняющимся запросом появятся здесь.'
                         : !list.data.items.length
-                          ? 'Создайте изображение или видео.'
+                          ? 'Начните новую беседу.'
                           : 'Откройте архив или перейдите на другую страницу.'}
               </p>
               <div className="history-empty-actions">
@@ -313,7 +301,7 @@ export function History(): ReactElement {
                       setPagination({ userId: auth.user?.id, page: 0, query });
                     }}
                   >
-                    Все работы
+                    Все беседы
                   </button>
                 ) : list.data.items.length ? (
                   <button className="button" onClick={() => setFilter('archive')}>
@@ -321,11 +309,8 @@ export function History(): ReactElement {
                   </button>
                 ) : (
                   <>
-                    <Link className="button primary" to="/image">
-                      Создать изображение
-                    </Link>
-                    <Link className="button" to="/video">
-                      Создать видео
+                    <Link className="button primary" to="/chat">
+                      Новая беседа
                     </Link>
                   </>
                 )}

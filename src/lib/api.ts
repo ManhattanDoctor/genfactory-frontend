@@ -41,6 +41,9 @@ export class ApiError extends Error {
     super(message);
   }
 }
+export function retryQuery(failureCount: number, error: Error): boolean {
+  return failureCount < 1 && !(error instanceof ApiError && [401, 403, 429].includes(error.status));
+}
 export function getSession(): string | null {
   const persistent = localStorage.getItem(SESSION_KEY);
   const legacy = sessionStorage.getItem(SESSION_KEY);
@@ -425,6 +428,7 @@ export const api = {
     type = '',
     tags: string[] = [],
     tagMatch: 'all' | 'any' = 'all',
+    signal?: AbortSignal,
   ) => {
     const conditions: Record<string, unknown> = {};
     if (!search && !tags.length)
@@ -457,6 +461,7 @@ export const api = {
 
     return request<IPagination<IGnosisFile>>(
       `/file?${new URLSearchParams({ pageSize: '24', pageIndex: String(page), sort: JSON.stringify({ createdDate: false }), conditions: JSON.stringify(conditions) })}`,
+      { signal },
     );
   },
   createDirectory: (name: string, directory: string | null) =>

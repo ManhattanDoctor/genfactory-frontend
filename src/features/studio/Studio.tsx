@@ -1,3 +1,4 @@
+import { scheduleRefresh } from '../realtime/queryRefresh';
 import '../../lib/transport-polyfills';
 import { ObjectUtil } from '@ts-core/common';
 import type { ReactElement } from 'react';
@@ -22,7 +23,6 @@ import { UploadSurface } from '../../components/UploadSurface';
 import { ReferenceList } from '../../components/ReferenceList';
 import { ModelBrowser } from '../catalog/ModelBrowser';
 import { favoritesFirst } from '../catalog/presentation';
-import { useConversationError } from './useConversationError';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation, useIsMutating } from '@tanstack/react-query';
@@ -92,10 +92,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const directTask = useDirectMediaTask(auth.user?.id, kind);
   const client = useQueryClient();
   const idParam = search.get('conversation');
-  const conversationId =
+  const previewConversationId =
     idParam && /^[1-9]\d*$/.test(idParam) && Number.isSafeInteger(Number(idParam))
       ? Number(idParam)
       : undefined;
+  const conversationId = legacy ? previewConversationId : undefined;
   const scope = `${auth.user?.id}:${location.pathname}:${location.search}`;
   const sourceScope = `${auth.user?.id}:${kind}:${conversationId || 'new'}`;
   const scopeRef = useRef(scope);
@@ -111,13 +112,13 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const [creating, setCreating] = useState(false);
   const [agentKey, setAgentKey] = useState('');
   const conversationQuery = useQuery({
-    queryKey: ['conversation', auth.user?.id, conversationId],
-    enabled: !!auth.user && !!conversationId,
-    queryFn: ({ signal }) => api.conversation(conversationId!, signal),
+    queryKey: ['conversation', auth.user?.id, previewConversationId],
+    enabled: !!auth.user && !!previewConversationId,
+    queryFn: ({ signal }) => api.conversation(previewConversationId!, signal),
     retry: false,
   });
-  const conversation = conversationQuery.data;
-  const conversationError = useConversationError(conversation);
+  const previewConversation = conversationQuery.data;
+  const conversation = legacy ? previewConversation : undefined;
   const fileOutput = useFileOutputSettings(
     `${auth.user?.id}:${location.pathname}:${location.search}`,
     conversation,
@@ -143,11 +144,14 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     }) => api.sendMessage(id, body, sid),
     retry: false,
     onSettled: (_data, _error, variables) => {
-      void client.invalidateQueries({ queryKey: ['conversation', auth.user?.id, variables.id] });
-      void client.invalidateQueries({ queryKey: ['messages', auth.user?.id, variables.id] });
-      void client.invalidateQueries({ queryKey: ['conversations', auth.user?.id] });
-      void client.invalidateQueries({ queryKey: ['files', auth.user?.id] });
-      window.dispatchEvent(new Event('genfactory:generation-finished'));
+      if (!auth.user) return;
+      scheduleRefresh(
+        client,
+        auth.user.id,
+        variables.sid,
+        ['conversation', 'messages', 'conversations', 'files', 'account', 'active-jobs', 'active-tasks'],
+        variables.id,
+      );
     },
   });
   const pendingSends = useIsMutating({
@@ -191,7 +195,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const uploadScope = useRef('');
   const uploadEpoch = useRef(0);
   const repeatRequest = useRef<ITaskRequest | null>(null);
-  const busy = creating || pendingSends > 0 || conversation?.status === 'LOADING';
+  const busy = creating || (legacy && (pendingSends > 0 || conversation?.status === 'LOADING'));
   useEffect(() => {
     if (!focusPrompt || busy) return;
     const frame = requestAnimationFrame(() => {
@@ -211,7 +215,6 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       );
     },
     staleTime: 5 * 60_000,
-    retry: 1,
   });
   const models = (catalog.data || [])
     .filter((m) =>
@@ -562,7 +565,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     busy,
     uploading,
   ]);
-  const upload = async (files: FileList | File[] | null) => {
+  const upload = async (files: FileList | File[] | null): Promise<void> => {
     if (!auth.user) {
       void auth.signIn();
       return;
@@ -607,7 +610,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     'Недостаточно средств на балансе. Пополните баланс перед новым запуском. Задание сохранено.';
   const failedConversationMessage =
     'Беседа завершилась с ошибкой и пока не принимает новые сообщения. Задание сохранено.';
-  const imageSendError = (value: unknown) => {
+  const imageSendError = (value: unknown): string => {
     const message = value instanceof Error ? value.message : 'Ответ не получен.';
     if (message.includes('ConversationForbiddenError') && conversation?.status === 'ERROR')
       return failedConversationMessage;
@@ -617,7 +620,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     !legacy && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
       ? insufficientFundsMessage
       : '';
-  const submit = async () => {
+  const submit = async (onStarted?: () => void): Promise<void> => {
     if (!auth.user || !auth.session) {
       void auth.signIn();
       return;
@@ -631,11 +634,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       setError(imageBlockedReason);
       return;
     }
-    if (idParam && !conversation) {
+    if (legacy && idParam && !conversation) {
       setError('Дождитесь загрузки беседы или откройте новую работу.');
       return;
     }
-    if (conversation && !connection(conversation, kind)) {
+    if (legacy && conversation && !connection(conversation, kind)) {
       setError('В этой беседе не подключён нужный инструмент. Создайте новую работу.');
       return;
     }
@@ -740,6 +743,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           imageTemplateId: '',
           imageTemplateText: '',
         });
+        onStarted?.();
         const pending = directTask.mutateAsync({
           userId,
           sid,
@@ -759,40 +763,26 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             },
           },
         });
-        if (kind === 'image') {
-          clearedSubmission.current = taskBody.task.session;
-          draft.clear();
-          setPrompt('');
-          setImageTemplateId('');
-          setImageTemplateText('');
-          setReferences([]);
-        }
-        void pending
-          .then(() => {
-            if (kind !== 'image' && current() && editorSnapshot.current === submittedEditor) {
-              draft.clear();
-              setPrompt('');
-              setImageTemplateId('');
-              setImageTemplateText('');
-              setReferences([]);
-            }
-          })
-          .catch((error) => {
-            if (!current()) return;
-            if (kind === 'image') {
-              if (
-                clearedSubmission.current !== taskBody.task.session ||
-                ![submittedEditor, clearedEditor].includes(editorSnapshot.current)
-              )
-                return;
-              setPrompt(prompt);
-              setImageTemplateId(imageTemplateId);
-              setImageTemplateText(imageTemplateText);
-              setReferences(references);
-              draft.changed();
-            } else if (editorSnapshot.current !== submittedEditor) return;
-            setError(imageSendError(error));
-          });
+        clearedSubmission.current = taskBody.task.session;
+        draft.clear();
+        setPrompt('');
+        setImageTemplateId('');
+        setImageTemplateText('');
+        setReferences([]);
+        void pending.catch((error) => {
+          if (
+            !current() ||
+            clearedSubmission.current !== taskBody.task.session ||
+            ![submittedEditor, clearedEditor].includes(editorSnapshot.current)
+          )
+            return;
+          setPrompt(prompt);
+          setImageTemplateId(imageTemplateId);
+          setImageTemplateText(imageTemplateText);
+          setReferences(references);
+          draft.changed();
+          setError(imageSendError(error));
+        });
       } catch (error) {
         if (current()) setError(imageSendError(error));
       } finally {
@@ -957,14 +947,13 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           setImageTemplateId(value);
         }}
         references={references}
-        conversation={conversation}
-        busy={busy || uploading}
-        unavailable={
-          !!auth.user &&
-          (!!imageBlockedReason ||
-            !model ||
-            (!!idParam && (!conversation || !connection(conversation, kind))))
+        conversation={previewConversation}
+        contextError={
+          (idParam && !previewConversationId ? 'Некорректный адрес беседы.' : '') ||
+          (conversationQuery.error instanceof Error ? conversationQuery.error.message : '')
         }
+        busy={busy || uploading}
+        unavailable={!!auth.user && (!!imageBlockedReason || !model)}
         retryCatalog={
           catalog.error || agents.error
             ? () => {
@@ -975,20 +964,10 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         }
         promptInput={promptInput}
         error={
-          (idParam && !conversationId ? 'Некорректный адрес беседы.' : '') ||
-          (conversation && !connection(conversation, kind)
-            ? `В этой беседе не подключён инструмент ${kind === 'video' ? 'видео' : 'изображений'}.`
-            : '') ||
           imageBlockedReason ||
           error ||
           (draft.status.startsWith('Не удалось') ? draft.status : '') ||
-          (send.error instanceof Error ? imageSendError(send.error) : '') ||
-          (conversation?.status === 'ERROR'
-            ? conversationError ||
-              'Предыдущий запрос завершился с ошибкой. Проверьте результаты перед новым запуском.'
-            : '') ||
-          (catalog.error instanceof Error ? catalog.error.message : '') ||
-          (conversationQuery.error instanceof Error ? conversationQuery.error.message : '')
+          (catalog.error instanceof Error ? catalog.error.message : '')
         }
         onPrompt={(value) => {
           draft.changed();
@@ -1004,7 +983,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         }}
         onReferences={(value) => {
           draft.changed();
-          setReferences(kind === 'video' ? value : value.slice(0, maxRefs));
+          setReferences(kind === 'video' || !model ? value : value.slice(0, maxRefs));
         }}
         onLibrary={() => {
           if (!auth.user) {
@@ -1022,7 +1001,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           setReplaceReference(false);
           setPicker(true);
         }}
-        onSubmit={() => void submit()}
+        onSubmit={(onStarted) => void submit(onStarted)}
         onRepeat={async (file, input) => {
           const generation = file.origin?.generation;
           if (!generation) {

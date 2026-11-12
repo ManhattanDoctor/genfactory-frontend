@@ -4,7 +4,6 @@ import { AppUpdateNotice } from '../components/AppUpdateNotice';
 import { ActiveJobs } from '../components/ActiveJobs';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Route, Routes, Link, useLocation } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { Menu } from 'lucide-react';
 import { AppNavigation } from './AppNavigation';
 import { Modal } from '../components/Modal';
@@ -38,7 +37,6 @@ const AuthCallback = lazy(() =>
 );
 export function App(): ReactElement {
   const auth = useAuth();
-  const client = useQueryClient();
   const [mobileNav, setMobileNav] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
@@ -46,15 +44,6 @@ export function App(): ReactElement {
     setMobileNav(false);
     window.scrollTo(0, 0);
   }, [location.pathname, location.search]);
-  useEffect(() => {
-    const finish = () => {
-      void client.invalidateQueries({ queryKey: ['account'] });
-      void client.invalidateQueries({ queryKey: ['files'] });
-      void client.invalidateQueries({ queryKey: ['artifacts'] });
-    };
-    window.addEventListener('genfactory:generation-finished', finish);
-    return () => window.removeEventListener('genfactory:generation-finished', finish);
-  }, [client]);
   return (
     <div translate="no" className={`app studio-shell ${collapsed ? 'nav-collapsed' : ''}`}>
       <a href="#main" className="skip-link">

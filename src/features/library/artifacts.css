@@ -14,22 +14,20 @@
 .artifacts-page .file-browser .library-card > div:last-child {
   display: flex;
   flex-direction: column;
-  height: 112px;
-  min-height: 112px;
+  height: 92px;
+  min-height: 92px;
   padding: 12px;
   overflow: hidden;
 }
 .artifacts-page .file-browser .library-card b,
 .artifacts-page .history-card h2 {
   flex-shrink: 0;
-  height: 40px;
+  height: 20px;
   line-height: 20px;
   font-size: 14px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: nowrap;
+  display: block;
+  text-overflow: ellipsis;
   overflow: hidden;
 }
 .artifacts-page .history-card h2 {

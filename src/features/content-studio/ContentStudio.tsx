@@ -129,7 +129,6 @@ export function ContentStudio(): ReactElement {
   const [frameSlot, setFrameSlot] = useState<'start' | 'end'>();
   const [frameMenu, setFrameMenu] = useState<'start' | 'end'>();
   const [library, setLibrary] = useState<{ scope: string; slot?: 'start' | 'end' }>();
-  const [templateNotice, setTemplateNotice] = useState('');
   const [appliedTemplate, setAppliedTemplate] = useState('');
   const [templateStartsFresh, setTemplateStartsFresh] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ITemplate>();
@@ -282,7 +281,6 @@ export function ContentStudio(): ReactElement {
       setRestoringReferences(undefined);
       setLibrary(undefined);
       setEditingTemplate(undefined);
-      setTemplateNotice('');
       setAppliedTemplate('');
       setTemplateStartsFresh(false);
       setRestoredGeneration(undefined);
@@ -754,7 +752,6 @@ export function ContentStudio(): ReactElement {
         ),
         clear: () => {
           setTemplateStartsFresh(false);
-          setTemplateNotice('');
           if (!work.id) studioDraft.clear();
           setDraft((value) => (value === draft ? '' : value));
           setRestoringReferences(undefined);
@@ -901,7 +898,6 @@ export function ContentStudio(): ReactElement {
                     onRemoveTemplate={(id) => {
                       if (attachmentBusy || submitting.current === work.scope) return;
                       setPicked((previous) => previous.filter((item) => item.id !== id));
-                      setTemplateNotice('');
                     }}
                     onRemoveAttachment={(file) => {
                       if (attachmentBusy || submitting.current === work.scope) return;
@@ -910,7 +906,6 @@ export function ContentStudio(): ReactElement {
                       );
                       if (attachments.length === 1) setRestoringReferences(undefined);
                       studioDraft.changed();
-                      setTemplateNotice('');
                     }}
                   />
                   <div className="cw-draft-row">
@@ -927,7 +922,6 @@ export function ContentStudio(): ReactElement {
                       placeholder="Опишите, что должно произойти в кадре"
                       onChange={(e) => {
                         setDraft(e.target.value);
-                        setTemplateNotice('');
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -1066,11 +1060,6 @@ export function ContentStudio(): ReactElement {
                     {busy ? <span className="spinner" aria-hidden="true" /> : <ArrowUp size={24} />}
                   </button>
                 </div>
-                {templateNotice && (
-                  <p className="content-feedback" role="status">
-                    {templateNotice}
-                  </p>
-                )}
                 {work.error && !(work.isExecutionError && work.conversation?.status === 'ERROR') && (
                   <p className="content-feedback error" role="alert">
                     {work.error}
@@ -1366,9 +1355,6 @@ export function ContentStudio(): ReactElement {
             setAppliedTemplate(editingTemplate.title);
             setTemplateStartsFresh(true);
             setDraft(prompt);
-            setTemplateNotice(
-              `Шаблон «${editingTemplate.title}» применён. Задание готово; проверьте настройки и нажмите отправку.`,
-            );
             setPicked([]);
             setWriter(false);
             setRestoredGeneration(undefined);
