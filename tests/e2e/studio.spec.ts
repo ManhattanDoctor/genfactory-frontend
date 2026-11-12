@@ -4905,7 +4905,7 @@ test(
     state.messages.set(101, [request]);
     await page.goto('/video?conversation=101');
     await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
-    await expect(page.getByRole('textbox', { name: 'Идея ролика', exact: true })).toBeDisabled();
+    await expect(page.getByRole('textbox', { name: 'Идея ролика', exact: true })).toBeEnabled();
     await page.reload();
     await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
     await expect.poll(() => !!state.socket).toBeTruthy();
