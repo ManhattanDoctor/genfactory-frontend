@@ -13,11 +13,7 @@ export function OpenConversation() {
     queryKey: ['conversation', user?.id, id],
     enabled: !!user && !!id,
     retry: false,
-    queryFn: async ({ signal }) => {
-      const conversation = await api.conversation(id!, signal);
-      if (conversation.userId !== user!.id) throw Error('Беседа недоступна.');
-      return conversation;
-    },
+    queryFn: ({ signal }) => api.conversation(id!, signal),
   });
   if (!id)
     return (
@@ -25,7 +21,7 @@ export function OpenConversation() {
         Некорректный адрес беседы.
       </p>
     );
-  if (user && result.data?.userId === user.id) return <Navigate to={conversationUrl(result.data)} replace />;
+  if (user && result.data) return <Navigate to={conversationUrl(result.data)} replace />;
   return (
     <div className="page-content">
       {loading || (user && result.isPending) ? (

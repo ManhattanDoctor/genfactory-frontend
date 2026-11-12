@@ -1,22 +1,8 @@
 import type { ReactElement } from 'react';
-import { conversationUrl } from '../../lib/conversationUrl';
-import {
-  Heart,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  LayoutGrid,
-  Pencil,
-  Archive,
-  ArchiveRestore,
-  Clock3,
-  CircleAlert,
-  MessageCircle,
-  AudioLines,
-  MoreHorizontal,
-} from 'lucide-react';
+import { Heart, ChevronLeft, ChevronRight, LayoutGrid, Archive, Clock3 } from 'lucide-react';
 import './history.css';
-import { ConversationCover } from './ConversationCover';
+import { ConversationActions } from './ConversationActions';
+import { ConversationCard } from './ConversationCard';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -29,21 +15,14 @@ import { connection } from './conversations';
 import { historyResult } from './historyResult';
 import { MediaPreview } from '../../components/MediaPreview';
 import type { IGnosisFile } from '../../lib/types';
-function historyDate(value: string | number | Date): string {
-  const date = new Date(value);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  if (date.toDateString() === today.toDateString()) return `Сегодня, ${time}`;
-  if (date.toDateString() === yesterday.toDateString()) return `Вчера, ${time}`;
-  return date.toLocaleString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    ...(date.getFullYear() !== today.getFullYear() ? { year: 'numeric' as const } : {}),
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function historyModelTitle(conversation: IConversation): string {
+  const image = connection(conversation, 'image')?.settings?.model;
+  const video = connection(conversation, 'video')?.settings?.model;
+  const models = [image?.model, video?.model].filter(Boolean);
+  return [
+    ...(models.length ? [`Модель генерации: ${models.join(', ')}`] : []),
+    `Ассистент: ${conversation.options.model}`,
+  ].join('\n');
 }
 
 function historyDay(value: string): string {
@@ -361,37 +340,13 @@ export function History(): ReactElement {
                     historyDay(visible[index - 1].lastMessageDate || visible[index - 1].createdDate)) && (
                   <h3 className="history-day">{historyDay(c.lastMessageDate || c.createdDate)}</h3>
                 )}
-                <article className="generation-card history-card">
-                  <button
-                    type="button"
-                    className="history-card-link"
-                    aria-label={`Открыть результат ${c.name}`}
-                    aria-busy={opening === c.id}
-                    onClick={() => void openResult(c)}
-                  />
-                  <header>
-                    <div className="history-visual">
-                      <ConversationCover conversation={c} isStatic />
-                      {c.status !== 'LOADED' && (
-                        <span className="history-status" data-status={c.status}>
-                          {c.status === 'LOADING' ? (
-                            <Clock3 size={14} aria-hidden="true" />
-                          ) : (
-                            <CircleAlert size={14} aria-hidden="true" />
-                          )}
-                          {c.status === 'LOADING' ? 'В работе' : 'Нужно проверить результат'}
-                        </span>
-                      )}
-                      {!!c.isFavorite && (
-                        <Heart
-                          className="history-favorite-mark"
-                          size={18}
-                          fill="currentColor"
-                          aria-label="В избранном"
-                        />
-                      )}
-                    </div>
-                    {editing === c.id ? (
+                <ConversationCard
+                  conversation={c}
+                  onOpen={() => void openResult(c)}
+                  title={historyModelTitle(c)}
+                  opening={opening === c.id}
+                  heading={
+                    editing === c.id ? (
                       <form
                         className="rename-form"
                         onSubmit={(e) => {
@@ -420,103 +375,21 @@ export function History(): ReactElement {
                       </form>
                     ) : (
                       <h2 title={c.name}>{c.name}</h2>
-                    )}
-                  </header>
-                  <div className="history-meta">
-                    <p className="small muted">
-                      <time
-                        dateTime={new Date(c.lastMessageDate || c.createdDate).toISOString()}
-                        title={new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU')}
-                      >
-                        {historyDate(c.lastMessageDate || c.createdDate)}
-                      </time>
-                    </p>
-                    <details
-                      className="history-actions"
-                      name="history-card-actions"
-                      onKeyDown={(event) => {
-                        if (event.key === 'Escape') {
-                          event.currentTarget.open = false;
-                          event.currentTarget.querySelector('summary')?.focus();
-                        }
-                      }}
-                    >
-                      <summary aria-label={`Действия работы ${c.name}`} title="Действия работы">
-                        <MoreHorizontal size={18} />
-                      </summary>
-                      <div
-                        className="history-menu"
-                        onClick={(event) => {
-                          if ((event.target as HTMLElement).closest('button, a'))
-                            event.currentTarget.closest('details')?.removeAttribute('open');
-                        }}
-                      >
-                        {c.options.tools?.some((t) =>
-                          ['TTS', 'STT'].includes(typeof t === 'string' ? t : t.uid),
-                        ) && (
-                          <Link
-                            className="button"
-                            aria-label="Аудиостудия"
-                            title="Продолжить работу с аудио"
-                            to={`/audio?mode=${c.tags?.includes('stt') ? 'stt' : 'tts'}&conversation=${c.id}`}
-                          >
-                            <AudioLines size={16} aria-hidden="true" />
-                            Аудиостудия
-                          </Link>
-                        )}
-                        {!connection(c, 'image') && !connection(c, 'video') && (
-                          <Link className="button" aria-label="Открыть беседу" to={conversationUrl(c)}>
-                            <MessageCircle size={16} aria-hidden="true" />
-                            Беседа
-                          </Link>
-                        )}
-                        {c.tags?.includes('content-studio') && (
-                          <Link
-                            className="button"
-                            aria-label="Обсудить работу"
-                            to={`/chat?conversation=${c.id}`}
-                          >
-                            <MessageCircle size={16} aria-hidden="true" />
-                            Беседа
-                          </Link>
-                        )}
-                        <button
-                          type="button"
-                          className="history-icon-button"
-                          disabled={opening === c.id}
-                          onClick={() => void openResult(c, true)}
-                        >
-                          <Download size={16} />
-                          Скачать
-                        </button>
-                        <button
-                          className="history-icon-button"
-                          aria-label="Переименовать"
-                          title="Переименовать"
-                          disabled={c.status === 'LOADING'}
-                          onClick={() => {
-                            setEditing(c.id);
-                            setName(c.name);
-                            setError('');
-                          }}
-                        >
-                          <Pencil size={16} />
-                          Переименовать
-                        </button>
-                        <button
-                          className="history-icon-button"
-                          aria-label={!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
-                          title={!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
-                          disabled={!!optimistic}
-                          onClick={() => void changeFlags(c, { isArchived: !c.isArchived })}
-                        >
-                          {!!c.isArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
-                          {!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
-                        </button>
-                      </div>
-                    </details>
-                  </div>
-                </article>
+                    )
+                  }
+                >
+                  <ConversationActions
+                    conversation={c}
+                    busy={opening === c.id || !!optimistic}
+                    onDownload={() => void openResult(c, true)}
+                    onArchive={() => void changeFlags(c, { isArchived: !c.isArchived })}
+                    onRename={() => {
+                      setEditing(c.id);
+                      setName(c.name);
+                      setError('');
+                    }}
+                  />
+                </ConversationCard>
               </Fragment>
             ))}
           </div>

@@ -1,0 +1,72 @@
+.artifacts-page .history-list > :is(.file-entry, .history-card) {
+  min-width: 0;
+}
+.artifacts-page .file-entry .library-card {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+.artifacts-page .file-browser .library-media,
+.artifacts-page .history-card .history-cover {
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+.artifacts-page .file-browser .library-card > div:last-child {
+  display: flex;
+  flex-direction: column;
+  height: 112px;
+  min-height: 112px;
+  padding: 12px;
+  overflow: hidden;
+}
+.artifacts-page .file-browser .library-card b,
+.artifacts-page .history-card h2 {
+  flex-shrink: 0;
+  height: 40px;
+  line-height: 20px;
+  font-size: 14px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.artifacts-page .history-card h2 {
+  margin: 12px 12px 0;
+}
+.artifacts-page .history-card .history-meta {
+  height: 60px;
+  box-sizing: border-box;
+  align-items: flex-end;
+  padding: 4px 12px 12px;
+}
+
+.artifacts-page .library-media {
+  position: relative;
+}
+.artifacts-page .history-source,
+.artifacts-page .file-browser .library-card .history-source {
+  color: rgba(255, 255, 255, 0.55);
+  background: #17181bb3;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0;
+  display: inline-flex;
+}
+.artifacts-page .file-source {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 62px);
+  pointer-events: none;
+}
+
+.artifacts-page .file-browser .library-card > div:last-child > b + span {
+  margin-top: auto;
+}
+.artifacts-page .file-browser .library-card > div:last-child > span {
+  flex-shrink: 0;
+}

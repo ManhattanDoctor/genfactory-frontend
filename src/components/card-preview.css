@@ -1,0 +1,14 @@
+.card-preview {
+  position: relative;
+}
+.history-cover > .card-preview {
+  height: 100%;
+}
+.card-preview-video {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  color: #fff;
+  filter: drop-shadow(0 1px 3px #000);
+  pointer-events: none;
+}

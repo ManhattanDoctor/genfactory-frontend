@@ -230,3 +230,47 @@ export interface IPaymentTransaction {
     };
   };
 }
+
+export interface IFileBatchRemoveResponse {
+  items: Array<{
+    id: number;
+    status: 'DELETED' | 'ERROR';
+    code?: 'NOT_FOUND' | 'FORBIDDEN' | 'DIRECTORY_NOT_SUPPORTED' | 'DELETE_FAILED';
+    message?: string;
+  }>;
+}
+
+export type ArtifactType = 'FILE' | 'CONVERSATION';
+export type ArtifactWorkspace = 'CONTENT_STUDIO' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'PROMPT' | 'SCRIPT' | 'CHAT';
+interface IArtifactBase {
+  id: number;
+  userId: number;
+  name: string;
+  description?: string;
+  createdDate: string;
+  activityDate: string;
+  preview?: IPreview;
+  workspace?: ArtifactWorkspace;
+}
+export interface IFileArtifact extends IArtifactBase {
+  type: 'FILE';
+  fileType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
+  mime: string;
+  size: number;
+  generation?: IFileGeneration;
+}
+export interface IConversationArtifact extends IArtifactBase {
+  messageCount: number;
+  type: 'CONVERSATION';
+  status: IConversation['status'];
+  isFavorite: boolean;
+  isArchived: boolean;
+}
+export type IArtifact = IFileArtifact | IConversationArtifact;
+export interface IArtifactListRequest {
+  pageIndex: number;
+  pageSize: number;
+  search?: string;
+  conditions?: { type?: ArtifactType };
+  sort?: { activityDate: boolean };
+}

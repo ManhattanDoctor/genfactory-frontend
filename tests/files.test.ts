@@ -11,7 +11,12 @@ describe('file aliases and directory paths', () => {
     vi.mocked(api.file).mockResolvedValue(original);
     expect(mediaType(alias)).toBe('IMAGE');
     expect(await resolveFile(alias)).toBe(original);
-    expect(api.file).toHaveBeenCalledWith(1);
+    expect(api.file).toHaveBeenCalledWith(1, undefined);
+  });
+  it('keeps the captured session while resolving a download alias', async () => {
+    vi.mocked(api.file).mockResolvedValue(original);
+    expect(await resolveFile(alias, 'download-session')).toBe(original);
+    expect(api.file).toHaveBeenCalledWith(1, 'download-session');
   });
   it('stops a cyclic link chain', async () => {
     vi.mocked(api.file).mockResolvedValue(alias);

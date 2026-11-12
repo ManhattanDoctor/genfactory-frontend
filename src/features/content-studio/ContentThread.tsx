@@ -26,6 +26,7 @@ export function ContentThread({
   onUseScript,
   onUseParameters,
   onAnswer,
+  onRequest,
   busy,
 }: {
   conversation: IConversation;
@@ -33,6 +34,7 @@ export function ContentThread({
   onRepeat: (text: string) => void;
   onUseScript: (text: string, messageId: number) => void;
   busy: boolean;
+  onRequest?: (message: IConversationMessage) => void;
   onAnswer: (question: StudioQuestion, messageId: number, answer: string) => Promise<boolean>;
   onUseParameters: (file: IGnosisFile) => void;
 }): ReactElement {
@@ -59,6 +61,10 @@ export function ContentThread({
       else turns.push({ reply: message });
     }
   }
+  const latestTurn = turns.at(-1);
+  useEffect(() => {
+    if (latestTurn?.ask) onRequest?.(latestTurn.ask);
+  }, [latestTurn?.ask, onRequest]);
   const scrollToEnd = () => {
     const thread = end.current?.closest('.cw-thread');
     if (thread) thread.scrollTop = thread.scrollHeight;

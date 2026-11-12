@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { StudioMenu } from './StudioMenu';
 import { Toggle } from './StudioToggle';
@@ -18,7 +19,7 @@ import { TemplateEditor } from './TemplateEditor';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api, getSession, type IUploadProgress } from '../../lib/api';
-import type { IGnosisFile, IFileGeneration } from '../../lib/types';
+import type { IGnosisFile, IFileGeneration, IConversationMessage, IPagination } from '../../lib/types';
 import { useContentConversation } from './useContentConversation';
 import { ContentThread } from './ContentThread';
 import { sizeRatio } from './controls';
@@ -38,16 +39,33 @@ import templates from './templates.json';
 import './prototype.css';
 import './content-studio.css';
 
+interface ISubmittedDraft {
+  conversationId?: number;
+  session: string;
+  text: string;
+  afterMessageId: number;
+  clear: () => void;
+}
+
 export function ContentStudio(): ReactElement {
   const { user, session, signIn } = useAuth();
   const work = useContentConversation();
+  const queryClient = useQueryClient();
+  const submittedDraft = useRef<ISubmittedDraft | undefined>(undefined);
+
   const [preparingFrame, setPreparingFrame] = useState(false);
   const frameEpoch = useRef(0);
   const [uploading, setUploading] = useState(false);
   const [restoringResult, setRestoringResult] = useState(false);
   const [restoredGeneration, setRestoredGeneration] = useState<IFileGeneration>();
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
-  const submitting = useRef(false);
+  const submitting = useRef<object | undefined>(undefined);
+  const activeSubmissionScope = useRef(work.scope);
+  activeSubmissionScope.current = work.scope;
+  useEffect(() => {
+    setUploading(false);
+    setUploadProgress(undefined);
+  }, [work.scope]);
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -228,6 +246,11 @@ export function ContentStudio(): ReactElement {
   const initialStudioValue = useRef({ ...studioValue, draft: '' });
   const studioDraft = useDraft(`content-studio.${work.id ?? 'new'}`, studioValue, true);
   const draftScope = `${user?.id ?? 'guest'}:${work.id ?? `new:${location.key}`}`;
+  useEffect(() => {
+    const pending = submittedDraft.current;
+    if (pending && (pending.session !== session || pending.conversationId !== work.id))
+      submittedDraft.current = undefined;
+  }, [work.id, session, location.key]);
   const imageSelectionScope = useRef<object>({});
   useEffect(() => {
     imageSelectionScope.current = {};
@@ -425,9 +448,16 @@ export function ContentStudio(): ReactElement {
       textarea.current?.focus();
     }
   }, [busy]);
-  function pickLibraryFile(file: IGnosisFile): void {
+  function pickLibraryFiles(files: Array<IGnosisFile>): void {
+    const file = files[0];
+    if (!file) return;
     if (!library || library.scope !== draftScope || busy || file.userId !== user?.id) return;
-    if (file.type !== 'IMAGE' || !/^image\/(jpeg|png|webp)$/.test(file.mime)) {
+    if (
+      files.some(
+        (item) =>
+          item.userId !== user?.id || item.type !== 'IMAGE' || !/^image\/(jpeg|png|webp)$/.test(item.mime),
+      )
+    ) {
       work.setError('Выберите изображение JPEG, PNG или WebP.');
       return;
     }
@@ -442,14 +472,22 @@ export function ContentStudio(): ReactElement {
       !writer &&
       mode !== 'presentation' &&
       model &&
-      (retained.length + 1 > referenceLimit(model) || (slot === 'end' && referenceLimit(model) < 2))
+      (retained.length + files.length > referenceLimit(model) ||
+        (slot === 'end' && referenceLimit(model) < 2))
     ) {
       work.setError('Модель не поддерживает выбранное количество референсов.');
       return;
     }
     setAttachments([
       ...retained,
-      { id: String(file.id), name: file.name, url: file.path, type: file.mime, saved: file, slot },
+      ...files.map((item) => ({
+        id: String(item.id),
+        name: item.name,
+        url: item.path,
+        type: item.mime,
+        saved: item,
+        slot,
+      })),
     ]);
     setFrameSlot(undefined);
     work.setError('');
@@ -609,12 +647,14 @@ export function ContentStudio(): ReactElement {
       work.setError('Модель отключена администратором. Выберите другую модель.');
       return;
     }
-    if (busy || submitting.current) return;
+    if (busy || submitting.current === work.scope) return;
     if (!draft.trim() && !picked.length && !attachments.length) return;
-    submitting.current = true;
+    const submissionScope = work.scope;
+    submitting.current = submissionScope;
     work.setError('');
     const sid = session;
-    const current = () => alive.current && getSession() === sid;
+    const current = () =>
+      alive.current && getSession() === sid && activeSubmissionScope.current === submissionScope;
     const sourceDraft = draft;
     const sourceAttachments = attachments;
     const preparingScript = SCRIPT_WRITER_ENABLED && writer;
@@ -694,6 +734,36 @@ export function ContentStudio(): ReactElement {
       });
       if (!request) return;
       const { body, tools } = request;
+      const cached = queryClient.getQueriesData<IPagination<IConversationMessage>>({
+        queryKey: ['messages', user.id, work.id],
+      });
+      const pending: ISubmittedDraft = {
+        conversationId: work.id,
+        session: sid,
+        text: body.text,
+        afterMessageId: Math.max(
+          0,
+          ...cached.flatMap(([, page]) => page?.items.map((message) => message.id) || []),
+        ),
+        clear: () => {
+          setTemplateStartsFresh(false);
+          setTemplateNotice('');
+          if (!work.id) studioDraft.clear();
+          setDraft((value) => (value === draft ? '' : value));
+          setRestoringReferences(undefined);
+          setAttachments((previous) =>
+            previous.filter(
+              (item) =>
+                !sourceAttachments.some((source) => source.id === item.id) &&
+                !savedFiles.some((file) => file.id === (item.saved?.id ?? item.restoreId)),
+            ),
+          );
+          setPicked((previous) => previous.filter((item) => !picked.some((source) => source.id === item.id)));
+          setAppliedTemplate('');
+          setRestoredGeneration(undefined);
+        },
+      };
+      submittedDraft.current = pending;
       const success = await work.submit(
         body,
         sourceDraft || picked[0]?.title || 'Студия контента',
@@ -701,24 +771,17 @@ export function ContentStudio(): ReactElement {
         mode === 'presentation' ? model : agent,
         (id) => {
           createdConversation.current = id;
+          pending.conversationId = id;
         },
       );
-      if (success && current()) {
-        setTemplateStartsFresh(false);
-        setTemplateNotice('');
-        if (!work.id) studioDraft.clear();
-        setDraft((value) => (value === draft ? '' : value));
-        setAttachments((previous) =>
-          previous.filter((item) => !sourceAttachments.some((source) => source.id === item.id)),
-        );
-        setPicked((previous) => previous.filter((item) => !picked.some((source) => source.id === item.id)));
-        setAppliedTemplate('');
-        setRestoredGeneration(undefined);
+      if (success && current() && submittedDraft.current === pending) {
+        submittedDraft.current = undefined;
+        pending.clear();
       }
     } catch (e) {
       if (current()) work.setError(e instanceof Error ? e.message : 'Не удалось отправить задачу.');
     } finally {
-      submitting.current = false;
+      if (submitting.current === submissionScope) submitting.current = undefined;
       if (current()) {
         setUploading(false);
         setUploadProgress(undefined);
@@ -741,6 +804,19 @@ export function ContentStudio(): ReactElement {
                     conversation={work.conversation}
                     busy={busy}
                     onAnswer={answerQuestion}
+                    onRequest={(ask) => {
+                      const pending = submittedDraft.current;
+                      if (
+                        !pending ||
+                        pending.session !== session ||
+                        pending.conversationId !== work.id ||
+                        ask.id <= pending.afterMessageId ||
+                        ask.text !== pending.text
+                      )
+                        return;
+                      submittedDraft.current = undefined;
+                      pending.clear();
+                    }}
                     onUseParameters={(file) => void restoreResult(file)}
                     onUseScript={(text, id) => void applyScript(text, id)}
                     onRepeat={(text) => {
@@ -816,12 +892,12 @@ export function ContentStudio(): ReactElement {
                     attachments={attachments}
                     attachmentBusy={attachmentBusy}
                     onRemoveTemplate={(id) => {
-                      if (attachmentBusy || submitting.current) return;
+                      if (attachmentBusy || submitting.current === work.scope) return;
                       setPicked((previous) => previous.filter((item) => item.id !== id));
                       setTemplateNotice('');
                     }}
                     onRemoveAttachment={(file) => {
-                      if (attachmentBusy || submitting.current) return;
+                      if (attachmentBusy || submitting.current === work.scope) return;
                       setAttachments((previous) =>
                         previous.filter((item) => item.id !== file.id || item.slot !== file.slot),
                       );
@@ -1222,7 +1298,15 @@ export function ContentStudio(): ReactElement {
       {library && library.scope === draftScope && !busy && (
         <LibraryPicker
           selected={library.slot ? [] : attachments.flatMap((file) => (file.saved ? [file.saved.id] : []))}
-          onPick={pickLibraryFile}
+          multiple={!library.slot}
+          maxFiles={model ? Math.max(0, referenceLimit(model) - attachments.length) : 4 - attachments.length}
+          validateFile={(file) =>
+            !/^image\/(jpeg|png|webp)$/.test(file.mime)
+              ? 'Выберите изображение JPEG, PNG или WebP.'
+              : undefined
+          }
+          onPick={(file) => pickLibraryFiles([file])}
+          onPickMany={pickLibraryFiles}
           onClose={() => setLibrary(undefined)}
         />
       )}

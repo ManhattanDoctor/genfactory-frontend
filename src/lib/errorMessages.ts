@@ -20,6 +20,12 @@ export function apiErrorMessage(data: unknown, status: number): string {
     )
   )
     return videoModerationError;
+  if (value.code === 'AI_VENDOR_ERROR' && typeof value.details === 'string') {
+    if (/^Unsupported image settings for [a-z0-9._/-]+:/i.test(value.details))
+      return 'Выбранное сочетание настроек недоступно для этой модели. Проверьте размер, формат кадра и референсы.';
+    if (/^(the response has no image|Image stream ended without a completed image)$/.test(value.details))
+      return 'Модель завершила запрос без изображения. Попробуйте изменить описание или выбрать другую модель.';
+  }
   const message = typeof value.message === 'string' ? value.message : '';
   if (
     value.code === 'AI_VENDOR_ERROR' ||

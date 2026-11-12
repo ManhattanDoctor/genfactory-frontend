@@ -14,8 +14,13 @@ const legacyReferencePolicy =
   'Если референсы не указаны, создавай с нуля: IMAGE isDrawNew=true, VIDEO fileIds=[]. ';
 
 export const toolFor = (kind: MediaKind) => (kind === 'image' ? 'IMAGE' : 'VIDEO');
-export function connection(conversation: IConversation, kind: MediaKind): IToolConnection | undefined {
-  const item = conversation.options.tools?.find((t) => (typeof t === 'string' ? t : t.uid) === toolFor(kind));
+export function connection(
+  conversation: { options?: IConversation['options'] },
+  kind: MediaKind,
+): IToolConnection | undefined {
+  const item = conversation.options?.tools?.find(
+    (t) => (typeof t === 'string' ? t : t.uid) === toolFor(kind),
+  );
   return typeof item === 'string' ? { uid: item } : item;
 }
 export function toolSettings(

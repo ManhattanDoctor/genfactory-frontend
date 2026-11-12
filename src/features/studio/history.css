@@ -145,8 +145,8 @@
 }
 .work-history .history-favorite-mark {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  bottom: 12px;
+  left: 12px;
   color: #ff5a7a;
   filter: drop-shadow(0 1px 3px #000);
   pointer-events: none;
@@ -193,7 +193,7 @@
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  width: 240px;
+  width: 220px;
   max-width: calc(100vw - 48px);
   z-index: 30;
   padding: 6px;
@@ -321,8 +321,68 @@
   z-index: 1;
   border-radius: inherit;
 }
-.work-history .history-actions,
 .work-history .rename-form {
   position: relative;
   z-index: 2;
+}
+
+.work-history .history-badges {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 62px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+}
+.work-history .history-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: #17181be6;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.work-history .history-source-icon {
+  flex: none;
+  color: #aaaab0;
+  opacity: 0.7;
+}
+.work-history .history-badges .history-status {
+  position: static;
+  max-width: 100%;
+}
+
+.work-history .history-card:has(.history-favorite-mark) .history-badges {
+  max-width: calc(100% - 52px);
+}
+
+.work-history .history-card > .history-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+}
+.work-history .history-card > .history-actions[open] {
+  z-index: 40;
+}
+
+.work-history .history-meta > p {
+  min-width: 0;
+}
+.work-history .history-message-count,
+.work-history .history-meta time {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

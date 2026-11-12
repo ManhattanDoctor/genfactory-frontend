@@ -29,6 +29,7 @@ const Templates = lazy(() =>
 );
 const Brand = lazy(() => import('../features/workspace/Brand').then((m) => ({ default: m.Brand })));
 const Library = lazy(() => import('../features/library/Library').then((m) => ({ default: m.Library })));
+const Artifacts = lazy(() => import('../features/library/Artifacts').then((m) => ({ default: m.Artifacts })));
 const HistoryPage = lazy(() => import('../features/studio/History').then((m) => ({ default: m.History })));
 const Account = lazy(() => import('../features/account/Account').then((m) => ({ default: m.Account })));
 import { useAuth } from '../features/auth/AuthProvider';
@@ -49,6 +50,7 @@ export function App(): ReactElement {
     const finish = () => {
       void client.invalidateQueries({ queryKey: ['account'] });
       void client.invalidateQueries({ queryKey: ['files'] });
+      void client.invalidateQueries({ queryKey: ['artifacts'] });
     };
     window.addEventListener('genfactory:generation-finished', finish);
     return () => window.removeEventListener('genfactory:generation-finished', finish);
@@ -171,6 +173,7 @@ export function App(): ReactElement {
               <Route path="/image" element={<Studio kind="image" />} />
               <Route path="/video" element={<Studio kind="video" />} />
               <Route path="/audio" element={<AudioStudio />} />
+              <Route path="/artifacts" element={<Artifacts />} />
               <Route path="/library" element={<Library />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/open" element={<OpenConversation />} />

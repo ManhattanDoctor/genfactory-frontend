@@ -1,31 +1,14 @@
 .modal.library-picker {
   width: min(1100px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
   height: min(780px, calc(100dvh - 48px));
   max-height: calc(100dvh - 48px);
-  padding: 24px;
+  padding: 16px;
   border: 1px solid #2c2c31;
-  border-radius: 20px;
+  border-radius: 16px;
   background: #17181b;
   overflow-y: auto;
   scrollbar-gutter: stable;
-}
-.library-picker .modal-head {
-  align-items: center;
-  margin-bottom: 20px;
-}
-.library-picker .modal-head h2 {
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: -0.3px;
-}
-@media (max-width: 600px) {
-  .modal.library-picker {
-    width: calc(100vw - 16px);
-    height: calc(100dvh - 24px);
-    max-height: calc(100dvh - 24px);
-    padding: 16px;
-    border-radius: 16px;
-  }
 }
 .library-picker.modal-title-hidden > .modal-head {
   position: absolute;
@@ -34,14 +17,140 @@
   margin: 0;
 }
 .library-picker .file-breadcrumbs {
-  min-height: 32px;
-  padding-right: 44px;
+  min-height: 28px;
+  padding-right: 40px;
+  margin-bottom: 6px;
 }
-.modal.library-picker {
-  max-width: calc(100vw - 32px);
+.library-picker .file-breadcrumbs:empty {
+  display: none;
+}
+.library-picker .file-toolbar {
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding-right: 40px;
+}
+.library-picker .file-toolbar > input:not([hidden]) {
+  flex: 1 1 0;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 9px;
+}
+.library-picker .file-toolbar .button {
+  flex: 0 0 auto;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  flex-basis: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 9px;
+}
+.library-picker .file-toolbar .file-action-label {
+  display: none;
+}
+.library-picker .file-toolbar .button[aria-busy='true'] {
+  width: auto;
+  padding: 0 8px;
+}
+.library-picker .file-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin: 8px 0 12px;
+}
+.library-picker .file-filters > .chips {
+  margin: 0;
+  gap: 4px;
+}
+.modal.library-picker .file-browser .chips[aria-label='Тип файлов'] .chip {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+.library-picker .file-tag-filter {
+  margin: 0;
+  gap: 6px;
+}
+.library-picker .file-tag-filter .workspace-details {
+  margin: 0;
+}
+.library-picker .file-tag-filter summary {
+  padding: 6px 0;
+  font-size: 12px;
+}
+.library-picker .file-tag-filter:has(details[open]),
+.library-picker .file-tag-filter:has([aria-label='Выбранные теги']) {
+  flex-basis: 100%;
+}
+.library-picker .library-grid {
+  gap: 10px;
+}
+.library-selection-bar {
+  position: sticky;
+  bottom: -16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  background: #17181b;
+  border-top: 1px solid #2c2c31;
+  z-index: 8;
+}
+.library-selection-bar span {
+  font-size: 12px;
+}
+.library-selection-bar .button {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
 }
 @media (max-width: 600px) {
   .modal.library-picker {
+    width: calc(100vw - 16px);
     max-width: calc(100vw - 16px);
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 12px;
+    border-radius: 14px;
+  }
+  .library-picker.modal-title-hidden > .modal-head {
+    top: 12px;
+    right: 12px;
+  }
+  .library-picker .file-filters {
+    gap: 6px;
+  }
+  .library-selection-bar {
+    bottom: -12px;
+  }
+}
+
+@media (min-width: 800px) {
+  .library-picker .file-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding-right: 40px;
+    margin-bottom: 12px;
+  }
+  .library-picker .file-controls .file-toolbar {
+    padding-right: 0;
+    min-width: 0;
+  }
+  .library-picker .file-controls .file-filters {
+    margin: 0;
+    order: -1;
+  }
+}
+
+@media (max-width: 799px) {
+  .library-picker .file-filters {
+    justify-content: center;
   }
 }

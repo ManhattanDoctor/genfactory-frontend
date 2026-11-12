@@ -734,32 +734,6 @@
 .studio-shell .modal-head-actions > .icon-button svg {
   display: block;
 }
-.studio-shell .template-text-dialog {
-  width: min(620px, calc(100vw - 32px));
-}
-.template-text-field {
-  display: grid;
-  gap: 10px;
-  padding: 20px 24px;
-  font-size: 13px;
-}
-.template-text-field textarea {
-  width: 100%;
-  min-height: 220px;
-  max-height: 48dvh;
-  resize: vertical;
-  padding: 12px;
-  border: 1px solid #393e42;
-  border-radius: 12px;
-  background: #16191b;
-  color: #f4f4f5;
-  font: inherit;
-  line-height: 1.6;
-  box-sizing: border-box;
-}
-.template-text-dialog .modal-actions {
-  padding: 0 24px 20px;
-}
 .studio-shell .template-dialog .template-footer {
   border-top: 0;
 }
@@ -815,12 +789,6 @@
     top: 76px;
     right: 16px;
     max-width: calc(100vw - 32px);
-  }
-  .template-text-field {
-    padding: 16px;
-  }
-  .template-text-dialog .modal-actions {
-    padding: 0 16px 16px;
   }
 }
 

@@ -9,6 +9,9 @@ import { apiErrorMessage } from './errorMessages';
 import { isHeicUpload, prepareImageUpload } from './image-upload';
 import type {
   IGnosisFile,
+  IArtifact,
+  IArtifactListRequest,
+  IFileBatchRemoveResponse,
   IFileOutputSettings,
   IPreview,
   IPaymentTransaction,
@@ -165,6 +168,17 @@ async function uploadFile(
   }
 }
 export const api = {
+  artifacts: (params: IArtifactListRequest, signal?: AbortSignal): Promise<IPagination<IArtifact>> => {
+    const query = new URLSearchParams({
+      pageIndex: String(params.pageIndex),
+      pageSize: String(params.pageSize),
+      sort: JSON.stringify(params.sort || { activityDate: false }),
+    });
+    if (params.search) query.set('search', params.search);
+    if (params.conditions) query.set('conditions', JSON.stringify(params.conditions));
+    return request<IPagination<IArtifact>>(`/artifact?${query}`, { signal });
+  },
+
   tasks: (signal?: AbortSignal, sid?: string) =>
     request<ITaskExecution[]>('/task', { signal }, sid).then((items) => {
       if (!Array.isArray(items)) throw new Error('Не удалось прочитать список задач.');
@@ -227,7 +241,10 @@ export const api = {
     ),
   logout: (sid: string | null) =>
     request<void>('/logout', { method: 'POST', signal: AbortSignal.timeout(10_000) }, sid),
-  downloadFile: (id: number) => request<Blob>(`/file/${id}/content`, {}, getSession(), 'blob'),
+  fileDownload: (id: number, sid = getSession()): Promise<{ url?: string }> =>
+    request<{ url?: string }>(`/file/${id}/download`, {}, sid),
+  downloadFile: (id: number, sid = getSession()): Promise<Blob> =>
+    request<Blob>(`/file/${id}/content`, {}, sid, 'blob'),
   fileText: (id: number, signal?: AbortSignal) => request<{ text: string }>(`/file/${id}/text`, { signal }),
   catalog: async (provider: string, signal?: AbortSignal, sid?: string) => {
     if (!isAllowedProvider(provider)) return [];
@@ -449,9 +466,20 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ to, ...(directory ? { directory } : {}) }),
     }),
-  editFile: (id: number, changes: { name?: string; tags?: string[]; directory?: string | null }) =>
-    request<IGnosisFile>(`/file/${id}`, { method: 'PUT', body: JSON.stringify(changes) }),
-  removeFile: (id: number) => request<void>(`/file/${id}`, { method: 'DELETE' }),
+  editFile: (
+    id: number,
+    changes: { name?: string; tags?: string[]; directory?: string | null },
+    sid = getSession(),
+  ): Promise<IGnosisFile> =>
+    request<IGnosisFile>(`/file/${id}`, { method: 'PUT', body: JSON.stringify(changes) }, sid),
+  removeFiles: (ids: Array<number>, sid: string): Promise<IFileBatchRemoveResponse> =>
+    request<IFileBatchRemoveResponse>(
+      '/file/batch-delete',
+      { method: 'POST', body: JSON.stringify({ ids }) },
+      sid,
+    ),
+  removeFile: (id: number, sid = getSession()): Promise<void> =>
+    request<void>(`/file/${id}`, { method: 'DELETE' }, sid),
   file: (id: number, sid?: string) => request<IGnosisFile>(`/file/${id}`, {}, sid),
   createPreview: (id: number) => request<IPreview>(`/file/${id}/preview`, { method: 'POST' }),
   upload: uploadFile,

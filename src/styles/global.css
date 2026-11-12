@@ -3255,13 +3255,7 @@ a svg,
   color: var(--muted);
   font-size: 11px;
 }
-.history-cover-play {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  color: #fff;
-  filter: drop-shadow(0 1px 3px #000);
-}
+
 @media (max-width: 600px) {
   .history-cover {
     width: 100%;
@@ -3706,21 +3700,25 @@ button[aria-busy='true'] {
   cursor: progress;
 }
 
-.history-cover .file-placeholder {
+.history-cover .file-placeholder,
+.artifacts-page .library-card .file-placeholder {
   min-height: 0;
   padding: 12px;
   gap: 8px;
 }
-.history-cover .file-placeholder-icon {
+.history-cover .file-placeholder-icon,
+.artifacts-page .library-card .file-placeholder-icon {
   width: 40px;
   height: 40px;
   border-radius: 12px;
 }
-.history-cover .file-placeholder-icon svg {
+.history-cover .file-placeholder-icon svg,
+.artifacts-page .library-card .file-placeholder-icon svg {
   width: 24px;
   height: 24px;
 }
-.history-cover .file-placeholder-format {
+.history-cover .file-placeholder-format,
+.artifacts-page .library-card .file-placeholder-format {
   display: none;
 }
 .history-cover-status {

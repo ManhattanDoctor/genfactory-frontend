@@ -1,3 +1,5 @@
+import { downloadFile } from '../../lib/files';
+import '../content-studio/template-editor.css';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
 import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
@@ -296,19 +298,13 @@ export function MediaWorkspace({
     }
     onSubmit();
   };
-  const download = async (file: IGnosisFile) => {
+  const download = async (file: IGnosisFile): Promise<void> => {
     if (downloading.current.has(file.id)) return;
     downloading.current.add(file.id);
     setDownloadIds([...downloading.current]);
     setNotice('');
     try {
-      const blob = await api.downloadFile(file.id),
-        url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await downloadFile(file);
     } catch {
       setNotice('Не удалось скачать файл. Попробуйте ещё раз.');
     } finally {
@@ -515,20 +511,21 @@ export function MediaWorkspace({
       {editing && (
         <Modal
           title="Редактировать текст шаблона"
-          className="template-text-dialog"
+          className="template-dialog template-text-dialog"
           onClose={() => setEditing(false)}
         >
-          <label className="template-text-field">
-            Текст шаблона
-            <textarea
-              ref={templateInput}
-              aria-label="Текст шаблона"
-              value={templateDraft}
-              disabled={busy}
-              onChange={(event) => setTemplateDraft(event.target.value)}
-            />
-          </label>
-          <div className="modal-actions">
+          <div className="template-editor template-text-editor">
+            <label>
+              <textarea
+                ref={templateInput}
+                aria-label="Текст шаблона"
+                value={templateDraft}
+                disabled={busy}
+                onChange={(event) => setTemplateDraft(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="template-footer template-text-footer">
             <button type="button" className="button" onClick={() => setEditing(false)}>
               Отмена
             </button>

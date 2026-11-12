@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
-import { FilePlaceholder } from '../../components/FilePlaceholder';
-import { Play } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { safeMediaUrl } from '../../lib/api';
-import type { IConversation } from '../../lib/types';
+import type { IConversationCardData } from './ConversationCard';
+import { CardPreview } from '../../components/CardPreview';
 import { connection } from './conversations';
 
 export function ConversationCover({
@@ -12,7 +12,7 @@ export function ConversationCover({
   onOpen,
   isStatic = false,
 }: {
-  conversation: IConversation;
+  conversation: IConversationCardData;
   onOpen?: () => void;
   isStatic?: boolean;
 }): ReactElement {
@@ -20,28 +20,27 @@ export function ConversationCover({
   const image = conversation.preview?.image;
   const src = image?.status === 'READY' ? safeMediaUrl(image.url) : undefined;
   const pending = image?.status === 'PENDING' || image?.status === 'PROCESSING';
-  const video = !!conversation.preview?.video;
-  const kind = video ? 'video' : connection(conversation, 'image') ? 'image' : 'chat';
+  const video =
+    !!conversation.preview?.video ||
+    conversation.tags?.includes('video') ||
+    !!connection(conversation, 'video');
+  const kind = video ? 'video' : conversation.options && connection(conversation, 'image') ? 'image' : 'chat';
   const content = (
-    <>
+    <CardPreview className={isStatic ? 'history-cover' : undefined} isVideo={!!video}>
       {src && failed !== src ? (
         <img src={src} alt={`Превью: ${conversation.name}`} loading="lazy" onError={() => setFailed(src)} />
       ) : (
         <>
-          <FilePlaceholder
-            file={{
-              name: conversation.name,
-              mime: '',
-              type:
-                kind === 'video'
-                  ? 'VIDEO'
-                  : kind === 'image'
-                    ? 'IMAGE'
-                    : conversation.tags?.includes('audio')
-                      ? 'AUDIO'
-                      : 'DOCUMENT',
-            }}
-          />
+          <div
+            className="file-placeholder file-placeholder-document"
+            role="img"
+            aria-label={`Беседа: ${conversation.name}`}
+          >
+            <div className="file-placeholder-icon">
+              <MessageCircle aria-hidden="true" strokeWidth={1.35} />
+            </div>
+            <span className="file-placeholder-label">Беседа</span>
+          </div>
           {pending && (
             <span className="history-cover-status" role="status">
               Создаётся…
@@ -49,10 +48,9 @@ export function ConversationCover({
           )}
         </>
       )}
-      {video && src && failed !== src && <Play className="history-cover-play" size={20} aria-hidden="true" />}
-    </>
+    </CardPreview>
   );
-  if (isStatic) return <div className="history-cover">{content}</div>;
+  if (isStatic) return content;
   return onOpen ? (
     <button
       type="button"

@@ -8,7 +8,8 @@ import { api, safeMediaUrl } from '../lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
-export type MediaFile = Pick<IGnosisFile, 'name' | 'path' | 'type' | 'mime' | 'preview'>;
+export type MediaFile = Pick<IGnosisFile, 'name' | 'type' | 'mime' | 'preview'> &
+  Partial<Pick<IGnosisFile, 'path'>>;
 export type PreviewFile = MediaFile & Partial<IGnosisFile>;
 export function Media({
   file,

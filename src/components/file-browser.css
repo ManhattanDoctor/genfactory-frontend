@@ -225,3 +225,88 @@
 .file-browser .file-folder-list .library-card > div:last-child {
   min-height: 0;
 }
+
+.file-browser .library-media {
+  position: relative;
+}
+.file-select-mark {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #aaa;
+  border-radius: 6px;
+  background: #17181bcc;
+}
+.file-select-mark.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #171b06;
+}
+.file-browser .library-card.is-selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.file-batch-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #2c2c31;
+  border-radius: 12px;
+  background: #17181b;
+  z-index: 8;
+  font-size: 13px;
+}
+
+.file-controls {
+  display: contents;
+}
+
+@media (min-width: 1000px) {
+  .library-page .file-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+  }
+  .library-page .file-controls .file-toolbar {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .library-page .file-toolbar > input:not([hidden]) {
+    flex: 1 1 0;
+  }
+  .library-page .file-toolbar .button {
+    flex-shrink: 0;
+  }
+  .library-page .file-toolbar .button[title] {
+    width: 40px;
+    padding: 0;
+  }
+  .library-page .file-toolbar .file-action-label {
+    display: none;
+  }
+  .library-page .file-controls .file-filters > .chips {
+    margin: 0;
+    flex-wrap: nowrap;
+  }
+}
+
+.library-page .file-filters {
+  display: flex;
+  justify-content: center;
+}
+@media (min-width: 1000px) {
+  .library-page .file-controls .file-filters {
+    order: -1;
+  }
+}

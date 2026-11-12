@@ -1,3 +1,5 @@
+import '../../lib/transport-polyfills';
+import { ObjectUtil } from '@ts-core/common';
 import type { ReactElement } from 'react';
 import { videoInputOptions, videoReferenceMode } from '../catalog/videoInputs';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
@@ -111,11 +113,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const conversationQuery = useQuery({
     queryKey: ['conversation', auth.user?.id, conversationId],
     enabled: !!auth.user && !!conversationId,
-    queryFn: async ({ signal }) => {
-      const result = await api.conversation(conversationId!, signal);
-      if (result.userId !== auth.user!.id) throw new Error('Эта беседа принадлежит другому аккаунту.');
-      return result;
-    },
+    queryFn: ({ signal }) => api.conversation(conversationId!, signal),
     retry: false,
   });
   const conversation = conversationQuery.data;
@@ -206,10 +204,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     queryKey: ['models', auth.user?.id, kind],
     enabled: !!auth.user,
     queryFn: async ({ signal }) => {
-      const results = await Promise.allSettled(providers[kind].map((p) => api.catalog(p, signal)));
-      const models = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
-      if (!models.length && results.some((r) => r.status === 'rejected'))
-        throw new Error('Не удалось загрузить каталог моделей.');
+      const results = await Promise.all(providers[kind].map((p) => api.catalog(p, signal)));
+      const models = results.flat();
       return models.filter((m) =>
         m.capabilities?.includes(kind === 'image' ? 'IMAGE_OUTPUT' : 'VIDEO_OUTPUT'),
       );
@@ -498,7 +494,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     setAgentKey(pending.value.agentKey || '');
     draft.changed();
   }, [currentKey, notice]);
-  const restoreDraft = async (value: NonNullable<typeof draft.available>['value']) => {
+  const restoreDraft = async (value: NonNullable<typeof draft.available>['value']): Promise<void> => {
     if (!auth.user || !auth.session || busy || uploading) return;
     if (
       typeof value.prompt !== 'string' ||
@@ -511,9 +507,18 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       setError('Черновик повреждён.');
       return;
     }
+    if (catalog.isFetching || !catalog.isSuccess) {
+      setError('Каталог моделей не загружен. Повторите загрузку и восстановите черновик.');
+      return;
+    }
     const chosen = models.find((m) => modelKey(m) === value.selected);
     if (!chosen) {
-      setError('Модель черновика сейчас недоступна. Выберите другой черновик или модель.');
+      const known = catalog.data?.some((m) => modelKey(m) === value.selected);
+      setError(
+        known
+          ? 'Модель черновика не входит в выбранный раздел. Откройте общий раздел или выберите другой черновик.'
+          : 'Модель черновика отсутствует в загруженном каталоге. Черновик сохранён.',
+      );
       return;
     }
     const scope = uploadScope.current;
@@ -539,12 +544,24 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   };
   const imageDraftRestored = useRef('');
   useEffect(() => {
-    if (legacy || !auth.user || !models.length || busy || uploading) return;
+    if (legacy || !auth.user || catalog.isFetching || !catalog.isSuccess || busy || uploading) return;
     if (conversationId && !conversation) return;
-    if (imageDraftRestored.current === sourceScope) return;
-    imageDraftRestored.current = sourceScope;
-    if (draft.available && !location.state) void restoreDraft(draft.available.value);
-  }, [sourceScope, models.length, conversation, draft.available, busy, uploading]);
+    if (!draft.available || location.state) return;
+    const attempt = `${sourceScope}:${catalog.dataUpdatedAt}`;
+    if (imageDraftRestored.current === attempt) return;
+    imageDraftRestored.current = attempt;
+    setError('');
+    void restoreDraft(draft.available.value);
+  }, [
+    sourceScope,
+    catalog.isFetching,
+    catalog.isSuccess,
+    catalog.dataUpdatedAt,
+    conversation,
+    draft.available,
+    busy,
+    uploading,
+  ]);
   const upload = async (files: FileList | File[] | null) => {
     if (!auth.user) {
       void auth.signIn();
@@ -664,9 +681,9 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           options.frameImages.length === references.length &&
           options.frameImages.every((frame, index) => frame.url === references[index].path),
       );
-      Object.assign(
-        body.options,
+      ObjectUtil.copyPartial(
         videoInputOptions(model, references, body.task.referenceMode as 'frames' | 'references'),
+        body.options,
       );
       if (
         body.options.inputReferences &&
@@ -1076,6 +1093,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       >
         {picker && (
           <LibraryPicker
+            multiple
+            maxFiles={maxRefs - references.length}
             selected={references.map((f) => f.id)}
             onClose={() => setPicker(false)}
             onPick={(file) => {
@@ -1665,6 +1684,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       )}
       {picker && (
         <LibraryPicker
+          multiple={!replaceReference}
+          maxFiles={maxRefs - references.length}
           selected={references.map((f) => f.id)}
           onClose={() => setPicker(false)}
           onPick={(f) => {

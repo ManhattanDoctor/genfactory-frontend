@@ -63,3 +63,21 @@ it('explains administrative model availability without exposing tariff data', ()
     'Модель недоступна для нового выбора. Выберите другую модель.',
   );
 });
+
+it('explains verified image settings and empty results without exposing other vendor details', () => {
+  expect(
+    apiErrorMessage(
+      {
+        code: 'AI_VENDOR_ERROR',
+        details: 'Unsupported image settings for google/gemini-2.5-flash-image: resolution is unsupported',
+      },
+      400,
+    ),
+  ).toContain('сочетание настроек');
+  expect(apiErrorMessage({ code: 'AI_VENDOR_ERROR', details: 'the response has no image' }, 400)).toContain(
+    'без изображения',
+  );
+  expect(
+    apiErrorMessage({ code: 'AI_VENDOR_ERROR', details: 'upstream account balance insufficient' }, 400),
+  ).toBe(serviceError);
+});

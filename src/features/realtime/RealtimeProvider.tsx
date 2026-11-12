@@ -33,6 +33,7 @@ const resources = [
   'active-jobs',
   'active-tasks',
   'files',
+  'artifacts',
   'file-preview',
   'transactions',
   'transaction-results',
@@ -75,7 +76,9 @@ export function RealtimeProvider({ children }: { children: ReactNode }): ReactEl
     let timer: ReturnType<typeof setTimeout> | undefined;
     const dirty = new Map<string, RefreshTarget>();
     const refresh = (keys = resources, conversationId?: unknown, fileId?: unknown) => {
-      refreshTargets(keys, conversationId, fileId).forEach((target) =>
+      const targets =
+        keys.includes('files') || keys.includes('conversations') ? [...keys, 'artifacts'] : keys;
+      refreshTargets(targets, conversationId, fileId).forEach((target) =>
         dirty.set(`${target.resource}:${target.id ?? '*'}`, target),
       );
       if (timer) return;

@@ -8,7 +8,7 @@ import { api, safeMediaUrl } from '../lib/api';
 import type { IGnosisFile } from '../lib/types';
 import './file-generation.css';
 
-function useGenerationModelName(file: IGnosisFile): string {
+function useGenerationModelName(file: Pick<IGnosisFile, 'origin'>): string {
   const { user } = useAuth();
   const model = file.origin?.generation?.model;
   const catalog = useQuery({
@@ -25,7 +25,7 @@ function useGenerationModelName(file: IGnosisFile): string {
   return modelTitle(match || { reference: model, name: model.model });
 }
 
-export function GenerationSummary({ file }: { file: IGnosisFile }): ReactElement | null {
+export function GenerationSummary({ file }: { file: Pick<IGnosisFile, 'origin'> }): ReactElement | null {
   const modelName = useGenerationModelName(file);
   const generation = file.origin?.generation;
   if (!generation) return null;

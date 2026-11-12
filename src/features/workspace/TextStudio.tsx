@@ -89,11 +89,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
     enabled: !!auth.user && !!id,
     retry: false,
     refetchInterval: (query) => (query.state.data?.status === 'LOADING' ? 2000 : false),
-    queryFn: async ({ signal }) => {
-      const c = await api.conversation(id!, signal);
-      if (c.userId !== auth.user!.id) throw new Error('Эта беседа принадлежит другому аккаунту.');
-      return c;
-    },
+    queryFn: ({ signal }) => api.conversation(id!, signal),
   });
   const conversation = detail.data;
   const fileOutput = useFileOutputSettings(
@@ -535,6 +531,8 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
         />
         {picker && (
           <LibraryPicker
+            multiple
+            maxFiles={4 - files.length}
             selected={files.map((f) => f.id)}
             onClose={() => setPicker(false)}
             onPick={(f) => {
@@ -799,8 +797,11 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
       </div>
       {picker && (
         <LibraryPicker
+          multiple
+          maxFiles={4 - files.length}
           imagesOnly={false}
           acceptedTypes={['IMAGE', 'VIDEO', 'DOCUMENT', 'AUDIO']}
+          validateFile={videoAnalysisError}
           selected={files.map((f) => f.id)}
           onClose={() => setPicker(false)}
           onPick={(f) => {

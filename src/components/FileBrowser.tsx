@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import './file-browser.css';
-import { GenerationSummary } from './FileGeneration';
+import { FileCard } from './FileCard';
+import { FileActions } from './FileActions';
 import { UploadButtonContent } from './UploadButtonContent';
 import type { IUploadProgress } from '../lib/api';
 import { FileTagFilter } from './FileTagFilter';
@@ -9,9 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Folder,
   FolderUp,
-  Link as LinkIcon,
   Upload,
-  MoreHorizontal,
   ArrowLeft,
   CircleAlert,
   House,
@@ -26,19 +25,26 @@ import { api, getSession } from '../lib/api';
 import { directoryPath, folderTrail, mediaType, resolveFile } from '../lib/files';
 import type { IGnosisFile } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
-import { Media } from './MediaPreview';
 import { Modal } from './Modal';
+const FILE_TAG_FILTER_ENABLED = false;
+
 interface IFileBrowserProps {
+  allowBatchRemove?: boolean;
   onOpen?: (file: IGnosisFile, files: IGnosisFile[]) => void;
   selected?: number[];
+  marked?: Array<number>;
+  multiple?: boolean;
   acceptedTypes?: string[];
   foldersOnly?: boolean;
   onCreate?: () => void;
   onDirectory?: (directory: string | null) => void;
 }
 export function FileBrowser({
+  allowBatchRemove = false,
   onOpen,
   selected = [],
+  marked = [],
+  multiple = false,
   acceptedTypes,
   foldersOnly = false,
   onDirectory,
@@ -84,10 +90,65 @@ export function FileBrowser({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [action, setAction] = useState<{ kind: 'create' | 'edit' | 'delete' | 'move'; file?: IGnosisFile }>();
+  const [action, setAction] = useState<{ kind: 'create' }>();
+  const [selecting, setSelecting] = useState(false);
+  const [batch, setBatch] = useState<Array<IGnosisFile>>([]);
+  const [confirmBatch, setConfirmBatch] = useState(false);
+  const batchLock = useRef(false);
+  const batchFiles = batch.filter((file) => file.userId === user?.id);
+  const selectionMode = multiple || selecting;
+  const markedIds = selecting ? batchFiles.map((file) => file.id) : marked;
+  function toggleBatch(file: IGnosisFile): void {
+    if (busy || batchLock.current || file.type === 'DIRECTORY' || file.userId !== user?.id) return;
+    setError('');
+    if (batchFiles.some((item) => item.id === file.id))
+      setBatch(batchFiles.filter((item) => item.id !== file.id));
+    else if (batchFiles.length >= 100) setError('За один раз можно удалить до 100 файлов.');
+    else setBatch([...batchFiles, file]);
+  }
+  async function removeBatch(): Promise<void> {
+    const sid = getSession();
+    if (!sid || busy || batchLock.current || !batchFiles.length) return;
+    const requested = batchFiles;
+    batchLock.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await api.removeFiles(
+        requested.map((file) => file.id),
+        sid,
+      );
+      if (!alive.current || getSession() !== sid) return;
+      const results = new Map(response.items.map((item) => [item.id, item]));
+      const deleted = requested.filter((file) => results.get(file.id)?.status === 'DELETED');
+      const failed = requested.filter((file) => results.get(file.id)?.status !== 'DELETED');
+      setBatch(failed);
+      setConfirmBatch(false);
+      if (!failed.length) setSelecting(false);
+      setNotice(`Удалено: ${deleted.length} из ${requested.length}`);
+      if (failed.length)
+        setError(
+          failed
+            .map((file) => `${file.name}: ${results.get(file.id)?.message || 'Удаление не подтверждено.'}`)
+            .join('\n'),
+        );
+      await Promise.all(
+        ['files', 'file-preview', 'messages', 'conversation', 'conversations'].map((key) =>
+          cache.invalidateQueries({ queryKey: [key] }),
+        ),
+      );
+    } catch (error) {
+      if (alive.current && getSession() === sid)
+        setError(
+          `${error instanceof Error ? error.message : 'Не удалось удалить файлы.'} Обновите библиотеку перед повторной попыткой: часть файлов могла быть удалена.`,
+        );
+    } finally {
+      batchLock.current = false;
+      if (alive.current && getSession() === sid) setBusy(false);
+    }
+  }
   const [name, setName] = useState('');
-  const [tags, setTags] = useState('');
-  const [destination, setDestination] = useState<string | null>(null);
   const upload = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const [uploadBatch, setUploadBatch] = useState<{ index: number; total: number }>();
@@ -187,12 +248,6 @@ export function FileBrowser({
     setQuery('');
     setPage(0);
   }
-  function edit(file: IGnosisFile): void {
-    setName(file.name);
-    setTags(file.tags?.join(', ') || '');
-    setAction({ kind: 'edit', file });
-    setError('');
-  }
   async function open(file: IGnosisFile): Promise<void> {
     if (file.type === 'DIRECTORY') {
       if (query || selectedTags.length)
@@ -201,6 +256,10 @@ export function FileBrowser({
           if (alive.current) navigate(folders);
         });
       else navigate([...trail, file]);
+      return;
+    }
+    if (selecting) {
+      toggleBatch(file);
       return;
     }
     await run(async () => {
@@ -262,93 +321,115 @@ export function FileBrowser({
         {(query || !!selectedTags.length) && <span> / Результаты поиска во всех папках</span>}
       </nav>
       {!foldersOnly && (
-        <div className="file-toolbar">
-          <input
-            aria-label="Поиск по всем файлам"
-            placeholder="Поиск по всем файлам"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button
-            type="button"
-            className="button"
-            disabled={busy || !!query || !!selectedTags.length}
-            onClick={() => {
-              setName('');
-              setAction({ kind: 'create' });
-              setError('');
-            }}
-          >
-            <Folder size={16} />
-            Новая папка
-          </button>
-          <button
-            type="button"
-            className="button"
-            disabled={busy || !!query || !!selectedTags.length}
-            aria-busy={!!uploadBatch}
-            onClick={() => upload.current?.click()}
-          >
-            <UploadButtonContent busy={!!uploadBatch} progress={uploadProgress}>
-              <Upload size={16} />
-              Загрузить файл
-            </UploadButtonContent>
-            {uploadBatch && uploadBatch.total > 1 && (
-              <span className="file-upload-count">
-                {uploadBatch.index}/{uploadBatch.total}
-              </span>
+        <div className="file-controls">
+          <div className="file-toolbar">
+            {allowBatchRemove && (
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                aria-pressed={selecting}
+                onClick={() => {
+                  setSelecting(!selecting);
+                  setBatch([]);
+                  setError('');
+                  setNotice('');
+                }}
+              >
+                {selecting ? 'Отменить выбор' : 'Выбрать для удаления'}
+              </button>
             )}
-          </button>
-          <input
-            hidden
-            ref={upload}
-            type="file"
-            multiple
-            onChange={(e) => {
-              const selectedFiles = Array.from(e.target.files || []);
-              e.target.value = '';
-              void uploadFiles(selectedFiles);
-            }}
-          />
-        </div>
-      )}
-      {!foldersOnly && (
-        <div className="chips" aria-label="Тип файлов">
-          {(
-            [
-              ['', 'Все', LayoutGrid],
-              ['IMAGE', 'Изображения', ImageIcon],
-              ['VIDEO', 'Видео', Video],
-              ['DOCUMENT', 'Документы', FileText],
-            ] as const
-          ).map(([value, label, Icon]) => (
+            <input
+              aria-label="Поиск по всем файлам"
+              placeholder="Поиск по всем файлам"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
             <button
               type="button"
-              key={value}
-              className={`chip ${type === value ? 'active' : ''}`}
-              aria-pressed={type === value}
-              aria-label={label}
-              title={label}
+              className="button"
+              disabled={busy || !!query || !!selectedTags.length}
+              aria-label="Новая папка"
+              title="Новая папка"
               onClick={() => {
-                setType(value);
-                setPage(0);
+                setName('');
+                setAction({ kind: 'create' });
+                setError('');
               }}
             >
-              <Icon size={18} aria-hidden="true" />
+              <Folder size={16} />
+              <span className="file-action-label">Новая папка</span>
             </button>
-          ))}
+            <button
+              type="button"
+              className="button"
+              disabled={busy || !!query || !!selectedTags.length}
+              aria-label="Загрузить файл"
+              title="Загрузить файл"
+              aria-busy={!!uploadBatch}
+              onClick={() => upload.current?.click()}
+            >
+              <UploadButtonContent busy={!!uploadBatch} progress={uploadProgress}>
+                <Upload size={16} />
+                <span className="file-action-label">Загрузить файл</span>
+              </UploadButtonContent>
+              {uploadBatch && uploadBatch.total > 1 && (
+                <span className="file-upload-count">
+                  {uploadBatch.index}/{uploadBatch.total}
+                </span>
+              )}
+            </button>
+            <input
+              hidden
+              ref={upload}
+              type="file"
+              multiple
+              onChange={(e) => {
+                const selectedFiles = Array.from(e.target.files || []);
+                e.target.value = '';
+                void uploadFiles(selectedFiles);
+              }}
+            />
+          </div>
+          <div className="file-filters">
+            <div className="chips" aria-label="Тип файлов">
+              {(
+                [
+                  ['', 'Все', LayoutGrid],
+                  ['IMAGE', 'Изображения', ImageIcon],
+                  ['VIDEO', 'Видео', Video],
+                  ['DOCUMENT', 'Документы', FileText],
+                ] as const
+              ).map(([value, label, Icon]) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={`chip ${type === value ? 'active' : ''}`}
+                  aria-pressed={type === value}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => {
+                    setType(value);
+                    setPage(0);
+                  }}
+                >
+                  <Icon size={18} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+            {FILE_TAG_FILTER_ENABLED && (
+              <FileTagFilter
+                tags={selectedTags}
+                match={tagMatch}
+                onChange={setTagFilter}
+                onMatch={(value) => {
+                  setTagMatch(value);
+                  setPage(0);
+                }}
+              />
+            )}
+          </div>
         </div>
-      )}
-      {!foldersOnly && (
-        <FileTagFilter
-          tags={selectedTags}
-          match={tagMatch}
-          onChange={setTagFilter}
-          onMatch={(value) => {
-            setTagMatch(value);
-            setPage(0);
-          }}
-        />
       )}
       {!action && error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
@@ -391,40 +472,18 @@ export function FileBrowser({
           const folder = file.type === 'DIRECTORY';
           const incompatible = !folder && !!acceptedTypes && !acceptedTypes.includes(mediaType(file));
           const already = selected.includes(file.linkTo ?? file.id);
+          const checked = markedIds.includes(selecting ? file.id : (file.linkTo ?? file.id));
           return (
             <article className={`file-entry${incompatible ? ' is-incompatible' : ''}`} key={file.id}>
-              <button
-                type="button"
-                className="library-card"
-                disabled={busy || incompatible || already}
-                onClick={() => void open(file)}
-              >
-                <div className="library-media">
-                  {folder ? (
-                    <div className="file-folder-icon">
-                      <Folder size={44} />
-                    </div>
-                  ) : (
-                    <Media file={file} isPlaybackDisabled={incompatible} />
-                  )}
-                </div>
-                <div>
-                  <b title={file.name}>{file.name}</b>
-                  <span>
-                    {folder ? (
-                      'Папка'
-                    ) : file.type === 'LINK' ? (
-                      <>
-                        <LinkIcon size={14} /> Ссылка на файл
-                      </>
-                    ) : (
-                      new Date(file.createdDate).toLocaleDateString('ru-RU')
-                    )}
-                  </span>
-                  <GenerationSummary file={file} />
-                  {already && <span>Уже добавлен</span>}
-                </div>
-              </button>
+              <FileCard
+                file={file}
+                onOpen={() => void open(file)}
+                disabled={busy}
+                incompatible={incompatible}
+                already={already}
+                checked={checked}
+                selectionMode={selectionMode}
+              />
               {incompatible && (
                 <button
                   type="button"
@@ -445,6 +504,7 @@ export function FileBrowser({
                       type="button"
                       className="chip"
                       key={tag}
+                      disabled={!FILE_TAG_FILTER_ENABLED}
                       onClick={() => setTagFilter([tag.trim().toLocaleLowerCase('ru')])}
                       aria-label={`Файлы с тегом ${tag}`}
                       title={tag}
@@ -454,52 +514,60 @@ export function FileBrowser({
                   ))}
                 </div>
               )}
-              {!foldersOnly && file.userId === user?.id && (
-                <details className="file-actions">
-                  <summary aria-label={`Действия с «${file.name}»`}>
-                    <MoreHorizontal size={18} />
-                  </summary>
-                  <div
-                    onClick={(event) => {
-                      if ((event.target as HTMLElement).closest('button'))
-                        event.currentTarget.closest('details')?.removeAttribute('open');
-                    }}
-                  >
-                    <button type="button" className="text-button" disabled={busy} onClick={() => edit(file)}>
-                      Название и теги
-                    </button>
-                    {!folder && (
-                      <button
-                        type="button"
-                        className="text-button"
-                        disabled={busy}
-                        onClick={() => {
-                          setDestination(null);
-                          setError('');
-                          setAction({ kind: 'move', file });
-                        }}
-                      >
-                        Переместить
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="text-button danger"
-                      disabled={busy}
-                      onClick={() => {
-                        setError('');
-                        setAction({ kind: 'delete', file });
-                      }}
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                </details>
-              )}
+              {!foldersOnly && file.userId === user?.id && <FileActions file={file} disabled={busy} />}
             </article>
           );
         })}
       </div>
+      {selecting && (
+        <div className="file-batch-bar">
+          <span role="status">Выбрано: {batchFiles.length} из 100</span>
+          <button
+            type="button"
+            className="button"
+            disabled={busy || !batchFiles.length}
+            onClick={() => {
+              setError('');
+              setConfirmBatch(true);
+            }}
+          >
+            Удалить выбранные ({batchFiles.length})
+          </button>
+        </div>
+      )}
+      {confirmBatch && (
+        <Modal
+          title="Удалить выбранные файлы"
+          onClose={() => {
+            if (!batchLock.current) setConfirmBatch(false);
+          }}
+        >
+          <p>
+            Будет удалено файлов: {batchFiles.length}. Файлы и их превью станут недоступны в задачах, где
+            использовались. Это действие нельзя отменить. Для ссылок удаляется только ссылка, оригинал
+            остаётся.
+          </p>
+          <ul>
+            {batchFiles.map((file) => (
+              <li key={file.id}>{file.name}</li>
+            ))}
+          </ul>
+          {error && <p role="alert">{error}</p>}
+          <div className="file-form-buttons">
+            <button type="button" className="button" disabled={busy} onClick={() => setConfirmBatch(false)}>
+              Отмена
+            </button>
+            <button
+              type="button"
+              className="button primary"
+              disabled={busy}
+              onClick={() => void removeBatch()}
+            >
+              {busy ? 'Удаляем…' : 'Удалить безвозвратно'}
+            </button>
+          </div>
+        </Modal>
+      )}
       {files.data &&
         !files.data.items.length &&
         !directory &&
@@ -558,98 +626,37 @@ export function FileBrowser({
       )}
       {action && (
         <Modal
-          title={
-            action.kind === 'create'
-              ? 'Новая папка'
-              : action.kind === 'edit'
-                ? 'Название и теги'
-                : action.kind === 'move'
-                  ? 'Переместить файл'
-                  : 'Удалить файл'
-          }
+          title="Новая папка"
           onClose={() => {
             if (!busy) setAction(undefined);
           }}
-          wide={action.kind === 'move'}
         >
           <form
             className="file-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void run(async () => {
-                if (action.kind === 'create') await api.createDirectory(name.trim(), directory);
-                if (action.kind === 'edit')
-                  await api.editFile(action.file!.id, {
-                    name: name.trim(),
-                    tags: [
-                      ...new Set(
-                        tags
-                          .split(',')
-                          .map((t) => t.trim())
-                          .filter(Boolean),
-                      ),
-                    ],
-                  });
-                if (action.kind === 'delete') await api.removeFile(action.file!.id);
-                if (action.kind === 'move') await api.editFile(action.file!.id, { directory: destination });
-              }, 'Готово');
+            onSubmit={(event) => {
+              event.preventDefault();
+              void run(() => api.createDirectory(name.trim(), directory), 'Готово');
             }}
           >
-            {(action.kind === 'create' || action.kind === 'edit') && (
-              <label>
-                Название
-                <input
-                  autoFocus
-                  required
-                  minLength={3}
-                  maxLength={124}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={busy}
-                />
-              </label>
-            )}
-            {action.kind === 'edit' && (
-              <label>
-                Теги через запятую
-                <input value={tags} onChange={(e) => setTags(e.target.value)} disabled={busy} />
-              </label>
-            )}
-            {action.kind === 'delete' && (
-              <p>
-                {action.file?.type === 'DIRECTORY'
-                  ? 'Папка и всё её содержимое будут удалены без возможности восстановления.'
-                  : action.file?.type === 'LINK'
-                    ? 'Будет удалена только ссылка. Оригинал останется.'
-                    : 'Файл и его превью будут удалены без возможности восстановления. Он станет недоступен в задачах, где использовался.'}{' '}
-                «{action.file?.name}»
-              </p>
-            )}
-            {action.kind === 'move' && (
-              <>
-                <p>Откройте папку назначения или выберите корень библиотеки.</p>
-                <FileBrowser foldersOnly onDirectory={setDestination} />
-              </>
-            )}
+            <label>
+              Название
+              <input
+                autoFocus
+                required
+                minLength={3}
+                maxLength={124}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                disabled={busy}
+              />
+            </label>
             {error && <p role="alert">{error}</p>}
             <div className="file-form-buttons">
               <button type="button" className="button" disabled={busy} onClick={() => setAction(undefined)}>
                 Отмена
               </button>
-              <button
-                type="submit"
-                className="button primary"
-                disabled={
-                  busy || ((action.kind === 'create' || action.kind === 'edit') && name.trim().length < 3)
-                }
-              >
-                {busy
-                  ? 'Сохраняем…'
-                  : action.kind === 'delete'
-                    ? 'Удалить'
-                    : action.kind === 'move'
-                      ? 'Переместить сюда'
-                      : 'Сохранить'}
+              <button type="submit" className="button primary" disabled={busy || name.trim().length < 3}>
+                {busy ? 'Сохраняем…' : 'Сохранить'}
               </button>
             </div>
           </form>

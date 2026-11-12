@@ -232,3 +232,29 @@
     padding: 12px 16px;
   }
 }
+
+.modal.template-text-dialog {
+  width: min(720px, calc(100vw - 32px));
+}
+.template-text-editor {
+  grid-template-columns: minmax(0, 1fr);
+}
+.template-text-editor textarea {
+  height: min(480px, 55dvh);
+  min-height: 240px;
+  max-height: 60dvh;
+}
+.template-text-footer {
+  padding-top: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 700px) {
+  .modal.template-text-dialog {
+    width: calc(100vw - 16px);
+  }
+  .template-text-footer .button {
+    flex: 1;
+  }
+}

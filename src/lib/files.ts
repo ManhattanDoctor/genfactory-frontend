@@ -1,4 +1,4 @@
-import { api, request } from './api';
+import { api, request, getSession, safeMediaUrl } from './api';
 import type { IGnosisFile, IPagination } from './types';
 export const directoryPath = (file: IGnosisFile) => [file.directory, file.uid].filter(Boolean).join('/');
 export function mediaType(file: IGnosisFile): string {
@@ -9,13 +9,13 @@ export function mediaType(file: IGnosisFile): string {
   return 'DOCUMENT';
 }
 // Resolve before using a reference: generation receives the original ID, never a broken alias.
-export async function resolveFile(file: IGnosisFile): Promise<IGnosisFile> {
+export async function resolveFile(file: IGnosisFile, sid?: string): Promise<IGnosisFile> {
   const visited = new Set<number>();
   while (file.type === 'LINK') {
     if (!file.linkTo || visited.has(file.id) || visited.size >= 16)
       throw new Error('Ссылка на файл недоступна.');
     visited.add(file.id);
-    file = await api.file(file.linkTo);
+    file = await api.file(file.linkTo, sid);
   }
   if (file.type === 'DIRECTORY') throw new Error('Выберите файл, а не папку.');
   return file;
@@ -33,4 +33,29 @@ export async function folderTrail(file: IGnosisFile): Promise<IGnosisFile[]> {
     }),
   );
   return [...ancestors, file];
+}
+
+export async function downloadFile(
+  file: Pick<IGnosisFile, 'id' | 'name'>,
+  sid = getSession(),
+): Promise<void> {
+  const result = await api.fileDownload(file.id, sid);
+  if (getSession() !== sid) return;
+  let url: string;
+  let object: string | undefined;
+  if (result.url) {
+    const safe = safeMediaUrl(result.url);
+    if (!safe) throw new Error('Ссылка скачивания недоступна.');
+    url = safe;
+  } else {
+    const blob = await api.downloadFile(file.id, sid);
+    if (getSession() !== sid) return;
+    object = URL.createObjectURL(blob);
+    url = object;
+  }
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name.replace(/[\\/:*?"<>|]/g, '_');
+  link.click();
+  if (object) setTimeout(() => URL.revokeObjectURL(object), 1000);
 }

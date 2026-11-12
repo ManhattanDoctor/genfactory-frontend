@@ -1,3 +1,5 @@
+import '../../lib/transport-polyfills';
+import { ObjectUtil } from '@ts-core/common';
 import { videoInputOptions, videoReferenceMode, type VideoReferenceMode } from '../catalog/videoInputs';
 import { ratioSizes } from './controls';
 import type { IGnosisFile, IModelDescription, ITaskRequest, MediaKind } from '../../lib/types';
@@ -53,9 +55,9 @@ export function mediaOptions(
   };
   if (files.length && kind === 'image') request.task.fileIds = files.map((file) => file.id);
   if (files.length && kind === 'video')
-    Object.assign(
-      request.options,
+    ObjectUtil.copyPartial(
       videoInputOptions(model, files, referenceMode || videoReferenceMode(model, files.length)),
+      request.options,
     );
   if (request.options.inputReferences && model.reference.model === 'google/veo-3.1' && options.duration !== 8)
     throw new Error('Для референсов Veo выберите длительность 8 секунд.');

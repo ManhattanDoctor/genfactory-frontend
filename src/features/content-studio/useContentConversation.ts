@@ -4,7 +4,7 @@ import { studioSystem } from './studioPrompt';
 import { assertAllowedProvider } from '../../lib/modelPolicy';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useIsMutating, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
 import type { IConversation, IModelDescription, IMessageCreate, IToolConnection } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
@@ -18,6 +18,7 @@ export interface ContentConversation {
   error: string;
   setError: (message: string, isExecution?: boolean) => void;
   busy: boolean;
+  scope: object;
   submit: (
     body: IMessageCreate,
     title: string,
@@ -40,8 +41,8 @@ export function useContentConversation(): ContentConversation {
   function setError(message: string, isExecution = false): void {
     setFailure({ message, isExecution });
   }
-  const [preparing, setPreparing] = useState(false);
-  const lock = useRef(false);
+  const [preparing, setPreparing] = useState<object>();
+  const lock = useRef<object | undefined>(undefined);
   const route = `${auth.session}:${location.key}:${raw}`;
   const scope = useRef({ route, token: {} });
   const pendingCreation = useRef<{ from: string; session: string; id: number } | undefined>(undefined);
@@ -67,11 +68,7 @@ export function useContentConversation(): ContentConversation {
     queryKey: ['conversation', auth.user?.id, id],
     enabled: !!auth.user && !!id,
     retry: false,
-    queryFn: async ({ signal }) => {
-      const value = await api.conversation(id!, signal);
-      if (value.userId !== auth.user!.id) throw new Error('Беседа недоступна этому аккаунту.');
-      return value;
-    },
+    queryFn: ({ signal }) => api.conversation(id!, signal),
   });
   const agents = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
@@ -100,7 +97,17 @@ export function useContentConversation(): ContentConversation {
       window.dispatchEvent(new Event('genfactory:generation-finished'));
     },
   });
-  const busy = preparing || send.isPending || detail.data?.status === 'LOADING';
+  const pending = useIsMutating({
+    mutationKey: ['send-message', auth.user?.id],
+    predicate: (mutation) => {
+      const variables = mutation.state.variables as { id?: number; sid?: string } | undefined;
+      return !!id && variables?.id === id && variables.sid === auth.session;
+    },
+  });
+  const busy = preparing === active || pending > 0 || detail.data?.status === 'LOADING';
+  useEffect(() => {
+    setFailure({ message: '', isExecution: false });
+  }, [active]);
   async function submit(
     body: IMessageCreate,
     title: string,
@@ -108,7 +115,8 @@ export function useContentConversation(): ContentConversation {
     agent?: IModelDescription,
     onCreated?: (id: number) => void,
   ): Promise<boolean> {
-    if (!auth.user || !auth.session || lock.current || busy || scope.current.token !== active) return false;
+    if (!auth.user || !auth.session || lock.current === active || busy || scope.current.token !== active)
+      return false;
     if (raw && !detail.data) {
       setError('Дождитесь загрузки беседы.');
       return false;
@@ -117,8 +125,8 @@ export function useContentConversation(): ContentConversation {
       setError('Не удалось загрузить модель ассистента.');
       return false;
     }
-    lock.current = true;
-    setPreparing(true);
+    lock.current = active;
+    setPreparing(active);
     setError('');
     const sid = auth.session;
     const userId = auth.user.id;
@@ -176,8 +184,8 @@ export function useContentConversation(): ContentConversation {
       }
       return false;
     } finally {
-      lock.current = false;
-      if (getSession() === sid) setPreparing(false);
+      if (lock.current === currentScope) lock.current = undefined;
+      setPreparing((value) => (value === currentScope ? undefined : value));
     }
   }
   async function historyFiles(): Promise<Array<StudioHistoryFile>> {
@@ -188,6 +196,7 @@ export function useContentConversation(): ContentConversation {
   }
   return {
     historyFiles,
+    scope: active,
     id,
     conversation: detail.data,
     isExecutionError: !!failure.message && failure.isExecution,

@@ -82,11 +82,7 @@ function PromptEditor(): ReactElement {
     queryKey: ['conversation', auth.user?.id, id],
     enabled: !!auth.user && !!id,
     retry: false,
-    queryFn: async ({ signal }) => {
-      const c = await api.conversation(id!, signal);
-      if (c.userId !== auth.user!.id) throw Error('Беседа недоступна.');
-      return c;
-    },
+    queryFn: ({ signal }) => api.conversation(id!, signal),
     refetchInterval: (q) => (pending || q.state.data?.status === 'LOADING' ? 2000 : false),
   });
   const conversation = detail.data;
@@ -689,7 +685,10 @@ function PromptEditor(): ReactElement {
       </form>
       {picker && (
         <LibraryPicker
+          multiple
+          maxFiles={4 - files.length}
           acceptedTypes={['IMAGE', 'VIDEO']}
+          validateFile={videoAnalysisError}
           selected={files.map((f) => f.id)}
           onClose={() => setPicker(false)}
           onPick={(f) => {
