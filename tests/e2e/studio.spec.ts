@@ -3830,45 +3830,46 @@ test('content studio model search and favorites preserve actual selection across
   page,
 }) => {
   const state = await mockApi(page);
-  await page.goto('/chat');
+  const selected = catalog.find((item) => item.reference.model === 'qwen/qwen-image-2.1-pro')!;
+  const title = modelTitle(selected);
+  state.conversations.push(savedConversation());
+  await page.goto('/chat?conversation=101');
   await page.getByRole('button', { name: 'Изображение', exact: true }).click();
   await page.locator('.cw-model').click();
-  await page.getByRole('searchbox', { name: 'Поиск модели' }).fill('gpt-image-1-mini');
-  await expect(page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true })).toBeVisible();
-  await expect(page.getByRole('option', { name: 'GPT Image 2', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'О модели GPT Image 1 Mini', exact: true }).click();
-  await expect(page.locator('dialog')).toContainText('OPEN_AI_IMAGE_GPT:gpt-image-1-mini');
+  await page.getByRole('searchbox', { name: 'Поиск модели' }).fill(selected.reference.model);
+  await expect(page.getByRole('option', { name: title, exact: true })).toBeVisible();
+  await expect(page.getByRole('option')).toHaveCount(1);
+  await page.getByRole('button', { name: `О модели ${title}`, exact: true }).click();
+  await expect(page.locator('dialog')).toContainText(
+    `${selected.reference.provider}:${selected.reference.model}`,
+  );
   expect(state.sends).toHaveLength(0);
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
-  await page.getByRole('button', { name: 'В избранные: GPT Image 1 Mini', exact: true }).click();
+  await page.getByRole('button', { name: `В избранные: ${title}`, exact: true }).click();
   await expect(page.locator('.cw-model')).toHaveAttribute('aria-expanded', 'true');
-  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
   await page.getByRole('searchbox', { name: 'Поиск модели' }).fill('');
-  await expect(page.getByRole('option')).toHaveCount(2);
-  await page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true }).click();
-  await expect(page.locator('.cw-model')).toContainText('GPT Image 1 Mini');
+  await expect(page.getByRole('option').first()).toHaveAttribute('aria-label', title);
+  await page.getByRole('option', { name: title, exact: true }).click();
+  await expect(page.locator('.cw-model')).toContainText(title);
   await page.reload();
-  await expect(page.locator('.cw-model')).toContainText('GPT Image 1 Mini');
+  await expect(page.locator('.cw-model')).toContainText(title);
   await page.locator('.cw-model').click();
-  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
-  await expect(page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('option', { name: title, exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
-  await page.screenshot({ path: '/tmp/content-model-favorites.png' });
-  await page.getByRole('button', { name: 'Убрать из избранных: GPT Image 1 Mini', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Нет избранных моделей');
+  await page.getByRole('button', { name: `Убрать из избранных: ${title}`, exact: true }).click();
+  await expect(page.getByRole('button', { name: `В избранные: ${title}`, exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
   await page.keyboard.press('Escape');
   await expect(page.locator('.cw-model')).toBeFocused();
   await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
-
   await page.locator('#cw-draft').fill('Чашка на белом фоне');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].settings.tools[0].settings.model).toEqual({
-    provider: 'OPEN_AI_IMAGE_GPT',
-    model: 'gpt-image-1-mini',
-  });
+  expect(state.sends[0].settings.tools[0].settings.model).toEqual(selected.reference);
 });
 
 test('content studio restores actual result settings and sources instead of current conversation settings', async ({
@@ -3877,9 +3878,9 @@ test('content studio restores actual result settings and sources instead of curr
   const state = await mockApi(page);
   state.conversations.push(savedConversation());
   const generation = {
-    model: { provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1-mini' },
+    model: catalog.find((item) => item.reference.model === 'sourceful/riverflow-v2.6-pro')!.reference,
     prompt: 'Исторический промпт чашки',
-    options: { size: '1024x1536', quality: 'low', background: 'opaque' },
+    options: { size: '1024x1536', background: 'opaque' },
   };
   state.messages.set(101, [
     { id: 1, role: 'USER', text: 'Исходный бриф', files: [file], createdDate: file.createdDate },
@@ -3892,13 +3893,17 @@ test('content studio restores actual result settings and sources instead of curr
     },
   ]);
   await page.goto('/chat?conversation=101');
-  await expect(page.getByLabel(`Параметры ${file.name}`)).toContainText('GPT Image 1 Mini');
+  await expect(page.getByLabel(`Параметры ${file.name}`)).toContainText(
+    modelTitle(catalog.find((item) => item.reference.model === generation.model.model)!),
+  );
   await expect(page.getByLabel(`Параметры ${file.name}`)).toContainText('1024x1536');
   await page.reload();
   await page.getByRole('button', { name: 'Использовать параметры', exact: true }).click();
   await expect(page.locator('#cw-draft')).toHaveValue(generation.prompt);
   await expect(page.locator('#cw-draft')).toBeFocused();
-  await expect(page.locator('.cw-model')).toContainText('GPT Image 1 Mini');
+  await expect(page.locator('.cw-model')).toContainText(
+    modelTitle(catalog.find((item) => item.reference.model === generation.model.model)!),
+  );
   expect(state.sends).toHaveLength(0);
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
@@ -3953,11 +3958,11 @@ test('content studio preserves custom generation dimensions when restoring the s
 }) => {
   const state = await mockApi(page);
   state.conversations.push(savedConversation());
-  const model = catalog.find((item) => item.reference.model === 'gpt-image-2')!;
+  const model = catalog.find((item) => item.reference.model === 'sourceful/riverflow-v2.6-pro')!;
   const generation = {
     model: model.reference,
     prompt: 'Квадратная чашка',
-    options: { size: '1536x1536', quality: 'low', background: 'opaque' },
+    options: { size: '1536x1536', background: 'opaque' },
   };
   state.messages.set(101, [
     {
@@ -3973,7 +3978,7 @@ test('content studio preserves custom generation dimensions when restoring the s
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].settings.tools[0].settings.options.size).toBe('1536x1536');
-  expect(state.sends[0].text).toContain('Создай с нуля, без референсов');
+  expect(parseStudioContext(state.sends[0].text)!.input.isDrawNew).toBeUndefined();
   expect(state.sends[0].files).toEqual([]);
 });
 
@@ -4165,11 +4170,10 @@ test('optional template clears previous references and sends explicitly from scr
   await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
   const card = page.locator('.cw-card').nth(11);
   await card.locator('.cw-card-media').click();
-  await card.locator('.cw-add').click();
   const dialog = page.getByRole('dialog');
   for (const input of await dialog.locator('[data-template-variable]').all())
     await input.fill('Спокойный парк');
-  await dialog.getByRole('button', { name: 'Убрать референс' }).click();
+  await dialog.getByRole('button', { name: 'Убрать фото' }).click();
   await dialog.getByRole('button', { name: 'Использовать шаблон' }).click();
   await expect(page.locator('.cw-files')).toHaveCount(0);
   await page.reload();
@@ -4177,13 +4181,15 @@ test('optional template clears previous references and sends explicitly from scr
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].files).toEqual([]);
-  expect(state.sends[0].text).toContain('Создай с нуля, без референсов');
+  expect(parseStudioContext(state.sends[0].text)!.input.isDrawNew).toBe(true);
   expect(state.uploads).toBe(0);
   await expect(page.locator('#cw-draft')).toHaveValue('');
   await page.locator('#cw-draft').fill('Сделай свет мягче на предыдущем результате');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(2);
-  expect(state.sends[1].text).toContain('Продолжи беседу с учётом контекста');
+  expect(
+    parseStudioContext(state.sends[1].text)!.historyFiles?.some((file) => file.role === 'ASSISTANT'),
+  ).toBe(true);
 });
 
 for (const command of ['подтверждаю', 'да сделай уже видео!']) {
@@ -5708,16 +5714,27 @@ test('studio blocks attachment removal during a pending request and clears accep
 
 test('studio clears new conversations and removes restored existing references permanently', async ({
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(120_000);
   const state = await mockApi(page);
   state.conversations.push(savedConversation());
   await page.goto('/chat?conversation=101');
+  // Wait for project/model restoration before testing edits to its saved draft.
+  await expect(page.locator('.cw-model')).toContainText('Riverflow V2.6 Pro');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem('genfactory.draft.v1.7.content-studio.101') || 'null')?.value
+            .selectedModel,
+      ),
+    )
+    .toBe('OPEN_ROUTER_IMAGE:sourceful/riverflow-v2.6-pro');
   await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
   await page.getByRole('dialog', { name: 'Библиотека' }).getByText('Test result', { exact: true }).click();
   await page.locator('#cw-draft').fill('Старый текст');
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.content-studio.101')))
+    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.content-studio.101') || ''))
     .toContain('Test result');
   await page.reload();
   const remove = page.getByRole('button', { name: 'Убрать Test result', exact: true });
@@ -5748,7 +5765,7 @@ test('studio clears new conversations and removes restored existing references p
   }));
   expect(dimensions.height).toBeLessThanOrEqual(dimensions.line * 3 + 1);
   expect(dimensions.scroll).toBeGreaterThan(dimensions.height);
-  await page.screenshot({ path: '/artifacts/compact-composer.png' });
+  await page.screenshot({ path: testInfo.outputPath('compact-composer.png') });
   expect(state.sends).toHaveLength(0);
 });
 
@@ -6027,4 +6044,127 @@ test('answering a legacy question recovers the older photo without changing the 
   expect(sent.settings.tools[0]).toEqual({ uid: 'IMAGE', settings: context.settings });
   expect(parseStudioContext(sent.text)?.historyFiles?.map((file) => file.id)).toEqual([12]);
   expect(parseStudioContext(sent.text)?.input).not.toHaveProperty('isDrawNew');
+});
+
+test('a socket event refreshes its conversation without refetching the other open thread', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation(), { ...savedConversation(102), name: 'Second work' });
+  state.messages.set(101, [
+    { id: 1, role: 'ASSISTANT', text: 'First thread', createdDate: file.createdDate },
+  ]);
+  state.messages.set(102, [
+    { id: 2, role: 'ASSISTANT', text: 'Second thread', createdDate: file.createdDate },
+  ]);
+  const reads = new Map<number, number>();
+  page.on('request', (request) => {
+    const match = new URL(request.url()).pathname.match(/^\/api\/conversation\/(\d+)\/message$/);
+    if (match && request.method() === 'GET')
+      reads.set(Number(match[1]), (reads.get(Number(match[1])) || 0) + 1);
+  });
+  await page.goto('/chat?conversation=101');
+  await expect(page.getByText('First thread', { exact: true })).toBeVisible();
+  await expect.poll(() => state.joinedRooms.includes('conversation101')).toBe(true);
+  await navigateLegacyRoute(page, '/chat?conversation=102');
+  await expect(page.getByText('Second thread', { exact: true })).toBeVisible();
+  await expect.poll(() => state.joinedRooms.includes('conversation102')).toBe(true);
+  // Settle the initial connection refresh before measuring an isolated event.
+  await page.waitForTimeout(250);
+  const baseline = reads.get(102);
+  state.messages.set(101, [
+    { id: 3, role: 'ASSISTANT', text: 'First updated', createdDate: file.createdDate },
+  ]);
+  const refreshed = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/conversation',
+  );
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          uid: crypto.randomUUID(),
+          name: 'ConversationMessageAddedEvent',
+          data: { id: 101 },
+        },
+      ]),
+  );
+  await refreshed;
+  await page.waitForTimeout(200);
+  expect(reads.get(102)).toBe(baseline);
+  await navigateLegacyRoute(page, '/chat?conversation=101');
+  await expect(page.getByText('First updated', { exact: true })).toBeVisible();
+  expect(state.sends).toHaveLength(0);
+});
+
+test('home video waits until near the viewport and keeps its still cover with reduced motion', async ({
+  page,
+}, testInfo) => {
+  await mockApi(page, false);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    const callbacks: Array<(visible: boolean) => void> = [];
+    (window as any).observeHome = (visible: boolean) => callbacks.forEach((callback) => callback(visible));
+    window.IntersectionObserver = class {
+      constructor(callback: IntersectionObserverCallback) {
+        callbacks.push((visible) =>
+          callback([{ isIntersecting: visible }] as IntersectionObserverEntry[], this as any),
+        );
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+      root = null;
+      rootMargin = '';
+      thresholds = [];
+    } as any;
+  });
+  await page.goto('/');
+  const video = page.locator('.home-destination-film');
+  await expect(video).toHaveCount(1);
+  await expect(video).not.toHaveAttribute('src');
+  await page.evaluate(() => (window as any).observeHome(true));
+  await expect(video).toHaveAttribute('src', '/media/prototype/studio-banner.mp4');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(video).not.toHaveAttribute('src');
+  await expect(page.locator('.home-destination-cover').first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('home-cover.png') });
+});
+
+test('late studio request failure does not appear in another conversation', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation(101), savedConversation(102));
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let entered = false;
+  await page.route('**/api/conversation/101/message', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    entered = true;
+    await gate;
+    await route.fulfill({ status: 500, json: { message: 'Late provider failure' } });
+  });
+  await page.goto('/chat?conversation=101');
+  await page.locator('#cw-draft').fill('First conversation request');
+  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+  await expect.poll(() => entered).toBe(true);
+  await page.evaluate(() => {
+    history.pushState({ key: 'another-project' }, '', '/chat?conversation=102');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page).toHaveURL(/conversation=102/);
+  const completed = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/conversation/101/message') && response.request().method() === 'POST',
+  );
+  release();
+  await completed;
+  await expect(page.locator('#cw-draft')).toBeEnabled();
+  await expect(page.locator('.content-feedback.error')).toHaveCount(0);
+  await expect(page.locator('.content-error')).toHaveCount(0);
+  await expect(page.locator('#cw-draft')).toHaveValue('');
 });

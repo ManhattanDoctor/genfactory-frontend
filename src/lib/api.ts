@@ -51,14 +51,14 @@ export function getSession(): string | null {
   }
   return legacy;
 }
-export function setSession(sid: string | null) {
+export function setSession(sid: string | null): void {
   sessionStorage.removeItem(SESSION_KEY);
   if (sid) localStorage.setItem(SESSION_KEY, sid);
   else localStorage.removeItem(SESSION_KEY);
 }
 let pendingWrites = 0;
 export const hasPendingWrites = () => pendingWrites > 0;
-function notifyWrites() {
+function notifyWrites(): void {
   window.dispatchEvent(new Event('genfactory:pending-writes'));
 }
 export async function request<T>(

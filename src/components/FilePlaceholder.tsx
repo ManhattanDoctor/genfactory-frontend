@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import {
   AudioLines,
   FileText,
@@ -17,7 +18,7 @@ export function FilePlaceholder({
 }: {
   file: Pick<IGnosisFile, 'type' | 'mime' | 'name'>;
   className?: string;
-}) {
+}): ReactElement {
   const audio = file.type === 'AUDIO' || file.mime?.startsWith('audio/');
   const image = file.type === 'IMAGE' || file.mime?.startsWith('image/');
   const video = file.type === 'VIDEO' || file.mime?.startsWith('video/');

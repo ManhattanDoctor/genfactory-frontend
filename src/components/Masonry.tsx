@@ -9,7 +9,7 @@ export function Masonry({
   children: ReactElement[];
   columns: number;
   gap?: number;
-}) {
+}): ReactElement {
   const root = useRef<HTMLDivElement>(null);
   const assignments = useRef({ columns, items: new Map<string, number>() });
   const [layout, setLayout] = useState({

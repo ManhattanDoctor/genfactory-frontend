@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { GenerationElapsed } from './GenerationElapsed';
 import { conversationUrl as workUrl } from '../lib/conversationUrl';
 import './active-jobs.css';
@@ -27,7 +28,7 @@ function TaskPreview({
   sid: string;
   file?: IGnosisFile;
   fileId?: number;
-}) {
+}): ReactElement {
   const details = useQuery({
     queryKey: ['file-preview', userId, fileId],
     queryFn: () => api.file(fileId!, sid),
@@ -69,7 +70,7 @@ function TaskCard({
   fileId?: number;
   completed?: boolean;
   onOpen: () => void;
-}) {
+}): ReactElement {
   const view = taskView(item);
   return (
     <Link className={`job-card${completed ? ' completed-job' : ''}`} to={view.path} onClick={onOpen}>
@@ -100,7 +101,7 @@ function JobCard({
   conversation: IConversation;
   onOpen: () => void;
   completed?: boolean;
-}) {
+}): ReactElement {
   // Mounted only while the window is open; shares the conversation's message cache.
   const messages = useQuery({
     queryKey: ['messages', conversation.userId, conversation.id, 0],
@@ -155,13 +156,13 @@ function JobCard({
   );
 }
 
-export function ActiveJobs() {
+export function ActiveJobs(): ReactElement | null {
   const auth = useAuth();
   return auth.user ? (
     <Jobs key={`${auth.user.id}:${auth.session}`} userId={auth.user.id} sid={auth.session!} />
   ) : null;
 }
-function Jobs({ userId, sid }: { userId: number; sid: string }) {
+function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
   const client = useQueryClient();
   const { join } = useRealtime();
   const tasks = useMutationState({

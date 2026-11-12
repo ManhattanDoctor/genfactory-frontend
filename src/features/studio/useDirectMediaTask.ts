@@ -1,6 +1,12 @@
-import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+  type UseMutationResult,
+} from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
-import type { ITaskRequest, MediaKind } from '../../lib/types';
+import type { ITaskRequest, ITaskResponse, MediaKind } from '../../lib/types';
 import { visibleTasks } from './activeTasks';
 import { saveFileRecipe, type IGenerationRecipe } from './variants';
 
@@ -12,7 +18,14 @@ export interface IDirectMediaTask {
   recipe: IGenerationRecipe;
 }
 
-export function useDirectMediaTask(userId: number | undefined, kind: MediaKind) {
+export function useDirectMediaTask(
+  userId: number | undefined,
+  kind: MediaKind,
+): UseMutationResult<ITaskResponse, Error, IDirectMediaTask> & {
+  pending: boolean;
+  pendingCount: number;
+  pendingTasks: Array<{ id: string; model: string; createdDate: string }>;
+} {
   const client = useQueryClient();
   const mutationKey = ['media-task', userId, kind];
   const mutation = useMutation({

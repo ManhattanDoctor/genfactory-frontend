@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { getSession, api } from '../../lib/api';
 import { useAuth } from '../auth/AuthProvider';
@@ -16,7 +17,11 @@ function read<T>(key: string): IDraftRecord<T> | undefined {
     /* Corrupted or unavailable local storage must not block the editor. */
   }
 }
-export function useDraft<T extends object>(scope: string, value: T, meaningful: boolean) {
+export function useDraft<T extends object>(
+  scope: string,
+  value: T,
+  meaningful: boolean,
+): { available: IDraftRecord<T> | undefined; status: string; changed: () => void; clear: () => void } {
   const auth = useAuth();
   const key = `genfactory.draft.v1.${auth.user?.id ?? 'guest'}.${scope}`;
   const [entry, setEntry] = useState(() => ({ key, available: auth.user ? read<T>(key) : undefined }));
@@ -104,7 +109,7 @@ export function DraftBar<T>({
   draft: { available?: IDraftRecord<T>; status: string; clear: () => void };
   onRestore: (value: T) => void;
   busy?: boolean;
-}) {
+}): ReactElement {
   return (
     <div className="draft-bar" role="status">
       {draft.available ? (
@@ -123,7 +128,12 @@ export function DraftBar<T>({
     </div>
   );
 }
-export async function restoreDraftFiles(values: unknown, userId: number, sid: string, limit = 4) {
+export async function restoreDraftFiles(
+  values: unknown,
+  userId: number,
+  sid: string,
+  limit = 4,
+): Promise<{ files: IGnosisFile[]; missing: number }> {
   if (!Array.isArray(values)) return { files: [] as IGnosisFile[], missing: 0 };
   const ids = [
     ...new Set(

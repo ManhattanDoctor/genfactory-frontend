@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { Media, MediaPreview, type PreviewFile } from './MediaPreview';
@@ -18,7 +19,7 @@ export function ComposerAttachment({
   disabled?: boolean;
   className?: string;
   onRemove: () => void;
-}) {
+}): ReactElement {
   const label = caption ?? file.name;
   const [preview, setPreview] = useState(false);
   return (

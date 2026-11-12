@@ -1,3 +1,4 @@
+import type { ReactPortal } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { FilePlaceholder } from '../components/FilePlaceholder';
 import { createPortal } from 'react-dom';
@@ -11,7 +12,7 @@ export function HomeImageViewer({
   image: { src: string; alt: string; preview?: string };
   from: DOMRect;
   onClose: () => void;
-}) {
+}): ReactPortal {
   const dialog = useRef<HTMLDialogElement>(null);
   const shot = useRef<HTMLImageElement>(null);
   const thumbnail = useRef<HTMLImageElement>(null);
@@ -30,7 +31,7 @@ export function HomeImageViewer({
     width: from.width,
     height: from.height,
   });
-  function fit() {
+  function fit(): void {
     const node = shot.current?.naturalWidth ? shot.current : thumbnail.current;
     if (!node?.naturalWidth || closingRef.current) return;
     const scale = Math.min(
@@ -41,7 +42,7 @@ export function HomeImageViewer({
     const height = node.naturalHeight * scale;
     setRect({ left: (innerWidth - width) / 2, top: (innerHeight - height) / 2, width, height });
   }
-  function grow() {
+  function grow(): void {
     if (closingRef.current) return;
     clearTimeout(loadTimer.current);
     setLoadState('ready');
@@ -57,19 +58,19 @@ export function HomeImageViewer({
       }),
     );
   }
-  function showPreview() {
+  function showPreview(): void {
     if (closingRef.current || !thumbnail.current?.naturalWidth) return;
     setPreviewReady(true);
     setActive(true);
     fit();
   }
-  function fail() {
+  function fail(): void {
     if (closingRef.current) return;
     clearTimeout(loadTimer.current);
     setLoadState('error');
     setActive(true);
   }
-  function close() {
+  function close(): void {
     if (closingRef.current) return;
     closingRef.current = true;
     frames.current.forEach(cancelAnimationFrame);

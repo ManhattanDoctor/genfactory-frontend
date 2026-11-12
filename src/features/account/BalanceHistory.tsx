@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { TransactionPreview } from './TransactionPreview';
 import { ChevronDown } from 'lucide-react';
 import { modelTitle } from '../catalog/presentation';
@@ -15,11 +16,11 @@ import {
   transactionTitle,
   transactionModels,
 } from './transactions';
-export function BalanceHistory() {
+export function BalanceHistory(): ReactElement | null {
   const { user } = useAuth();
   return user ? <History key={user.id} userId={user.id} /> : null;
 }
-function History({ userId }: { userId: number }) {
+function History({ userId }: { userId: number }): ReactElement {
   const [expanded, setExpanded] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [kind, setKind] = useState('all');

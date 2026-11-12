@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -15,7 +16,7 @@ import '../studio/image-workspace.css';
 import '../studio/banana-workspace.css';
 import './agent-workspace.css';
 
-export function agentRequest(text: string, model: IModelDescription) {
+export function agentRequest(text: string, model: IModelDescription): string {
   return (
     '[Genfactory:chat]\nОбсуди вопрос пользователя и приложенные изображения. Отвечай по существу. Не создавай медиафайлы и не вызывай инструменты.\n[Genfactory:agent-model] ' +
     JSON.stringify({ name: modelTitle(model), ...model.reference }) +
@@ -23,7 +24,7 @@ export function agentRequest(text: string, model: IModelDescription) {
     (text.trim() || 'Опиши, что видно на приложенных изображениях.')
   );
 }
-export function agentModelName(text: string) {
+export function agentModelName(text: string): string {
   const line = text.split('\n').find((l) => l.startsWith('[Genfactory:agent-model] '));
   try {
     const data = JSON.parse(line?.slice('[Genfactory:agent-model] '.length) || 'null');
@@ -64,7 +65,7 @@ export function AgentWorkspace({
   onModel: (v: IModelDescription) => void;
   onLibrary: () => void;
   onSubmit: () => void;
-}) {
+}): ReactElement {
   const { user } = useAuth(),
     prefs = usePreferences();
   const dock = useRef<HTMLFormElement>(null),

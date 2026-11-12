@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { modelTitle } from '../catalog/presentation';
 import { useRef, useState } from 'react';
 import type { StudioQuestion } from './studioAgent';
@@ -11,11 +12,11 @@ export function StudioQuestionCard({
   question: StudioQuestion;
   disabled: boolean;
   onAnswer: (answer: string) => Promise<boolean>;
-}) {
+}): ReactElement {
   const [custom, setCustom] = useState('');
   const [sending, setSending] = useState(false);
   const lock = useRef(false);
-  async function answer(text: string) {
+  async function answer(text: string): Promise<void> {
     if (disabled || lock.current || !text.trim()) return;
     lock.current = true;
     setSending(true);

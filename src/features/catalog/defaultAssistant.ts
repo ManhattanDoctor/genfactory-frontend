@@ -3,7 +3,7 @@ import type { IModelDescription } from '../../lib/types';
 import { DEFAULT_ASSISTANT, isAllowedProvider } from '../../lib/modelPolicy';
 export { DEFAULT_ASSISTANT } from '../../lib/modelPolicy';
 
-export function defaultAssistant(models: IModelDescription[]) {
+export function defaultAssistant(models: IModelDescription[]): IModelDescription {
   const available = models.filter(
     (item) =>
       isAllowedProvider(item.reference.provider) &&

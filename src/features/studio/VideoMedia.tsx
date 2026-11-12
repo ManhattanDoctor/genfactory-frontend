@@ -1,3 +1,4 @@
+import type { ReactElement, ReactPortal } from 'react';
 import { FilePlaceholder } from '../../components/FilePlaceholder';
 import { modelTitle, modelSummary } from '../catalog/presentation';
 import { ModelMark } from '../content-studio/ModelMark';
@@ -9,7 +10,7 @@ import { safeMediaUrl } from '../../lib/api';
 import './video-workspace.css';
 
 /** Load the short designer preview only while the card is visible. */
-export function VideoTemplateMedia({ item }: { item: ITemplate }) {
+export function VideoTemplateMedia({ item }: { item: ITemplate }): ReactElement {
   const root = useRef<HTMLSpanElement>(null);
   const clip = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -70,7 +71,7 @@ export function VideoTemplateMedia({ item }: { item: ITemplate }) {
 }
 
 /** The designer opens the original in a dark video sheet, outside the gallery. */
-export function VideoViewer({ file, onClose }: { file: IGnosisFile; onClose: () => void }) {
+export function VideoViewer({ file, onClose }: { file: IGnosisFile; onClose: () => void }): ReactPortal {
   const dialog = useRef<HTMLDialogElement>(null);
   const player = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState(false);
@@ -129,7 +130,7 @@ export function VideoModelInfo({
   kind?: import('../../lib/types').MediaKind;
   model: import('../../lib/types').IModelDescription;
   onClose: () => void;
-}) {
+}): ReactPortal {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;

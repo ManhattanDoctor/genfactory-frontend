@@ -1,6 +1,6 @@
 import type { ITaskExecution } from '../../lib/types';
 
-export function taskView(item: ITaskExecution) {
+export function taskView(item: ITaskExecution): { path: string; title: string; type: string; mime: string } {
   if (item.model.includes('IMAGE'))
     return { path: '/image', title: 'Создаём изображение…', type: 'IMAGE', mime: 'image/png' };
   if (item.model.includes('VIDEO'))
@@ -13,7 +13,10 @@ export function taskView(item: ITaskExecution) {
 }
 
 /** The existing conversation card represents its active children until the parent finishes. */
-export function visibleTasks(items: ITaskExecution[], localSessions: Array<string | undefined>) {
+export function visibleTasks(
+  items: ITaskExecution[],
+  localSessions: Array<string | undefined>,
+): ITaskExecution[] {
   const ids = new Set(items.map((item) => item.id));
   const sessions = new Set(localSessions.filter(Boolean));
   return items.filter(

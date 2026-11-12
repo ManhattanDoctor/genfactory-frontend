@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import './file-browser.css';
 import { GenerationSummary } from './FileGeneration';
 import { UploadButtonContent } from './UploadButtonContent';
@@ -42,7 +43,7 @@ export function FileBrowser({
   foldersOnly = false,
   onDirectory,
   onCreate,
-}: IFileBrowserProps) {
+}: IFileBrowserProps): ReactElement {
   const { user } = useAuth();
   const cache = useQueryClient();
   const alive = useRef(true);
@@ -91,7 +92,7 @@ export function FileBrowser({
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const [uploadBatch, setUploadBatch] = useState<{ index: number; total: number }>();
   const uploadLock = useRef(false);
-  async function uploadFiles(selectedFiles: File[]) {
+  async function uploadFiles(selectedFiles: File[]): Promise<void> {
     const sid = getSession();
     if (!selectedFiles.length || !sid || busy || uploadLock.current) return;
     uploadLock.current = true;
@@ -162,7 +163,7 @@ export function FileBrowser({
     if (files.data && page > 0 && page >= files.data.pages) setPage(Math.max(0, files.data.pages - 1));
   }, [files.data, page]);
   const refresh = () => cache.invalidateQueries({ queryKey: ['files'] });
-  async function run(work: () => Promise<unknown>, message = '') {
+  async function run(work: () => Promise<unknown>, message = ''): Promise<void> {
     if (busy) return;
     setBusy(true);
     setError('');
@@ -178,7 +179,7 @@ export function FileBrowser({
       setBusy(false);
     }
   }
-  function navigate(items: IGnosisFile[]) {
+  function navigate(items: IGnosisFile[]): void {
     setTrail(items);
     setSelectedTags([]);
     setType('');
@@ -186,13 +187,13 @@ export function FileBrowser({
     setQuery('');
     setPage(0);
   }
-  function edit(file: IGnosisFile) {
+  function edit(file: IGnosisFile): void {
     setName(file.name);
     setTags(file.tags?.join(', ') || '');
     setAction({ kind: 'edit', file });
     setError('');
   }
-  async function open(file: IGnosisFile) {
+  async function open(file: IGnosisFile): Promise<void> {
     if (file.type === 'DIRECTORY') {
       if (query || selectedTags.length)
         await run(async () => {

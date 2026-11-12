@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { videoInputOptions, videoReferenceMode } from '../catalog/videoInputs';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
 import { modelTitle } from '../catalog/presentation';
@@ -70,7 +71,7 @@ const suggestions = {
     'Плавное приближение к предмету, мягкий студийный свет',
   ],
 };
-export function Studio({ kind }: { kind: MediaKind }) {
+export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const auth = useAuth();
   const prefs = usePreferences();
   const [picker, setPicker] = useState(false);

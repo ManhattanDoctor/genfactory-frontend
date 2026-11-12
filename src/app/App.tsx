@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { OpenConversation } from './OpenConversation';
 import { AppUpdateNotice } from '../components/AppUpdateNotice';
 import { ActiveJobs } from '../components/ActiveJobs';
@@ -34,7 +35,7 @@ import { useAuth } from '../features/auth/AuthProvider';
 const AuthCallback = lazy(() =>
   import('../features/auth/AuthCallback').then((m) => ({ default: m.AuthCallback })),
 );
-export function App() {
+export function App(): ReactElement {
   const auth = useAuth();
   const client = useQueryClient();
   const [mobileNav, setMobileNav] = useState(false);

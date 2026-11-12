@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { isAllowedProvider } from '../../lib/modelPolicy';
 import { useRetainedModel } from '../catalog/useRetainedModel';
@@ -39,12 +40,12 @@ import '../studio/banana-workspace.css';
 import './prompt-workspace.css';
 
 type Card = { id: number; result?: PromptResult; input?: PromptInput; files: IGnosisFile[]; raw: string };
-export function PromptStudio() {
+export function PromptStudio(): ReactElement {
   const { user } = useAuth();
   const location = useLocation();
   return <PromptEditor key={`${user?.id}:${location.search}`} />;
 }
-function PromptEditor() {
+function PromptEditor(): ReactElement {
   const auth = useAuth(),
     navigate = useNavigate(),
     client = useQueryClient(),

@@ -17,13 +17,24 @@ export async function studioHistoryFiles(
   // The next user message itself occupies one slot in the backend history window.
   const limit = Math.max(0, Math.min(256, (conversation.history ?? 32) - 1));
   if (!limit) return [];
+  const reset = conversation.historyResetDate ? Date.parse(conversation.historyResetDate) : 0;
   const messages: IConversationMessage[] = [];
   for (let page = 0; messages.length < limit; page++) {
     const value = await readPage(page);
-    messages.push(...value.items);
-    if (!value.items.length || page + 1 >= value.pages) break;
+    // Match backend history: commands do not consume the message window.
+    messages.push(
+      ...value.items.filter(
+        (message) => message.role !== 'COMMAND' && (!reset || Date.parse(message.createdDate) > reset),
+      ),
+    );
+    // Pages are ordered newest first, so older pages cannot cross back over a reset.
+    if (
+      !value.items.length ||
+      page + 1 >= value.pages ||
+      (reset && value.items.some((message) => Date.parse(message.createdDate) <= reset))
+    )
+      break;
   }
-  const reset = conversation.historyResetDate ? Date.parse(conversation.historyResetDate) : 0;
   const files = new Map<number, StudioHistoryFile>();
   for (const message of messages.slice(0, limit)) {
     if (!['USER', 'ASSISTANT'].includes(message.role)) continue;

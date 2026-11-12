@@ -1,7 +1,8 @@
+import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import './generation-elapsed.css';
 
-export function GenerationElapsed({ startedAt }: { startedAt?: string }) {
+export function GenerationElapsed({ startedAt }: { startedAt?: string }): ReactElement | null {
   const start = startedAt ? Date.parse(startedAt) : NaN;
   const [now, setNow] = useState(Date.now);
   useEffect(() => {

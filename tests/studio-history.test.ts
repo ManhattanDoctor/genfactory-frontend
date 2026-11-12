@@ -75,4 +75,22 @@ describe('Studio historical file catalogue', () => {
       }),
     ).rejects.toThrow('network');
   });
+  it('does not count commands against the backend message window', async () => {
+    const read = vi.fn(async (index: number) =>
+      index === 0
+        ? page([{ ...message(3), role: 'COMMAND' }, message(2)], 0, 2)
+        : page([message(1, [file])], 1, 2),
+    );
+    expect(await studioHistoryFiles({ ...conversation, history: 3 }, read)).toEqual([
+      { id: 1602, name: 'chair.png', type: 'IMAGE', role: 'USER', messageId: 1 },
+    ]);
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+  it('does not fetch older pages once a descending page crosses the reset boundary', async () => {
+    const read = vi.fn(async () => page([message(2), message(1, [file])], 0, 4));
+    expect(
+      await studioHistoryFiles({ ...conversation, historyResetDate: '2026-11-11T14:00:00Z' }, read),
+    ).toEqual([]);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,9 +1,14 @@
+import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { Play } from 'lucide-react';
 import type { IPaymentTransaction } from '../../lib/types';
 import { Media, MediaPreview } from '../../components/MediaPreview';
 
-export function TransactionPreview({ transaction }: { transaction: IPaymentTransaction }) {
+export function TransactionPreview({
+  transaction,
+}: {
+  transaction: IPaymentTransaction;
+}): ReactElement | null {
   const [opened, setOpened] = useState(false);
   const files = (transaction.results || []).filter((file) => file.userId === transaction.userId);
   const file = files[0];

@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { ChevronDown, Copy, FileImage, ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +8,7 @@ import { api, safeMediaUrl } from '../lib/api';
 import type { IGnosisFile } from '../lib/types';
 import './file-generation.css';
 
-function useGenerationModelName(file: IGnosisFile) {
+function useGenerationModelName(file: IGnosisFile): string {
   const { user } = useAuth();
   const model = file.origin?.generation?.model;
   const catalog = useQuery({
@@ -24,7 +25,7 @@ function useGenerationModelName(file: IGnosisFile) {
   return modelTitle(match || { reference: model, name: model.model });
 }
 
-export function GenerationSummary({ file }: { file: IGnosisFile }) {
+export function GenerationSummary({ file }: { file: IGnosisFile }): ReactElement | null {
   const modelName = useGenerationModelName(file);
   const generation = file.origin?.generation;
   if (!generation) return null;
@@ -43,7 +44,7 @@ export function GenerationSummary({ file }: { file: IGnosisFile }) {
   );
 }
 
-function SourceFile({ id, mask }: { id: number; mask: boolean }) {
+function SourceFile({ id, mask }: { id: number; mask: boolean }): ReactElement {
   const { user } = useAuth();
   const source = useQuery({
     queryKey: ['generation-source', user?.id, id],
@@ -72,7 +73,7 @@ function SourceFile({ id, mask }: { id: number; mask: boolean }) {
   );
 }
 
-export function GenerationDetails({ file }: { file: IGnosisFile }) {
+export function GenerationDetails({ file }: { file: IGnosisFile }): ReactElement | null {
   const modelName = useGenerationModelName(file);
   const [expanded, setExpanded] = useState(false);
   const [notice, setNotice] = useState('');

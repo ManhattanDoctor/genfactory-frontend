@@ -16,7 +16,7 @@ export interface StudioQuestion {
 }
 const CONTEXT_START = '[Genfactory:studio-context:v1]\n';
 const CONTEXT_END = '\n[/Genfactory:studio-context]';
-export function withStudioContext(text: string, context: StudioQuestion['context']) {
+export function withStudioContext(text: string, context: StudioQuestion['context']): string {
   return `${text}\n\n${CONTEXT_START}${JSON.stringify(context)}${CONTEXT_END}`;
 }
 export function parseStudioContext(text?: string): StudioQuestion['context'] | undefined {
@@ -29,7 +29,7 @@ export function parseStudioContext(text?: string): StudioQuestion['context'] | u
     return;
   }
 }
-export function stripStudioContext(text: string) {
+export function stripStudioContext(text: string): string {
   const start = text.lastIndexOf(CONTEXT_START);
   return start >= 0 && text.endsWith(CONTEXT_END) ? text.slice(0, start).trimEnd() : text;
 }
@@ -77,7 +77,7 @@ export function parseStudioQuestion(text?: string, requestText?: string): Studio
 }
 
 /** Malformed choices never become executable UI actions. Keep the readable question. */
-export function studioReplyText(text: string) {
+export function studioReplyText(text: string): string {
   if (!text.startsWith(STUDIO_QUESTION_PREFIX)) return text;
   try {
     const value = JSON.parse(text.slice(STUDIO_QUESTION_PREFIX.length));

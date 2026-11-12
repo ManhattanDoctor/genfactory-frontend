@@ -1,15 +1,35 @@
-import { studioHistoryFiles } from './studioHistory';
+import type { StudioHistoryFile } from './studioHistory';
+import { cachedStudioHistoryFiles } from './historyCache';
 import { studioSystem } from './studioPrompt';
 import { assertAllowedProvider } from '../../lib/modelPolicy';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
-import type { IModelDescription, IMessageCreate, IToolConnection } from '../../lib/types';
+import type { IConversation, IModelDescription, IMessageCreate, IToolConnection } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { videoModerationError } from '../../lib/errorMessages';
 
-export function useContentConversation() {
+export interface ContentConversation {
+  historyFiles: () => Promise<Array<StudioHistoryFile>>;
+  id: number | undefined;
+  conversation: IConversation | undefined;
+  isExecutionError: boolean;
+  error: string;
+  setError: (message: string, isExecution?: boolean) => void;
+  busy: boolean;
+  submit: (
+    body: IMessageCreate,
+    title: string,
+    tools: Array<IToolConnection>,
+    agent?: IModelDescription,
+    onCreated?: (id: number) => void,
+  ) => Promise<boolean>;
+  agents: Array<IModelDescription>;
+  latestRequest: number;
+}
+
+export function useContentConversation(): ContentConversation {
   const auth = useAuth();
   const [params, setParams] = useSearchParams();
   const location = useLocation();
@@ -17,7 +37,7 @@ export function useContentConversation() {
   const id = raw && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : undefined;
   const client = useQueryClient();
   const [failure, setFailure] = useState({ message: '', isExecution: false });
-  function setError(message: string, isExecution = false) {
+  function setError(message: string, isExecution = false): void {
     setFailure({ message, isExecution });
   }
   const [preparing, setPreparing] = useState(false);
@@ -62,18 +82,21 @@ export function useContentConversation() {
   const send = useMutation({
     mutationKey: ['send-message', auth.user?.id],
     retry: false,
-    mutationFn: ({ id, body, sid }: { id: number; body: IMessageCreate; sid: string }) =>
+    mutationFn: ({ id, body, sid }: { id: number; body: IMessageCreate; sid: string; scopeToken: object }) =>
       api.sendMessage(id, body, sid),
     onSettled: (_data, failure, variables) => {
-      if (failure && getSession() === variables.sid)
+      if (getSession() !== variables.sid) return;
+      if (failure && scope.current.token === variables.scopeToken)
         setError(
           failure.message === videoModerationError
             ? failure.message
             : `${failure.message} Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
           true,
         );
-      for (const key of ['conversation', 'messages', 'conversations', 'account'])
-        void client.invalidateQueries({ queryKey: [key] });
+      for (const key of ['conversation', 'messages'])
+        void client.invalidateQueries({ queryKey: [key, auth.user?.id, variables.id] });
+      void client.invalidateQueries({ queryKey: ['conversations', auth.user?.id] });
+      void client.invalidateQueries({ queryKey: ['account', variables.sid] });
       window.dispatchEvent(new Event('genfactory:generation-finished'));
     },
   });
@@ -84,7 +107,7 @@ export function useContentConversation() {
     tools: IToolConnection[],
     agent?: IModelDescription,
     onCreated?: (id: number) => void,
-  ) {
+  ): Promise<boolean> {
     if (!auth.user || !auth.session || lock.current || busy || scope.current.token !== active) return false;
     if (raw && !detail.data) {
       setError('Дождитесь загрузки беседы.');
@@ -141,7 +164,7 @@ export function useContentConversation() {
         setParams({ conversation: String(conversation.id) }, { replace: true });
       }
       sent = true;
-      await send.mutateAsync({ id: conversation.id, body, sid });
+      await send.mutateAsync({ id: conversation.id, body, sid, scopeToken: currentScope });
       return current();
     } catch (e) {
       if (current()) {
@@ -157,17 +180,11 @@ export function useContentConversation() {
       if (getSession() === sid) setPreparing(false);
     }
   }
-  async function historyFiles() {
+  async function historyFiles(): Promise<Array<StudioHistoryFile>> {
     const conversation = detail.data;
     if (!conversation || !auth.user || !auth.session || conversation.userId !== auth.user.id) return [];
     const sid = auth.session;
-    return studioHistoryFiles(conversation, (page) =>
-      client.fetchQuery({
-        queryKey: ['messages', auth.user!.id, conversation.id, page],
-        staleTime: 1000,
-        queryFn: ({ signal }) => api.messages(conversation.id, page, signal, sid),
-      }),
-    );
+    return cachedStudioHistoryFiles(client, conversation, sid);
   }
   return {
     historyFiles,

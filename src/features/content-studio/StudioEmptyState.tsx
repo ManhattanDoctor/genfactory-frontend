@@ -1,5 +1,6 @@
+import type { ReactElement } from 'react';
 /** Original handwritten hints from the Studio prototype. */
-export function StudioEmptyState() {
+export function StudioEmptyState(): ReactElement {
   return (
     <div className="ms-block" aria-label="Подсказки студии">
       <div className="ms-hint ms-hint-right">

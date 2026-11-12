@@ -17,7 +17,7 @@ export const bananaRatios = [
   '16:9',
   '21:9',
 ];
-export function bananaDefaults(model?: IModelDescription) {
+export function bananaDefaults(model?: IModelDescription): Record<string, unknown> {
   const fields = model?.schema.properties?.options;
   const result = defaults(fields);
   for (const [name, preferred] of [

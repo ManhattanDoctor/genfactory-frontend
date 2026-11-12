@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useState, type ReactNode } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
@@ -19,7 +20,7 @@ export function ConversationNavigation({
   label: string;
   children: ReactNode;
   onNavigate?: () => void;
-}) {
+}): ReactElement {
   const { user } = useAuth();
   const location = useLocation();
   const [expanded, setExpanded] = useState(true);
@@ -40,7 +41,7 @@ export function ConversationNavigation({
     ).values(),
   ];
   const hasMore = chats.length > visible || dialogs.hasNextPage;
-  async function showMore() {
+  async function showMore(): Promise<void> {
     if (visible >= chats.length && dialogs.hasNextPage) await dialogs.fetchNextPage();
     setVisible((count) => count + RECENT_COUNT);
   }

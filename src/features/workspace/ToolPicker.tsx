@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useAuth } from '../auth/AuthProvider';
@@ -30,7 +31,7 @@ export function ToolPicker({
   value: string[];
   onChange: (uids: string[]) => void;
   disabled?: boolean;
-}) {
+}): ReactElement {
   const { user } = useAuth();
   const catalog = useQuery({
     queryKey: ['tools', user?.id, provider],

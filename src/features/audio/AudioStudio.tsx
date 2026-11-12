@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
@@ -20,12 +21,12 @@ import { ReferenceList } from '../../components/ReferenceList';
 import { DraftBar, restoreDraftFiles, useDraft } from '../workspace/drafts';
 
 const modelKey = (m: IModelDescription) => `${m.reference.provider}:${m.reference.model}`;
-export function AudioStudio() {
+export function AudioStudio(): ReactElement {
   const auth = useAuth();
   const location = useLocation();
   return <AudioEditor key={`${auth.user?.id}:${location.key}`} />;
 }
-function AudioEditor() {
+function AudioEditor(): ReactElement {
   const auth = useAuth();
   const prefs = usePreferences();
   const location = useLocation();

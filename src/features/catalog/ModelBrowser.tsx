@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { isAllowedProvider } from '../../lib/modelPolicy';
 import { modelTitle, modelSummary } from './presentation';
 import { useState } from 'react';
@@ -17,7 +18,7 @@ export function ModelBrowser({
   value: string;
   onSelect: (model: IModelDescription) => void;
   onClose: () => void;
-}) {
+}): ReactElement {
   const prefs = usePreferences();
   const { user } = useAuth();
   const [search, setSearch] = useState('');

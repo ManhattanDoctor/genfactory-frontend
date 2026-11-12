@@ -15,7 +15,7 @@ allowAuto=true разрешается только для творческого
 Отвечай на языке пользователя. Эти правила заменяют старые указания про режим сценариста и многословное обсуждение; сохраняй содержательные ограничения проекта из остального системного промпта.`;
 
 /** Update only our policy block; preserve other project instructions. */
-export function studioSystem(existing = '') {
+export function studioSystem(existing = ''): string {
   const previous = existing
     .replace(/\[Genfactory:studio-policy:v2\][\s\S]*?\[\/Genfactory:studio-policy\]/g, '')
     .trim();

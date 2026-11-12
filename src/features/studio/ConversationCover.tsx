@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { FilePlaceholder } from '../../components/FilePlaceholder';
 import { Play } from 'lucide-react';
@@ -14,7 +15,7 @@ export function ConversationCover({
   conversation: IConversation;
   onOpen?: () => void;
   isStatic?: boolean;
-}) {
+}): ReactElement {
   const [failed, setFailed] = useState<string>();
   const image = conversation.preview?.image;
   const src = image?.status === 'READY' ? safeMediaUrl(image.url) : undefined;

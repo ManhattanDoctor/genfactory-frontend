@@ -115,7 +115,7 @@ export function MediaWorkspace({
   onRepeat: (file: IGnosisFile, input?: IGenerationRecipe['workspaceInput']) => void;
   promptInput: RefObject<HTMLTextAreaElement | null>;
   children?: ReactNode;
-}) {
+}): ReactElement {
   const video = kind === 'video';
   const banana = variant === 'banana';
   const seedance = variant === 'seedance';
@@ -841,7 +841,7 @@ export function ImageMenu({
   describeModel?: (model: IModelDescription) => string;
   onFavorite?: (value: string) => void;
   autoOption?: { selected: boolean; onSelect: () => void };
-}) {
+}): ReactElement {
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState<IModelDescription>();
   const root = useRef<HTMLDivElement>(null);
@@ -1039,7 +1039,7 @@ function ImageProgress({
   conversation: IConversation;
   kind: MediaKind;
   startedAt?: string;
-}) {
+}): ReactElement {
   const [now, setNow] = useState(Date.now);
   const start = startedAt ? Date.parse(startedAt) : NaN;
   useEffect(() => {

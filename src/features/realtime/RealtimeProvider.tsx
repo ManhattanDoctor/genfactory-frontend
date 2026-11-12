@@ -1,6 +1,8 @@
+import type { ReactElement } from 'react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { TransportSocket, TransportSocketClient } from '@ts-core/socket-client';
+import type { TransportSocket } from '@ts-core/socket-client';
+import { matchesRefresh, refreshTargets, taskConversationId, type RefreshTarget } from './refreshTargets';
 import type { ILogger } from '@ts-core/common';
 import { useAuth } from '../auth/AuthProvider';
 import type { ITaskExecution, ITaskFinished } from '../../lib/types';
@@ -37,7 +39,7 @@ const resources = [
   'conversation-progress',
 ];
 
-export function RealtimeProvider({ children }: { children: ReactNode }) {
+export function RealtimeProvider({ children }: { children: ReactNode }): ReactElement {
   const { user, session } = useAuth();
   const client = useQueryClient();
   const [connected, setConnected] = useState(false);
@@ -71,156 +73,174 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     if (!user || !session) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const dirty = new Set<string>();
-    const refresh = (keys = resources) => {
-      keys.forEach((key) => dirty.add(key));
+    const dirty = new Map<string, RefreshTarget>();
+    const refresh = (keys = resources, conversationId?: unknown, fileId?: unknown) => {
+      refreshTargets(keys, conversationId, fileId).forEach((target) =>
+        dirty.set(`${target.resource}:${target.id ?? '*'}`, target),
+      );
       if (timer) return;
       timer = setTimeout(() => {
         timer = undefined;
         if (!alive) return;
-        const selected = new Set(dirty);
+        const selected = [...dirty.values()];
         dirty.clear();
-        void client.invalidateQueries({ predicate: (query) => selected.has(String(query.queryKey[0])) });
+        void client.invalidateQueries({
+          predicate: (query) => matchesRefresh(query.queryKey, selected, user.id),
+        });
       }, 100);
     };
-    const apiBase = new URL(import.meta.env.VITE_API_BASE || '/api', location.origin);
-    const logger: ILogger = {
-      log: () => {},
-      warn: (message) =>
-        console.warn(
-          '[Realtime]',
-          String(message?.message || message).replace(/Bearer\s+\S+/gi, 'Bearer [redacted]'),
-        ),
-      error: (message) =>
-        console.error(
-          '[Realtime]',
-          String(message?.message || message).replace(/Bearer\s+\S+/gi, 'Bearer [redacted]'),
-        ),
-      debug: () => {},
-      verbose: () => {},
-    };
-    const connection = new TransportSocketClient(logger, {
-      url: apiBase.origin,
-      namespace: 'gnosisai',
-      auth: { token: session },
-      path: '/socket.io',
-      transports: ['websocket'],
-      reconnectionAttempts: 100,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-    });
-    const transport = new TransportSocket(
-      logger,
-      { timeout: 10000, isRestoreRoomsOnConnect: true },
-      connection,
-    );
-    socketRef.current = transport;
-    rooms.current.forEach((_, room) => roomCommand(room, 'ADD'));
-    const subscriptions = [
-      connection.connected.subscribe(() => {
-        if (alive) {
-          setConnected(true);
-          refresh();
-        }
-      }),
-      connection.disconnected.subscribe(() => {
-        if (alive) setConnected(false);
-      }),
-      connection.connectedError.subscribe(() => {
-        if (alive) setConnected(false);
-      }),
-      connection.reconnectedFailed.subscribe(() => {
-        if (alive) setConnected(false);
-      }),
-    ];
-    const events = [
-      'TaskProgressedEvent',
-      'TaskStartedEvent',
-      'TaskFinishedEvent',
-      'ConversationAddedEvent',
-      'ConversationChangedEvent',
-      'ConversationRemovedEvent',
-      'ConversationErroredEvent',
-      'ConversationClearedEvent',
-      'ConversationMessageAddedEvent',
-      'ConversationMessageRemovedEvent',
-      'FileAddedEvent',
-      'FileChangedEvent',
-      'FileRemovedEvent',
-      'FilePreviewChangedEvent',
-      'CoinBalanceChangedEvent',
-      'AiModelChangedEvent',
-    ];
-    const receive = (event: { name?: string; data?: any }) => {
+    let dispose = () => {};
+    const connect = async () => {
+      const { TransportSocket, TransportSocketClient } = await import('./socketTransport');
       if (!alive) return;
-      const { name = '', data = {} } = event || {};
-      if (name === 'ConversationErroredEvent' && Number.isSafeInteger(data.id) && data.id > 0) {
-        client.setQueryData(
-          ['conversation-error', user.id, data.id],
-          apiErrorMessage(data.error, data.error?.status || 500),
-        );
-      }
-      if (
-        (name === 'ConversationChangedEvent' && ['LOADING', 'LOADED'].includes(data.item?.status)) ||
-        name === 'ConversationClearedEvent' ||
-        name === 'ConversationRemovedEvent'
-      ) {
-        client.setQueryData(['conversation-error', user.id, data.id], '');
-      }
-      if (name === 'TaskProgressedEvent' && /^conversation[1-9]\d*$/.test(data.session || '')) {
-        const id = Number(data.session.slice('conversation'.length));
-        client.setQueryData(['conversation-progress', user.id, id], { value: data, at: Date.now() });
-        return;
-      }
-      if (name === 'TaskStartedEvent' && typeof data.id === 'string' && data.item?.id === data.id) {
-        client.setQueryData<ITaskExecution[]>(['active-tasks', user.id], (previous) => [
-          ...(previous || []).filter((item) => item.id !== data.id),
-          data.item,
-        ]);
-      }
-      if (name === 'TaskFinishedEvent' && typeof data.id === 'string') {
-        client.setQueryData<ITaskExecution[]>(['active-tasks', user.id], (previous) =>
-          (previous || []).filter((item) => item.id !== data.id),
-        );
-        if (data.item?.id === data.id && ['COMPLETED', 'FAILED', 'CANCELLED'].includes(data.result)) {
-          client.setQueryData<ITaskFinished[]>(['task-notices', user.id], (previous) =>
-            [data, ...(previous || []).filter((item) => item.id !== data.id)].slice(0, 8),
+      const apiBase = new URL(import.meta.env.VITE_API_BASE || '/api', location.origin);
+      const logger: ILogger = {
+        log: () => {},
+        warn: (message) =>
+          console.warn(
+            '[Realtime]',
+            String(message?.message || message).replace(/Bearer\s+\S+/gi, 'Bearer [redacted]'),
+          ),
+        error: (message) =>
+          console.error(
+            '[Realtime]',
+            String(message?.message || message).replace(/Bearer\s+\S+/gi, 'Bearer [redacted]'),
+          ),
+        debug: () => {},
+        verbose: () => {},
+      };
+      const connection = new TransportSocketClient(logger, {
+        url: apiBase.origin,
+        namespace: 'gnosisai',
+        auth: { token: session },
+        path: '/socket.io',
+        transports: ['websocket'],
+        reconnectionAttempts: 100,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 10000,
+      });
+      const transport = new TransportSocket(
+        logger,
+        { timeout: 10000, isRestoreRoomsOnConnect: true },
+        connection,
+      );
+      socketRef.current = transport;
+      rooms.current.forEach((_, room) => roomCommand(room, 'ADD'));
+      const subscriptions = [
+        connection.connected.subscribe(() => {
+          if (alive) {
+            setConnected(true);
+            refresh();
+          }
+        }),
+        connection.disconnected.subscribe(() => {
+          if (alive) setConnected(false);
+        }),
+        connection.connectedError.subscribe(() => {
+          if (alive) setConnected(false);
+        }),
+        connection.reconnectedFailed.subscribe(() => {
+          if (alive) setConnected(false);
+        }),
+      ];
+      const events = [
+        'TaskProgressedEvent',
+        'TaskStartedEvent',
+        'TaskFinishedEvent',
+        'ConversationAddedEvent',
+        'ConversationChangedEvent',
+        'ConversationRemovedEvent',
+        'ConversationErroredEvent',
+        'ConversationClearedEvent',
+        'ConversationMessageAddedEvent',
+        'ConversationMessageRemovedEvent',
+        'FileAddedEvent',
+        'FileChangedEvent',
+        'FileRemovedEvent',
+        'FilePreviewChangedEvent',
+        'CoinBalanceChangedEvent',
+        'AiModelChangedEvent',
+      ];
+      const receive = (event: { name?: string; data?: any }) => {
+        if (!alive) return;
+        const { name = '', data = {} } = event || {};
+        if (name === 'ConversationErroredEvent' && Number.isSafeInteger(data.id) && data.id > 0) {
+          client.setQueryData(
+            ['conversation-error', user.id, data.id],
+            apiErrorMessage(data.error, data.error?.status || 500),
           );
         }
-      }
-      if (name === 'AiModelChangedEvent') refresh(modelResources);
-      else if (name.startsWith('Conversation'))
-        refresh(['conversation', 'conversations', 'messages', 'active-jobs']);
-      else if (name.startsWith('File'))
-        refresh(['files', 'file-preview', 'messages', 'conversation', 'conversations']);
-      else if (name === 'CoinBalanceChangedEvent') refresh(['account', 'transactions']);
-      else if (name === 'TaskStartedEvent' || name === 'TaskFinishedEvent') {
-        refresh([
-          'conversation',
-          'conversations',
-          'messages',
-          'agent-messages',
-          'active-jobs',
-          'active-tasks',
-          'conversation-progress',
-          ...(name === 'TaskFinishedEvent'
-            ? ['account', 'transactions', 'transaction-results', 'files']
-            : []),
-        ]);
-      }
+        if (
+          (name === 'ConversationChangedEvent' && ['LOADING', 'LOADED'].includes(data.item?.status)) ||
+          name === 'ConversationClearedEvent' ||
+          name === 'ConversationRemovedEvent'
+        ) {
+          client.setQueryData(['conversation-error', user.id, data.id], '');
+        }
+        if (name === 'TaskProgressedEvent' && /^conversation[1-9]\d*$/.test(data.session || '')) {
+          const id = Number(data.session.slice('conversation'.length));
+          client.setQueryData(['conversation-progress', user.id, id], { value: data, at: Date.now() });
+          return;
+        }
+        if (name === 'TaskStartedEvent' && typeof data.id === 'string' && data.item?.id === data.id) {
+          client.setQueryData<ITaskExecution[]>(['active-tasks', user.id], (previous) => [
+            ...(previous || []).filter((item) => item.id !== data.id),
+            data.item,
+          ]);
+        }
+        if (name === 'TaskFinishedEvent' && typeof data.id === 'string') {
+          client.setQueryData<ITaskExecution[]>(['active-tasks', user.id], (previous) =>
+            (previous || []).filter((item) => item.id !== data.id),
+          );
+          if (data.item?.id === data.id && ['COMPLETED', 'FAILED', 'CANCELLED'].includes(data.result)) {
+            client.setQueryData<ITaskFinished[]>(['task-notices', user.id], (previous) =>
+              [data, ...(previous || []).filter((item) => item.id !== data.id)].slice(0, 8),
+            );
+          }
+        }
+        if (name === 'AiModelChangedEvent') refresh(modelResources);
+        else if (name.startsWith('Conversation'))
+          refresh(['conversation', 'conversations', 'messages', 'agent-messages', 'active-jobs'], data.id);
+        else if (name.startsWith('File'))
+          refresh(['files', 'file-preview', 'messages', 'conversation', 'conversations'], undefined, data.id);
+        else if (name === 'CoinBalanceChangedEvent') refresh(['account', 'transactions']);
+        else if (name === 'TaskStartedEvent' || name === 'TaskFinishedEvent') {
+          refresh(
+            [
+              'conversation',
+              'conversations',
+              'messages',
+              'agent-messages',
+              'active-jobs',
+              'active-tasks',
+              'conversation-progress',
+              ...(name === 'TaskFinishedEvent'
+                ? ['account', 'transactions', 'transaction-results', 'files']
+                : []),
+            ],
+            taskConversationId(data.session ?? data.item?.session),
+          );
+        }
+      };
+      subscriptions.push(...events.map((name) => transport.getDispatcher<any>(name).subscribe(receive)));
+      void transport.connect().catch(() => {
+        if (alive) setConnected(false);
+      });
+      dispose = () => {
+        socketRef.current = null;
+        subscriptions.forEach((subscription) => subscription.unsubscribe());
+        connection.disconnect();
+        transport.destroy();
+        connection.destroy();
+      };
     };
-    subscriptions.push(...events.map((name) => transport.getDispatcher<any>(name).subscribe(receive)));
-    void transport.connect().catch(() => {
+    void connect().catch(() => {
       if (alive) setConnected(false);
     });
     return () => {
       alive = false;
       clearTimeout(timer);
-      socketRef.current = null;
-      subscriptions.forEach((subscription) => subscription.unsubscribe());
-      connection.disconnect();
-      transport.destroy();
-      connection.destroy();
+      dispose();
     };
   }, [session, user?.id, client, roomCommand]);
 
@@ -235,10 +255,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
   return <Context.Provider value={{ connected, join }}>{children}</Context.Provider>;
 }
-export function useRealtime() {
+export function useRealtime(): IRealtime {
   return useContext(Context);
 }
-export function useConversationRoom(id?: number) {
+export function useConversationRoom(id?: number): void {
   const { join } = useRealtime();
   useEffect(() => (id ? join(`conversation${id}`) : undefined), [id, join]);
 }

@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { Info, type LucideIcon } from 'lucide-react';
 import './model-title-with-info.css';
 
@@ -12,7 +13,7 @@ export function ModelTitleWithInfo({
   onInfo?: () => void;
   infoClassName?: string;
   icon?: LucideIcon;
-}) {
+}): ReactElement {
   const boundary = title.lastIndexOf(' ') + 1;
   return (
     <>

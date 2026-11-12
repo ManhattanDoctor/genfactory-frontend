@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
 import { modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
@@ -24,12 +25,12 @@ import { LibraryPicker } from '../../components/LibraryPicker';
 import { SelectControl } from '../../components/SelectControl';
 import { videoAnalysisError, videoAnalysisTool } from '../prompt/videoAnalysis';
 
-export function TextStudio({ mode }: { mode: TextMode }) {
+export function TextStudio({ mode }: { mode: TextMode }): ReactElement {
   const auth = useAuth();
   const location = useLocation();
   return <TextEditor key={`${auth.user?.id}:${mode}:${location.key}`} mode={mode} />;
 }
-function TextEditor({ mode }: { mode: TextMode }) {
+function TextEditor({ mode }: { mode: TextMode }): ReactElement {
   const auth = useAuth();
   const location = useLocation();
   const navigate = useNavigate();

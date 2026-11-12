@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import './account.css';
 import { BalanceHistory } from './BalanceHistory';
 import { formatBalance } from '../../lib/money';
@@ -5,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Wallet, UserRound, RefreshCw, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { Modal } from '../../components/Modal';
-export function Account() {
+export function Account(): ReactElement {
   const auth = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshed, setRefreshed] = useState('');

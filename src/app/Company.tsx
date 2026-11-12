@@ -1,7 +1,8 @@
+import type { ReactElement } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 /** Visual identity and hero asset from the company's current ntiai.ru site. */
-export function Company() {
+export function Company(): ReactElement {
   return (
     <div className="company-page">
       <section className="company-hero" aria-labelledby="company-title">

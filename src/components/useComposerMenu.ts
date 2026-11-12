@@ -1,6 +1,6 @@
 import { useLayoutEffect, type RefObject } from 'react';
 /** Place mobile choices above the whole composer, including its text field. */
-export function useComposerMenu(open: boolean, root: RefObject<HTMLElement | null>) {
+export function useComposerMenu(open: boolean, root: RefObject<HTMLElement | null>): void {
   useLayoutEffect(() => {
     if (!open || !root.current) return;
     const menu = root.current.querySelector<HTMLElement>('[role="listbox"],.cw-model-menu');

@@ -83,7 +83,7 @@ export function saveRecipe(
   conversationId: number,
   messageId: number,
   recipe: IGenerationRecipe,
-) {
+): boolean {
   try {
     const rows = readRows(userId).filter(
       (r) => !(r.conversationId === conversationId && r.messageId === messageId),
@@ -98,7 +98,7 @@ export function saveRecipe(
     return false;
   }
 }
-export function subscribeRecipes(fn: () => void) {
+export function subscribeRecipes(fn: () => void): () => void {
   window.addEventListener(event, fn);
   window.addEventListener('storage', fn);
   return () => {
@@ -113,7 +113,16 @@ export function requestKind(text?: string): MediaKind | undefined {
       ? 'video'
       : undefined;
 }
-export function variantGroups(chronological: IConversationMessage[], userId: number) {
+export function variantGroups(
+  chronological: IConversationMessage[],
+  userId: number,
+): {
+  request: IConversationMessage;
+  responses: IConversationMessage[];
+  inputs: IGnosisFile[];
+  outputs: IGnosisFile[];
+  kind: MediaKind;
+}[] {
   const groups: {
     request: IConversationMessage;
     responses: IConversationMessage[];
@@ -149,6 +158,9 @@ export function variantGroups(chronological: IConversationMessage[], userId: num
   }
   return groups;
 }
-export function fallbackRecipe(request: IConversationMessage, kind: MediaKind) {
+export function fallbackRecipe(
+  request: IConversationMessage,
+  kind: MediaKind,
+): { kind: MediaKind; prompt: string; references: IGnosisFile[] } {
   return { kind, prompt: displayMessageText(request.text || ''), references: request.files || [] };
 }

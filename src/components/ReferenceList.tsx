@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import type { IGnosisFile } from '../lib/types';
 import { ComposerAttachment } from './ComposerAttachment';
 export function ReferenceList({
@@ -10,7 +11,7 @@ export function ReferenceList({
   onChange: (files: IGnosisFile[]) => void;
   video?: boolean;
   disabled?: boolean;
-}) {
+}): ReactElement {
   const move = (index: number, delta: number) => {
     const copy = [...files];
     [copy[index], copy[index + delta]] = [copy[index + delta], copy[index]];

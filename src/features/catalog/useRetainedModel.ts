@@ -8,7 +8,7 @@ export function useRetainedModel(
   reference: IModelDescription['reference'] | undefined,
   models: IModelDescription[] | undefined,
   userId: number | undefined,
-) {
+): IModelDescription | undefined {
   const active =
     isAllowedProvider(reference?.provider) &&
     reference &&

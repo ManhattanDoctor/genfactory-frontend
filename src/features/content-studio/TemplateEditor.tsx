@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { Modal } from '../../components/Modal';
 import { LibraryPicker } from '../../components/LibraryPicker';
@@ -35,7 +36,7 @@ export function TemplateEditor({
   launchSettings: string;
   onClose: () => void;
   onApply: (prompt: string, reference?: ITemplateReference) => void;
-}) {
+}): ReactElement {
   const { user } = useAuth();
   const [text, setText] = useState(item.prompt);
   const [values, setValues] = useState<Record<string, string>>({});

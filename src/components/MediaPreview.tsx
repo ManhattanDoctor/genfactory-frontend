@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { GenerationDetails } from './FileGeneration';
 import { FilePlaceholder } from './FilePlaceholder';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +24,7 @@ export function Media({
   className?: string;
   autoPlay?: boolean;
   onReady?: () => void;
-}) {
+}): ReactElement {
   const original = safeMediaUrl(file.path);
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const failSource = (source: string) =>
@@ -132,7 +133,7 @@ export function MediaPreview({
   onUse?: (file: IGnosisFile) => void;
   onAnalyze?: (file: IGnosisFile) => void;
   onAnimate?: (file: IGnosisFile) => void;
-}) {
+}): ReactElement {
   const navigate = useNavigate();
   const menu = useRef<HTMLDetailsElement>(null);
   const closeMenu = () => {

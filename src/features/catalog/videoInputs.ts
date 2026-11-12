@@ -9,7 +9,14 @@ export function videoReferenceMode(
   const properties = model.schema.properties?.options?.properties;
   return !frames && count > 0 && properties?.inputReferences ? 'references' : 'frames';
 }
-export function videoInputOptions(model: IModelDescription, files: IGnosisFile[], mode: VideoReferenceMode) {
+export function videoInputOptions(
+  model: IModelDescription,
+  files: IGnosisFile[],
+  mode: VideoReferenceMode,
+): {
+  inputReferences?: Array<{ url: string; type: 'image' }>;
+  frameImages?: Array<{ url: string; type: 'first_frame' | 'last_frame' }>;
+} {
   const properties = model.schema.properties?.options?.properties;
   const limit =
     mode === 'references'

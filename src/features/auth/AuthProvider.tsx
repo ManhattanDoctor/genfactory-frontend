@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getSession, setSession, SESSION_KEY } from '../../lib/api';
@@ -16,7 +17,7 @@ interface IAuth {
   refresh: () => Promise<boolean>;
 }
 const Context = createContext<IAuth | null>(null);
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }): ReactElement {
   const [session, changeSession] = useState(getSession);
   const client = useQueryClient();
   const signInStarted = useRef(false);
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </Context.Provider>
   );
 }
-export function useAuth() {
+export function useAuth(): IAuth {
   const value = useContext(Context);
   if (!value) throw new Error('AuthProvider missing');
   return value;

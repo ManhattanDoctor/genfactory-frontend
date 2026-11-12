@@ -1,10 +1,11 @@
+import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { canUseUpdateWorker, watchAppUpdate } from '../lib/app-update';
 import { hasPendingWrites } from '../lib/api';
 import type { IConversation, IPagination } from '../lib/types';
 
-export function AppUpdateNotice() {
+export function AppUpdateNotice(): ReactElement | null {
   const client = useQueryClient();
   const [available, setAvailable] = useState(false);
   const [dismissed, setDismissed] = useState(false);

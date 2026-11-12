@@ -1,10 +1,11 @@
+import type { ReactElement } from 'react';
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthProvider';
 import { destinations } from './destinations';
 import { ModelReviews } from './ModelReviews';
 
-export function Home() {
+export function Home(): ReactElement {
   const { user } = useAuth();
   return (
     <div className="home studio-home page-enter">
@@ -63,35 +64,49 @@ export function Home() {
   );
 }
 
-function StudioBannerVideo() {
+function StudioBannerVideo(): ReactElement {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = ref.current!;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let near = !('IntersectionObserver' in window);
     const play = () => {
-      if (document.hidden || motion.matches) return;
+      if (document.hidden || motion.matches || !near) return;
       void video.play().catch(() => video.classList.remove('is-ready'));
     };
     const ready = () => video.classList.add('is-ready');
     const failed = () => video.classList.remove('is-ready');
-    const visibility = () => (document.hidden ? video.pause() : play());
+    const visibility = () => (document.hidden || !near ? video.pause() : play());
     const configure = () => {
       if (motion.matches) {
         video.pause();
         video.removeAttribute('src');
         failed();
         video.load();
-      } else {
-        video.src = '/media/prototype/studio-banner.mp4';
-      }
+      } else if (near) {
+        if (!video.hasAttribute('src')) video.src = '/media/prototype/studio-banner.mp4';
+        play();
+      } else video.pause();
     };
     video.addEventListener('canplay', play);
     video.addEventListener('playing', ready);
     video.addEventListener('error', failed);
     document.addEventListener('visibilitychange', visibility);
     motion.addEventListener('change', configure);
+    const observer =
+      'IntersectionObserver' in window
+        ? new IntersectionObserver(
+            (entries) => {
+              near = entries.some((entry) => entry.isIntersecting);
+              configure();
+            },
+            { rootMargin: '200px' },
+          )
+        : undefined;
+    observer?.observe(video);
     configure();
     return () => {
+      observer?.disconnect();
       video.pause();
       video.removeEventListener('canplay', play);
       video.removeEventListener('playing', ready);
@@ -107,7 +122,7 @@ function StudioBannerVideo() {
       muted
       loop
       playsInline
-      preload="auto"
+      preload="none"
       width={1024}
       height={768}
       aria-hidden="true"

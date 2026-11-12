@@ -18,7 +18,7 @@ export function mediaOptions(
   files: IGnosisFile[],
   values: Record<string, unknown>,
   referenceMode?: VideoReferenceMode,
-) {
+): Record<string, unknown> {
   const schema = model.schema.properties?.options;
   const properties = schema?.properties || {};
   const options = defaults(schema);

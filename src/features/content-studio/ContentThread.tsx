@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { parseStudioQuestion, studioReplyText, type StudioQuestion } from './studioAgent';
 import { StudioQuestionCard } from './StudioQuestionCard';
 import { isReadyScript } from './script';
@@ -34,7 +35,7 @@ export function ContentThread({
   busy: boolean;
   onAnswer: (question: StudioQuestion, messageId: number, answer: string) => Promise<boolean>;
   onUseParameters: (file: IGnosisFile) => void;
-}) {
+}): ReactElement {
   const { user } = useAuth();
   const end = useRef<HTMLDivElement>(null);
   const follow = useRef(true);

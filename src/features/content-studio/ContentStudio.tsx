@@ -1,105 +1,44 @@
+import type { ReactElement } from 'react';
+import { StudioMenu } from './StudioMenu';
+import { Toggle } from './StudioToggle';
+import { Icon } from './StudioIcon';
+import { StudioTemplateGallery } from './StudioTemplateGallery';
+import { useStudioCatalog, useStudioModels } from './useStudioModels';
+import { useStudioQuestion } from './useStudioQuestion';
+import { buildStudioMessage } from './buildStudioMessage';
+import { fields, modes, SCRIPT_WRITER_ENABLED } from './studioConfig';
+import type { StudioMode, IAttachment, IReferenceDraft } from './studioTypes';
 import { StudioEmptyState } from './StudioEmptyState';
-import { parseStudioQuestion, withStudioContext, type StudioQuestion } from './studioAgent';
-import { ComposerAttachment } from '../../components/ComposerAttachment';
-import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
+import { StudioAttachments } from './StudioAttachments';
+import { uploadStudioAttachments } from './uploadStudioAttachments';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload, prepareImageUpload } from '../../lib/image-upload';
-import { useComposerMenu } from '../../components/useComposerMenu';
-import { useRetainedModel } from '../catalog/useRetainedModel';
 import { scriptReferences } from './script';
 import '../catalog/model-favorites.css';
 import { TemplateEditor } from './TemplateEditor';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { api, getSession, type IUploadProgress } from '../../lib/api';
-import type { IGnosisFile, IFileGeneration, IMessageCreate, IToolConnection } from '../../lib/types';
+import type { IGnosisFile, IFileGeneration } from '../../lib/types';
 import { useContentConversation } from './useContentConversation';
 import { ContentThread } from './ContentThread';
-import { choices, ratioSizes, sizeRatio, suggestedRatios } from './controls';
-import { followsReferenceRatio, referenceLimit, supportsReferences } from '../catalog/schema';
-import { templateFrame, templateInstructions, type ITemplate } from './materials';
+import { sizeRatio } from './controls';
+import { referenceLimit, supportsReferences } from '../catalog/schema';
+import { templateFrame, type ITemplate } from './materials';
 import { videoReferenceMode } from '../catalog/videoInputs';
 import { mediaOptions } from './request';
-import { textInstruction } from '../workspace/prompt';
-import { createMessageBody, toolSettings, withMessageContext } from '../studio/conversations';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
-import { ArrowUp, CircleAlert, Heart, Plus } from 'lucide-react';
-import { Modal } from '../../components/Modal';
+import { ArrowUp, Plus } from 'lucide-react';
 import { LibraryPicker } from '../../components/LibraryPicker';
-import { ModelMark } from './ModelMark';
 import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { defaultAssistant } from '../catalog/defaultAssistant';
-import { favoritesFirst, modelKey, modelTitle, modelSummary } from '../catalog/presentation';
+import { modelKey, modelTitle, modelSummary } from '../catalog/presentation';
 import templates from './templates.json';
-import icons from './icons.json';
-import fieldIcons from './fieldIcons.json';
 import './prototype.css';
 import './content-studio.css';
 
-// Temporarily hidden by user request. Remove the mode entirely later; see docs/IMPLEMENTATION-DIFFERENCES.md.
-const SCRIPT_WRITER_ENABLED = false;
-
-type StudioMode = 'image' | 'video' | 'presentation';
-interface IAttachment {
-  id: string;
-  name: string;
-  url: string;
-  type: string;
-  slot?: 'start' | 'end';
-  file?: File;
-  saved?: IGnosisFile;
-  restoreId?: number;
-  isUnavailable?: boolean;
-}
-interface IReferenceDraft {
-  id?: number;
-  userId?: number;
-  name: string;
-  slot?: 'start' | 'end';
-}
-const modes: [StudioMode, string][] = [
-  ['image', 'Изображение'],
-  ['video', 'Видео'],
-];
-const fields = [
-  {
-    id: 'format',
-    label: 'Формат',
-    options: [
-      'Не задано',
-      'UGC, съёмка на телефон',
-      'Премиум, студийный свет',
-      'Минимализм, чистый фон',
-      'Динамичный, быстрый ритм',
-    ],
-  },
-  {
-    id: 'idea',
-    label: 'Идея',
-    options: ['Не задано', 'Начать с проблемы', 'Начать с вопроса', 'Сразу показать товар', 'Резкий старт'],
-  },
-  {
-    id: 'place',
-    label: 'Обстановка',
-    options: ['Не задано', 'Дома', 'На улице', 'В студии', 'В кафе', 'На природе'],
-  },
-  {
-    id: 'camera',
-    label: 'Камера',
-    options: ['Авто', 'Статичная', 'С телефона', 'С рук', 'Низкий угол', 'Сверху'],
-  },
-  { id: 'move', label: 'Движение', options: ['Нет', 'Наезд', 'Отъезд', 'Объезд', 'Слежение'] },
-  { id: 'lens', label: 'Линза', options: ['Авто', '24 мм', '35 мм', '50 мм', '85 мм', 'Макро'] },
-  { id: 'light', label: 'Свет', options: ['Авто', 'Дневной', 'Студия', 'Золотой час', 'Ночь'] },
-  { id: 'quality', label: 'Качество', options: ['480p', '720p', '1080p'] },
-];
-function Icon({ name }: { name: keyof typeof icons }) {
-  return <span className="content-original-icon" dangerouslySetInnerHTML={{ __html: icons[name] }} />;
-}
-
-export function ContentStudio() {
+export function ContentStudio(): ReactElement {
   const { user, session, signIn } = useAuth();
   const work = useContentConversation();
   const [preparingFrame, setPreparingFrame] = useState(false);
@@ -138,24 +77,7 @@ export function ContentStudio() {
   const [mode, setMode] = useState<StudioMode>('video');
   const [panel, setPanel] = useState('templates');
   const [selectedModel, setSelectedModel] = useState('Auto');
-  const catalog = useQuery({
-    queryKey: ['content-studio-models', user?.id, mode],
-    enabled: !!user,
-    staleTime: 300000,
-    queryFn: async ({ signal }) =>
-      mode === 'presentation'
-        ? api.conversationModels(signal)
-        : (
-            await Promise.all(
-              (mode === 'image'
-                ? ['OPEN_ROUTER_IMAGE']
-                : mode === 'video'
-                  ? ['OPEN_ROUTER_VIDEO']
-                  : ['OPEN_ROUTER_CONVERSATION']
-              ).map((provider) => api.catalog(provider, signal)),
-            )
-          ).flat(),
-  });
+  const catalog = useStudioCatalog(mode, user?.id);
   const [width, setWidth] = useState(() => {
     const saved = localStorage.getItem('genfactory.content-gallery-width');
     return ['s', 'm', 'l'].includes(saved || '') ? saved! : 'm';
@@ -217,7 +139,7 @@ export function ContentStudio() {
   const visible = current
     .filter((t) => (!genre || t.genre === genre) && (!favoritesOnly || favorites.includes(t.id)))
     .sort((a, b) => Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)));
-  const pick = async (item: ITemplate) => {
+  const pick = async (item: ITemplate): Promise<void> => {
     if (preparingFrame || work.busy || uploading) return;
     setMobileGallery(false);
     if (frameSlot) {
@@ -254,49 +176,32 @@ export function ContentStudio() {
     setSelectedTemplate(undefined);
     textarea.current?.focus();
   };
-  const savedTool = work.conversation?.options.tools?.find(
-    (tool) =>
-      typeof tool === 'object' &&
-      (mode === 'image' ? ['IMAGE', 'IMAGE_OPEN_ROUTER'] : ['VIDEO', 'VIDEO_OPEN_ROUTER']).includes(tool.uid),
-  );
-  const savedReference = typeof savedTool === 'object' ? savedTool.settings?.model : undefined;
-  const retained = useRetainedModel(savedReference, catalog.data, user?.id);
-  const model =
-    catalog.data?.find((item) => modelKey(item) === selectedModel || item.name === selectedModel) ||
-    (retained &&
-    (selectedModel === modelKey(retained) || selectedModel === retained.name || selectedModel === 'Auto')
-      ? retained
-      : undefined) ||
-    (selectedModel === 'Auto' && !savedReference
-      ? mode === 'presentation'
-        ? defaultAssistant(catalog.data || [])
-        : catalog.data?.[0]
-      : undefined);
-  const modelProperties = model?.schema.properties?.options?.properties || {};
-  const sizes = ratioSizes(model);
-  const ratioOptions = model
-    ? modelProperties.aspectRatio
-      ? choices(modelProperties.aspectRatio, suggestedRatios)
-      : [...sizes.keys()]
-    : suggestedRatios;
-  const referenceRatio = followsReferenceRatio(
+  const controls = useStudioModels({
+    catalog,
+    mode,
+    userId: user?.id,
+    selectedModel,
+    savedTools: work.conversation?.options.tools,
+    attachments,
+    ratio,
+    imageQuality,
+    quality: settings.quality,
+    sound,
+  });
+  const {
+    retained,
     model,
-    attachments.length,
-    attachments.some((file) => !!file.slot) ? 'frames' : undefined,
-  );
-  const effectiveRatio = ratio;
-  const qualityField = modelProperties[mode === 'image' ? 'quality' : 'resolution'];
-  const qualityOptions = model
-    ? choices(qualityField, mode === 'image' ? [] : ['480p', '720p', '1080p'])
-    : fields.find((field) => field.id === 'quality')!.options;
-  const effectiveQuality =
-    mode === 'image'
-      ? imageQuality || String(qualityField?.default || qualityOptions[0] || '')
-      : settings.quality;
-  const durations = model ? choices(modelProperties.duration, [4, 6, 8, 10, 15]) : [4, 6, 8, 10, 15];
-  const audioValues = model ? choices(modelProperties.generateAudio, [false, true]) : [false, true];
-  const soundOptions: string[] = audioValues.map((value) => (value ? 'Со звуком' : 'Без звука'));
-  const effectiveSound = soundOptions.length === 1 ? soundOptions[0] : sound;
+    modelProperties,
+    ratioOptions,
+    referenceRatio,
+    effectiveRatio,
+    qualityOptions,
+    effectiveQuality,
+    durations,
+    audioValues,
+    soundOptions,
+    effectiveSound,
+  } = controls;
   const studioValue = {
     mode,
     selectedModel,
@@ -520,7 +425,7 @@ export function ContentStudio() {
       textarea.current?.focus();
     }
   }, [busy]);
-  function pickLibraryFile(file: IGnosisFile) {
+  function pickLibraryFile(file: IGnosisFile): void {
     if (!library || library.scope !== draftScope || busy || file.userId !== user?.id) return;
     if (file.type !== 'IMAGE' || !/^image\/(jpeg|png|webp)$/.test(file.mime)) {
       work.setError('Выберите изображение JPEG, PNG или WebP.');
@@ -550,7 +455,7 @@ export function ContentStudio() {
     work.setError('');
   }
 
-  async function restoreResult(file: IGnosisFile) {
+  async function restoreResult(file: IGnosisFile): Promise<void> {
     const generation = file.origin?.generation;
     if (!generation || !session || !user || busy) return;
     const sid = session;
@@ -648,7 +553,7 @@ export function ContentStudio() {
       if (alive.current) setRestoringResult(false);
     }
   }
-  async function applyScript(text: string, messageId: number) {
+  async function applyScript(text: string, messageId: number): Promise<void> {
     if (busy || !work.id || !session) return;
     const id = work.id;
     const sid = session;
@@ -695,7 +600,7 @@ export function ContentStudio() {
     }
   }
 
-  async function submit() {
+  async function submit(): Promise<void> {
     if (!user || !session) {
       void signIn();
       return;
@@ -757,166 +662,38 @@ export function ContentStudio() {
         );
       if (!model) throw new Error('Выберите доступную модель.');
       if (!work.conversation && !agent) throw new Error('Не удалось загрузить модель ассистента.');
-      const savedFiles: IGnosisFile[] = [];
       setUploading(sourceAttachments.length > 0);
-      const ordered = [...sourceAttachments].sort(
-        (a, b) =>
-          (a.slot === 'start' ? -1 : a.slot === 'end' ? 1 : 0) -
-          (b.slot === 'start' ? -1 : b.slot === 'end' ? 1 : 0),
-      );
-      for (const attachment of ordered) {
-        let saved = attachment.saved;
-        if (saved) {
-          saved = await api.file(saved.id, sid);
-          if (saved.userId !== user.id) throw new Error('Материал недоступен этому аккаунту.');
-        } else {
-          if (!attachment.file)
-            throw new Error('Кадр из галереи пока не подключён как референс. Загрузите изображение файлом.');
-          saved = await api.upload(attachment.file, sid, undefined, (progress) => {
-            if (current()) setUploadProgress(progress);
-          });
-          if (!current()) return;
-          const file = saved;
-          setAttachments((previous) =>
-            previous.map((item) => (item.id === attachment.id ? { ...item, saved: file } : item)),
-          );
-        }
-        if (!current()) return;
-        savedFiles.push(saved);
-      }
+      const savedFiles = await uploadStudioAttachments({
+        attachments: sourceAttachments,
+        session: sid,
+        userId: user.id,
+        isCurrent: current,
+        onProgress: setUploadProgress,
+        onSaved: (id, saved) =>
+          setAttachments((previous) => previous.map((item) => (item.id === id ? { ...item, saved } : item))),
+      });
+      if (!savedFiles) return;
       setUploading(false);
-      const creative = fields
-        .filter(
-          (field) => field.id !== 'quality' && (mode === 'video' || !['camera', 'move'].includes(field.id)),
-        )
-        .filter((field) => !['Авто', 'Нет', 'Не задано'].includes(settings[field.id]))
-        .map((field) => `${field.label}: ${settings[field.id]}`);
-      const context = [
-        ...(preparingScript && mode === 'video'
-          ? [
-              `Сценарий для ролика длительностью ${duration} с, формат ${referenceRatio ? 'по исходному кадру' : effectiveRatio}. Не увеличивай длительность.`,
-            ]
-          : []),
-        templateInstructions(picked),
-        ...(creative.length
-          ? [
-              'Настройки съёмки обязательны для каждой сцены, включая последнюю. Если шаблон им противоречит, используй настройки текущего запуска.',
-              ...creative,
-            ]
-          : []),
-        ...(mode === 'video'
-          ? [
-              `Структура: ${shape}. Это настройка текущего запуска; она важнее структуры шаблона, готового сценария и предыдущих сообщений.`,
-              shape === 'Один кадр'
-                ? 'Адаптируй сюжет в один непрерывный план без склеек, монтажных переходов и смен сцен. Сохрани героев, предметы и основное действие; движение камеры допустимо. Если исходный текст разбит на несколько планов, не переноси это разбиение в сценарий и промпт инструмента VIDEO: опиши действие непрерывно.'
-                : 'Построй последовательность сцен; монтажные переходы допустимы. Общая длительность всех сцен вместе должна соответствовать длительности текущего запуска, а не назначаться каждой сцене отдельно.',
-            ]
-          : []),
-        ...(brand && prefs.value.brand ? [`Правила бренда: ${prefs.value.brand}`] : []),
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      const prompt = withMessageContext(sourceDraft, context);
-      let tools: IToolConnection[] = [];
-      let body: IMessageCreate;
-      if (preparingScript || mode === 'presentation') {
-        body = {
-          role: 'USER',
-          files: savedFiles.map((file) => file.id),
-          settings: { tools: [], isToolsDisabled: true },
-          text:
-            mode === 'presentation'
-              ? `[Genfactory:presentation]\nПодготовь текст по слайдам на основе задачи и истории проекта. Это текстовая структура, не готовый файл презентации. Используй только факты из брифа и истории. Не утверждай ничего о рынке, конкурентах, достижениях и цифрах без источника пользователя. Недостающие данные обозначай «Нужно уточнить». Предположения выделяй как гипотезы, а не факты.\n\nЗапрос пользователя:\n${prompt}`
-              : textInstruction('script', prompt, {
-                  language: 'Русский',
-                  target: mode,
-                  aspects: [],
-                  brand: '',
-                }),
-        };
-      } else {
-        const replay =
-          restoredGeneration &&
-          modelKey(model) === `${restoredGeneration.model.provider}:${restoredGeneration.model.model}`
-            ? restoredGeneration.options
-            : undefined;
-        const preservedSize = typeof replay?.size === 'string' && sizeRatio(replay.size) === effectiveRatio;
-        const referenceMode =
-          mode === 'video'
-            ? videoReferenceMode(
-                model,
-                savedFiles.length,
-                sourceAttachments.some((file) => !!file.slot),
-              )
-            : undefined;
-        const options = mediaOptions(
-          model,
-          mode,
-          prompt,
-          savedFiles,
-          {
-            ...replay,
-            ...(ratioOptions.length && !preservedSize ? { aspectRatio: effectiveRatio } : {}),
-            ...(mode === 'image' && modelProperties.quality ? { quality: effectiveQuality } : {}),
-            ...(mode === 'video'
-              ? {
-                  ...(modelProperties.duration ? { duration } : {}),
-                  ...(modelProperties.resolution ? { resolution: effectiveQuality } : {}),
-                  ...(audioValues.length ? { generateAudio: effectiveSound === 'Со звуком' } : {}),
-                }
-              : {}),
-          },
-          referenceMode,
-        );
-        const tool = toolSettings(mode, model, options);
-        tools = [tool];
-        const launch = [
-          `Модель: ${model.reference.model}`,
-          modelProperties.size && options.size
-            ? `Размер (options.size): ${options.size}`
-            : referenceRatio
-              ? 'Формат: по исходному кадру'
-              : ratioOptions.length
-                ? `Формат: ${effectiveRatio}`
-                : '',
-          effectiveQuality ? `Качество: ${effectiveQuality}` : '',
-          mode === 'video' && modelProperties.duration ? `Длительность: ${duration} с` : '',
-          mode === 'video' && audioValues.length ? effectiveSound : '',
-        ]
-          .filter(Boolean)
-          .join('; ');
-        body = createMessageBody(
-          withMessageContext(
-            sourceDraft,
-            `${context}\n\nПараметры текущего запуска (важнее текста шаблона): ${launch}. Не переопределяй их при вызове инструмента.`,
-          ),
-          mode,
-          tool,
-          savedFiles.map((file) => file.id),
-          !work.id || !!restoredGeneration || templateStartsFresh,
-          undefined,
-          referenceMode,
-          true,
-        );
-        const historyFiles = await work.historyFiles();
-        if (!current()) return;
-        body.text = withStudioContext(body.text, {
-          ...(historyFiles.length ? { historyFiles } : {}),
-          uid: mode === 'image' ? 'IMAGE' : 'VIDEO',
-          settings: tool.settings!,
-          input:
-            mode === 'image'
-              ? {
-                  request: { task: { fileIds: savedFiles.map((file) => file.id) } },
-                  ...(savedFiles.length
-                    ? { isDrawNew: false }
-                    : historyFiles.length
-                      ? {}
-                      : { isDrawNew: true }),
-                }
-              : { fileIds: savedFiles.map((file) => file.id), referenceMode },
-        });
-      }
+      const request = await buildStudioMessage({
+        mode,
+        model,
+        controls,
+        sourceDraft,
+        sourceAttachments,
+        savedFiles,
+        preparingScript,
+        picked,
+        settings,
+        duration,
+        shape,
+        brandRules: brand && prefs.value.brand ? prefs.value.brand : '',
+        restoredGeneration,
+        startsFresh: !work.id || !!restoredGeneration || templateStartsFresh,
+        readHistoryFiles: work.historyFiles,
+        isCurrent: current,
+      });
+      if (!request) return;
+      const { body, tools } = request;
       const success = await work.submit(
         body,
         sourceDraft || picked[0]?.title || 'Студия контента',
@@ -948,55 +725,7 @@ export function ContentStudio() {
       }
     }
   }
-  const answeringQuestion = useRef(false);
-  async function answerQuestion(question: StudioQuestion, messageId: number, answer: string) {
-    if (busy || !work.id || !session || answeringQuestion.current) return false;
-    answeringQuestion.current = true;
-    const id = work.id;
-    const sid = session;
-    try {
-      const latest = await api.messages(id, 0, undefined, sid);
-      if (getSession() !== sid || !alive.current) return false;
-      const last = latest.items[0];
-      if (
-        last?.id !== messageId ||
-        last.role !== 'ASSISTANT' ||
-        !parseStudioQuestion(last.text, latest.items.find((item) => item.role === 'USER')?.text)
-      ) {
-        work.setError('На этот вопрос уже ответили. Обновите диалог.');
-        return false;
-      }
-      const connection = { uid: question.context.uid, settings: question.context.settings };
-      const ids =
-        question.context.uid === 'IMAGE'
-          ? (question.context.input as any).request.task.fileIds
-          : question.context.input.fileIds;
-      let answerContext = question.context;
-      if (!(ids as number[]).length && !answerContext.historyFiles) {
-        const historyFiles = await work.historyFiles();
-        if (historyFiles.length) {
-          answerContext = { ...answerContext, historyFiles, input: { ...answerContext.input } };
-          delete answerContext.input.isDrawNew;
-        }
-      }
-      return await work.submit(
-        {
-          role: 'USER',
-          text: withStudioContext(`Ответ на вопрос «${question.question}»: ${answer}`, answerContext),
-          files: ids as number[],
-          settings: { tools: [connection] },
-        },
-        answer,
-        [connection],
-        agent,
-      );
-    } catch (error) {
-      work.setError(error instanceof Error ? error.message : 'Не удалось отправить ответ.');
-      return false;
-    } finally {
-      answeringQuestion.current = false;
-    }
-  }
+  const answerQuestion = useStudioQuestion({ work, busy, session, agent, alive });
 
   return (
     <div className={`content-studio ${mobileGallery ? 'mobile-gallery-open' : ''}`}>
@@ -1082,55 +811,25 @@ export function ContentStudio() {
                 }}
               >
                 <div className="cw-field">
-                  {(picked.length > 0 || attachments.length > 0) && (
-                    <div className="cw-files">
-                      {picked.map((item) => (
-                        <ComposerAttachment
-                          key={item.id}
-                          file={{
-                            name: item.title,
-                            path: item.src,
-                            type: item.kind === 'video' ? 'VIDEO' : 'IMAGE',
-                            mime: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
-                          }}
-                          caption={`Шаблон: ${item.title}`}
-                          disabled={attachmentBusy}
-                          onRemove={() => {
-                            if (attachmentBusy || submitting.current) return;
-                            setPicked((p) => p.filter((t) => t.id !== item.id));
-                            setTemplateNotice('');
-                          }}
-                        />
-                      ))}
-                      {attachments.map((file) => (
-                        <ComposerAttachment
-                          key={file.id + file.slot}
-                          file={
-                            file.saved || {
-                              name: file.name,
-                              path: file.url,
-                              type: file.type.startsWith('video/')
-                                ? 'VIDEO'
-                                : file.type.startsWith('image/')
-                                  ? 'IMAGE'
-                                  : 'DOCUMENT',
-                              mime: file.type,
-                            }
-                          }
-                          caption={`${file.slot ? `${file.slot === 'start' ? 'Начальный' : 'Конечный'} кадр: ` : ''}${file.name}${file.isUnavailable ? ' · Недоступен' : ''}`}
-                          unavailable={file.isUnavailable}
-                          disabled={attachmentBusy}
-                          onRemove={() => {
-                            if (attachmentBusy || submitting.current) return;
-                            setAttachments((p) => p.filter((f) => f.id !== file.id || f.slot !== file.slot));
-                            if (attachments.length === 1) setRestoringReferences(undefined);
-                            studioDraft.changed();
-                            setTemplateNotice('');
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <StudioAttachments
+                    picked={picked}
+                    attachments={attachments}
+                    attachmentBusy={attachmentBusy}
+                    onRemoveTemplate={(id) => {
+                      if (attachmentBusy || submitting.current) return;
+                      setPicked((previous) => previous.filter((item) => item.id !== id));
+                      setTemplateNotice('');
+                    }}
+                    onRemoveAttachment={(file) => {
+                      if (attachmentBusy || submitting.current) return;
+                      setAttachments((previous) =>
+                        previous.filter((item) => item.id !== file.id || item.slot !== file.slot),
+                      );
+                      if (attachments.length === 1) setRestoringReferences(undefined);
+                      studioDraft.changed();
+                      setTemplateNotice('');
+                    }}
+                  />
                   <div className="cw-draft-row">
                     <label className="sr-only" htmlFor="cw-draft">
                       Запрос
@@ -1348,98 +1047,20 @@ export function ContentStudio() {
             </div>
             <div className="cw-gallery-body">
               {panel === 'templates' ? (
-                <div className="cw-templates-pane">
-                  <div className="cw-genres" role="group" aria-label="Жанры">
-                    <button
-                      type="button"
-                      className={`cw-genre ${!genre && !favoritesOnly ? 'is-on' : ''}`}
-                      onClick={() => {
-                        setGenre('');
-                        setFavoritesOnly(false);
-                      }}
-                    >
-                      Все
-                    </button>
-                    <button
-                      type="button"
-                      className={`cw-genre cw-genre-fav ${favoritesOnly ? 'is-on' : ''}`}
-                      aria-label="Избранные шаблоны"
-                      aria-pressed={favoritesOnly}
-                      onClick={() => setFavoritesOnly(!favoritesOnly)}
-                    >
-                      <Heart size={16} />
-                    </button>
-                    {genres.map((g) => (
-                      <button
-                        key={g}
-                        type="button"
-                        className={`cw-genre ${genre === g ? 'is-on' : ''}`}
-                        onClick={() => setGenre(genre === g ? '' : g)}
-                      >
-                        {g}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="cw-scroll" id="cw-gallery">
-                    {visible.map((item) => (
-                      <article
-                        className={`cw-card ds-template-card ${selectedTemplate === item.id ? 'is-picked' : ''}`}
-                        data-kind={item.kind === 'presentation' ? 'slides' : item.kind}
-                        key={item.id}
-                      >
-                        <div
-                          className="cw-card-media ds-template-media"
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Открыть шаблон: ${item.title}`}
-                          onClick={() =>
-                            setSelectedTemplate(selectedTemplate === item.id ? undefined : item.id)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter')
-                              setSelectedTemplate(selectedTemplate === item.id ? undefined : item.id);
-                          }}
-                        >
-                          <TemplateMedia item={item} />
-                          <button
-                            type="button"
-                            className="cw-add ds-template-add"
-                            aria-label="Добавить"
-                            disabled={busy}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void pick(item);
-                            }}
-                          >
-                            <Plus className="template-add-icon" size={18} aria-hidden="true" />
-                            <span className="template-add-label">Добавить</span>
-                          </button>
-                          <button
-                            type="button"
-                            className={`cw-fav ${favorites.includes(item.id) ? 'is-on' : ''}`}
-                            aria-label={`В избранное: ${item.title}`}
-                            aria-pressed={favorites.includes(item.id)}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFavorite(item.id);
-                            }}
-                          >
-                            <Heart size={18} fill={favorites.includes(item.id) ? 'currentColor' : 'none'} />
-                          </button>
-                          <span className="cw-card-label">
-                            <span>{item.genre}</span>
-                            <strong>{item.title}</strong>
-                          </span>
-                        </div>
-                      </article>
-                    ))}
-                    {!visible.length && (
-                      <p className="cw-gallery-empty">
-                        {favoritesOnly ? 'В избранном пока ничего нет.' : 'Таких шаблонов нет.'}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                <StudioTemplateGallery
+                  genre={genre}
+                  setGenre={setGenre}
+                  favoritesOnly={favoritesOnly}
+                  setFavoritesOnly={setFavoritesOnly}
+                  favorites={favorites}
+                  toggleFavorite={toggleFavorite}
+                  genres={genres}
+                  visible={visible}
+                  selectedTemplate={selectedTemplate}
+                  setSelectedTemplate={setSelectedTemplate}
+                  busy={busy}
+                  pick={pick}
+                />
               ) : (
                 <div className="cw-settings-pane">
                   {SCRIPT_WRITER_ENABLED && (
@@ -1668,314 +1289,5 @@ export function ContentStudio() {
         />
       )}
     </div>
-  );
-}
-
-function Toggle({
-  label,
-  description,
-  value,
-  onChange,
-  disabled = false,
-}: {
-  label: string;
-  description: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="cw-switch-row">
-      <div>
-        <strong>{label}</strong>
-        <p>{description}</p>
-      </div>
-      <button
-        className={`cw-switch ${value ? 'is-on' : ''}`}
-        type="button"
-        role="switch"
-        aria-label={label}
-        aria-checked={value}
-        aria-pressed={value}
-        disabled={disabled}
-        onClick={() => onChange(!value)}
-      >
-        <i />
-      </button>
-    </div>
-  );
-}
-function StudioMenu({
-  disabled = false,
-  label,
-  value,
-  ariaLabel,
-  className = 'cw-chip',
-  options,
-  descriptions,
-  titles,
-  selection,
-  searchTerms,
-  favorites,
-  onFavorite,
-  error,
-  modelIcon,
-  fieldId,
-  onSelect,
-}: {
-  label: string;
-  value?: string;
-  ariaLabel?: string;
-  className?: string;
-  options: string[];
-  descriptions?: string[];
-  titles?: string[];
-  selection?: string;
-  searchTerms?: string[];
-  favorites?: string[];
-  onFavorite?: (key: string) => void;
-  error?: string;
-  modelIcon?: StudioMode;
-  fieldId?: string;
-  disabled?: boolean;
-  onSelect: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [info, setInfo] = useState<number>();
-  const visibleOptions = favoritesFirst(
-    options
-      .map((option, i) => ({ option, i }))
-      .sort((a, b) =>
-        searchTerms
-          ? (titles?.[a.i] || a.option).localeCompare(titles?.[b.i] || b.option, 'ru', { numeric: true })
-          : 0,
-      ),
-    ['Auto', ...(favorites || [])],
-    ({ option }) => option,
-  ).filter(
-    ({ option, i }) =>
-      !searchTerms ||
-      option === 'Auto' ||
-      (true &&
-        `${titles?.[i]} ${descriptions?.[i]} ${searchTerms[i]}`
-          .toLowerCase()
-          .includes(search.trim().toLowerCase())),
-  );
-  const ref = useRef<HTMLDivElement>(null);
-  useComposerMenu(open, ref);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, [open]);
-  return (
-    <div
-      className={`content-menu ${className === 'cw-shoot-row' ? 'content-shoot-menu' : className === 'cw-model' ? 'cw-model-pick' : 'cw-ratio-pick'}`}
-      ref={ref}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && info === undefined) {
-          setOpen(false);
-          ref.current?.querySelector('button')?.focus();
-        }
-      }}
-    >
-      <button
-        className={className}
-        disabled={disabled}
-        type="button"
-        aria-label={ariaLabel}
-        aria-expanded={open}
-        aria-haspopup={searchTerms ? 'dialog' : 'listbox'}
-        title={value || label}
-        onClick={() => {
-          setOpen(!open);
-          setSearch('');
-        }}
-      >
-        {value ? (
-          <>
-            <span>{label}</span>
-            <span className="cw-picked">
-              {fieldId && (
-                <i
-                  className="cw-ref"
-                  dangerouslySetInnerHTML={{
-                    __html: (fieldIcons as Record<string, Record<string, string>>)[fieldId]?.[value] || '',
-                  }}
-                />
-              )}
-              <b>{value}</b>
-            </span>
-          </>
-        ) : (
-          <span className="content-control-label">{label}</span>
-        )}
-      </button>
-      {open && (
-        <div
-          className={fieldId ? 'cw-shoot-list' : `cw-model-menu${modelIcon ? ' content-model-menu' : ''}`}
-          role={searchTerms ? 'dialog' : 'listbox'}
-          aria-label={label}
-        >
-          {searchTerms && (
-            <>
-              <input
-                className="cw-model-search"
-                type="search"
-                aria-label="Поиск модели"
-                placeholder="Поиск модели"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                autoFocus
-              />
-            </>
-          )}
-          {visibleOptions.map(({ option, i }) =>
-            modelIcon ? (
-              <div
-                key={option}
-                className="content-model-row"
-                role="option"
-                tabIndex={disabled ? -1 : 0}
-                aria-label={titles?.[i] || option}
-                aria-selected={(selection || label) === option}
-                aria-disabled={disabled}
-                onClick={() => {
-                  if (!disabled) {
-                    onSelect(option);
-                    setOpen(false);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.target === e.currentTarget && ['Enter', ' '].includes(e.key)) {
-                    e.preventDefault();
-                    if (!disabled) {
-                      onSelect(option);
-                      setOpen(false);
-                    }
-                  }
-                }}
-              >
-                <ModelMark id={option} />
-                <span className="cw-model-copy">
-                  <span className="content-model-title">
-                    <strong>
-                      <ModelTitleWithInfo
-                        title={titles?.[i] || option}
-                        onInfo={searchTerms && option !== 'Auto' ? () => setInfo(i) : undefined}
-                        infoClassName="content-model-about"
-                        icon={CircleAlert}
-                      />
-                    </strong>
-                  </span>
-                  {descriptions?.[i] && <small>{descriptions[i]}</small>}
-                </span>
-                {favorites && option !== 'Auto' && (
-                  <button
-                    type="button"
-                    className="content-model-favorite"
-                    aria-label={`${favorites.includes(option) ? 'Убрать из избранных' : 'В избранные'}: ${titles?.[i] || option}`}
-                    aria-pressed={favorites.includes(option)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFavorite?.(option);
-                    }}
-                  >
-                    <Heart size={16} fill={favorites.includes(option) ? 'currentColor' : 'none'} />
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div key={option}>
-                <button
-                  key={option}
-                  type="button"
-                  role="option"
-                  aria-selected={(selection || value || label) === option}
-                  aria-label={searchTerms ? titles?.[i] || option : undefined}
-                  disabled={disabled}
-                  className="cw-model-option"
-                  onClick={() => {
-                    onSelect(option);
-                    setOpen(false);
-                  }}
-                >
-                  {fieldId ? (
-                    <>
-                      <i
-                        className="cw-ref"
-                        dangerouslySetInnerHTML={{
-                          __html:
-                            (fieldIcons as Record<string, Record<string, string>>)[fieldId]?.[option] || '',
-                        }}
-                      />
-                      <span>{option}</span>
-                    </>
-                  ) : (
-                    <span className="cw-model-copy">
-                      <strong>{titles?.[i] || option}</strong>
-                      {descriptions?.[i] && <small>{descriptions[i]}</small>}
-                    </span>
-                  )}
-                </button>
-              </div>
-            ),
-          )}
-          {searchTerms && visibleOptions.every(({ option }) => option === 'Auto') && (
-            <p role="status" className="cw-menu-title">
-              {'Модели не найдены.'}
-            </p>
-          )}
-          {error && <p role="alert">{error}</p>}
-          {info !== undefined && (
-            <Modal title={titles?.[info] || options[info]} onClose={() => setInfo(undefined)}>
-              <p>{descriptions?.[info]}</p>
-              <p className="small muted">{searchTerms?.[info]}</p>
-            </Modal>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-function TemplateMedia({ item }: { item: ITemplate }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const video = ref.current;
-    if (!video) return;
-    const motion = matchMedia('(prefers-reduced-motion: reduce)');
-    let visible = false;
-    const update = () => {
-      if (visible && !document.hidden && !motion.matches) void video.play().catch(() => {});
-      else video.pause();
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        visible = entries[0].isIntersecting;
-        update();
-      },
-      { threshold: 0.2 },
-    );
-    observer.observe(video);
-    document.addEventListener('visibilitychange', update);
-    motion.addEventListener('change', update);
-    return () => {
-      observer.disconnect();
-      video.pause();
-      document.removeEventListener('visibilitychange', update);
-      motion.removeEventListener('change', update);
-    };
-  }, [item.src]);
-  return item.kind === 'video' ? (
-    <>
-      <img className="cw-still" src={item.src.replace(/\.mp4$/, '.jpg')} alt="" loading="lazy" />
-      <video ref={ref} src={item.src} muted loop playsInline preload="metadata" />
-    </>
-  ) : (
-    <img src={item.src} alt="" loading="lazy" />
   );
 }

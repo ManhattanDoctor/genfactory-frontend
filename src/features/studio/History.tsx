@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { conversationUrl } from '../../lib/conversationUrl';
 import {
   Heart,
@@ -28,7 +29,7 @@ import { connection } from './conversations';
 import { historyResult } from './historyResult';
 import { MediaPreview } from '../../components/MediaPreview';
 import type { IGnosisFile } from '../../lib/types';
-function historyDate(value: string | number | Date) {
+function historyDate(value: string | number | Date): string {
   const date = new Date(value);
   const today = new Date();
   const yesterday = new Date(today);
@@ -45,7 +46,7 @@ function historyDate(value: string | number | Date) {
   });
 }
 
-function historyDay(value: string) {
+function historyDay(value: string): string {
   const date = new Date(value);
   const today = new Date();
   const yesterday = new Date(today);
@@ -55,7 +56,7 @@ function historyDay(value: string) {
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-export function History() {
+export function History(): ReactElement {
   const auth = useAuth();
   const [preview, setPreview] = useState<IGnosisFile>();
   const [opening, setOpening] = useState<number>();
@@ -66,7 +67,7 @@ export function History() {
     setPreview(undefined);
     setOpening(undefined);
   }, [auth.session]);
-  async function openResult(c: IConversation, download = false) {
+  async function openResult(c: IConversation, download = false): Promise<void> {
     if (!auth.session || c.userId !== auth.user?.id) return;
     resultRequest.current?.abort();
     const controller = new AbortController();

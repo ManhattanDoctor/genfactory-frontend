@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { ConversationNavigation } from './ConversationNavigation';
 import './agent-navigation.css';
@@ -5,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { destinations } from './destinations';
 import { useAuth } from '../features/auth/AuthProvider';
 
-export function AppNavigation({ onNavigate }: { onNavigate?: () => void }) {
+export function AppNavigation({ onNavigate }: { onNavigate?: () => void }): ReactElement {
   const location = useLocation();
   const { user } = useAuth();
   const [toolsOpen, setToolsOpen] = useState(false);
