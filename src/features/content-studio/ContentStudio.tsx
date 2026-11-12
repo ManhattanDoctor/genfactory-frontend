@@ -220,7 +220,12 @@ export function ContentStudio(): ReactElement {
     soundOptions,
     effectiveSound,
   } = controls;
+  const pageReload = useRef(
+    (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type ===
+      'reload',
+  );
   const studioValue = {
+    entryKey: location.key,
     mode,
     selectedModel,
     writer,
@@ -264,7 +269,9 @@ export function ContentStudio(): ReactElement {
   const restored = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (readyScope === draftScope || (work.id && !work.conversation)) return;
-    const stored = work.id ? studioDraft.available?.value : undefined;
+    const available = studioDraft.available?.value;
+    const stored =
+      work.id || (pageReload.current && available?.entryKey === location.key) ? available : undefined;
     const ownCreation = work.id !== undefined && createdConversation.current === work.id;
     const changingProject = !!readyScope && !ownCreation;
     const saved = stored || (changingProject || !work.id ? initialStudioValue.current : undefined);
