@@ -53,7 +53,8 @@
     "model": {
       "provider": "OPEN_ROUTER_VIDEO",
       "model": "alibaba/wan-3.0"
-    }
+    },
+    "referenceVideoSrc": "/media/templates/2026-11-13/video/references/03.mp4"
   },
   {
     "id": "video:2026-11-13:04",
@@ -90,7 +91,8 @@
       "provider": "OPEN_ROUTER_VIDEO",
       "model": "alibaba/wan-3.0"
     },
-    "duration": 15
+    "duration": 15,
+    "referenceVideoSrc": "/media/templates/2026-11-13/video/05.mp4"
   },
   {
     "id": "video:2026-11-13:06",
@@ -147,7 +149,8 @@
       "provider": "OPEN_ROUTER_VIDEO",
       "model": "alibaba/wan-3.0"
     },
-    "duration": 20
+    "duration": 20,
+    "referenceVideoSrc": "/media/templates/2026-11-13/video/references/08.mp4"
   },
   {
     "id": "video:2026-11-13:09",

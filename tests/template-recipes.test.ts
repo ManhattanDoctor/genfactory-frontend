@@ -118,3 +118,17 @@ it('records explicit video durations including timelines and preserves unspecifi
   ))
     expect(item).toHaveProperty('duration', templateDuration(item.prompt));
 });
+
+it('declares explicit video inputs only for templates that need a source video', () => {
+  const inputs = templates.filter((item) => 'referenceVideoSrc' in item);
+  expect(inputs.map((item) => item.id)).toEqual([
+    'video:2026-11-13:03',
+    'video:2026-11-13:05',
+    'video:2026-11-13:08',
+  ]);
+  for (const item of inputs) {
+    expect(item.prompt).toMatch(/@video1/i);
+    expect(item.referenceVideoSrc).not.toBe(item.previewSrc);
+    expect(existsSync(new URL('../public' + item.referenceVideoSrc, import.meta.url))).toBe(true);
+  }
+});

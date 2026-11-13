@@ -8614,3 +8614,184 @@ test('chat video template selects Wan and keeps the updated identity instruction
   await expect(page.locator('#cw-draft')).toHaveValue(/Герой - тот, кто на загруженном фото/);
   await expect(page.getByRole('button', { name: /^Модель:/ })).toContainText('Wan');
 });
+
+async function templateVideoSetup(page: Page) {
+  page.setDefaultTimeout(20000);
+  const state = await mockApi(page);
+  const models = structuredClone(catalog);
+  const wan = models.find((item) => item.reference.model === 'alibaba/wan-3.0')!;
+  wan.schema.properties!.task!.properties!.fileIds = {
+    type: 'array',
+    items: { type: 'integer' },
+    maxItems: 15,
+  };
+  wan.schema.properties!.options!.properties!.inputReferences = {
+    type: 'array',
+    maxItems: 15,
+    items: { type: 'object', properties: { url: { type: 'string' }, type: { enum: ['image', 'video'] } } },
+    'x-referenceLimits': {
+      image: { maxItems: 10 },
+      video: { maxItems: 5, maxTotalDuration: 15, maxCombinedDuration: 30, mimeTypes: ['video/mp4'] },
+    },
+  };
+  await page.route('**/api/aimodels?*', (route) =>
+    route.fulfill({
+      json: catalogResponse(
+        route.request().url(),
+        catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_CONVERSATION'
+          ? [agent]
+          : models.filter(
+              (item) => item.reference.provider === catalogProvider(new URL(route.request().url())),
+            ),
+      ),
+    }),
+  );
+  const clip = {
+    ...file,
+    id: 314,
+    name: 'Замена персонажа в танце — референс.mp4',
+    type: 'VIDEO',
+    mime: 'video/mp4',
+    path: '/media/templates/2026-11-13/video/references/03.mp4',
+  };
+  await page.route('**/api/file', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    state.uploads++;
+    return route.fulfill({ json: clip });
+  });
+  await page.route('**/api/file/314', (route) => route.fulfill({ json: clip }));
+  return { state, clip };
+}
+
+async function applyVideoTemplate(page: Page, path: string, title: string) {
+  if (path === '/video') await page.getByRole('button', { name: title, exact: true }).click();
+  else {
+    const card = page
+      .locator('.cw-card')
+      .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
+    await card.hover();
+    await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+  }
+}
+
+for (const path of ['/video', '/chat']) {
+  test(`template video attaches automatically, survives reload and reaches generation on ${path}`, async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000);
+    const { state, clip } = await templateVideoSetup(page);
+    await page.goto(path);
+    if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+    if (path === '/video') await page.locator('.img-settings .cw-plus').click();
+    else await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+    await selectLibraryFile(page, file.name);
+    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+    await expect(page.locator('.composer-attachment')).toHaveCount(2);
+    await expect(page.locator('.composer-attachment').first()).toContainText(clip.name);
+    expect(state.uploads).toBe(1);
+    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+    await expect(page.locator('.composer-attachment')).toHaveCount(2);
+    await expect
+      .poll(() => page.evaluate(() => JSON.stringify(localStorage)))
+      .toContain('templateVideoReference');
+    await page.reload();
+    await expect(page.locator('.composer-attachment')).toHaveCount(2);
+    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+    await expect(page.locator('.composer-attachment')).toHaveCount(2);
+    expect(state.uploads).toBe(1);
+    await page.setViewportSize({ width: 390, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('template-reference-mobile.png') });
+    await page
+      .getByRole('button', { name: path === '/video' ? 'Собрать видео' : 'Отправить запрос', exact: true })
+      .click();
+    if (path === '/video') {
+      await expect.poll(() => state.tasks.length).toBe(1);
+      expect(state.tasks[0].task.fileIds).toEqual([314, 12]);
+      expect(state.tasks[0].task.referenceMode).toBe('references');
+    } else {
+      await expect.poll(() => state.sends.length).toBe(1);
+      expect(state.sends[0].files).toEqual([314, 12]);
+      expect(parseStudioContext(state.sends[0].text)?.input?.referenceMode).toBe('references');
+    }
+  });
+
+  test(`template video download failure preserves the draft and can be retried on ${path}`, async ({
+    page,
+  }) => {
+    const { state } = await templateVideoSetup(page);
+    await page.goto(path);
+    if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+    const draft = page.locator(path === '/video' ? '#vd-draft' : '#cw-draft');
+    await draft.fill('Мой исходный текст');
+    const source = '**/media/templates/2026-11-13/video/references/03.mp4';
+    await page.route(source, (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
+    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+    await expect(
+      page.getByText('Не удалось загрузить видео шаблона. Повторите выбор.', { exact: true }),
+    ).toBeVisible();
+    await expect(draft).toHaveValue('Мой исходный текст');
+    expect(state.uploads).toBe(0);
+    expect(state.tasks).toHaveLength(0);
+    expect(state.sends).toHaveLength(0);
+    await page.unroute(source);
+    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+    await expect(page.locator('.composer-attachment')).toHaveCount(1);
+    await applyVideoTemplate(page, path, 'Послание в объектив');
+    await expect(page.locator('.composer-attachment')).toHaveCount(0);
+  });
+}
+
+for (const path of ['/video', '/chat']) {
+  test(`late template video upload cannot change another editor on ${path}`, async ({ page }) => {
+    const { clip } = await templateVideoSetup(page);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let started = false;
+    await page.route('**/api/file', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      started = true;
+      await pending;
+      await route.fulfill({ json: clip });
+    });
+    await page.goto(path);
+    if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+    await expect.poll(() => started).toBe(true);
+    await page.getByRole('link', { name: 'Изображения', exact: true }).click();
+    await expect(page).toHaveURL(/\/image/);
+    const finished = page.waitForResponse(
+      (r) => new URL(r.url()).pathname === '/api/file' && r.request().method() === 'POST',
+    );
+    release();
+    await finished;
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
+    await expect(page.locator('.composer-attachment')).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Идея', exact: true })).toHaveValue('');
+  });
+}
+
+for (const path of ['/video', '/chat']) {
+  test(`a manually reattached template video stays when another template is applied on ${path}`, async ({
+    page,
+  }) => {
+    const { clip } = await templateVideoSetup(page);
+    await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([file, clip]) }));
+    await page.goto(path);
+    if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+    await expect(page.locator('.composer-attachment')).toHaveCount(1);
+    await page.getByRole('button', { name: `Убрать ${clip.name}`, exact: true }).click();
+    if (path === '/video') await page.locator('.img-settings .cw-plus').click();
+    else await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+    await selectLibraryFile(page, clip.name);
+    await expect(page.locator('.composer-attachment')).toHaveCount(1);
+    await applyVideoTemplate(page, path, 'Послание в объектив');
+    await expect(page.locator('.composer-attachment')).toHaveCount(1);
+    await expect(page.locator('.composer-attachment')).toContainText(clip.name);
+  });
+}

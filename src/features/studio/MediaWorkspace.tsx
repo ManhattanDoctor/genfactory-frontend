@@ -1,3 +1,5 @@
+import { UploadButtonContent } from '../../components/UploadButtonContent';
+import type { IUploadProgress } from '../../lib/api';
 import { Skeleton } from '../../components/Skeleton';
 import { supportsVideoReferences } from '../catalog/videoInputs';
 import { downloadFile } from '../../lib/files';
@@ -86,6 +88,8 @@ export function MediaWorkspace({
   onModel,
   onOptions,
   onReferences,
+  onPrepareTemplate,
+  templateUploadProgress,
   onLibrary,
   onSubmit,
   onRepeat,
@@ -117,6 +121,8 @@ export function MediaWorkspace({
   onModel: (model: Pick<IModelDescription, 'reference'>, templateOptions?: Record<string, unknown>) => void;
   onOptions: (value: Record<string, unknown>) => void;
   onReferences: (value: IGnosisFile[]) => void;
+  onPrepareTemplate: (item: ITemplate) => Promise<boolean>;
+  templateUploadProgress?: IUploadProgress | null;
   onLibrary: () => void;
   onSubmit: (onStarted: () => void) => void;
   onRepeat: (file: IGnosisFile, input?: IGenerationRecipe['workspaceInput']) => void;
@@ -162,7 +168,8 @@ export function MediaWorkspace({
   useEffect(() => {
     if (!prompt.trim()) setTemplateImageMinimum(0);
   }, [prompt]);
-  const needsTemplateImages = !!prompt.trim() && references.length < templateImageMinimum;
+  const needsTemplateImages =
+    !!prompt.trim() && references.filter((file) => file.type === 'IMAGE').length < templateImageMinimum;
   const [notice, setNotice] = useState('');
   const conversationError = useConversationError(conversation);
   const [answerView, setAnswerView] = useState<string>();
@@ -298,7 +305,8 @@ export function MediaWorkspace({
   const [templateGlowActive, setTemplateGlowActive] = useState(false);
   const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
-  const applyTemplateText = (item: ITemplate, text: string): void => {
+  const applyTemplateText = async (item: ITemplate, text: string): Promise<void> => {
+    if (!(await onPrepareTemplate(item))) return;
     if (item.model)
       onModel(
         { reference: item.model },
@@ -310,7 +318,7 @@ export function MediaWorkspace({
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
-    setTemplateImageMinimum(Math.max(1, item.references?.min ?? 0));
+    setTemplateImageMinimum(Math.max(1, (item.references?.min ?? 0) - (item.referenceVideoSrc ? 1 : 0)));
 
     onTemplate('');
     onTemplateText('');
@@ -599,6 +607,11 @@ export function MediaWorkspace({
         }}
       >
         <div className="cw-field">
+          {templateUploadProgress !== undefined && (
+            <UploadButtonContent busy progress={templateUploadProgress || undefined}>
+              {null}
+            </UploadButtonContent>
+          )}
           {(selected || references.length > 0) && (
             <div className="img-files">
               {references.map((file) => (

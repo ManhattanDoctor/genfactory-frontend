@@ -83,11 +83,15 @@ export function TemplateEditor({
         <div className="template-editor">
           <aside className="template-example">
             {item.kind === 'video' ? (
-              <video src={item.src} controls playsInline preload="metadata" />
+              <video src={item.referenceVideoSrc || item.src} controls playsInline preload="metadata" />
             ) : (
               <img src={item.src} alt={item.title} />
             )}
-            <p className="template-caption">Пример приёма · не используется как референс</p>
+            <p className="template-caption">
+              {item.referenceVideoSrc
+                ? 'Видео прикрепится как референс при применении шаблона'
+                : 'Пример приёма · не используется как референс'}
+            </p>
             <section className="template-settings" aria-label="Настройки после применения">
               <h3>Настройки после применения</h3>
               <p>{launchSettings}</p>

@@ -1,3 +1,5 @@
+import { useTemplateVideoReference } from '../content-studio/useTemplateVideoReference';
+import type { ITemplateVideoReference } from '../content-studio/materials';
 import { scheduleRefresh } from '../realtime/queryRefresh';
 import '../../lib/transport-polyfills';
 import { ObjectUtil } from '@ts-core/common';
@@ -176,6 +178,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const [selected, setSelected] = useState('');
   const [options, setOptions] = useState<Record<string, unknown>>({});
   const [references, setReferences] = useState<IGnosisFile[]>([]);
+  const [templateVideoReference, setTemplateVideoReference] = useState<ITemplateVideoReference>();
+  const templateVideo = useTemplateVideoReference(`${scope}:${location.key}`, kind);
   const fromScratch = freshScope === sourceScope;
   useEffect(() => {
     if (references.length) setFreshScope(undefined);
@@ -206,7 +210,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const uploadScope = useRef('');
   const uploadEpoch = useRef(0);
   const repeatRequest = useRef<ITaskRequest | null>(null);
-  const busy = creating || (legacy && (pendingSends > 0 || conversation?.status === 'LOADING'));
+  const busy =
+    templateVideo.loading || creating || (legacy && (pendingSends > 0 || conversation?.status === 'LOADING'));
   useEffect(() => {
     if (!focusPrompt || busy) return;
     const frame = requestAnimationFrame(() => {
@@ -474,6 +479,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       selected: currentKey,
       options,
       references,
+      templateVideoReference,
       shot,
       useBrand,
       agentKey,
@@ -507,6 +513,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     setImageTemplateText(pending.value.imageTemplateText || '');
     setOptions(pending.value.options);
     setReferences(pending.files);
+    setTemplateVideoReference(pending.value.templateVideoReference);
     setShot(pending.value.shot || {});
     setUseBrand(!!pending.value.useBrand);
     setAgentKey(pending.value.agentKey || '');
@@ -1041,9 +1048,37 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           draft.changed();
           setOptions(value);
         }}
+        onPrepareTemplate={async (item) => {
+          if (busy || uploading) return false;
+          const previousId = templateVideoReference?.fileId;
+          const existing =
+            templateVideoReference?.templateId === item.id
+              ? references.find((file) => file.id === previousId)
+              : undefined;
+          setError('');
+          try {
+            const result = await templateVideo.prepare(item, existing);
+            if (!result) return false;
+            const file = result.file;
+            draft.changed();
+            setReferences((current) => [
+              ...(file ? [file] : []),
+              ...current.filter((value) => value.id !== previousId && value.id !== file?.id),
+            ]);
+            setTemplateVideoReference(file ? { templateId: item.id, fileId: file.id } : undefined);
+            if (file) void client.invalidateQueries({ queryKey: ['files', auth.user?.id] });
+            return true;
+          } catch (error) {
+            setError(error instanceof Error ? error.message : 'Не удалось прикрепить видео шаблона.');
+            return false;
+          }
+        }}
+        templateUploadProgress={templateVideo.loading ? templateVideo.progress || null : undefined}
         onReferences={(value) => {
           draft.changed();
           setReferences(kind === 'video' || !model ? value : value.slice(0, maxRefs));
+          if (templateVideoReference && !value.some((file) => file.id === templateVideoReference.fileId))
+            setTemplateVideoReference(undefined);
         }}
         onLibrary={() => {
           if (!auth.user) {
@@ -1110,6 +1145,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
                 selected: modelKey(chosen),
                 options: values,
                 references: sources,
+                templateVideoReference: undefined,
                 shot: input?.shape ? { shape: input.shape } : {},
                 useBrand: false,
                 agentKey,

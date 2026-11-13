@@ -1,3 +1,4 @@
+import { useTemplateVideoReference } from './useTemplateVideoReference';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { StudioMenu } from './StudioMenu';
@@ -31,7 +32,7 @@ import { useContentConversation } from './useContentConversation';
 import { ContentThread } from './ContentThread';
 import { sizeRatio } from './controls';
 import { referenceLimit, supportsReferences } from '../catalog/schema';
-import { templateFrame, type ITemplate } from './materials';
+import { templateFrame, type ITemplate, type ITemplateVideoReference } from './materials';
 import {
   videoReferenceMode,
   supportsVideoReferences,
@@ -134,6 +135,8 @@ export function ContentStudio(): ReactElement {
   const [shape, setShape] = useState('Один кадр');
   const [picked, setPicked] = useState<ITemplate[]>([]);
   const [attachments, setAttachments] = useState<IAttachment[]>([]);
+  const [templateVideoReference, setTemplateVideoReference] = useState<ITemplateVideoReference>();
+  const templateVideo = useTemplateVideoReference(work.scope, mode);
   const [restoringReferences, setRestoringReferences] = useState<{
     scope: string;
     values: Array<IReferenceDraft>;
@@ -151,14 +154,48 @@ export function ContentStudio(): ReactElement {
   const [templateGlowActive, setTemplateGlowActive] = useState(false);
   const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
-  const applyTemplateText = (item: ITemplate, prompt: string): void => {
+  const applyTemplateText = async (item: ITemplate, prompt: string): Promise<void> => {
+    if (busy) return;
+    if (item.referenceVideoSrc && attachments.some((attachment) => attachment.slot)) {
+      work.setError('Для видеореференса шаблона уберите опорные кадры из основной формы.');
+      return;
+    }
+    const previousId = templateVideoReference?.fileId;
+    const existing =
+      templateVideoReference?.templateId === item.id
+        ? attachments.find((attachment) => attachment.saved?.id === previousId)?.saved
+        : undefined;
+    work.setError('');
+    try {
+      const result = await templateVideo.prepare(item, existing);
+      if (!result) return;
+      const file = result.file;
+      setAttachments((current) => [
+        ...(file
+          ? [{ id: String(file.id), name: file.name, url: file.path, type: file.mime, saved: file }]
+          : []),
+        ...current.filter(
+          (attachment) =>
+            (!previousId || (attachment.saved?.id ?? attachment.restoreId) !== previousId) &&
+            (!file || attachment.saved?.id !== file.id),
+        ),
+      ]);
+      setTemplateVideoReference(file ? { templateId: item.id, fileId: file.id } : undefined);
+      if (file) void queryClient.invalidateQueries({ queryKey: ['files', user?.id] });
+    } catch (error) {
+      work.setError(error instanceof Error ? error.message : 'Не удалось прикрепить видео шаблона.');
+      return;
+    }
     if (item.model) setSelectedModel(modelKey({ reference: item.model }));
     if (item.duration) setDuration(item.duration);
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
     setAppliedTemplate(item.title);
-    setTemplateImageRequirement({ scope: draftScope, min: Math.max(1, item.references?.min ?? 0) });
+    setTemplateImageRequirement({
+      scope: draftScope,
+      min: Math.max(1, (item.references?.min ?? 0) - (item.referenceVideoSrc ? 1 : 0)),
+    });
 
     setTemplateStartsFresh(true);
     setDraft(prompt);
@@ -199,7 +236,7 @@ export function ContentStudio(): ReactElement {
         Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)),
     );
   const pick = async (item: ITemplate): Promise<void> => {
-    if (preparingFrame || work.busy || uploading) return;
+    if (busy) return;
     setMobileGallery(false);
     if (frameSlot) {
       const slot = frameSlot;
@@ -287,6 +324,7 @@ export function ContentStudio(): ReactElement {
     restoredGeneration,
     appliedTemplate,
     templateStartsFresh,
+    templateVideoReference,
     templateIds: picked.map((item) => item.id),
     draft,
     references: attachments.map((item): IReferenceDraft => ({
@@ -302,7 +340,7 @@ export function ContentStudio(): ReactElement {
   const needsTemplateImages =
     templateImageRequirement.scope === draftScope &&
     !!draft.trim() &&
-    attachments.length < templateImageRequirement.min;
+    attachments.filter((item) => item.type.startsWith('image/')).length < templateImageRequirement.min;
   useEffect(() => {
     const pending = submittedDraft.current;
     if (pending && (pending.session !== session || pending.conversationId !== work.id))
@@ -329,6 +367,7 @@ export function ContentStudio(): ReactElement {
     const saved = stored || (changingProject || !work.id ? initialStudioValue.current : undefined);
     if (changingProject) {
       setAttachments([]);
+      setTemplateVideoReference(undefined);
       setPicked([]);
       setDraft('');
       setRestoringReferences(undefined);
@@ -374,6 +413,7 @@ export function ContentStudio(): ReactElement {
         !removedPresentation && typeof saved.appliedTemplate === 'string' ? saved.appliedTemplate : '',
       );
       setTemplateStartsFresh(!removedPresentation && saved.templateStartsFresh === true);
+      setTemplateVideoReference(saved.templateVideoReference);
       if (Array.isArray(saved.templateIds))
         setPicked(
           (templates as ITemplate[]).filter(
@@ -498,7 +538,7 @@ export function ContentStudio(): ReactElement {
     restored.current = conversation.id;
   }, [work.conversation, catalog.data, retained, mode, readyScope, draftScope]);
   const agent = defaultAssistant(work.agents);
-  const attachmentBusy = work.busy || uploading || preparingFrame || restoringResult;
+  const attachmentBusy = work.busy || uploading || preparingFrame || restoringResult || templateVideo.loading;
   const busy = attachmentBusy || restoringReferences?.scope === draftScope;
   useEffect(() => {
     if (!busy && focusRestoredDraft.current) {
@@ -647,6 +687,7 @@ export function ContentStudio(): ReactElement {
       setSound(options.generateAudio === true ? 'Со звуком' : 'Без звука');
       setDraft(generation.prompt);
       setRestoredGeneration(generation);
+      setTemplateVideoReference(undefined);
       setAttachments(
         sources.map((source, index) => ({
           id: String(source.id),
@@ -991,6 +1032,8 @@ export function ContentStudio(): ReactElement {
                       setAttachments((previous) =>
                         previous.filter((item) => item.id !== file.id || item.slot !== file.slot),
                       );
+                      if (templateVideoReference?.fileId === (file.saved?.id ?? file.restoreId))
+                        setTemplateVideoReference(undefined);
                       if (attachments.length === 1) setRestoringReferences(undefined);
                       studioDraft.changed();
                     }}
@@ -1050,7 +1093,10 @@ export function ContentStudio(): ReactElement {
                       else input.current?.click();
                     }}
                   >
-                    <UploadButtonContent busy={uploading} progress={uploadProgress}>
+                    <UploadButtonContent
+                      busy={uploading || templateVideo.loading}
+                      progress={templateVideo.loading ? templateVideo.progress : uploadProgress}
+                    >
                       <Plus size={24} />
                     </UploadButtonContent>
                   </button>

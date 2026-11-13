@@ -12,9 +12,25 @@ export interface ITemplate {
   duration?: number;
   src: string;
   previewSrc?: string;
+  referenceVideoSrc?: string;
   ratio: string;
   references?: { min: number; max?: number };
 }
+export interface ITemplateVideoReference {
+  templateId: string;
+  fileId: number;
+}
+
+export async function templateVideoFile(template: ITemplate, signal?: AbortSignal): Promise<File> {
+  if (template.kind !== 'video' || !template.referenceVideoSrc)
+    throw new Error('У шаблона нет видеореференса.');
+  const response = await fetch(template.referenceVideoSrc, { signal });
+  if (!response.ok) throw new Error('Не удалось загрузить видео шаблона. Повторите выбор.');
+  const blob = await response.blob();
+  if (!blob.type.startsWith('video/')) throw new Error('Видео шаблона недоступно.');
+  return new File([blob], `${template.title} — референс.mp4`, { type: blob.type });
+}
+
 /** A gallery preview is a reference only when explicitly selected for a frame slot. */
 export async function templateFrame(template: ITemplate, slot: 'start' | 'end'): Promise<File> {
   if (!['image', 'video'].includes(template.kind))
