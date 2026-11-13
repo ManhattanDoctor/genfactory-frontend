@@ -179,6 +179,8 @@ export function ContentThread({
                       controls
                       autoPlay={false}
                       className="as-pic cw-shot"
+                      frameClassName="cw-shot-frame"
+                      showLoadingState
                       onReady={() => {
                         if (follow.current) scrollToEnd();
                       }}
@@ -193,6 +195,8 @@ export function ContentThread({
                       <Media
                         file={file}
                         className="as-pic cw-shot"
+                        frameClassName="cw-shot-frame"
+                        showLoadingState
                         onReady={() => {
                           if (follow.current) scrollToEnd();
                         }}

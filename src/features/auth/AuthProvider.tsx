@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       if (!event.persisted) return;
       signInStarted.current = false;
       setSigningIn(false);
+      sessionStorage.removeItem('genfactory.oauth');
     };
     const expired = () => {
       setSession(null);
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
     setSigningIn(true);
     setSignInError('');
     try {
+      sessionStorage.removeItem('genfactory.oauth');
       const { keycloak } = await api.config();
       const state = crypto.randomUUID();
       const redirectUri = `${location.origin}/auth/callback`;
@@ -87,9 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       }).toString();
       location.assign(url.href);
     } catch {
+      try {
+        sessionStorage.removeItem('genfactory.oauth');
+      } catch {
+        /* Storage may be unavailable. */
+      }
+      setSignInError('Не удалось открыть вход. Проверьте подключение и попробуйте снова.');
+    } finally {
       signInStarted.current = false;
       setSigningIn(false);
-      setSignInError('Не удалось открыть вход. Проверьте подключение и попробуйте снова.');
     }
   };
   const signOut = async () => {

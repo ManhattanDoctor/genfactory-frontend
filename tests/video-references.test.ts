@@ -67,3 +67,56 @@ it('Wan references keep the chosen aspect ratio while frame conditioning follows
   expect(followsReferenceRatio(wan, 4)).toBe(false);
   expect(followsReferenceRatio(wan, 2, 'frames')).toBe(true);
 });
+
+const mixedModel: IModelDescription = {
+  ...seedance,
+  schema: {
+    properties: {
+      options: {
+        properties: {
+          inputReferences: {
+            type: 'array',
+            maxItems: 40,
+            items: { properties: { type: { enum: ['image', 'video'] } } },
+            'x-referenceLimits': {
+              image: { maxItems: 30 },
+              video: {
+                maxItems: 10,
+                maxBytes: 200 * 1024 * 1024,
+                mimeTypes: ['video/mp4', 'video/quicktime'],
+              },
+            },
+          },
+          frameImages: { type: 'array', maxItems: 2 },
+        },
+      },
+    },
+  },
+};
+it('keeps image and video reference order and rejects incompatible selections', () => {
+  const clip = {
+    id: 77,
+    type: 'VIDEO',
+    path: 'https://files.test/clip.mp4',
+    mime: 'video/mp4',
+    size: 1024,
+  } as IGnosisFile;
+  expect(videoInputOptions(mixedModel, [clip, files[0]], 'references').inputReferences).toEqual([
+    { url: clip.path, type: 'video' },
+    { url: files[0].path, type: 'image' },
+  ]);
+  expect(() => videoInputOptions(seedance, [clip], 'references')).toThrow();
+  expect(() => videoInputOptions(mixedModel, [clip], 'frames')).toThrow();
+  expect(() => videoInputOptions(mixedModel, Array(11).fill(clip), 'references')).toThrow();
+  expect(() => videoInputOptions(mixedModel, [{ ...clip, size: 201 * 1024 * 1024 }], 'references')).toThrow();
+});
+
+it('accepts one Grok first-frame image without reference mode support', () => {
+  const grok = {
+    ...seedance,
+    schema: { properties: { options: { properties: { frameImages: { type: 'array', maxItems: 1 } } } } },
+  } as IModelDescription;
+  expect(videoInputOptions(grok, files.slice(0, 1), videoReferenceMode(grok, 1)).frameImages).toEqual([
+    { url: files[0].path, type: 'first_frame' },
+  ]);
+});

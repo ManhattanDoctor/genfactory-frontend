@@ -5,9 +5,12 @@ export interface ITemplate {
   kind: string;
   title: string;
   genre: string;
+  addedAt?: string;
   prompt: string;
   src: string;
+  previewSrc?: string;
   ratio: string;
+  references?: { min: number; max?: number };
 }
 /** A gallery preview is a reference only when explicitly selected for a frame slot. */
 export async function templateFrame(template: ITemplate, slot: 'start' | 'end'): Promise<File> {
@@ -33,7 +36,7 @@ export async function templateFrame(template: ITemplate, slot: 'start' | 'end'):
 export function templateInstructions(templates: ITemplate[]): string {
   if (!templates.length) return '';
   return [
-    'Используй следующие шаблоны как описание приёма. Изображения и ролики-примеры не являются вложениями пользователя. Переменные в квадратных скобках заполняй только из брифа, истории и переданных материалов; @Image1 означает первый переданный референс. Если существенных данных или требуемого референса нет, уточни их до генерации. Не выдумывай продукт, надписи и факты. Явные настройки текущего запуска важнее противоречащих им структуры, длительности, звука и формата в тексте шаблона.',
+    'Используй следующие шаблоны как описание приёма. Изображения и ролики-примеры не являются вложениями пользователя. Переменные в фигурных скобках заполняй только из брифа, истории и переданных материалов; @Image1 означает первый переданный референс. Если существенных данных или требуемого референса нет, уточни их до генерации. Не выдумывай продукт, надписи и факты. Явные настройки текущего запуска важнее противоречащих им структуры, длительности, звука и формата в тексте шаблона.',
     ...templates.map((item) => `Шаблон «${item.title}»:\n${item.prompt}`),
   ].join('\n\n');
 }

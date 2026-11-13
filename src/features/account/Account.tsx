@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react';
 import './account.css';
 import { BalanceHistory } from './BalanceHistory';
-import { formatBalance } from '../../lib/money';
+import { formatBalance, currencyLabel } from '../../lib/money';
 import { useEffect, useState } from 'react';
 import { Wallet, UserRound, RefreshCw, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
-import { Modal } from '../../components/Modal';
+import { Modal, ModalFooter } from '../../components/Modal';
 export function Account(): ReactElement {
   const auth = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -44,7 +44,7 @@ export function Account(): ReactElement {
               Object.entries(auth.balances).map(([currency, amount]) => (
                 <div className="balance-row" key={currency}>
                   <strong>{formatBalance(amount, currency)}</strong>
-                  <span>{currency}</span>
+                  <span>{currencyLabel(currency)}</span>
                 </div>
               ))
             ) : (
@@ -94,7 +94,7 @@ export function Account(): ReactElement {
       <BalanceHistory />
       {confirmLogout && auth.user && (
         <Modal title="Выйти из аккаунта?" onClose={() => setConfirmLogout(false)}>
-          <div className="modal-actions">
+          <ModalFooter className="modal-actions">
             <button className="button" onClick={() => setConfirmLogout(false)}>
               Отмена
             </button>
@@ -113,7 +113,7 @@ export function Account(): ReactElement {
             >
               Выйти
             </button>
-          </div>
+          </ModalFooter>
         </Modal>
       )}
       {error && (

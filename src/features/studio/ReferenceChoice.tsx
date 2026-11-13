@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { IConversation, IGnosisFile } from '../../lib/types';
-import { Modal } from '../../components/Modal';
+import { Modal, ModalFooter } from '../../components/Modal';
 import { Media } from '../../components/MediaPreview';
 
 export function ReferenceChoice({
@@ -73,15 +73,15 @@ export function ReferenceChoice({
             изображений.
           </p>
         )}
-        <div className="workspace-actions">
+        <p className="small muted">Выбор не запускает генерацию и не списывает баланс.</p>
+        <ModalFooter>
           <button className="button" disabled={!canUse} onClick={onOther}>
             Выбрать другой
           </button>
           <button className="button" onClick={onFresh}>
             Создать с нуля
           </button>
-        </div>
-        <p className="small muted">Выбор не запускает генерацию и не списывает баланс.</p>
+        </ModalFooter>
       </div>
     </Modal>
   );

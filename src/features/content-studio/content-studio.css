@@ -61,6 +61,9 @@
 .content-studio .cw-files {
   flex-wrap: wrap;
 }
+.content-studio #cw-compose .cw-files {
+  padding-top: 0;
+}
 .content-studio .content-menu {
   position: relative;
 }
@@ -676,4 +679,23 @@
 .content-studio .cw-stepper[aria-disabled='true'] {
   opacity: var(--ds-opacity-disabled);
   color: var(--ds-text-disabled);
+}
+
+/* Video setting thumbnails supplied by the designer; selection stays on the option. */
+.content-studio .cw-setting-preview {
+  object-fit: cover;
+  object-position: center;
+}
+.content-studio .cw-shoot-list .cw-setting-preview {
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.content-studio .cw-shot-frame {
+  --media-loading-width: min(100%, 420px);
+  --media-loading-height: auto;
+  --media-loading-ratio: 3 / 4;
+}
+.content-studio .cw-shot-frame[data-media-type='VIDEO'] {
+  --media-loading-ratio: 9 / 16;
 }

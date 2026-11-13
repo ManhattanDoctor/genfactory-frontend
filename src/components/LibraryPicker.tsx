@@ -2,7 +2,7 @@ import './library-picker.css';
 import { useState, type ReactElement } from 'react';
 import { useAuth } from '../features/auth/AuthProvider';
 import type { IGnosisFile } from '../lib/types';
-import { Modal } from './Modal';
+import { Modal, ModalFooter } from './Modal';
 import { FileBrowser } from './FileBrowser';
 
 export function LibraryPicker({
@@ -86,7 +86,7 @@ export function LibraryPicker({
       />
       {error && <p role="alert">{error}</p>}
       {isMultiple && (
-        <div className="library-selection-bar">
+        <ModalFooter className="library-selection-bar">
           <span role="status">
             Выбрано: {files.length} из {Math.max(0, maxFiles)}
           </span>
@@ -98,7 +98,7 @@ export function LibraryPicker({
           >
             Добавить ({files.length})
           </button>
-        </div>
+        </ModalFooter>
       )}
     </Modal>
   );

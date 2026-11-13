@@ -35,7 +35,7 @@ describe('Video canvas settings', () => {
       ),
     ).toEqual({ duration: 4, aspectRatio: '1:1' });
     const body = createMessageBody(
-      videoRequest('Чашка', 'Поворот [PRODUCT]', 'sequence'),
+      videoRequest('Чашка', 'Поворот {PRODUCT}', 'sequence'),
       'video',
       {
         uid: 'VIDEO',
@@ -46,7 +46,7 @@ describe('Video canvas settings', () => {
     expect(body.files).toEqual([12]);
     expect(body.settings.tools[0].settings?.options).toEqual({ duration: 4 });
     expect(body.text).toContain('Несколько последовательных сцен');
-    expect(displayMessageText(body.text)).toBe('Идея:\nЧашка\n\nШаблон:\nПоворот [PRODUCT]');
+    expect(displayMessageText(body.text)).toBe('Идея:\nЧашка\n\nШаблон:\nПоворот {PRODUCT}');
   });
 });
 

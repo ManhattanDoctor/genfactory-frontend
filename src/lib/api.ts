@@ -226,7 +226,7 @@ export const api = {
       { signal },
     );
   },
-  init: () => request<IInitResponse>('/init'),
+  init: () => request<IInitResponse>('/init', { signal: AbortSignal.timeout(15_000) }),
   config: () =>
     request<{ keycloak: { url: string; realm: string; clientId: string } }>(
       '/config',
@@ -239,6 +239,7 @@ export const api = {
       {
         method: 'POST',
         body: JSON.stringify({ resource: 'KEYCLOAK', data: { codeOrToken: code, redirectUri } }),
+        signal: AbortSignal.timeout(15_000),
       },
       null,
     ),

@@ -501,10 +501,10 @@ test('saved non-router tool settings are checked before sending', async ({ page 
   expect(state.writes).not.toContain('/api/conversation/134/message');
 });
 
-test('completed child does not show ready while its parent is still saving', async ({ page }) => {
+test('completed video appears once through its conversation after the parent finishes', async ({ page }) => {
   const { state, emit } = await setup(page);
   const parent = task('parent', 'OPEN_ROUTER_CONVERSATION', { session: 'conversation134' });
-  const child = task('child', 'OPEN_ROUTER_IMAGE', { parentTaskId: 'parent' });
+  const child = task('child', 'OPEN_ROUTER_VIDEO', { parentTaskId: 'parent' });
   state.active = [parent, child];
   state.conversations = [
     {
@@ -523,10 +523,19 @@ test('completed child does not show ready while its parent is still saving', asy
   await expect.poll(() => !!state.socket).toBe(true);
   state.active = [parent];
   const reads = state.taskReads;
-  emit('TaskFinishedEvent', { id: child.id, item: child, result: 'COMPLETED' });
+  emit('TaskFinishedEvent', { id: child.id, item: child, result: 'COMPLETED', fileIds: [12] });
   await expect.poll(() => state.taskReads).toBeGreaterThan(reads);
   await expect(jobs.locator('.jobs-grid .job-card')).toHaveCount(1);
   await expect(jobs.locator('.completed-job')).toHaveCount(0);
+  state.active = [];
+  state.conversations[0].status = 'LOADED';
+  emit('TaskFinishedEvent', { id: parent.id, item: parent, result: 'COMPLETED' });
+  emit('ConversationChangedEvent', { id: 134, item: state.conversations[0] });
+  await expect(jobs.locator('.jobs-grid .job-card')).toHaveCount(0);
+  await expect(jobs.locator('.completed-job')).toHaveCount(1);
+  await expect(jobs.locator('.completed-job')).toHaveAttribute('href', /conversation=134/);
+  await jobs.getByRole('button', { name: 'Обновить статусы' }).click();
+  await expect(jobs.locator('.completed-job')).toHaveCount(1);
 });
 
 test('new generic image tools are pinned to OpenRouter and preserve required-call overrides', async ({

@@ -125,11 +125,6 @@ async function applyVideoTemplate(page: Page, index: number): Promise<void> {
   await page.locator('.ds-template-card').nth(index).click();
   const dialog = page.getByRole('dialog');
   for (const field of await dialog.locator('[data-template-variable]').all()) await field.fill('Синяя чашка');
-  const source = dialog.getByRole('button', { name: 'Из библиотеки', exact: true });
-  if (await source.isVisible()) {
-    await source.click();
-    await pickSource(page);
-  }
   await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   const adapt = dialog.getByRole('button', { name: /Адаптировать под/ });
   if (await adapt.isVisible()) {
@@ -137,6 +132,8 @@ async function applyVideoTemplate(page: Page, index: number): Promise<void> {
     await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   }
   await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+  await pickSource(page);
 }
 
 test('Wan keeps audio enabled when restoring a saved draft that requested silence', async ({ page }) => {

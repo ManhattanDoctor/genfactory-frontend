@@ -11,7 +11,7 @@ import { useRealtime } from '../features/realtime/RealtimeProvider';
 import { Link } from 'react-router-dom';
 import { apiErrorMessage } from '../lib/errorMessages';
 import { api, getSession } from '../lib/api';
-import { taskView, visibleTasks } from '../features/studio/activeTasks';
+import { taskView, visibleTasks, visibleTaskNotices } from '../features/studio/activeTasks';
 import { FilePlaceholder } from './FilePlaceholder';
 import type { IGnosisFile, ITaskExecution, ITaskResponse, ITaskFinished, IConversation } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -206,13 +206,10 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
     executions.data || [],
     pendingTasks.map((task) => task.input.body.task.session),
   );
-  const remoteNotices = taskNotices.data.filter(
-    (task) =>
-      !task.item.model.includes('CONVERSATION') &&
-      (!task.item.parentTaskId ||
-        ((task.result !== 'COMPLETED' || !!task.fileIds?.length) &&
-          !executions.data?.some((item) => item.id === task.item.parentTaskId))) &&
-      !tasks.some((local) => local.input.body.task.session === task.item.session),
+  const remoteNotices = visibleTaskNotices(
+    taskNotices.data,
+    executions.data || [],
+    tasks.map((task) => task.input.body.task.session),
   );
   const [dismissedTasks, setDismissedTasks] = useState<number[]>([]);
   const finishedTasks = tasks

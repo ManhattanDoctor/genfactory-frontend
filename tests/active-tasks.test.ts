@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { taskView, visibleTasks } from '../src/features/studio/activeTasks';
+import { taskView, visibleTasks, visibleTaskNotices } from '../src/features/studio/activeTasks';
 const task = (id: string, model = 'OPEN_ROUTER_IMAGE', parentTaskId?: string, session?: string) => ({
   id,
   model,
@@ -30,5 +30,30 @@ describe('active task presentation', () => {
     ['ANTHROPIC_TEXT', '/text', 'DOCUMENT'],
   ])('uses the library type for %s', (model, path, type) => {
     expect(taskView(task('task', model))).toMatchObject({ path, type });
+  });
+});
+
+describe('completed task presentation', () => {
+  const parent = task('parent', 'OPEN_ROUTER_CONVERSATION', undefined, 'conversation134');
+  const child = task('child', 'OPEN_ROUTER_VIDEO', 'parent');
+  const notice = (item: ReturnType<typeof task>) => ({
+    id: item.id,
+    item,
+    result: 'COMPLETED' as const,
+    fileIds: [42],
+  });
+  it('keeps a child hidden after its conversation finishes, in either event order', () => {
+    expect(visibleTaskNotices([notice(child)], [parent], [])).toEqual([]);
+    expect(visibleTaskNotices([notice(child), notice(parent)], [], [])).toEqual([]);
+    expect(visibleTaskNotices([notice(parent), notice(child)], [], [])).toEqual([]);
+  });
+  it('recognizes a conversation session even when the parent notice is missing', () => {
+    expect(visibleTaskNotices([notice({ ...child, session: 'conversation134' })], [], [])).toEqual([]);
+  });
+  it('preserves independent generations and orphaned results, without duplicating local requests', () => {
+    const direct = notice(task('direct', 'OPEN_ROUTER_VIDEO', undefined, 'local'));
+    const orphan = notice(child);
+    expect(visibleTaskNotices([direct, orphan], [], [])).toEqual([direct, orphan]);
+    expect(visibleTaskNotices([direct, orphan], [], ['local'])).toEqual([orphan]);
   });
 });

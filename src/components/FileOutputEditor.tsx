@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import type { IFileOutputSettings, IConversation } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { FileBrowser } from './FileBrowser';
-import { Modal } from './Modal';
+import { Modal, ModalFooter } from './Modal';
 
 export function useFileOutputSettings(scope: string, conversation?: IConversation) {
   const [draft, setDraft] = useState<{ scope: string; value: IFileOutputSettings }>();
@@ -68,16 +68,18 @@ export function FileOutputEditor({
           <Modal title="Папка результатов" onClose={() => setPicker(false)} wide>
             <div className="file-form">
               <FileBrowser foldersOnly onDirectory={setDirectory} />
-              <button
-                type="button"
-                className="button primary"
-                onClick={() => {
-                  onChange({ ...value, directory });
-                  setPicker(false);
-                }}
-              >
-                Сохранять в эту папку
-              </button>
+              <ModalFooter>
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={() => {
+                    onChange({ ...value, directory });
+                    setPicker(false);
+                  }}
+                >
+                  Сохранять в эту папку
+                </button>
+              </ModalFooter>
             </div>
           </Modal>
         )}

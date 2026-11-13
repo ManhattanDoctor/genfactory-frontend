@@ -1,30 +1,19 @@
 import type { ITemplate } from './materials';
+import { PromptTemplate } from './PromptTemplate';
 import labels from './templateFields.json';
 
 export function templateVariables(text: string): string[] {
-  return [...new Set([...text.matchAll(/\[([A-Za-z][A-Za-z_0-9 ]*)\]/g)].map((match) => match[1]))];
+  return new PromptTemplate(text).variables;
 }
 export function templateVariableLabel(key: string): string {
   return (labels as Record<string, string>)[key] || key;
 }
-export function fillTemplate(text: string, values: Record<string, string>): string {
-  return text.replace(/\[([A-Za-z][A-Za-z_0-9 ]*)\]/g, (match, key) => values[key]?.trim() || match);
+export function fillTemplate(text: string, values: Record<string, string | number>): string {
+  return new PromptTemplate(text).fill(values);
 }
-const optionalReferences = new Set([
-  'image:10',
-  'image:26',
-  'image:27',
-  'image:29',
-  'image:62',
-  'image:123',
-  'video:media/creatives/19.mp4',
-  'video:media/creatives/28.mp4',
-  'video:media/creatives/29.mp4',
-]);
 export function templateReference(item: ITemplate): 'required' | 'optional' | 'none' {
-  if (item.kind === 'presentation') return 'none';
-  if (optionalReferences.has(item.id)) return 'optional';
-  return /\breference\b|@Image\d+/i.test(item.prompt) ? 'required' : 'optional';
+  if (item.references?.max === 0) return 'none';
+  return (item.references?.min ?? 0) > 0 ? 'required' : 'optional';
 }
 export function templateDuration(text: string): number | undefined {
   const match = text.match(/\b(\d+(?:\.\d+)?)-second\b/);

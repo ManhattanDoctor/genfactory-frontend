@@ -335,7 +335,7 @@ test('image gallery and composer follow the visual viewport through keyboard dis
 
 test.describe('complete image template catalog', () => {
   test.describe.configure({ mode: 'parallel' });
-  const items: { id: string; kind: string; title: string }[] = JSON.parse(
+  const items: { id: string; kind: string; title: string; prompt: string }[] = JSON.parse(
     readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
   );
   const images = items.filter((item) => item.kind === 'image');
@@ -349,20 +349,17 @@ test.describe('complete image template catalog', () => {
       await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
       for (const item of images.slice(offset, offset + 20)) {
         await page.getByRole('button', { name: item.title, exact: true }).click();
-        await expect(page.getByRole('dialog')).toHaveCount(0);
-        await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
-        const input = page.getByRole('textbox', { name: 'Текст шаблона', exact: true });
-        const prepared = (await input.inputValue()).replace(
-          /\[([A-Za-z][A-Za-z_0-9 ]*)\]/g,
-          'Тестовые данные',
-        );
-        await input.fill(prepared);
-        await expect(input).toHaveValue(prepared);
-        await page.getByRole('button', { name: 'Готово', exact: true }).click();
-        await expect(page.locator('#img-draft')).toHaveValue('');
-        expect(prepared).not.toMatch(/\[[A-Za-z][A-Za-z_0-9 ]*\]/);
+        const dialog = page.getByRole('dialog');
+        if (await dialog.isVisible()) {
+          for (const input of await dialog.locator('[data-template-variable]').all())
+            await input.fill('Тестовые данные');
+          await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+        }
+        await expect(dialog).toHaveCount(0);
+        await expect(page.locator('#img-draft')).not.toHaveValue('');
+        expect(await page.locator('#img-draft').inputValue()).not.toMatch(/\{[A-Za-z][A-Za-z_0-9]*\}/);
       }
-      await page.getByRole('button', { name: 'Убрать шаблон', exact: true }).click();
+      await page.locator('#img-draft').fill('');
       await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(0);
       expect(state.tasks).toHaveLength(0);
       expect(state.creates).toHaveLength(0);
@@ -371,18 +368,21 @@ test.describe('complete image template catalog', () => {
   }
 });
 
-test('canceling a template preserves the prompt and removing an applied template clears selection', async ({
+test('canceling a parameterized template preserves the prompt and applying a plain template replaces it', async ({
   page,
 }) => {
   await setup(page);
   await page.goto('/image');
   await page.locator('#img-draft').fill('Моя задача');
-  await page.locator('.ds-template-card').first().click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Убрать шаблон', exact: true }).click();
+  await page.getByRole('button', { name: 'Главное фото на белом фоне (маркетплейс)', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page.locator('#img-draft')).toHaveValue('Моя задача');
-  await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Портрет в масштабе', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('#img-draft')).toHaveValue(/Ultra-photorealistic/);
+  await expect(page.locator('.composer-template')).toHaveCount(0);
 });
+
 test('image wall paginates across folders and excludes uploads and foreign files', async ({ page }) => {
   await setup(page);
   const pages: number[] = [];
@@ -415,28 +415,23 @@ test('image wall paginates across folders and excludes uploads and foreign files
   expect(pages).toContain(1);
 });
 
-test('template placeholders survive reload and are sent separately from the idea without a reference gate', async ({
-  page,
-}) => {
+test('filled template text survives reload and is submitted as the visible prompt', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/image');
-  await page.locator('#img-draft').fill('Красная чашка, мягкий вечерний свет');
-  await page.locator('.ds-template-card').first().click();
-  await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
-  const input = page.getByRole('textbox', { name: 'Текст шаблона', exact: true });
-  const template = await input.inputValue();
-  expect(template).toContain('[PRODUCT]');
+  await page.getByRole('button', { name: 'Главное фото на белом фоне (маркетплейс)', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+  const prompt = await page.locator('#img-draft').inputValue();
+  expect(prompt).not.toContain('{PRODUCT}');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.image:new:all')))
-    .toContain('[PRODUCT]');
+    .toContain('Красная чашка');
   await page.reload();
-  await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(1);
+  await expect(page.locator('#img-draft')).toHaveValue(prompt);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.prompt).toContain('Основной запрос:\nКрасная чашка, мягкий вечерний свет');
-  expect(state.tasks[0].task.prompt).toContain('Шаблон:\n' + template);
-  expect(state.tasks[0].task.prompt).not.toMatch(/вызови IMAGE|Genfactory:/);
-  expect(state.tasks[0].task.fileIds).toEqual([]);
+  expect(state.tasks[0].task.prompt).toBe(prompt);
 });
 
 test('image blocks a nonpositive balance without creating or submitting a conversation', async ({ page }) => {
@@ -674,11 +669,8 @@ test('redo restores the original idea and template of a new request and attaches
 }) => {
   const state = await setup(page);
   await page.goto('/image');
-  await page.locator('#img-draft').fill('Моя исходная идея');
-  await page.locator('.ds-template-card').first().click();
-  await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
-  const template = await page.getByRole('textbox', { name: 'Текст шаблона', exact: true }).inputValue();
-  await page.getByRole('button', { name: 'Готово', exact: true }).click();
+  await page.getByRole('button', { name: 'Портрет в масштабе', exact: true }).click();
+  const prompt = await page.locator('#img-draft').inputValue();
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
   await expect
@@ -686,10 +678,10 @@ test('redo restores the original idea and template of a new request and attaches
       page.evaluate(
         () =>
           JSON.parse(localStorage.getItem('genfactory.file-recipes.v1.7') || '{}')['12']?.workspaceInput
-            ?.templateText,
+            ?.idea,
       ),
     )
-    .toBe(template);
+    .toBe(prompt);
   await page.reload();
   const result = page.locator('.image-result');
   await expect
@@ -701,10 +693,8 @@ test('redo restores the original idea and template of a new request and attaches
   await expect(result.locator('.img-actions')).toHaveCSS('transform', 'none');
   await expect(result.locator('.img-actions')).toHaveCSS('opacity', '1');
   await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
-  await expect(page.locator('#img-draft')).toHaveValue(/Моя исходная идея[\s\S]*Последний референс/);
+  await expect(page.locator('#img-draft')).toHaveValue(/Ultra-photorealistic[\s\S]*Последний референс/);
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toHaveCount(1);
-  await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Текст шаблона', exact: true })).toHaveValue(template);
   expect(state.tasks).toHaveLength(1);
 });
 

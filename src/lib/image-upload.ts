@@ -1,4 +1,8 @@
 export const IMAGE_UPLOAD_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
+export const VIDEO_UPLOAD_ACCEPT = 'video/mp4,video/quicktime,.mp4,.mov';
+export function isVideoUpload(file: Pick<File, 'type'>): boolean {
+  return ['video/mp4', 'video/quicktime'].includes(file.type);
+}
 export const HEIC_MAX_BYTES = 20 * 1024 * 1024;
 
 export function isHeicUpload(file: Pick<File, 'name' | 'type'>): boolean {

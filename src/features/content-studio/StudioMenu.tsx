@@ -8,6 +8,31 @@ import { favoritesFirst } from '../catalog/presentation';
 import { ModelMark } from './ModelMark';
 import type { StudioMode } from './studioTypes';
 import fieldIcons from './fieldIcons.json';
+import settingPreviews from './settingPreviews.json';
+
+function FieldPreview({
+  fieldId,
+  value,
+  images,
+}: {
+  fieldId: string;
+  value: string;
+  images: boolean;
+}): ReactElement {
+  const src = images
+    ? (settingPreviews as Record<string, Record<string, string>>)[fieldId]?.[value]
+    : undefined;
+  return src ? (
+    <img className="cw-ref cw-setting-preview" src={src} alt="" loading="lazy" decoding="async" />
+  ) : (
+    <i
+      className="cw-ref"
+      dangerouslySetInnerHTML={{
+        __html: (fieldIcons as Record<string, Record<string, string>>)[fieldId]?.[value] || '',
+      }}
+    />
+  );
+}
 
 export function StudioMenu({
   disabled = false,
@@ -25,6 +50,7 @@ export function StudioMenu({
   error,
   modelIcon,
   fieldId,
+  showPreviews = false,
   onSelect,
 }: {
   label: string;
@@ -41,6 +67,7 @@ export function StudioMenu({
   error?: string;
   modelIcon?: StudioMode;
   fieldId?: string;
+  showPreviews?: boolean;
   disabled?: boolean;
   onSelect: (value: string) => void;
 }): ReactElement {
@@ -103,14 +130,7 @@ export function StudioMenu({
           <>
             <span>{label}</span>
             <span className="cw-picked">
-              {fieldId && (
-                <i
-                  className="cw-ref"
-                  dangerouslySetInnerHTML={{
-                    __html: (fieldIcons as Record<string, Record<string, string>>)[fieldId]?.[value] || '',
-                  }}
-                />
-              )}
+              {fieldId && <FieldPreview fieldId={fieldId} value={value} images={showPreviews} />}
               <b>{value}</b>
             </span>
           </>
@@ -209,13 +229,7 @@ export function StudioMenu({
                 >
                   {fieldId ? (
                     <>
-                      <i
-                        className="cw-ref"
-                        dangerouslySetInnerHTML={{
-                          __html:
-                            (fieldIcons as Record<string, Record<string, string>>)[fieldId]?.[option] || '',
-                        }}
-                      />
+                      <FieldPreview fieldId={fieldId} value={option} images={showPreviews} />
                       <span>{option}</span>
                     </>
                   ) : (

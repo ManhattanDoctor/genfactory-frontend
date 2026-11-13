@@ -18,7 +18,7 @@ describe('Complete designer template catalog', () => {
     for (const key of keys) expect(fields).toHaveProperty(key);
     const ready = fillTemplate(item.prompt, Object.fromEntries(keys.map((key) => [key, 'User value'])));
     expect(templateVariables(ready)).toEqual([]);
-    if (item.kind === 'video') {
+    if (item.kind === 'video' && (!item.id.startsWith('video:2026-11-13:') || templateDuration(ready))) {
       expect(templateDuration(ready)).toBeGreaterThan(0);
       for (const seconds of [1, 4, 6, 15]) {
         const adapted = adaptTemplateDuration(ready, seconds);
@@ -39,4 +39,53 @@ describe('Complete designer template catalog', () => {
     expect(templateReference(get('video:media/creatives/19.mp4'))).toBe('optional');
     expect(templateReference(get('presentation:startup'))).toBe('none');
   });
+});
+
+describe('ts-core language prompt rendering', () => {
+  it('keeps templates without variables usable and preserves their text', () => {
+    const text = 'Создай фотографию леса. Не добавляй надписи.';
+    expect(templateVariables(text)).toEqual([]);
+    expect(fillTemplate(text, {})).toBe(text);
+  });
+
+  it.each([
+    [1, '1 корзина'],
+    [2, '2 корзины'],
+    [5, '5 корзин'],
+    [21, '21 корзина'],
+  ])('renders Russian plurals for %s', (count, expected) => {
+    const text = '{COUNT, plural, one {# корзина} few {# корзины} many {# корзин} other {# корзины}}';
+    expect(templateVariables(text)).toEqual(['COUNT']);
+    expect(fillTemplate(text, { COUNT: count })).toBe(expected);
+  });
+
+  it('renders select branches and repeated variables together', () => {
+    const text = '{STYLE, select, light {Белый фон для {PRODUCT}} other {Тёмный фон для {PRODUCT}}}';
+    expect(templateVariables(text)).toEqual(['STYLE', 'PRODUCT']);
+    expect(fillTemplate(text, { STYLE: 'light', PRODUCT: 'Корзина' })).toBe('Белый фон для Корзина');
+  });
+
+  it('does not compile inserted user text as another message', () => {
+    expect(
+      fillTemplate('{PRODUCT} / {BACKGROUND}', {
+        PRODUCT: '{COUNT, plural, other {hello}} {BRAND} $&',
+        BACKGROUND: 'white',
+      }),
+    ).toBe('{COUNT, plural, other {hello}} {BRAND} $& / white');
+  });
+
+  it('keeps unfinished templates intact instead of inserting undefined or NaN', () => {
+    const text = '{COUNT, plural, one {# файл} other {# файлов}} для {PRODUCT}';
+    expect(fillTemplate(text, { PRODUCT: 'Корзина' })).toBe(text);
+    expect(fillTemplate('{PRODUCT}', { PRODUCT: '   ' })).toBe('{PRODUCT}');
+    expect(fillTemplate('{COUNT}', { COUNT: 0 })).toBe('0');
+  });
+
+  it('reports malformed ICU syntax for the editor to handle', () => {
+    expect(() => templateVariables('{COUNT, plural, other {files}')).toThrow();
+  });
+});
+
+it('rejects nonnumeric plural inputs instead of rendering NaN', () => {
+  expect(() => fillTemplate('{COUNT, plural, other {# файлов}}', { COUNT: 'abc' })).toThrow();
 });

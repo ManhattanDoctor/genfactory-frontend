@@ -1,0 +1,65 @@
+.skeleton {
+  display: block;
+  background: linear-gradient(100deg, #202322 20%, #303533 45%, #202322 70%);
+  background-size: 250% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: inherit;
+}
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+.media-loading-frame {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  max-width: 100%;
+  width: var(--media-loading-width, 100%);
+  height: var(--media-loading-height, 100%);
+  border-radius: inherit;
+}
+.media-loading-skeleton,
+.media-loading-error {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.media-loading-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #202322;
+  color: #c5ceca;
+  font-size: 12px;
+}
+.media-loading-error [role='button'] {
+  pointer-events: auto;
+  color: #9ee4b7;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.skeleton-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  padding: 16px 0;
+}
+.skeleton-card {
+  aspect-ratio: 4 / 3;
+  border-radius: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.media-card-skeleton {
+  aspect-ratio: 4 / 3;
+}

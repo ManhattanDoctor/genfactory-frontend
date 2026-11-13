@@ -12,10 +12,17 @@ import type { StudioMode, IAttachment, IReferenceDraft } from './studioTypes';
 import { StudioEmptyState } from './StudioEmptyState';
 import { StudioAttachments } from './StudioAttachments';
 import { uploadStudioAttachments } from './uploadStudioAttachments';
-import { IMAGE_UPLOAD_ACCEPT, isImageUpload, prepareImageUpload } from '../../lib/image-upload';
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  VIDEO_UPLOAD_ACCEPT,
+  isVideoUpload,
+  isImageUpload,
+  prepareImageUpload,
+} from '../../lib/image-upload';
 import { scriptReferences } from './script';
 import '../catalog/model-favorites.css';
 import { TemplateEditor } from './TemplateEditor';
+import { templateVariables } from './templateRecipe';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api, getSession, type IUploadProgress } from '../../lib/api';
@@ -25,7 +32,12 @@ import { ContentThread } from './ContentThread';
 import { sizeRatio } from './controls';
 import { referenceLimit, supportsReferences } from '../catalog/schema';
 import { templateFrame, type ITemplate } from './materials';
-import { videoReferenceMode } from '../catalog/videoInputs';
+import {
+  videoReferenceMode,
+  supportsVideoReferences,
+  videoReferenceError,
+  validateVideoReferenceDimensions,
+} from '../catalog/videoInputs';
 import { mediaOptions } from './request';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import { ArrowUp, Plus } from 'lucide-react';
@@ -130,8 +142,32 @@ export function ContentStudio(): ReactElement {
   const [frameMenu, setFrameMenu] = useState<'start' | 'end'>();
   const [library, setLibrary] = useState<{ scope: string; slot?: 'start' | 'end' }>();
   const [appliedTemplate, setAppliedTemplate] = useState('');
+  const [templateImageRequirement, setTemplateImageRequirement] = useState({ scope: '', min: 0 });
+  useEffect(() => {
+    if (!draft.trim()) setTemplateImageRequirement({ scope: '', min: 0 });
+  }, [draft]);
   const [templateStartsFresh, setTemplateStartsFresh] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ITemplate>();
+  const [templateGlowActive, setTemplateGlowActive] = useState(false);
+  const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
+  const applyTemplateText = (item: ITemplate, prompt: string): void => {
+    clearTimeout(templateGlowTimer.current);
+    setTemplateGlowActive(true);
+    templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
+    setAppliedTemplate(item.title);
+    setTemplateImageRequirement({ scope: draftScope, min: Math.max(1, item.references?.min ?? 0) });
+
+    setTemplateStartsFresh(true);
+    setDraft(prompt);
+    setPicked([]);
+    setWriter(false);
+    setRestoredGeneration(undefined);
+    setFrameSlot(undefined);
+    setEditingTemplate(undefined);
+    work.setError('');
+    requestAnimationFrame(() => textarea.current?.focus());
+  };
   const [selectedTemplate, setSelectedTemplate] = useState<string>();
   const [mobileGallery, setMobileGallery] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -155,7 +191,11 @@ export function ContentStudio(): ReactElement {
   );
   const visible = current
     .filter((t) => (!genre || t.genre === genre) && (!favoritesOnly || favorites.includes(t.id)))
-    .sort((a, b) => Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)));
+    .sort(
+      (a, b) =>
+        (b.addedAt || '').localeCompare(a.addedAt || '') ||
+        Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)),
+    );
   const pick = async (item: ITemplate): Promise<void> => {
     if (preparingFrame || work.busy || uploading) return;
     setMobileGallery(false);
@@ -188,7 +228,14 @@ export function ContentStudio(): ReactElement {
         if (alive.current) setPreparingFrame(false);
       }
     } else {
-      setEditingTemplate(item);
+      let needsEditor = item.kind === 'presentation';
+      try {
+        needsEditor ||= templateVariables(item.prompt).length > 0;
+      } catch {
+        needsEditor = true;
+      }
+      if (needsEditor) setEditingTemplate(item);
+      else applyTemplateText(item, item.prompt);
     }
     setSelectedTemplate(undefined);
     textarea.current?.focus();
@@ -250,6 +297,10 @@ export function ContentStudio(): ReactElement {
   const initialStudioValue = useRef({ ...studioValue, draft: '' });
   const studioDraft = useDraft(`content-studio.${work.id ?? 'new'}`, studioValue, true);
   const draftScope = `${user?.id ?? 'guest'}:${work.id ?? `new:${location.key}`}`;
+  const needsTemplateImages =
+    templateImageRequirement.scope === draftScope &&
+    !!draft.trim() &&
+    attachments.length < templateImageRequirement.min;
   useEffect(() => {
     const pending = submittedDraft.current;
     if (pending && (pending.session !== session || pending.conversationId !== work.id))
@@ -361,7 +412,7 @@ export function ContentStudio(): ReactElement {
         if (id) {
           try {
             const file = await api.file(id, sid);
-            if (file.userId === user.id && file.type === 'IMAGE') {
+            if (file.userId === user.id && (file.type === 'IMAGE' || file.type === 'VIDEO')) {
               return {
                 id: pending[index].id,
                 name: file.name,
@@ -460,7 +511,11 @@ export function ContentStudio(): ReactElement {
     if (
       files.some(
         (item) =>
-          item.userId !== user?.id || item.type !== 'IMAGE' || !/^image\/(jpeg|png|webp)$/.test(item.mime),
+          item.userId !== user?.id ||
+          !(
+            (item.type === 'IMAGE' && /^image\/(jpeg|png|webp)$/.test(item.mime)) ||
+            (mode === 'video' && !library.slot && supportsVideoReferences(model) && item.type === 'VIDEO')
+          ),
       )
     ) {
       work.setError('Выберите изображение JPEG, PNG или WebP.');
@@ -468,6 +523,25 @@ export function ContentStudio(): ReactElement {
     }
     const slot = library.slot;
     const retained = attachments.filter((item) => !slot || item.slot !== slot);
+    if (mode === 'video' && model) {
+      const issue = videoReferenceError(
+        model,
+        [
+          ...retained.map((item) => ({
+            type: item.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
+            mime: item.type,
+            size: item.saved?.size ?? item.file?.size,
+          })),
+          ...files,
+        ],
+        library.slot ? 'frames' : undefined,
+      );
+      if (issue) {
+        work.setError(issue);
+        return;
+      }
+    }
+
     if (!slot && retained.some((item) => item.saved?.id === file.id)) return;
     if (retained.some((item) => (slot ? !item.slot : !!item.slot))) {
       work.setError('Не смешивайте опорные кадры и обычные референсы.');
@@ -524,7 +598,7 @@ export function ContentStudio(): ReactElement {
       );
       if (!selected) throw new Error('Модель этой генерации больше недоступна.');
       const sources = await Promise.all((file.origin?.sourceFileIds || []).map((id) => api.file(id, sid)));
-      if (sources.some((source) => source.userId !== user.id || source.type !== 'IMAGE'))
+      if (sources.some((source) => source.userId !== user.id || !['IMAGE', 'VIDEO'].includes(source.type)))
         throw new Error('Один из исходных файлов недоступен или не является изображением.');
       const properties = selected.schema.properties?.options?.properties || {};
       if (Object.keys(generation.options).some((key) => !properties[key]))
@@ -689,10 +763,19 @@ export function ContentStudio(): ReactElement {
         if (mode === 'video' && soundOptions.length && !soundOptions.includes(effectiveSound))
           throw new Error('Выберите доступную настройку звука.');
       }
-      if (sourceAttachments.some((item) => !item.type.startsWith('image/')))
-        throw new Error(
-          'На этом этапе можно передавать только изображения. Документы, аудио и видео пока не подключены.',
-        );
+      if (
+        sourceAttachments.some(
+          (item) =>
+            !item.type.startsWith('image/') &&
+            !(
+              mode === 'video' &&
+              !item.slot &&
+              supportsVideoReferences(model) &&
+              item.type.startsWith('video/')
+            ),
+        )
+      )
+        throw new Error('Тип вложения не поддерживается выбранной моделью или режимом.');
       if (
         mode === 'video' &&
         sourceAttachments.some((item) => item.slot === 'end') &&
@@ -718,6 +801,8 @@ export function ContentStudio(): ReactElement {
           setAttachments((previous) => previous.map((item) => (item.id === id ? { ...item, saved } : item))),
       });
       if (!savedFiles) return;
+      if (mode === 'video') await validateVideoReferenceDimensions(model, savedFiles);
+      if (!current()) return;
       setUploading(false);
       const request = await buildStudioMessage({
         mode,
@@ -838,7 +923,7 @@ export function ContentStudio(): ReactElement {
                           url: file.path,
                           type: file.mime,
                           saved: file,
-                          ...(kind === 'video' ? { slot: 'start' as const } : {}),
+                          ...(kind === 'video' && file.type === 'IMAGE' ? { slot: 'start' as const } : {}),
                         },
                       ]);
                       textarea.current?.focus();
@@ -919,7 +1004,11 @@ export function ContentStudio(): ReactElement {
                       className="ds-field"
                       rows={3}
                       value={draft}
-                      placeholder="Опишите, что должно произойти в кадре"
+                      placeholder={
+                        mode === 'video' && supportsVideoReferences(model)
+                          ? 'Опишите сюжет и движение. Можно добавить свои фото и видео — укажите, что использовать как образец, что изменить и что сохранить.'
+                          : 'Опишите идею и желаемый результат. Можно добавить свои изображения — объясните, как их использовать и какие детали сохранить.'
+                      }
                       onChange={(e) => {
                         setDraft(e.target.value);
                       }}
@@ -942,14 +1031,16 @@ export function ContentStudio(): ReactElement {
                     Шаблоны и настройки
                   </button>
                   <button
-                    className="cw-plus ds-icon-button"
+                    className={`cw-plus ds-icon-button ${needsTemplateImages ? `needs-template-images${templateGlowActive ? ' template-glow-active' : ''}` : ''}`}
                     type="button"
                     aria-label="Добавить файл"
                     disabled={busy || attachments.some((file) => file.slot)}
                     title={
                       attachments.some((file) => file.slot)
                         ? 'Меняйте опорные кадры в настройках или уберите их перед добавлением обычных референсов.'
-                        : 'Добавить файл'
+                        : needsTemplateImages
+                          ? `Добавьте свои ${mode === 'video' && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${templateImageRequirement.min}`
+                          : 'Добавить файл'
                     }
                     onClick={() => {
                       setFrameSlot(undefined);
@@ -1223,6 +1314,7 @@ export function ContentStudio(): ReactElement {
                             disabled={busy}
                             key={f.id}
                             fieldId={f.id}
+                            showPreviews={mode === 'video'}
                             label={f.label}
                             value={f.id === 'quality' ? effectiveQuality : settings[f.id]}
                             className="cw-shoot-row"
@@ -1247,12 +1339,22 @@ export function ContentStudio(): ReactElement {
         type="file"
         hidden
         multiple={!frameSlot}
-        accept={IMAGE_UPLOAD_ACCEPT}
+        accept={
+          mode === 'video' && !frameSlot && supportsVideoReferences(model)
+            ? `${IMAGE_UPLOAD_ACCEPT},${VIDEO_UPLOAD_ACCEPT}`
+            : IMAGE_UPLOAD_ACCEPT
+        }
         onChange={async (e) => {
           const files = Array.from(e.target.files || []);
           e.target.value = '';
           if (busy || !files.length) return;
-          if (files.some((file) => !isImageUpload(file))) {
+          if (
+            files.some(
+              (file) =>
+                !isImageUpload(file) &&
+                !(mode === 'video' && !frameSlot && supportsVideoReferences(model) && isVideoUpload(file)),
+            )
+          ) {
             work.setError('Выберите изображение JPEG, PNG, WebP или HEIC/HEIF.');
             e.target.value = '';
             return;
@@ -1275,6 +1377,25 @@ export function ContentStudio(): ReactElement {
           setPreparingFrame(true);
           work.setError('');
           try {
+            if (mode === 'video' && model) {
+              const issue = videoReferenceError(
+                model,
+                [
+                  ...retained.map((item) => ({
+                    type: item.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
+                    mime: item.type,
+                    size: item.saved?.size ?? item.file?.size ?? 0,
+                  })),
+                  ...files.map((file) => ({
+                    type: isVideoUpload(file) ? 'VIDEO' : 'IMAGE',
+                    mime: file.type,
+                    size: file.size,
+                  })),
+                ],
+                slot ? 'frames' : undefined,
+              );
+              if (issue) throw new Error(issue);
+            }
             const prepared: File[] = [];
             for (const file of files) {
               prepared.push(await prepareImageUpload(file));
@@ -1298,13 +1419,20 @@ export function ContentStudio(): ReactElement {
 
       {library && library.scope === draftScope && !busy && (
         <LibraryPicker
+          acceptedTypes={
+            mode === 'video' && !library.slot && supportsVideoReferences(model)
+              ? ['IMAGE', 'VIDEO']
+              : ['IMAGE']
+          }
           selected={library.slot ? [] : attachments.flatMap((file) => (file.saved ? [file.saved.id] : []))}
           multiple={!library.slot}
           maxFiles={model ? Math.max(0, referenceLimit(model) - attachments.length) : 4 - attachments.length}
           validateFile={(file) =>
-            !/^image\/(jpeg|png|webp)$/.test(file.mime)
-              ? 'Выберите изображение JPEG, PNG или WebP.'
-              : undefined
+            mode === 'video' && model
+              ? videoReferenceError(model, [file], library.slot ? 'frames' : undefined)
+              : !/^image\/(jpeg|png|webp)$/.test(file.mime)
+                ? 'Выберите изображение JPEG, PNG или WebP.'
+                : undefined
           }
           onPick={(file) => pickLibraryFiles([file])}
           onPickMany={pickLibraryFiles}
@@ -1314,7 +1442,6 @@ export function ContentStudio(): ReactElement {
       {editingTemplate && !busy && (
         <TemplateEditor
           key={`${draftScope}:${editingTemplate.id}`}
-          referenceAllowed={!model || referenceLimit(model) > 0}
           item={editingTemplate}
           launchSettings={[
             `Модель: ${model ? modelTitle(model) : 'Auto'}`,
@@ -1331,43 +1458,11 @@ export function ContentStudio(): ReactElement {
             .filter(Boolean)
             .join(' · ')}
           duration={duration}
-          reference={attachments.find((file) => !file.isUnavailable && (!file.slot || file.slot === 'start'))}
           onClose={() => {
             setEditingTemplate(undefined);
             requestAnimationFrame(() => textarea.current?.focus());
           }}
-          onApply={(prompt, reference) => {
-            if (reference && model && referenceLimit(model) < 1) {
-              work.setError('Выбранная модель не поддерживает изображение-референс. Выберите другую модель.');
-              return;
-            }
-            if (reference) {
-              const file = reference.saved;
-              const url = file ? file.path : URL.createObjectURL(reference.file!);
-              if (!file) urls.current.add(url);
-              setAttachments([
-                {
-                  id: file ? String(file.id) : crypto.randomUUID(),
-                  name: reference.name,
-                  url,
-                  type: file ? file.mime : reference.file!.type,
-                  saved: file,
-                  file: reference.file,
-                  ...(mode === 'video' ? { slot: 'start' as const } : {}),
-                },
-              ]);
-            } else setAttachments([]);
-            setAppliedTemplate(editingTemplate.title);
-            setTemplateStartsFresh(true);
-            setDraft(prompt);
-            setPicked([]);
-            setWriter(false);
-            setRestoredGeneration(undefined);
-            setFrameSlot(undefined);
-            setEditingTemplate(undefined);
-            work.setError('');
-            requestAnimationFrame(() => textarea.current?.focus());
-          }}
+          onApply={(prompt) => applyTemplateText(editingTemplate, prompt)}
         />
       )}
     </div>

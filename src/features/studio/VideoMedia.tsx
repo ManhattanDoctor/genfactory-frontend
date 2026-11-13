@@ -49,7 +49,12 @@ export function VideoTemplateMedia({ item }: { item: ITemplate }): ReactElement 
         <video
           ref={clip}
           className={`img-face ${ready ? 'is-ready' : ''}`}
-          src={`/media/prototype/content/video/previews/${name}`}
+          src={
+            item.previewSrc ||
+            (item.src.startsWith('/media/templates/')
+              ? item.src
+              : `/media/prototype/content/video/previews/${name}`)
+          }
           muted
           loop
           playsInline

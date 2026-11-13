@@ -1,0 +1,59 @@
+{
+  "format": {
+    "Не задано": "/media/settings/video/01.webp",
+    "UGC, съёмка на телефон": "/media/settings/video/02.webp",
+    "Премиум, студийный свет": "/media/settings/video/03.webp",
+    "Минимализм, чистый фон": "/media/settings/video/04.webp",
+    "Динамичный, быстрый ритм": "/media/settings/video/05.webp"
+  },
+  "idea": {
+    "Не задано": "/media/settings/video/01.webp",
+    "Начать с проблемы": "/media/settings/video/07.webp",
+    "Начать с вопроса": "/media/settings/video/08.webp",
+    "Сразу показать товар": "/media/settings/video/09.webp",
+    "Резкий старт": "/media/settings/video/10.webp"
+  },
+  "place": {
+    "Не задано": "/media/settings/video/01.webp",
+    "Дома": "/media/settings/video/12.webp",
+    "На улице": "/media/settings/video/13.webp",
+    "В студии": "/media/settings/video/14.webp",
+    "В кафе": "/media/settings/video/15.webp",
+    "На природе": "/media/settings/video/16.webp"
+  },
+  "camera": {
+    "Авто": "/media/settings/video/17.webp",
+    "Статичная": "/media/settings/video/18.webp",
+    "С телефона": "/media/settings/video/19.webp",
+    "С рук": "/media/settings/video/20.webp",
+    "Низкий угол": "/media/settings/video/21.webp",
+    "Сверху": "/media/settings/video/22.webp"
+  },
+  "move": {
+    "Нет": "/media/settings/video/23.webp",
+    "Наезд": "/media/settings/video/24.webp",
+    "Отъезд": "/media/settings/video/25.webp",
+    "Объезд": "/media/settings/video/26.webp",
+    "Слежение": "/media/settings/video/27.webp"
+  },
+  "lens": {
+    "Авто": "/media/settings/video/28.webp",
+    "24 мм": "/media/settings/video/29.webp",
+    "35 мм": "/media/settings/video/30.webp",
+    "50 мм": "/media/settings/video/31.webp",
+    "85 мм": "/media/settings/video/32.webp",
+    "Макро": "/media/settings/video/33.webp"
+  },
+  "light": {
+    "Авто": "/media/settings/video/34.webp",
+    "Дневной": "/media/settings/video/35.webp",
+    "Студия": "/media/settings/video/36.webp",
+    "Золотой час": "/media/settings/video/37.webp",
+    "Ночь": "/media/settings/video/38.webp"
+  },
+  "quality": {
+    "480p": "/media/settings/video/39.webp",
+    "720p": "/media/settings/video/40.webp",
+    "1080p": "/media/settings/video/41.webp"
+  }
+}

@@ -43,7 +43,19 @@ export function AuthCallback() {
   return (
     <div className="empty-state">
       <h1>{error ? 'Не удалось войти' : 'Открываем вашу студию'}</h1>
-      <p>{error || 'Проверяем аккаунт…'}</p>
+      <p className={error ? 'error' : undefined} role={error ? 'alert' : undefined}>
+        {error || 'Проверяем аккаунт…'}
+      </p>
+      {error && (
+        <button
+          type="button"
+          className="button primary"
+          disabled={auth.signingIn}
+          onClick={() => void auth.signIn()}
+        >
+          {auth.signingIn ? 'Открываем вход…' : 'Попробовать войти снова'}
+        </button>
+      )}
       {error && (
         <Link to="/" className="button primary">
           На главную

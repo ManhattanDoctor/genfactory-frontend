@@ -14,8 +14,8 @@
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 4px;
-  margin: -4px;
+  padding: 4px 4px var(--pagination-space);
+  margin: -4px -4px 0;
 }
 .library-picker .file-breadcrumbs {
   min-height: 28px;
@@ -90,18 +90,6 @@
 .library-picker .library-grid {
   gap: 10px;
 }
-.library-selection-bar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  margin-top: 12px;
-  background: #17181b;
-  border-top: 1px solid #2c2c31;
-  z-index: 8;
-}
 .library-selection-bar span {
   font-size: 12px;
 }
@@ -155,4 +143,8 @@
   .library-picker .file-filters {
     justify-content: center;
   }
+}
+
+.library-picker > .file-browser > .pagination {
+  padding-bottom: 0;
 }

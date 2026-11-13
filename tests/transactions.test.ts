@@ -47,14 +47,14 @@ describe('balance amounts and attribution', () => {
     expect(transactionTitle(payment)).toBe('Изображение');
   });
   it('keeps every decimal digit in exact amounts and rounds only the summary', () => {
-    expect(transactionAmount('965.16', 'RUB', true)).toBe('9,6516 ₽');
-    expect(transactionAmount('965.16', 'RUB')).toBe('9,65 ₽');
-    expect(transactionAmount('0.000000000001', 'RUB', true)).toBe('0,00000000000001 ₽');
-    expect(transactionAmount('0.000000000001', 'RUB')).toBe('< 0,01 ₽');
+    expect(transactionAmount('965.16', 'RUB', true)).toBe('9,6516 GF');
+    expect(transactionAmount('965.16', 'RUB')).toBe('9,65 GF');
+    expect(transactionAmount('0.000000000001', 'RUB', true)).toBe('0,00000000000001 GF');
+    expect(transactionAmount('0.000000000001', 'RUB')).toBe('< 0,01 GF');
     expect(transactionAmount('900719925474099100', 'RUB', true).replace(/\s/g, '')).toBe(
-      '9007199254740991,00₽',
+      '9007199254740991,00GF',
     );
-    expect(transactionAmount('100.5', 'RUB')).toBe('1,01 ₽');
+    expect(transactionAmount('100.5', 'RUB')).toBe('1,01 GF');
   });
   it('separates the actual image cost and assistant cost using the recorded exchange rate', () => {
     expect(breakdown(payment)).toEqual([

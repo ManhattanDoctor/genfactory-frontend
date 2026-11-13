@@ -96,7 +96,7 @@ export function App(): ReactElement {
                   <small>
                     {auth.balances.RUB === undefined
                       ? 'Баланс недоступен'
-                      : `${formatBalance(auth.balances.RUB, 'RUB')} ₽`}
+                      : `${formatBalance(auth.balances.RUB, 'RUB')} GF`}
                   </small>
                 </span>
               </Link>
@@ -138,9 +138,19 @@ export function App(): ReactElement {
       )}
       <main id="main" className="main">
         {auth.signInError && (
-          <p className="page-content error" role="alert">
-            {auth.signInError}
-          </p>
+          <div className="page-content sign-in-notice">
+            <p className="error" role="alert">
+              {auth.signInError}{' '}
+              <button
+                type="button"
+                className="text-button"
+                disabled={auth.signingIn}
+                onClick={() => void auth.signIn()}
+              >
+                Повторить вход
+              </button>
+            </p>
+          </div>
         )}
         <div className="route-view" key={location.pathname}>
           <Suspense

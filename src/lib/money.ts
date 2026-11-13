@@ -10,3 +10,7 @@ export function formatBalance(amount: string | undefined, currency: string): str
       )
     : '—';
 }
+
+export function currencyLabel(currency: string): string {
+  return currency === 'RUB' ? 'GF' : currency;
+}

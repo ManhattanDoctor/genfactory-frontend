@@ -12,6 +12,7 @@
   --accent: #d1fe17;
   --sidebar: 216px;
   --header: 76px;
+  --pagination-space: 24px;
   color-scheme: dark;
 }
 * {
@@ -106,6 +107,10 @@ a svg {
   color: var(--muted);
 }
 .error {
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 170, 160, 0.3);
+  border-radius: 12px;
+  background: rgba(255, 170, 160, 0.08);
   color: #ffaaa0;
   line-height: 1.65;
   white-space: pre-line;
@@ -1368,7 +1373,7 @@ a svg {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.library-card span {
+.library-card > div:last-child span {
   font-size: 9px;
   color: #7a838f;
   margin-top: 8px;
@@ -1390,8 +1395,10 @@ a svg {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 25px;
-  margin-top: 30px;
+  flex: none;
+  gap: 16px;
+  margin: calc(var(--pagination-space) - var(--pagination-parent-gap, 0px)) 0 0;
+  padding-bottom: var(--pagination-space);
   font-size: 12px;
   color: var(--muted);
 }
@@ -1908,7 +1915,7 @@ a svg {
   .library-card b {
     font-size: 10px;
   }
-  .library-card span {
+  .library-card > div:last-child span {
     font-size: 8px;
   }
   .skeleton-grid {
@@ -3766,4 +3773,15 @@ button[aria-busy='true'] {
   background: #0b0b0c;
   z-index: 1;
   pointer-events: none;
+}
+
+.page-content.sign-in-notice {
+  padding-bottom: 0;
+}
+.sign-in-notice .error {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
 }

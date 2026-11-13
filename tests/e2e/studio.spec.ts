@@ -445,7 +445,7 @@ test('history opens existing conversation results and a new generation uses a di
       id: 1,
       role: 'ASSISTANT',
       text: 'Existing server result',
-      files: [file],
+      files: [state.generated[0]],
       createdDate: file.createdDate,
     },
   ]);
@@ -453,6 +453,10 @@ test('history opens existing conversation results and a new generation uses a di
   await expect(page.locator('.history-card')).toHaveCount(1);
   await page.goto('/image?conversation=101');
   await expect(page.locator('.image-result')).toHaveCount(1);
+  await expectQuality(page, '1K');
+  await expect(page.locator('.image-result .media-loading-skeleton')).toHaveCount(0);
+  await page.locator('.image-result').hover();
+  await page.getByRole('button', { name: 'Переделать Test result', exact: true }).click();
   await expectQuality(page, '2K');
   await submit(page, 'Another landscape');
   await expect.poll(() => state.tasks.length).toBe(1);
@@ -460,6 +464,7 @@ test('history opens existing conversation results and a new generation uses a di
   expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
   expect(state.tasks).toHaveLength(1);
+  expect(state.tasks[0].options.resolution).toBe('2K');
   expect(state.tasks[0].task.prompt).toBe('Another landscape');
 });
 test('advanced editor: image to video starts a direct video task with the chosen file ID', async ({
@@ -613,6 +618,11 @@ test(
     await expect(page.getByRole('heading', { name: 'Не удалось войти' })).toBeVisible();
     expect(exchanges).toBe(0);
     expect(new URL(page.url()).search).toBe('');
+    expect(await page.evaluate(() => sessionStorage.getItem('genfactory.oauth'))).toBeNull();
+    await page.getByRole('button', { name: 'Попробовать войти снова', exact: true }).click();
+    await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
+    expect(new URL(page.url()).searchParams.get('state')).not.toBe('expected');
+    expect(exchanges).toBe(0);
   },
 );
 
@@ -1677,13 +1687,17 @@ test('tracks running jobs and confirms terminal state before notifying', async (
   await page.goto('/library');
   await page.getByRole('button', { name: 'Активные работы: 1' }).click();
   await expect(page.getByRole('dialog').getByText('Saved creative work')).toBeVisible();
-  await expect(page.getByRole('dialog').getByRole('img', { name: 'Исходный кадр' })).toBeVisible();
+  await expect(page.getByRole('dialog').locator('.job-card-preview .file-placeholder')).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('img', { name: 'Исходный кадр' })).toHaveCount(0);
   await expect(page.getByRole('dialog').getByRole('img', { name: 'Test result' })).toHaveCount(0);
   c.status = 'ERROR';
   await page.getByRole('button', { name: 'Обновить статусы' }).click();
   await expect(page.getByRole('dialog').getByText('Нет выполняющихся работ.')).toBeVisible();
+  await expect(page.getByRole('dialog').locator('.completed-jobs')).toHaveCSS('border-bottom-width', '0px');
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
-  await expect(page.getByText('Работа завершилась с ошибкой: Saved creative work')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Активные работы: 0', exact: true })).toContainText('•');
+  await page.getByRole('button', { name: 'Активные работы: 0', exact: true }).click();
+  await expect(page.getByRole('dialog').getByText('Нужна проверка', { exact: true })).toBeVisible();
 });
 
 test('advanced editor: pastes and reorders reference files and preserves order in the request', async ({
@@ -2099,17 +2113,23 @@ test(
     });
     await page.goto('/account');
     const history = page.locator('#balance-history');
-    await expect(history.getByText('−9,65 ₽', { exact: true })).toBeVisible();
+    await expect(history.getByText('−9,65 GF', { exact: true })).toBeVisible();
     await history.getByRole('button', { name: 'Детали операции', exact: true }).click();
-    await expect(history.getByText('9,6516 ₽', { exact: true })).toBeVisible();
+    await expect(history.getByText('9,6516 GF', { exact: true })).toBeVisible();
     await expect(history.getByText('Модель вызова · Изображение', { exact: true })).toBeVisible();
     await expect(history.getByText('GPT Image 1 Mini', { exact: true })).toBeVisible();
-    await expect(history.getByText('8,219 ₽', { exact: true })).toBeVisible();
-    await expect(history.getByText('1,4326 ₽', { exact: true })).toBeVisible();
+    await expect(history.getByText('8,219 GF', { exact: true })).toBeVisible();
+    await expect(history.getByText('1,4326 GF', { exact: true })).toBeVisible();
     await expect(history.getByRole('link', { name: 'Беседа №49' })).toHaveAttribute(
       'href',
       '/open?conversation=49',
     );
+    const bottom = await history.evaluate(
+      (el) =>
+        el.getBoundingClientRect().bottom -
+        el.querySelector('.pagination button')!.getBoundingClientRect().bottom,
+    );
+    expect(Math.abs(bottom - 25)).toBeLessThanOrEqual(1); // 24px gutter and the card border.
     await history.getByRole('button', { name: 'Следующая страница' }).click();
     await expect.poll(() => requests.at(-1)?.page).toBe(1);
     await history.getByLabel('Период', { exact: true }).selectOption('7');
@@ -3123,6 +3143,9 @@ test(
         await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
       } else await route.fallback();
     });
+    await page.addInitScript(() =>
+      sessionStorage.setItem('genfactory.oauth', JSON.stringify({ state: 'stale' })),
+    );
     await page.goto('/account');
     const sidebar = page.getByRole('button', { name: 'Войти в аккаунт', exact: true });
     const account = page.getByRole('main').getByRole('button', { name: 'Войти', exact: true });
@@ -3135,8 +3158,9 @@ test(
     release!();
     await expect(page.getByRole('alert')).toContainText('Не удалось открыть вход');
     await expect(sidebar).toBeEnabled();
+    expect(await page.evaluate(() => sessionStorage.getItem('genfactory.oauth'))).toBeNull();
     await expect(page).toHaveURL(/\/account$/);
-    await account.click();
+    await page.getByRole('button', { name: 'Повторить вход', exact: true }).click();
     await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
     expect(requests).toBe(2);
   },
@@ -3540,7 +3564,7 @@ test('content studio template is a recipe and portrait format is translated to i
   await page.getByRole('button', { name: 'Изображение', exact: true }).click();
   await page.locator('.cw-card-media').first().click();
   await page.locator('.cw-add').first().click();
-  await page.getByLabel('Продукт', { exact: true }).fill('Красная чашка');
+  await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
   await page.getByRole('dialog').getByRole('button', { name: 'Из библиотеки' }).click();
   await selectLibraryFile(page, 'Test result');
   await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
@@ -3551,7 +3575,7 @@ test('content studio template is a recipe and portrait format is translated to i
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].text).toContain('Professional e-commerce main product photo');
-  expect(state.sends[0].text).not.toContain('[PRODUCT]');
+  expect(state.sends[0].text).not.toContain('{PRODUCT}');
   expect(state.sends[0].settings.tools[0].settings.options.size).toBe('1024x1536');
   expect(state.sends[0].text).toContain('Размер (options.size): 1024x1536');
   expect(state.sends[0].files).toEqual([12]);
@@ -4102,8 +4126,8 @@ for (const title of ['Studio product turn', 'Product in use']) {
     await card.locator('.cw-add').click();
     await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Заполните');
-    await page.getByLabel('Продукт', { exact: true }).fill('Красная чашка');
-    if (title === 'Studio product turn') await page.getByLabel('Цвет фона', { exact: true }).fill('Белый');
+    await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+    if (title === 'Studio product turn') await page.getByLabel('Опишите фон', { exact: true }).fill('Белый');
     else {
       await page.getByLabel('Место действия', { exact: true }).fill('Парк');
       await page.getByLabel('Персонаж', { exact: true }).fill('Взрослая девушка');
@@ -4114,7 +4138,7 @@ for (const title of ['Studio product turn', 'Product in use']) {
     await page.getByRole('dialog').getByRole('button', { name: 'Из библиотеки' }).click();
     await selectLibraryFile(page, 'Test result');
     await page.getByRole('button', { name: /Адаптировать под/ }).click();
-    await expect(page.getByLabel('Готовый текст для редактора')).toHaveValue(/6-second/);
+    await expect(page.getByLabel('Готовый текст для редактора')).toHaveText(/6-second/);
     await expect(page.locator('.template-settings')).toContainText('6 с');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: `/tmp/template-${title.replaceAll(' ', '-')}.png` });
@@ -4165,8 +4189,8 @@ test.describe('complete template catalog', () => {
           }
           const adapt = dialog.getByRole('button', { name: /Адаптировать под/ });
           if (await adapt.count()) await adapt.click();
-          const prepared = await dialog.getByLabel('Готовый текст для редактора').inputValue();
-          expect(prepared, item.id).not.toMatch(/\[[A-Za-z][A-Za-z_0-9 ]*\]/);
+          const prepared = await dialog.getByLabel('Готовый текст для редактора').innerText();
+          expect(prepared, item.id).not.toMatch(/\{[A-Za-z][A-Za-z_0-9]*\}/);
           await dialog.getByRole('button', { name: 'Использовать шаблон' }).click();
           await expect(dialog).toHaveCount(0);
           await expect(page.locator('#cw-draft')).toHaveValue(prepared);
@@ -6847,6 +6871,18 @@ test('artifacts filter and paginate on the server, with compact mobile controls'
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/artifacts');
   await expect(page.getByRole('heading', { name: 'Page 1' })).toBeVisible();
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const gap = await page
+      .locator('.artifacts-page .pagination')
+      .evaluate(
+        (el) =>
+          el.querySelector('button')!.getBoundingClientRect().top -
+          el.parentElement!.querySelector('.history-list')!.getBoundingClientRect().bottom,
+      );
+    expect(Math.abs(gap - 24)).toBeLessThanOrEqual(1);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Следующая страница' }).click();
   await expect(page.getByRole('heading', { name: 'Page 2' })).toBeVisible();
   await page.getByRole('button', { name: 'Беседы', exact: true }).click();
@@ -7125,6 +7161,7 @@ test('image templates use the studio editor, validate fields and references, and
 }, testInfo) => {
   const state = await mockApi(page);
   await page.goto('/image');
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toBeVisible({ timeout: 15_000 });
   await chooseModel(page, 'OPEN_ROUTER_IMAGE:sourceful/riverflow-v2.6-pro');
   await page.getByRole('button', { name: 'Стороны', exact: true }).click();
   await page.getByRole('option', { name: '1:1', exact: true }).click();
@@ -7140,14 +7177,14 @@ test('image templates use the studio editor, validate fields and references, and
   await page.getByRole('button', { name: title, exact: true }).click();
   await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('Заполните все поля');
-  await dialog.getByLabel('Продукт', { exact: true }).fill('Красная чашка');
-  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-  await expect(dialog.getByRole('alert')).toContainText('Выберите исходное фото');
-  await dialog.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
-  await selectLibraryFile(page, 'Test result');
+  await dialog.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+  await expect(dialog.getByRole('button', { name: 'Из библиотеки', exact: true })).toHaveCount(0);
   await dialog.getByText('Редактировать исходный шаблон', { exact: true }).click();
   const source = dialog.getByLabel('Текст шаблона', { exact: true });
   await source.fill((await source.inputValue()) + '\nМягкий свет.');
+  await expect(dialog.locator('.template-output mark').filter({ hasText: 'Красная чашка' })).toBeVisible();
+  await expect(dialog.locator('.template-output mark').filter({ hasText: 'Мягкий свет' })).toBeVisible();
+  await expect(dialog.locator('.template-source pre mark')).toContainText(['{PRODUCT}']);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(dialog.getByRole('button', { name: 'Использовать шаблон', exact: true })).toBeInViewport();
@@ -7162,10 +7199,12 @@ test('image templates use the studio editor, validate fields and references, and
   await expect(page.locator('#img-draft')).toHaveValue(/Красная чашка/);
   await expect(page.locator('#img-draft')).toHaveValue(/Мягкий свет/);
   const prompt = await page.locator('#img-draft').inputValue();
-  expect(prompt).not.toContain('[PRODUCT]');
+  expect(prompt).not.toContain('{PRODUCT}');
   expect(prompt).not.toContain('Старый текст');
   await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toContainText('1:1');
   await expect(page.getByRole('button', { name: 'Качество', exact: true })).toContainText('2K');
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  await selectLibraryFile(page, 'Test result');
   await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeVisible();
   await expect(page.locator('.composer-template')).toHaveCount(0);
   expect(state.tasks).toHaveLength(0);
@@ -7187,8 +7226,6 @@ test('video templates use the same editor and adapt duration without changing se
   await page.getByRole('button', { name: 'Studio product turn', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Studio product turn', exact: true });
   for (const input of await dialog.locator('[data-template-variable]').all()) await input.fill('Синяя чашка');
-  await dialog.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
-  await selectLibraryFile(page, 'Test result');
   await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('Согласуйте длительность');
   await dialog.getByRole('button', { name: 'Адаптировать под 4 с', exact: true }).click();
@@ -7196,6 +7233,8 @@ test('video templates use the same editor and adapt duration without changing se
   await expect(dialog).toHaveCount(0);
   await expect(page.locator('#vd-draft')).toHaveValue(/4-second/);
   await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toContainText('4 с');
+  await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+  await selectLibraryFile(page, 'Test result');
   await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeVisible();
   expect(state.tasks).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
@@ -7216,15 +7255,46 @@ test('studio keeps the shared template editor and applies the same prepared imag
   const dialog = page.getByRole('dialog', { name: title, exact: true });
   await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('Заполните все поля');
-  await dialog.getByLabel('Продукт', { exact: true }).fill('Красная чашка');
-  await dialog.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
-  await selectLibraryFile(page, 'Test result');
+  await dialog.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
   await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator('#cw-draft')).toHaveValue(/Красная чашка/);
   await expect(page.locator('#cw-draft')).not.toHaveValue(/\[PRODUCT\]/);
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  await selectLibraryFile(page, 'Test result');
   await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeVisible();
   expect(state.tasks).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('template source remains editable without variables and reports malformed ICU without losing the draft', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  const title = 'Главное фото на белом фоне (маркетплейс)';
+  const card = page
+    .locator('.cw-card')
+    .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
+  await card.hover();
+  await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: title, exact: true });
+  await expect(dialog.getByRole('textbox', { name: 'Готовый текст для редактора' })).toBeVisible();
+  await expect(dialog.getByRole('textbox', { name: 'Текст шаблона', exact: true })).toBeHidden();
+  await dialog.getByText('Редактировать исходный шаблон', { exact: true }).click();
+  const source = dialog.getByRole('textbox', { name: 'Текст шаблона', exact: true });
+  await source.fill('{COUNT, plural, other {Файлы}');
+  await expect(dialog.getByRole('alert')).toContainText('синтаксис');
+  await expect(source).toHaveValue('{COUNT, plural, other {Файлы}');
+  await source.fill('Готовая фотография леса. Мягкий свет.');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await expect(dialog.locator('[data-template-variable]')).toHaveCount(0);
+  await expect(dialog.getByRole('textbox', { name: 'Готовый текст для редактора' })).toHaveText(
+    'Готовая фотография леса. Мягкий свет.',
+  );
+  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+  await expect(page.locator('#cw-draft')).toHaveValue('Готовая фотография леса. Мягкий свет.');
   expect(state.sends).toHaveLength(0);
 });
 
@@ -7699,6 +7769,19 @@ for (const width of [1440, 390]) {
       await expect(dialog.locator('.modal-head h2')).toHaveCSS('font-size', '16px');
       await expect(dialog.locator('.modal-head h2')).toHaveCSS('text-overflow', 'ellipsis');
       await expect(dialog.locator('.modal-head')).toHaveCSS('border-bottom-style', 'solid');
+      const footer = dialog.locator('.modal-footer').last();
+      if (await footer.count()) {
+        await expect(footer).toHaveCSS('border-top-width', '1px');
+        await expect(footer).toHaveCSS('padding-top', '16px');
+        const bounds = await dialog.evaluate((element) => {
+          const d = element.getBoundingClientRect();
+          const f = element.querySelector('.modal-footer')!.getBoundingClientRect();
+          return { left: f.left - d.left, right: d.right - f.right, bottom: d.bottom - f.bottom };
+        });
+        expect(bounds.left).toBeCloseTo(1, 0);
+        expect(bounds.right).toBeCloseTo(1, 0);
+        expect(bounds.bottom).toBeCloseTo(1, 0);
+      }
       const titleBox = await dialog.locator('.modal-head h2').boundingBox();
       const closeBox = await dialog.getByRole('button', { name: 'Закрыть', exact: true }).boundingBox();
       expect(Math.abs(titleBox!.y + titleBox!.height / 2 - closeBox!.y - closeBox!.height / 2)).toBeLessThan(
@@ -7742,7 +7825,7 @@ for (const width of [1440, 390]) {
     await header('Библиотека');
     await page.screenshot({ path: testInfo.outputPath(`dialog-library-${width}.png`) });
     await page.keyboard.press('Escape');
-    await page.locator('.ds-template-card').first().click();
+    await page.getByRole('button', { name: 'Главное фото на белом фоне (маркетплейс)', exact: true }).click();
     await header((await page.getByRole('dialog').locator('.modal-head h2').textContent())!);
     await page.screenshot({ path: testInfo.outputPath(`dialog-template-${width}.png`) });
     await page.keyboard.press('Escape');
@@ -7895,4 +7978,609 @@ test('video duration dims as a whole while its studio conversation is running', 
   await expect(duration).toHaveCSS('opacity', '1');
   expect(state.sends).toHaveLength(0);
   expect(state.tasks).toHaveLength(0);
+});
+
+test('stalled OAuth exchange times out and allows a fresh login without replaying its code', async ({
+  page,
+}) => {
+  test.setTimeout(35_000);
+  await mockApi(page, false);
+  let exchanges = 0;
+  await page.route('**/api/login', () => {
+    exchanges++;
+  });
+  await page.addInitScript(() =>
+    sessionStorage.setItem(
+      'genfactory.oauth',
+      JSON.stringify({
+        state: 'stalled',
+        createdAt: Date.now(),
+        redirectUri: location.origin + '/auth/callback',
+      }),
+    ),
+  );
+  await page.goto('/auth/callback?state=stalled&code=old-code');
+  await expect(page.getByRole('heading', { name: 'Не удалось войти' })).toBeVisible({ timeout: 20_000 });
+  expect(await page.evaluate(() => sessionStorage.getItem('genfactory.oauth'))).toBeNull();
+  await page.getByRole('button', { name: 'Попробовать войти снова', exact: true }).click();
+  await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
+  expect(new URL(page.url()).searchParams.get('state')).not.toBe('stalled');
+  expect(exchanges).toBe(1);
+});
+
+for (const path of ['/image', '/chat']) {
+  test(`template preserves multiple references, isolates cancellation and sends their order on ${path}`, async ({
+    page,
+  }, testInfo) => {
+    const state = await mockApi(page);
+    const models = structuredClone(catalog);
+    const chosen = models.find((m) => m.reference.model === 'sourceful/riverflow-v2.6-pro')!;
+    chosen.schema.properties!.task!.properties!.fileIds!.maxItems = 2;
+    await page.route('**/api/aimodels?*', (route) =>
+      route.fulfill({
+        json: catalogResponse(
+          route.request().url(),
+          catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_CONVERSATION'
+            ? [agent]
+            : models.filter((m) => m.reference.provider === catalogProvider(new URL(route.request().url()))),
+        ),
+      }),
+    );
+    const files = [
+      file,
+      { ...file, id: 13, uid: 'second', name: 'Second reference', origin: { kind: 'GENERATION' as const } },
+    ];
+    await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination(files) }));
+    await page.route(/\/api\/file\/\d+$/, (route) =>
+      route.fulfill({
+        json: files.find((file) => file.id === Number(route.request().url().split('/').pop())),
+      }),
+    );
+    await page.goto(path);
+    if (path === '/chat') await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+    if (path === '/image') {
+      await expect(page.getByRole('button', { name: 'Модель', exact: true })).toBeVisible({
+        timeout: 15_000,
+      });
+      await chooseModel(page, 'OPEN_ROUTER_IMAGE:sourceful/riverflow-v2.6-pro');
+    } else {
+      await page.getByRole('button', { name: /^Модель:/ }).click();
+      await page.getByRole('option', { name: modelTitle(chosen), exact: true }).click();
+    }
+    await page
+      .getByRole('button', {
+        name: path === '/image' ? 'Добавить изображение' : 'Добавить файл',
+        exact: true,
+      })
+      .click();
+    const initialPicker = page.getByRole('dialog', { name: 'Библиотека' });
+    await initialPicker.getByText('Second reference', { exact: true }).click();
+    await initialPicker.getByText('Test result', { exact: true }).click();
+    const mark = initialPicker.locator('.file-select-mark.is-selected').first();
+    await expect(mark).toHaveCSS('display', 'grid');
+    const centered = await mark.evaluate((el) => {
+      const box = el.getBoundingClientRect(),
+        icon = el.querySelector('svg')!.getBoundingClientRect();
+      return (
+        Math.abs(box.x + box.width / 2 - icon.x - icon.width / 2) < 1 &&
+        Math.abs(box.y + box.height / 2 - icon.y - icon.height / 2) < 1
+      );
+    });
+    expect(centered).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('library-selection-border.png') });
+    await initialPicker.getByRole('button', { name: 'Добавить (2)', exact: true }).click();
+    const title = 'Главное фото на белом фоне (маркетплейс)';
+    const open = async () => {
+      if (path === '/image') await page.getByRole('button', { name: title, exact: true }).click();
+      else {
+        const card = page
+          .locator('.cw-card')
+          .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
+        await card.hover();
+        await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+      }
+    };
+    await open();
+    const dialog = page.getByRole('dialog', { name: title, exact: true });
+    await expect(dialog.getByRole('button', { name: 'Из библиотеки', exact: true })).toHaveCount(0);
+    await expect(dialog.locator('.composer-attachment')).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    await expect(page.locator('.composer-attachment')).toHaveCount(2);
+    await open();
+    await dialog.getByLabel('Название вашего продукта', { exact: true }).fill('Корзина');
+    await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('.composer-attachment')).toHaveCount(2);
+    expect(state.tasks).toHaveLength(0);
+    expect(state.sends).toHaveLength(0);
+    await page
+      .getByRole('button', {
+        name: path === '/image' ? 'Собрать изображение' : 'Отправить запрос',
+        exact: true,
+      })
+      .click();
+    if (path === '/image') {
+      await expect.poll(() => state.tasks.length).toBe(1);
+      expect(state.tasks[0].task.fileIds).toEqual([13, 12]);
+    } else {
+      await expect.poll(() => state.sends.length).toBe(1);
+      expect(state.sends[0].files).toEqual([13, 12]);
+    }
+  });
+}
+
+for (const picker of [false, true]) {
+  test(`pagination has even spacing after cards and above the bottom edge, picker ${picker}`, async ({
+    page,
+  }, testInfo) => {
+    await mockApi(page);
+    const files = Array.from({ length: 12 }, (_, i) => ({ ...file, id: 20 + i, name: `Reference ${i}` }));
+    await page.route('**/api/file?*', (route) =>
+      route.fulfill({ json: { ...pagination(files), pages: 2, total: 25 } }),
+    );
+    await page.goto(picker ? '/image' : '/library');
+    if (picker) await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+    const surface = picker ? page.getByRole('dialog', { name: 'Библиотека' }) : page.locator('.library-page');
+    const pager = surface.locator('.pagination');
+    await expect(pager).toBeVisible();
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      if (picker)
+        await surface.locator('.file-browser').evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        });
+      else await pager.scrollIntoViewIfNeeded();
+      const bounds = await pager.evaluate((el) => {
+        const grid = el.parentElement!.querySelector('.library-grid')!.getBoundingClientRect();
+        const button = el.querySelector('button')!.getBoundingClientRect();
+        const footer = el.closest('dialog')?.querySelector('.modal-footer')?.getBoundingClientRect();
+        return {
+          top: button.top - grid.bottom,
+          bottom: footer ? footer.top - button.bottom : parseFloat(getComputedStyle(el).paddingBottom),
+        };
+      });
+      expect(Math.abs(bounds.top - 24)).toBeLessThanOrEqual(1);
+      expect(Math.abs(bounds.bottom - 24)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: testInfo.outputPath(`pagination-spacing-${width}.png`) });
+    }
+  });
+}
+
+for (const path of ['/image', '/chat']) {
+  test(`template without variables applies immediately and attachment hint lasts one second on ${path}`, async ({
+    page,
+  }, testInfo) => {
+    const state = await mockApi(page);
+    await page.goto(path);
+    if (path === '/chat') await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+    const title = 'Портрет в масштабе';
+    const apply = async () => {
+      if (path === '/image') await page.getByRole('button', { name: title, exact: true }).click();
+      else {
+        const card = page
+          .locator('.cw-card')
+          .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
+        await card.hover();
+        await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+      }
+    };
+    await page.clock.install({ time: new Date('2026-11-13T12:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-11-13T12:00:01Z'));
+    await apply();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator(path === '/image' ? '#img-draft' : '#cw-draft')).toHaveValue(
+      /Ultra-photorealistic/,
+    );
+    const add = page.getByRole('button', {
+      name: path === '/image' ? 'Добавить изображение' : 'Добавить файл',
+      exact: true,
+    });
+    await expect(add).toHaveClass(/template-glow-active/);
+    await expect(add).toHaveCSS('animation-name', 'none');
+    await expect(add).toHaveCSS('transition-duration', '0s');
+    await page.clock.runFor(999);
+    await expect(add).toHaveClass(/template-glow-active/);
+    await page.clock.runFor(1);
+    await expect(add).not.toHaveClass(/template-glow-active/);
+    await expect(add).toHaveClass(/needs-template-images/);
+    await page.clock.resume();
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`template-applied-${width}.png`) });
+    }
+    await add.click();
+    await selectLibraryFile(page, 'Test result');
+    await expect(add).not.toHaveClass(/needs-template-images/);
+    expect(state.tasks).toHaveLength(0);
+    expect(state.sends).toHaveLength(0);
+  });
+}
+
+test('sign-in error aligns with image cards at desktop and mobile widths', async ({ page }, testInfo) => {
+  await mockApi(page, false);
+  await page.route('**/api/config', (route) => route.fulfill({ status: 503, json: {} }));
+  await page.goto('/image');
+  await page.getByRole('button', { name: 'Войти в аккаунт', exact: true }).click();
+  const error = page.locator('.sign-in-notice [role="alert"]');
+  await expect(error).toContainText('Не удалось открыть вход');
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(error).toHaveCSS('padding', '12px 16px');
+    await expect(error).toBeInViewport();
+    const geometry = await page.evaluate(() => {
+      const error = document.querySelector('.sign-in-notice [role="alert"]')!.getBoundingClientRect();
+      const wall = document.querySelector('.img-masonry')!;
+      const bounds = wall.getBoundingClientRect(),
+        style = getComputedStyle(wall);
+      return {
+        visibleBelowHeader: error.top >= (innerWidth <= 720 ? 60 : 0),
+        galleryBelowError: bounds.top >= error.bottom,
+        left: Math.abs(error.left - bounds.left - parseFloat(style.paddingLeft)),
+        right: Math.abs(bounds.right - parseFloat(style.paddingRight) - error.right),
+        overflow: document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    expect(geometry.visibleBelowHeader).toBe(true);
+    expect(geometry.galleryBelowError).toBe(true);
+    expect(geometry.left).toBeLessThanOrEqual(1);
+    expect(geometry.right).toBeLessThanOrEqual(1);
+    expect(geometry.overflow).toBe(false);
+    await page.screenshot({ path: testInfo.outputPath(`login-error-${width}.png`) });
+  }
+});
+
+for (const path of ['/video', '/chat']) {
+  test(`mixed video references survive reload and reach the request on ${path}`, async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000);
+    const state = await mockApi(page);
+    const models = structuredClone(catalog);
+    const chosen = models.find((m) => m.reference.model === 'bytedance/seedance-2.5')!;
+    chosen.schema.properties!.task!.properties!.fileIds = {
+      type: 'array',
+      items: { type: 'integer' },
+      maxItems: 40,
+    };
+    chosen.schema.properties!.options!.properties!.inputReferences = {
+      type: 'array',
+      maxItems: 40,
+      items: {
+        type: 'object',
+        properties: { url: { type: 'string' }, type: { enum: ['image', 'video'] } },
+        required: ['url', 'type'],
+      },
+      'x-referenceLimits': {
+        image: { maxItems: 30 },
+        video: { maxItems: 10, maxBytes: 200 * 1024 * 1024, mimeTypes: ['video/mp4', 'video/quicktime'] },
+      },
+    };
+    await page.route('**/api/aimodels?*', (route) =>
+      route.fulfill({
+        json: catalogResponse(
+          route.request().url(),
+          catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_CONVERSATION'
+            ? [agent]
+            : models.filter((m) => m.reference.provider === catalogProvider(new URL(route.request().url()))),
+        ),
+      }),
+    );
+    const clip = {
+      ...file,
+      id: 14,
+      uid: 'reference-clip',
+      name: 'Исходный ролик.mp4',
+      type: 'VIDEO',
+      mime: 'video/mp4',
+      size: 1024,
+      path: '/test-video.mp4',
+    };
+    const files = [file, clip];
+    await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination(files) }));
+    await page.route(/\/api\/file\/\d+$/, (route) =>
+      route.fulfill({ json: files.find((f) => f.id === Number(route.request().url().split('/').pop())) }),
+    );
+    await page.goto(path);
+    if (path === '/video') await chooseModel(page, 'OPEN_ROUTER_VIDEO:bytedance/seedance-2.5');
+    else {
+      await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+      await page.getByRole('button', { name: /^Модель:/ }).click();
+      await page.getByRole('option', { name: modelTitle(chosen), exact: true }).click();
+    }
+    const title = 'Замена персонажа в танце';
+    if (path === '/video') await page.getByRole('button', { name: title, exact: true }).click();
+    else {
+      const card = page
+        .locator('.cw-card')
+        .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
+      await card.hover();
+      await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+    }
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator(path === '/video' ? '#vd-draft' : '#cw-draft')).toHaveValue(/@video1/);
+    await page
+      .getByRole('button', {
+        name: path === '/video' ? 'Добавить фото или видео' : 'Добавить файл',
+        exact: true,
+      })
+      .click();
+    const picker = page.getByRole('dialog', { name: 'Библиотека' });
+    await picker.getByText(clip.name, { exact: true }).click();
+    await picker.getByText(file.name, { exact: true }).click();
+    await picker.getByRole('button', { name: 'Добавить (2)', exact: true }).click();
+    await expect(page.locator('.composer-attachment')).toHaveCount(2);
+    await expect(page.locator('.composer-attachment').first()).toContainText(clip.name);
+    // Wait for the existing draft debounce before reloading.
+    await expect
+      .poll(() => page.evaluate(() => JSON.stringify(localStorage)))
+      .toContain('Исходный ролик.mp4');
+    await page.reload();
+    await expect(page.locator('.composer-attachment')).toHaveCount(2);
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`mixed-references-${width}.png`) });
+    }
+    await page
+      .getByRole('button', { name: path === '/video' ? 'Собрать видео' : 'Отправить запрос', exact: true })
+      .click();
+    if (path === '/video') {
+      await expect.poll(() => state.tasks.length).toBe(1);
+      expect(state.tasks[0].task.fileIds).toEqual([14, 12]);
+      expect(state.tasks[0].task.referenceMode).toBe('references');
+    } else {
+      await expect.poll(() => state.sends.length).toBe(1);
+      expect(state.sends[0].files).toEqual([14, 12]);
+      expect(parseStudioContext(state.sends[0].text)?.input?.referenceMode).toBe('references');
+    }
+  });
+}
+
+test('Grok conversation accepts a photo as its first frame', async ({ page }) => {
+  const state = await mockApi(page);
+  const grok = catalog.find((m) => m.reference.model === 'x-ai/grok-imagine-video-1.5-lite')!;
+  const conversation = savedConversation(150);
+  conversation.options.tools = [
+    {
+      uid: 'VIDEO',
+      settings: {
+        model: grok.reference,
+        options: { duration: 10, generateAudio: true },
+        isLockSelection: true,
+      },
+    },
+  ];
+  state.conversations.push(conversation);
+  await page.goto('/chat?conversation=150');
+  await expect(page.getByRole('button', { name: /^Модель:/ })).toContainText('Grok');
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  await selectLibraryFile(page, 'Test result');
+  await expect(page.locator('.composer-attachment')).toHaveCount(1);
+  await expect(
+    page.getByText('Модель не поддерживает выбранное количество референсов.', { exact: true }),
+  ).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
+});
+
+test('media skeleton loads, reports failure and retries without opening the file', async ({
+  page,
+}, testInfo) => {
+  await mockApi(page);
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let fail = false;
+  await page.route('**/media/gallery-1.jpg', async (route) => {
+    await pending;
+    if (fail) return route.fulfill({ status: 404, body: '' });
+    await route.fulfill({
+      contentType: 'image/png',
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jF1kAAAAASUVORK5CYII=',
+        'base64',
+      ),
+    });
+  });
+  await page.goto('/library', { waitUntil: 'domcontentloaded' });
+  const frame = page.locator('.library-card .media-loading-frame').first();
+  await expect(frame.locator('.skeleton')).toBeVisible();
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.screenshot({ path: testInfo.outputPath(`skeleton-${width}.png`) });
+  }
+  release();
+  await expect(frame.locator('.skeleton')).toHaveCount(0);
+  await expect(frame.locator('img')).toHaveJSProperty('naturalWidth', 1);
+  await expect(page.getByRole('link', { name: 'Открыть аккаунт' })).toContainText('GF');
+  fail = true;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(frame).toContainText('Не удалось загрузить');
+  fail = false;
+  await frame.getByRole('button', { name: 'Повторить', exact: true }).click();
+  await expect(frame.locator('.media-loading-error')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('video template sources are attached only while visible', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/chat', { waitUntil: 'domcontentloaded' });
+  const videos = page.locator('#cw-gallery video');
+  await expect(videos.first()).toBeAttached();
+  await expect
+    .poll(() => videos.evaluateAll((nodes) => nodes.filter((n) => n.hasAttribute('src')).length))
+    .toBeGreaterThan(0);
+  const initial = await videos.evaluateAll((nodes) => ({
+    total: nodes.length,
+    active: nodes.filter((n) => n.hasAttribute('src')).length,
+  }));
+  expect(initial.active).toBeLessThan(initial.total);
+  const firstSrc = await videos.first().getAttribute('src');
+  expect(firstSrc).toContain('/previews/');
+  await page.locator('#cw-gallery').evaluate((el) => (el.scrollTop = 3000));
+  await expect(videos.first()).not.toHaveAttribute('src');
+});
+
+test('conversation skeletons stay inside image and video frames', async ({ page }, testInfo) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  state.messages.set(101, [
+    { id: 1, role: 'USER', text: 'Покажи результаты', files: [], createdDate: file.createdDate },
+    {
+      id: 2,
+      role: 'ASSISTANT',
+      text: 'Результаты',
+      files: [file, { ...file, id: 13, type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' }],
+      createdDate: file.createdDate,
+    },
+  ]);
+  const pending = new Promise<void>(() => {});
+  await page.route('**/media/gallery-1.jpg', async (route) => {
+    await pending;
+    await route.abort();
+  });
+  await page.route('**/test-video.mp4', async (route) => {
+    await pending;
+    await route.abort();
+  });
+  await page.goto('/chat?conversation=101', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.cw-thread .media-loading-frame')).toHaveCount(2);
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const geometry = await page.locator('.cw-thread .media-loading-frame').evaluateAll((nodes) =>
+      nodes.map((n) => {
+        const frame = n.getBoundingClientRect(),
+          skel = n.querySelector('.skeleton')!.getBoundingClientRect(),
+          thread = n.closest('.cw-thread')!.getBoundingClientRect();
+        return {
+          contained:
+            skel.left >= frame.left - 1 &&
+            skel.right <= frame.right + 1 &&
+            skel.top >= frame.top - 1 &&
+            skel.bottom <= frame.bottom + 1,
+          withinThread: frame.left >= thread.left - 1 && frame.right <= thread.right + 1,
+          width: frame.width,
+          height: frame.height,
+          overflow: getComputedStyle(n).overflow,
+        };
+      }),
+    );
+    for (const g of geometry) {
+      expect(g.contained).toBe(true);
+      expect(g.withinThread).toBe(true);
+      expect(g.width).toBeGreaterThan(0);
+      expect(g.height).toBeGreaterThan(0);
+      expect(g.overflow).toBe('hidden');
+    }
+    await page.screenshot({ path: testInfo.outputPath(`conversation-skeleton-${width}.png`) });
+  }
+});
+
+test('video settings use designer previews and preserve option selection', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await mockApi(page);
+  const models = structuredClone(catalog);
+  const seedance = models.find((m) => m.reference.model === 'bytedance/seedance-2.5')!;
+  seedance.schema.properties!.options!.properties!.resolution = {
+    type: 'string',
+    enum: ['480p', '720p', '1080p'],
+  };
+  await page.route('**/api/aimodels?*', (route) =>
+    route.fulfill({
+      json: catalogResponse(
+        route.request().url(),
+        catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_CONVERSATION'
+          ? [agent]
+          : models.filter((m) => m.reference.provider === catalogProvider(new URL(route.request().url()))),
+      ),
+    }),
+  );
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/chat');
+    await page.getByRole('button', { name: /^Модель:/ }).click();
+    await page.getByRole('option', { name: modelTitle(seedance), exact: true }).click();
+    if (width === 390) await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
+    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    const pane = page.locator('.cw-settings-pane');
+    for (const [label, count] of [
+      ['Формат', 5],
+      ['Идея', 5],
+      ['Обстановка', 6],
+      ['Камера', 6],
+      ['Движение', 5],
+      ['Линза', 6],
+      ['Свет', 5],
+      ['Качество', 3],
+    ] as const) {
+      await pane.getByRole('button', { name: new RegExp('^' + label) }).click();
+      const list = page.getByRole('listbox', { name: label, exact: true });
+      await expect(list.locator('img.cw-setting-preview')).toHaveCount(count);
+      await expect
+        .poll(() =>
+          list
+            .locator('img')
+            .evaluateAll((imgs) =>
+              imgs.every((i) => i instanceof HTMLImageElement && i.complete && i.naturalWidth > 0),
+            ),
+        )
+        .toBe(true);
+      const box = await list.locator('img').first().boundingBox();
+      expect(Math.abs(box!.width / box!.height - 16 / 9)).toBeLessThan(0.02);
+      if (label === 'Формат' || label === 'Качество')
+        await page.screenshot({ path: testInfo.outputPath(`settings-${label}-${width}.png`) });
+      const option = list.getByRole('option').last();
+      const text = await option.innerText();
+      await option.click();
+      await expect(pane.getByRole('button', { name: new RegExp('^' + label) })).toContainText(text);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+});
+
+test('undersized video references are blocked before a paid request', async ({ page }) => {
+  const state = await mockApi(page);
+  const models = structuredClone(catalog);
+  const chosen = models.find((m) => m.reference.model === 'bytedance/seedance-2.5')!;
+  chosen.schema.properties!.task!.properties!.fileIds = { type: 'array', maxItems: 40 };
+  chosen.schema.properties!.options!.properties!.inputReferences = {
+    type: 'array',
+    maxItems: 40,
+    items: { properties: { type: { enum: ['image', 'video'] } } },
+    'x-referenceLimits': { video: { maxItems: 10, minPixels: 407696 } },
+  };
+  await page.route('**/api/aimodels?*', (route) =>
+    route.fulfill({
+      json: catalogResponse(
+        route.request().url(),
+        catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_CONVERSATION'
+          ? [agent]
+          : models.filter((m) => m.reference.provider === catalogProvider(new URL(route.request().url()))),
+      ),
+    }),
+  );
+  const clip = {
+    ...file,
+    id: 13,
+    name: 'Small reference',
+    type: 'VIDEO',
+    mime: 'video/mp4',
+    path: '/media/templates/2026-11-13/video/previews/17.mp4',
+    size: 10000,
+  };
+  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([clip]) }));
+  await page.route('**/api/file/13', (route) => route.fulfill({ json: clip }));
+  await page.goto('/video');
+  await chooseModel(page, 'OPEN_ROUTER_VIDEO:bytedance/seedance-2.5');
+  await page.getByRole('button', { name: 'Добавить фото или видео', exact: true }).click();
+  await selectLibraryFile(page, clip.name);
+  await submit(page, 'Continue this clip', 'video');
+  await expect(page.getByRole('alert').filter({ hasText: 'Слишком маленькое видео' })).toBeVisible();
+  expect(state.tasks).toHaveLength(0);
+  expect(state.sends).toHaveLength(0);
+  clip.path = '/media/templates/2026-11-13/video/06.mp4';
+  await submit(page, 'Continue this clip', 'video');
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.fileIds).toEqual([13]);
 });

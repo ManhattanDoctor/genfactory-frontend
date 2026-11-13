@@ -9,6 +9,18 @@ export function apiErrorMessage(data: unknown, status: number): string {
     data && typeof data === 'object'
       ? (data as { code?: unknown; message?: unknown; details?: unknown })
       : {};
+  const referenceErrors: Record<string, string> = {
+    VIDEO_REFERENCE_MODE_INVALID: 'Выберите доступный режим референсов.',
+    VIDEO_REFERENCE_MODES_MIXED: 'Не смешивайте опорные кадры и обычные референсы.',
+    VIDEO_REFERENCE_TYPE_UNSUPPORTED: 'Модель или режим не поддерживает этот тип вложения.',
+    VIDEO_REFERENCE_FILE_INVALID: 'Для видео выберите MP4 или MOV размером до 200 МБ.',
+    VIDEO_REFERENCE_LIMIT_EXCEEDED: 'Превышено допустимое количество референсов модели.',
+    VIDEO_REFERENCE_UNAVAILABLE: 'Исходный файл недоступен. Выберите его заново в библиотеке.',
+  };
+  const referenceCode = (value.code === 'VIDEO_REFERENCE_INVALID' ? [value.details] : []).find(
+    (item) => typeof item === 'string' && referenceErrors[item],
+  );
+  if (typeof referenceCode === 'string') return referenceErrors[referenceCode];
   if (value.code === 'AI_MODEL_DISABLED') return 'Модель отключена администратором. Выберите другую модель.';
   if (value.code === 'AI_MODEL_HIDDEN') return 'Модель недоступна для нового выбора. Выберите другую модель.';
   if (value.code === 'INSUFFICIENT_FUNDS') return userBalanceError;

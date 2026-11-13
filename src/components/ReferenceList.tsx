@@ -41,7 +41,11 @@ export function ReferenceList({
         >
           <ComposerAttachment
             file={file}
-            caption={video ? `${i === 0 ? 'Первый' : 'Последний'} кадр: ${file.name}` : file.name}
+            caption={
+              video && file.type === 'IMAGE'
+                ? `${i === 0 ? 'Первый' : 'Последний'} кадр: ${file.name}`
+                : file.name
+            }
             disabled={disabled}
             onRemove={() => onChange(files.filter((f) => f.id !== file.id))}
           />

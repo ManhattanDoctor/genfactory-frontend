@@ -61,6 +61,8 @@
 }
 
 .file-browser {
+  --pagination-parent-gap: 16px;
+  align-content: start;
   gap: 16px;
 }
 .file-browser > [role='alert'],
@@ -138,6 +140,7 @@
   background: #1a1b1e;
 }
 .file-browser .file-entry .library-card {
+  position: relative;
   background: transparent;
   border-radius: 15px;
 }
@@ -156,7 +159,7 @@
   line-height: 20px;
   color: #f4f4f5;
 }
-.file-browser .library-card span {
+.file-browser .library-card > div:last-child span {
   margin-top: 4px;
   font-size: 12px;
   line-height: 18px;
@@ -240,6 +243,9 @@
   position: relative;
 }
 .file-select-mark {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
   position: absolute;
   top: 8px;
   left: 8px;
@@ -257,9 +263,14 @@
   border-color: var(--accent);
   color: #171b06;
 }
-.file-browser .library-card.is-selected {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+.file-browser .library-card.is-selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border: 2px solid var(--accent);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .file-batch-bar {

@@ -1,69 +1,66 @@
+import { PromptTemplate } from './PromptTemplate';
+import { PromptPreview, PromptSource, promptParts } from './PromptText';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
-import { Modal } from '../../components/Modal';
-import { LibraryPicker } from '../../components/LibraryPicker';
-import { useAuth } from '../auth/AuthProvider';
-import type { IGnosisFile } from '../../lib/types';
+import { Modal, ModalFooter } from '../../components/Modal';
 import type { ITemplate } from './materials';
 import './template-editor.css';
-import {
-  templateVariables,
-  templateVariableLabel,
-  fillTemplate,
-  templateReference,
-  templateDuration,
-  adaptTemplateDuration,
-} from './templateRecipe';
+import { templateVariableLabel, templateDuration, adaptTemplateDuration } from './templateRecipe';
 
-export interface ITemplateReference {
-  saved?: IGnosisFile;
-  file?: File;
-  name: string;
-}
 export function TemplateEditor({
   item,
   duration,
-  reference,
-  referenceAllowed,
   launchSettings,
   onClose,
   onApply,
 }: {
   item: ITemplate;
   duration?: number;
-  reference?: ITemplateReference;
-  referenceAllowed: boolean;
   launchSettings: string;
   onClose: () => void;
-  onApply: (prompt: string, reference?: ITemplateReference) => void;
+  onApply: (prompt: string) => void;
 }): ReactElement {
-  const { user } = useAuth();
   const [text, setText] = useState(item.prompt);
   const [values, setValues] = useState<Record<string, string>>({});
-  const policy = templateReference(item);
-  const [source, setSource] = useState(policy === 'none' ? undefined : reference);
   const [brief, setBrief] = useState('');
-  const [library, setLibrary] = useState(false);
   const [error, setError] = useState('');
-  const variables = templateVariables(text);
-  const filled = fillTemplate(text, values);
+  let recipe: PromptTemplate | undefined;
+  let variables: Array<string> = [];
+  let filled = text;
+  let syntaxError = '';
+  try {
+    recipe = new PromptTemplate(text);
+    variables = recipe.variables;
+    filled = recipe
+      .parts(values)
+      .map((part) => part.text)
+      .join('');
+  } catch {
+    syntaxError = 'Проверьте синтаксис шаблона и значения полей. Для числительных введите число.';
+  }
   const prompt =
     item.kind === 'presentation'
       ? `${filled}\n\nТема и факты пользователя:\n${brief.trim()}\n\nПодготовь только текст по слайдам. Не придумывай цифры, клиентов, достижения и контакты: неизвестные данные помечай «Нужно уточнить».`
       : filled;
+  let preview = [{ text: prompt, highlighted: false }];
+  if (!syntaxError) {
+    try {
+      preview = promptParts(text, item.prompt, values);
+      if (item.kind === 'presentation')
+        preview.push({ text: prompt.slice(filled.length), highlighted: !!brief.trim() });
+    } catch {
+      /* The source remains editable even if its original version is invalid. */
+    }
+  }
   const seconds = item.kind === 'video' ? templateDuration(text) : undefined;
   const conflict = seconds !== undefined && duration !== undefined && seconds !== duration;
   const apply = (): void => {
-    if (source && !referenceAllowed) {
-      setError('Выбранная модель не поддерживает референсы. Закройте шаблон и выберите другую модель.');
+    if (syntaxError) {
+      setError(syntaxError);
       return;
     }
-    if (templateVariables(prompt).length) {
+    if (variables.some((key) => !values[key]?.trim())) {
       setError('Заполните все поля шаблона.');
-      return;
-    }
-    if (policy === 'required' && !source) {
-      setError('Выберите исходное фото.');
       return;
     }
     if (conflict) {
@@ -78,7 +75,7 @@ export function TemplateEditor({
       setError('Введите текст задания.');
       return;
     }
-    onApply(prompt, source);
+    onApply(prompt);
   };
   return (
     <>
@@ -98,65 +95,54 @@ export function TemplateEditor({
             </section>
           </aside>
           <div className="template-fields">
-            {item.kind === 'presentation' && (
-              <>
-                <p>Результат — текст по слайдам, не готовый файл PPTX/PDF.</p>
-                <label>
-                  Тема и исходные факты
-                  <textarea rows={4} value={brief} onChange={(e) => setBrief(e.target.value)} />
-                </label>
-              </>
-            )}
-            <div className="template-variables">
-              {variables.map((key) => (
-                <label key={key}>
-                  {templateVariableLabel(key)}
-                  <input
-                    data-template-variable={key}
-                    value={values[key] || ''}
-                    onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-                  />
-                </label>
-              ))}
+            <div className="template-inputs">
+              {item.kind === 'presentation' && (
+                <>
+                  <p>Результат — текст по слайдам, не готовый файл PPTX/PDF.</p>
+                  <label>
+                    Тема и исходные факты
+                    <textarea rows={4} value={brief} onChange={(e) => setBrief(e.target.value)} />
+                  </label>
+                </>
+              )}
+              <div className="template-variables">
+                {variables.map((key) => (
+                  <label key={key}>
+                    {templateVariableLabel(key)}
+                    {recipe?.choices.has(key) ? (
+                      <select
+                        data-template-variable={key}
+                        value={values[key] || ''}
+                        onChange={(e) => {
+                          setValues({ ...values, [key]: e.target.value });
+                          setError('');
+                        }}
+                      >
+                        <option value="" disabled>
+                          Выберите вариант
+                        </option>
+                        {recipe.choices.get(key)!.map((choice) => (
+                          <option key={choice} value={choice}>
+                            {choice}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        data-template-variable={key}
+                        type={recipe?.isNumeric(key) ? 'number' : 'text'}
+                        step={recipe?.isNumeric(key) ? 'any' : undefined}
+                        value={values[key] || ''}
+                        onChange={(e) => {
+                          setValues({ ...values, [key]: e.target.value });
+                          setError('');
+                        }}
+                      />
+                    )}
+                  </label>
+                ))}
+              </div>
             </div>
-            <details>
-              <summary>Редактировать исходный шаблон</summary>
-              <label>
-                Текст шаблона
-                <textarea
-                  rows={7}
-                  aria-label="Текст шаблона"
-                  value={text}
-                  onChange={(e) => {
-                    setText(e.target.value);
-                    setError('');
-                  }}
-                />
-              </label>
-            </details>
-            {policy !== 'none' && (
-              <section className="template-reference" aria-label="Исходное фото">
-                <h3>
-                  Исходное фото <span>{policy === 'required' ? 'Обязательно' : 'По желанию'}</span>
-                </h3>
-                <p>{source?.name || 'Фото не выбрано'}</p>
-                <div className="template-reference-actions">
-                  {source && (
-                    <button type="button" className="text-button" onClick={() => setSource(undefined)}>
-                      Убрать фото
-                    </button>
-                  )}
-                  {user && (
-                    <button type="button" className="button" onClick={() => setLibrary(true)}>
-                      Из библиотеки
-                    </button>
-                  )}
-                </div>
-                {!user && (
-                  <p>Войдите в аккаунт студии, чтобы выбрать или загрузить изображение в библиотеке.</p>
-                )}
-              </section>
-            )}
             {conflict && duration !== undefined && (
               <div className="template-duration" role="status">
                 <p>
@@ -174,46 +160,35 @@ export function TemplateEditor({
                 </button>
               </div>
             )}
-            <details className="template-preview">
-              <summary>Посмотреть задание</summary>{' '}
-              <label>
-                Готовый текст для редактора
-                <textarea rows={7} aria-label="Готовый текст для редактора" value={prompt} readOnly />
-              </label>
+            <section className="template-preview" aria-label="Готовый промт">
+              <PromptPreview parts={preview} />
+            </section>
+            <details>
+              <summary>Редактировать исходный шаблон</summary>
+              <div>
+                <PromptSource
+                  value={text}
+                  onChange={(value) => {
+                    setText(value);
+                    setError('');
+                  }}
+                />
+              </div>
             </details>
           </div>
         </div>
-        <footer className="template-footer">
-          {error && (
+        <ModalFooter className="template-footer">
+          {(error || syntaxError) && (
             <p className="template-error" role="alert">
-              {error}
+              {error || syntaxError}
             </p>
           )}
-          <p className="template-caption">
-            Заменит текст и вложения редактора. Настройки сохранятся. Генерация начнётся после отправки.
-          </p>
+          <p className="template-caption">Применит текст. Генерация начнётся после отправки.</p>
           <button type="button" className="button primary" onClick={apply}>
             Использовать шаблон
           </button>
-        </footer>
+        </ModalFooter>
       </Modal>
-      {library && (
-        <LibraryPicker
-          onClose={() => setLibrary(false)}
-          onPick={(file) => {
-            if (
-              file.userId !== user?.id ||
-              file.type !== 'IMAGE' ||
-              !/^image\/(jpeg|png|webp)$/.test(file.mime)
-            ) {
-              setError('Выберите собственное изображение JPEG, PNG или WebP.');
-              return;
-            }
-            setSource({ saved: file, name: file.name });
-            setError('');
-          }}
-        />
-      )}
     </>
   );
 }

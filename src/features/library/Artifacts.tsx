@@ -1,3 +1,4 @@
+import { SkeletonCards } from '../../components/Skeleton';
 import { downloadFile } from '../../lib/files';
 import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,7 +9,7 @@ import type { ArtifactType, IFileArtifact, IConversationArtifact, IGnosisFile } 
 import { useAuth } from '../auth/AuthProvider';
 import { FileActions } from '../../components/FileActions';
 import { FileCard } from '../../components/FileCard';
-import { Modal } from '../../components/Modal';
+import { Modal, ModalFooter } from '../../components/Modal';
 import { historyResult } from '../studio/historyResult';
 import { ConversationActions } from '../studio/ConversationActions';
 import { ConversationCard, historyDay } from '../studio/ConversationCard';
@@ -188,7 +189,7 @@ export function Artifacts(): ReactElement {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          {list.isPending && <p role="status">Загружаем историю…</p>}
+          {user && list.isPending && <SkeletonCards label="Загружаем историю…" />}
           {list.error && (
             <div role="alert">
               <p>Не удалось загрузить историю.</p>
@@ -308,17 +309,19 @@ export function Artifacts(): ReactElement {
               onChange={(event) => setName(event.target.value)}
             />
             {error && <p role="alert">{error}</p>}
-            <button className="button" disabled={acting !== undefined || name.trim().length < 2}>
-              Сохранить название
-            </button>
-            <button
-              className="button"
-              type="button"
-              disabled={acting !== undefined}
-              onClick={() => setEditing(undefined)}
-            >
-              Отмена
-            </button>
+            <ModalFooter>
+              <button className="button" disabled={acting !== undefined || name.trim().length < 2}>
+                Сохранить название
+              </button>
+              <button
+                className="button"
+                type="button"
+                disabled={acting !== undefined}
+                onClick={() => setEditing(undefined)}
+              >
+                Отмена
+              </button>
+            </ModalFooter>
           </form>
         </Modal>
       )}

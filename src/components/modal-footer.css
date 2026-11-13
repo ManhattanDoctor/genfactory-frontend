@@ -1,0 +1,55 @@
+dialog.modal .modal-footer {
+  position: sticky;
+  bottom: calc(-1 * var(--modal-padding));
+  z-index: 10;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px calc(-1 * var(--modal-padding)) calc(-1 * var(--modal-padding));
+  padding: 16px var(--modal-gutter);
+  border-top: 1px solid #393b3e;
+  background: #17181b;
+}
+.modal-footer > p {
+  margin: 0;
+}
+.modal-footer > [role='alert'] {
+  flex-basis: 100%;
+}
+.modal-footer > span {
+  margin-right: auto;
+}
+.modal-footer > .template-caption {
+  flex: 1;
+  min-width: 160px;
+}
+.modal.library-picker > .modal-footer,
+.modal.template-dialog > .modal-footer {
+  margin-top: 0;
+}
+.modal.library-picker > .modal-footer {
+  justify-content: space-between;
+}
+.modal .file-form > .modal-footer,
+.modal .rename-form > .modal-footer {
+  margin-top: 4px;
+}
+@media (max-width: 600px) {
+  .template-dialog .modal-footer > .button {
+    width: 100%;
+  }
+}
+
+.modal .rename-form > .modal-footer {
+  flex-basis: calc(100% + var(--modal-padding) + var(--modal-padding));
+}
+.modal:has(> .modal-head + .modal-footer) > .modal-head {
+  margin-bottom: 0;
+}
+.modal > .modal-head + .modal-footer {
+  margin-top: 0;
+  border-top: 0;
+}

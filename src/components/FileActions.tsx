@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
 import { api, getSession } from '../lib/api';
 import { resolveFile, downloadFile } from '../lib/files';
-import { Modal } from './Modal';
+import { Modal, ModalFooter } from './Modal';
 import { FileBrowser } from './FileBrowser';
 
 /** Shared library actions; metadata is loaded only when editing or downloading. */
@@ -223,7 +223,7 @@ export function FileActions({
               </>
             )}
             {error && <p role="alert">{error}</p>}
-            <div className="file-form-buttons">
+            <ModalFooter className="file-form-buttons">
               <button type="button" className="button" disabled={busy} onClick={() => setAction(undefined)}>
                 Отмена
               </button>
@@ -240,7 +240,7 @@ export function FileActions({
                       ? 'Переместить сюда'
                       : 'Сохранить'}
               </button>
-            </div>
+            </ModalFooter>
           </form>
         </Modal>
       )}

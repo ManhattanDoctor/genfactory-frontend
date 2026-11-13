@@ -2,8 +2,19 @@ import { scheduleRefresh } from '../realtime/queryRefresh';
 import '../../lib/transport-polyfills';
 import { ObjectUtil } from '@ts-core/common';
 import type { ReactElement } from 'react';
-import { videoInputOptions, videoReferenceMode } from '../catalog/videoInputs';
-import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
+import {
+  videoInputOptions,
+  videoReferenceMode,
+  supportsVideoReferences,
+  videoReferenceError,
+  validateVideoReferenceDimensions,
+} from '../catalog/videoInputs';
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  VIDEO_UPLOAD_ACCEPT,
+  isVideoUpload,
+  isImageUpload,
+} from '../../lib/image-upload';
 import { modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { followsReferenceRatio } from '../catalog/schema';
@@ -408,12 +419,15 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       userId?: number;
     } | null;
     const incoming = (state?.references || (state?.reference ? [state.reference] : [])).filter(
-      (f) => f.type === 'IMAGE',
+      (f) => f.type === 'IMAGE' || (kind === 'video' && f.type === 'VIDEO'),
     );
     if (!incoming.length || !model || referenceKey.current === location.key) return;
     if (
       state?.userId !== auth.user?.id ||
-      incoming.some((f) => f.userId !== auth.user?.id || f.type !== 'IMAGE')
+      incoming.some(
+        (f) =>
+          f.userId !== auth.user?.id || (f.type !== 'IMAGE' && !(kind === 'video' && f.type === 'VIDEO')),
+      )
     )
       return;
     if (state?.preset && !conversationId) {
@@ -530,12 +544,12 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       value.references,
       auth.user.id,
       auth.session,
-      kind === 'video' ? 30 : maxRefs,
+      kind === 'video' ? 40 : maxRefs,
     );
     if (scope !== uploadScope.current || getSession() !== auth.session) return;
     pendingDraft.current = {
       value,
-      files: restored.files.filter((f) => f.type === 'IMAGE'),
+      files: restored.files.filter((f) => f.type === 'IMAGE' || (kind === 'video' && f.type === 'VIDEO')),
       key: value.selected,
     };
     setSelected(value.selected);
@@ -579,8 +593,14 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     const isCurrent = () => mounted.current && scope === uploadScope.current && getSession() === sid;
     try {
       const picked = Array.from(files);
-      if (picked.some((f) => !isImageUpload(f))) throw new Error('Загрузите PNG, JPEG, WebP или HEIC/HEIF.');
-      if (picked.some((f) => f.size > 20 * 1024 * 1024))
+      if (
+        picked.some(
+          (f) =>
+            !isImageUpload(f) && !(kind === 'video' && supportsVideoReferences(model) && isVideoUpload(f)),
+        )
+      )
+        throw new Error('Загрузите PNG, JPEG, WebP или HEIC/HEIF.');
+      if (picked.some((f) => f.size > (isVideoUpload(f) ? 200 : 20) * 1024 * 1024))
         throw new Error('Для референсов используйте файлы до 20 МБ.');
       if (references.length + picked.length > maxRefs)
         throw new Error(`Для выбранной модели можно добавить до ${maxRefs} референсов.`);
@@ -590,7 +610,10 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           if (isCurrent()) setUploadProgress(progress);
         });
         if (!isCurrent()) return;
-        if (saved.userId !== auth.user.id || saved.type !== 'IMAGE')
+        if (
+          saved.userId !== auth.user.id ||
+          (saved.type !== 'IMAGE' && !(kind === 'video' && saved.type === 'VIDEO'))
+        )
           throw new Error('Сервер не вернул изображение вашего аккаунта.');
         draft.changed();
         setReferences((prev) => (prev.some((f) => f.id === saved.id) ? prev : [...prev, saved]));
@@ -658,6 +681,13 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       setError(`Добавьте референсы для выбранной модели (минимум: ${minRefs}).`);
       return;
     }
+    if (kind === 'video') {
+      const issue = videoReferenceError(model, references);
+      if (issue) {
+        setError(issue);
+        return;
+      }
+    }
     const visibleOptions = new Set(optionFields(model).map(([name]) => name));
     const cleanOptions = Object.fromEntries(
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
@@ -684,6 +714,15 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           options.frameImages.length === references.length &&
           options.frameImages.every((frame, index) => frame.url === references[index].path),
       );
+      const issue = videoReferenceError(
+        model,
+        references,
+        body.task.referenceMode as 'frames' | 'references',
+      );
+      if (issue) {
+        setError(issue);
+        return;
+      }
       ObjectUtil.copyPartial(
         videoInputOptions(model, references, body.task.referenceMode as 'frames' | 'references'),
         body.options,
@@ -716,12 +755,18 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       submitting.current = true;
       setCreating(true);
       try {
+        const actualReferences: IGnosisFile[] = [];
         for (const reference of references) {
           const actual = await api.file(reference.id, sid);
-          if (actual.userId !== userId || actual.type !== 'IMAGE')
+          if (
+            actual.userId !== userId ||
+            (actual.type !== 'IMAGE' && !(kind === 'video' && actual.type === 'VIDEO'))
+          )
             throw new Error('Исходное изображение недоступно. Выберите другой референс.');
+          actualReferences.push(actual);
           if (!current()) return;
         }
+        if (kind === 'video') await validateVideoReferenceDimensions(model, actualReferences);
         if (!current()) return;
         const taskBody: ITaskRequest = {
           ...body,
@@ -831,7 +876,10 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       }
       for (const reference of references) {
         const actual = await api.file(reference.id, sid);
-        if (actual.userId !== userId || actual.type !== 'IMAGE')
+        if (
+          actual.userId !== userId ||
+          (actual.type !== 'IMAGE' && !(kind === 'video' && actual.type === 'VIDEO'))
+        )
           throw new Error('Исходное изображение недоступно. Выберите другой референс.');
       }
       if (!mounted.current || getSession() !== sid || scopeRef.current !== activeScope) return;
@@ -1026,7 +1074,13 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
               ].map((id) => api.file(id, sid!)),
             );
             if (getSession() !== sid || scopeRef.current !== activeScope || !mounted.current) return;
-            if (sources.some((f) => f.userId !== auth.user?.id || f.type !== 'IMAGE'))
+            if (
+              sources.some(
+                (f) =>
+                  f.userId !== auth.user?.id ||
+                  (f.type !== 'IMAGE' && !(kind === 'video' && f.type === 'VIDEO')),
+              )
+            )
               throw new Error('Исходные изображения недоступны.');
             if ((sources.length && !supportsReferences(chosen)) || sources.length > referenceLimit(chosen))
               throw new Error('Количество референсов не поддерживается текущей моделью.');
@@ -1072,6 +1126,12 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       >
         {picker && (
           <LibraryPicker
+            acceptedTypes={
+              kind === 'video' && supportsVideoReferences(model) ? ['IMAGE', 'VIDEO'] : ['IMAGE']
+            }
+            validateFile={(file) =>
+              kind === 'video' && model ? videoReferenceError(model, [...references, file]) : undefined
+            }
             multiple
             maxFiles={maxRefs - references.length}
             selected={references.map((f) => f.id)}
@@ -1238,8 +1298,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={
                 kind === 'image'
-                  ? 'Опишите сюжет, свет, настроение и детали…'
-                  : 'Опишите сцену, движение камеры и атмосферу…'
+                  ? 'Опишите, какое изображение хотите получить. Можно добавить свои фото — укажите, что изменить, а что сохранить.'
+                  : 'Опишите сюжет, движение и атмосферу ролика. Можно добавить свои изображения как исходные кадры — укажите, что оживить и что сохранить.'
               }
               maxLength={model?.schema.properties?.task?.properties?.prompt?.maxLength || 32_000}
             />
@@ -1270,7 +1330,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
               type="file"
               hidden
               ref={input}
-              accept={IMAGE_UPLOAD_ACCEPT}
+              accept={
+                kind === 'video' && supportsVideoReferences(model)
+                  ? `${IMAGE_UPLOAD_ACCEPT},${VIDEO_UPLOAD_ACCEPT}`
+                  : IMAGE_UPLOAD_ACCEPT
+              }
               multiple={kind === 'image'}
               onChange={(e) => void upload(e.target.files)}
             />

@@ -1,5 +1,9 @@
 export type MediaKind = 'image' | 'video';
 export interface ISchema {
+  'x-referenceLimits'?: Record<
+    string,
+    { maxItems: number; maxBytes?: number; minPixels?: number; mimeTypes?: string[] }
+  >;
   type?: string;
   description?: string;
   enum?: unknown[];

@@ -121,9 +121,6 @@
 .completed-jobs {
   display: grid;
   gap: 10px;
-  padding-bottom: 20px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #303437;
 }
 .completed-jobs h3 {
   font-size: 14px;
@@ -273,9 +270,6 @@
 .studio-shell .template-example {
   display: none;
 }
-.studio-shell .template-footer {
-  padding: 14px var(--modal-gutter);
-}
 .studio-shell .template-variables {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -322,7 +316,7 @@
   }
   .studio-shell .image-workspace .img-masonry {
     gap: 10px;
-    padding-inline: 10px;
+    padding-inline: var(--image-wall-gutter);
   }
   .studio-shell .image-workspace .img-col {
     gap: 10px;
@@ -716,9 +710,6 @@
   justify-self: center;
   margin: 0;
 }
-.studio-shell .template-dialog .template-footer {
-  border-top: 0;
-}
 .account-refresh-notice {
   position: fixed;
   z-index: 100;
@@ -754,6 +745,7 @@
   margin: 0;
 }
 .studio-shell .file-browser .file-tag-filter .details-content {
+  --pagination-parent-gap: 14px;
   display: grid;
   gap: 14px;
   padding: 4px 14px 14px;
@@ -801,10 +793,10 @@
     min-width: 0;
     min-height: 0;
     padding: 0;
-    border: 1px solid #ffffff30;
+    border: 1px solid var(--accent);
     border-radius: 12px;
-    background: #121619d9;
-    color: #fff;
+    background: var(--accent);
+    color: #17180a;
     transform: none;
     backdrop-filter: blur(8px);
   }
@@ -845,4 +837,57 @@
     position: static;
     flex-shrink: 0;
   }
+}
+
+/* Pagination owns the final gutter; avoid adding the container's padding twice. */
+.studio-shell :is(.library-page, .work-history):has(> .pagination),
+.studio-shell .library-page:has(> .file-browser > .pagination) {
+  padding-bottom: 0;
+}
+.account-page .balance-history > .pagination {
+  padding-bottom: 0;
+}
+.studio-shell .file-browser .file-tag-filter .details-content > .pagination {
+  padding-bottom: calc(var(--pagination-space) - 14px);
+}
+
+.account-page .balance-history:has(> .pagination) {
+  padding-bottom: var(--pagination-space);
+}
+
+/* Shared brighter glow for the focused composer and template attachment hint. */
+.studio-shell {
+  --composer-focus-glow:
+    0 0 0 1px rgba(209, 254, 23, 0.65), 0 0 8px rgba(209, 254, 23, 0.16), 0 0 18px rgba(209, 254, 23, 0.08);
+}
+.studio-shell .image-workspace .img-dock:focus-within,
+.studio-shell .image-workspace .cw-plus.needs-template-images:not(:disabled),
+.studio-shell .content-studio .studio-compose:focus-within,
+.studio-shell .content-studio #creatives .cw-compose:focus-within,
+.studio-shell .content-studio .cw-plus.needs-template-images:not(:disabled) {
+  border-color: rgba(209, 254, 23, 0.5);
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.28),
+    var(--composer-focus-glow);
+  animation: none;
+}
+
+.studio-shell .content-studio #cw-gallery .ds-template-add,
+.studio-shell .image-workspace .img-use {
+  background: var(--accent);
+  color: #17180a;
+}
+
+.studio-shell .image-workspace .cw-plus.needs-template-images,
+.studio-shell .content-studio .cw-plus.needs-template-images {
+  transition: none;
+}
+.studio-shell .image-workspace .cw-plus.template-glow-active:not(:disabled),
+.studio-shell .content-studio .cw-plus.template-glow-active:not(:disabled) {
+  box-shadow:
+    0 0 0 2px #d1fe17,
+    0 0 18px rgba(209, 254, 23, 0.6);
+  background: rgba(209, 254, 23, 0.3);
+  animation: none;
+  transition: none;
 }

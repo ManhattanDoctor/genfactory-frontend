@@ -1,3 +1,5 @@
+import { Skeleton } from '../../components/Skeleton';
+import { supportsVideoReferences } from '../catalog/videoInputs';
 import { downloadFile } from '../../lib/files';
 import { TemplateEditor } from '../content-studio/TemplateEditor';
 import { templateVariables } from '../content-studio/templateRecipe';
@@ -5,7 +7,7 @@ import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
 import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
 import { useComposerMenu } from '../../components/useComposerMenu';
-import { followsReferenceRatio, referenceLimit } from '../catalog/schema';
+import { followsReferenceRatio } from '../catalog/schema';
 import { bananaRatios, bananaDescription } from './bananaSettings';
 import './banana-workspace.css';
 import './seedance-workspace.css';
@@ -153,6 +155,14 @@ export function MediaWorkspace({
   const [bottom, setBottom] = useState(234);
   const selected = imageTemplates.find((item) => item.id === templateId);
   const [editingTemplate, setEditingTemplate] = useState<ITemplate>();
+  const [templateImageMinimum, setTemplateImageMinimum] = useState(0);
+  useEffect(() => {
+    setTemplateImageMinimum(0);
+  }, [kind, conversation?.id]);
+  useEffect(() => {
+    if (!prompt.trim()) setTemplateImageMinimum(0);
+  }, [prompt]);
+  const needsTemplateImages = !!prompt.trim() && references.length < templateImageMinimum;
   const [notice, setNotice] = useState('');
   const conversationError = useConversationError(conversation);
   const [answerView, setAnswerView] = useState<string>();
@@ -285,12 +295,42 @@ export function MediaWorkspace({
     : [];
   const chooseRatio = (value: string) =>
     onOptions({ ...options, ...(fields.aspectRatio ? { aspectRatio: value } : { size: sizes.get(value) }) });
+  const [templateGlowActive, setTemplateGlowActive] = useState(false);
+  const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
+  const applyTemplateText = (item: ITemplate, text: string): void => {
+    clearTimeout(templateGlowTimer.current);
+    setTemplateGlowActive(true);
+    templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
+    setTemplateImageMinimum(Math.max(1, item.references?.min ?? 0));
+
+    onTemplate('');
+    onTemplateText('');
+    onPrompt(text);
+    setNotice('');
+    setEditingTemplate(undefined);
+    requestAnimationFrame(() => promptInput.current?.focus());
+  };
   const applyTemplate = (item: ITemplate): void => {
     if (busy) return;
+    try {
+      if (!templateVariables(item.prompt).length) {
+        applyTemplateText(item, item.prompt);
+        return;
+      }
+    } catch {
+      /* Open the editor to correct invalid template syntax. */
+    }
     setEditingTemplate(item);
   };
   const submitTemplate = (): void => {
-    if (selected && (!templateText.trim() || templateVariables(templateText).length)) {
+    let incomplete = !templateText.trim();
+    try {
+      incomplete ||= templateVariables(templateText).length > 0;
+    } catch {
+      incomplete = true;
+    }
+    if (selected && incomplete) {
       setEditingTemplate({ ...selected, prompt: templateText || selected.prompt });
       return;
     }
@@ -334,6 +374,11 @@ export function MediaWorkspace({
         </div>
       ),
     ),
+    ...(user && history.isPending
+      ? Array.from({ length: 8 }, (_, index) => (
+          <Skeleton key={`loading:${index}`} className="img-tile media-card-skeleton" />
+        ))
+      : []),
     ...(text?.trim()
       ? [
           <article className="img-tile media-answer-card" key={`answer:${latestAnswer!.id}`}>
@@ -522,8 +567,6 @@ export function MediaWorkspace({
           key={editingTemplate.id}
           item={editingTemplate}
           duration={typeof options.duration === 'number' ? options.duration : undefined}
-          referenceAllowed={!model || referenceLimit(model) > 0}
-          reference={references[0] ? { saved: references[0], name: references[0].name } : undefined}
           launchSettings={[
             `Модель: ${model ? modelTitle(model) : 'Не выбрана'}`,
             referenceRatio ? 'Формат: по исходному кадру' : ratio ? `Формат: ${ratio}` : '',
@@ -536,15 +579,7 @@ export function MediaWorkspace({
             setEditingTemplate(undefined);
             requestAnimationFrame(() => promptInput.current?.focus());
           }}
-          onApply={(text, reference) => {
-            onTemplate('');
-            onTemplateText('');
-            onPrompt(text);
-            onReferences(reference?.saved ? [reference.saved] : []);
-            setNotice('');
-            setEditingTemplate(undefined);
-            requestAnimationFrame(() => promptInput.current?.focus());
-          }}
+          onApply={(text) => applyTemplateText(editingTemplate, text)}
         />
       )}
       <form
@@ -610,18 +645,29 @@ export function MediaWorkspace({
             onChange={(e) => onPrompt(e.target.value)}
             placeholder={
               video
-                ? 'Опишите ролик. Если есть стартовый кадр, укажите, что должно произойти и что сохранить'
-                : 'Опишите результат. Если редактируете изображение, укажите, что изменить и что сохранить'
+                ? supportsVideoReferences(model)
+                  ? 'Опишите сюжет, движение и атмосферу ролика. Можно добавить свои фото и видео — укажите, что изменить и что сохранить.'
+                  : 'Опишите сюжет, движение и атмосферу ролика. Можно добавить свои изображения как исходные кадры — укажите, что оживить и что сохранить.'
+                : 'Опишите, какое изображение хотите получить. Можно добавить свои фото — укажите, что изменить, а что сохранить.'
             }
           />
         </div>
         <div className="img-tools">
           <div className="img-settings" aria-label="Параметры генерации">
             <button
-              className="cw-plus"
+              className={`cw-plus ${needsTemplateImages ? `needs-template-images${templateGlowActive ? ' template-glow-active' : ''}` : ''}`}
+              title={
+                needsTemplateImages
+                  ? `Добавьте свои ${video && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${templateImageMinimum}`
+                  : undefined
+              }
               type="button"
               aria-label={
-                seedance ? 'Добавить стартовый кадр' : video ? 'Добавить кадр' : 'Добавить изображение'
+                video && supportsVideoReferences(model)
+                  ? 'Добавить фото или видео'
+                  : video
+                    ? 'Добавить кадр'
+                    : 'Добавить изображение'
               }
               disabled={busy || (!!user && !model)}
               onClick={onLibrary}

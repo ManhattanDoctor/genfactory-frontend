@@ -88,9 +88,9 @@ it('migrates only the legacy instruction in Genfactory conversations', () => {
 });
 
 it('shows image idea and template while hiding preparation instructions', () => {
-  const request = createMessageBody(imageRequest('Чашка', 'Фото [PRODUCT]'), 'image', { uid: 'IMAGE' }, [12]);
+  const request = createMessageBody(imageRequest('Чашка', 'Фото {PRODUCT}'), 'image', { uid: 'IMAGE' }, [12]);
   expect(request.files).toEqual([12]);
-  expect(displayMessageText(request.text)).toBe('Идея:\nЧашка\n\nШаблон:\nФото [PRODUCT]');
+  expect(displayMessageText(request.text)).toBe('Идея:\nЧашка\n\nШаблон:\nФото {PRODUCT}');
   expect(displayMessageText('Чужое сообщение')).toBe('Чужое сообщение');
 });
 

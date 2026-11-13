@@ -1,8 +1,9 @@
 import type { ReactElement } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ITemplate } from './materials';
 
 export function TemplateMedia({ item }: { item: ITemplate }): ReactElement {
+  const [active, setActive] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = ref.current;
@@ -10,6 +11,7 @@ export function TemplateMedia({ item }: { item: ITemplate }): ReactElement {
     const motion = matchMedia('(prefers-reduced-motion: reduce)');
     let visible = false;
     const update = () => {
+      setActive(visible && !document.hidden && !motion.matches);
       if (visible && !document.hidden && !motion.matches) void video.play().catch(() => {});
       else video.pause();
     };
@@ -30,12 +32,31 @@ export function TemplateMedia({ item }: { item: ITemplate }): ReactElement {
       motion.removeEventListener('change', update);
     };
   }, [item.src]);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    if (active) {
+      video.load();
+      void video.play().catch(() => {});
+    } else {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
+  }, [active]);
   return item.kind === 'video' ? (
     <>
       <img className="cw-still" src={item.src.replace(/\.mp4$/, '.jpg')} alt="" loading="lazy" />
-      <video ref={ref} src={item.src} muted loop playsInline preload="metadata" />
+      <video
+        ref={ref}
+        src={active ? item.previewSrc || item.src : undefined}
+        muted
+        loop
+        playsInline
+        preload="none"
+      />
     </>
   ) : (
-    <img src={item.src} alt="" loading="lazy" />
+    <img src={item.src} alt="" loading="lazy" decoding="async" />
   );
 }

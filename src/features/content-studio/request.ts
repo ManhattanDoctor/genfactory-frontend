@@ -42,7 +42,7 @@ export function mediaOptions(
     )
   )
     delete options.aspectRatio;
-  if (files.some((file) => file.type !== 'IMAGE'))
+  if (files.some((file) => file.type !== 'IMAGE' && !(kind === 'video' && file.type === 'VIDEO')))
     throw new Error('Для этой генерации доступны только изображения-референсы.');
   if (files.length && (!supportsReferences(model) || files.length > referenceLimit(model)))
     throw new Error('Модель не поддерживает выбранное количество референсов.');

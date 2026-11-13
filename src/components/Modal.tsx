@@ -1,3 +1,4 @@
+import './modal-footer.css';
 import { useEffect, useRef, useId, type ReactNode, type ReactElement } from 'react';
 import { X } from 'lucide-react';
 export function Modal({
@@ -53,4 +54,14 @@ export function Modal({
       {children}
     </dialog>
   );
+}
+
+export function ModalFooter({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}): ReactElement {
+  return <footer className={`modal-footer ${className}`}>{children}</footer>;
 }

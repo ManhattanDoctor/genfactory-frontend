@@ -107,7 +107,6 @@
   outline-offset: 1px;
 }
 .template-editor details {
-  border-bottom: 1px solid #2c2c31;
   padding-bottom: 16px;
 }
 .template-editor summary {
@@ -117,31 +116,6 @@
 }
 .template-editor details[open] summary {
   margin-bottom: 12px;
-}
-.template-reference {
-  display: grid;
-  gap: 10px;
-  padding: 16px;
-  border: 1px solid #2c2c31;
-  border-radius: 12px;
-}
-.template-reference h3 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  justify-content: space-between;
-}
-.template-reference h3 span {
-  color: #9a9aa0;
-  font-size: 12px;
-  font-weight: 400;
-}
-.template-reference-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
 }
 .template-dialog .button {
   min-height: 40px;
@@ -179,17 +153,7 @@
   font-size: 13px;
   color: #e7c56a;
 }
-.template-footer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px 24px;
-  flex: none;
-  padding: 16px 24px;
-  border-top: 1px solid #2c2c31;
-}
 .template-error {
-  grid-column: 1 / -1;
   color: #ff8d7a;
   font-size: 13px;
 }
@@ -212,9 +176,89 @@
   .template-example > video {
     height: 180px;
   }
-  .template-footer {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-    padding: 12px 16px;
+}
+
+.template-inputs:not(:has(input, select, textarea)) {
+  display: none;
+}
+.template-inputs {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #2c2c31;
+  background: #1a1b1e;
+  border-radius: 14px;
+}
+
+.template-preview {
+  display: grid;
+  gap: 10px;
+}
+.template-output {
+  max-height: 320px;
+  overflow: auto;
+  padding: 14px;
+  background: #111214;
+  border: 1px solid #2c2c31;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.template-dialog mark {
+  color: #d2f800;
+  background: transparent;
+}
+.template-editor select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #2c2c31;
+  border-radius: 12px;
+  background: #1a1b1e;
+  color: #f4f4f5;
+  font: inherit;
+}
+.template-source {
+  position: relative;
+  min-width: 0;
+}
+.template-source pre,
+.template-source textarea {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+  scrollbar-gutter: stable;
+}
+.template-source pre {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 12px;
+  background: #1a1b1e;
+  color: #f4f4f5;
+}
+.template-source textarea {
+  position: relative;
+  display: block;
+  background: transparent;
+  color: transparent;
+  caret-color: #f4f4f5;
+  resize: vertical;
+}
+.template-source textarea::selection {
+  background: #62733480;
+  color: transparent;
+}
+@media (forced-colors: active) {
+  .template-source pre {
+    display: none;
+  }
+  .template-source textarea {
+    color: CanvasText;
   }
 }

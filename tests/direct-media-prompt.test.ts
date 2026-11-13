@@ -6,9 +6,9 @@ describe('direct media prompt', () => {
     expect(directMediaPrompt('image', 'Красная чашка на столе', '')).toBe('Красная чашка на столе');
   });
   it('preserves the template and user instructions and gives the idea priority', () => {
-    const prompt = directMediaPrompt('image', 'Синий фон', 'Предмет на белом фоне [PRODUCT]');
+    const prompt = directMediaPrompt('image', 'Синий фон', 'Предмет на белом фоне {PRODUCT}');
     expect(prompt).toContain('Синий фон');
-    expect(prompt).toContain('Предмет на белом фоне [PRODUCT]');
+    expect(prompt).toContain('Предмет на белом фоне {PRODUCT}');
     expect(prompt).toContain('основной запрос имеет приоритет');
   });
   it('passes video structure to the provider without inventing a restriction on scene or clothes', () => {

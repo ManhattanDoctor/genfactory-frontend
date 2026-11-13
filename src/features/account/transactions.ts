@@ -26,7 +26,7 @@ export function transactionAmount(amount: string, currency: string, precise = fa
     const cents = (value + scale / 2n) / scale;
     formatted = `${new Intl.NumberFormat('ru-RU').format(cents / 100n)},${(cents % 100n).toString().padStart(2, '0')}`;
   }
-  return `${formatted} ${currency === 'RUB' ? '₽' : '$'}`;
+  return `${formatted} ${currency === 'RUB' ? 'GF' : '$'}`;
 }
 export function direction(t: IPaymentTransaction) {
   return t.credit === 'PR-00' && t.debet !== 'PR-00'

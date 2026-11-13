@@ -87,46 +87,31 @@ test('home removes search/history and folded navigation keeps centered icons', a
   expect(geometry.width).toBe(18);
   expect(geometry.dx).toBeLessThan(2);
 });
-test('image/video template editors have an explicit finish action and overlays stay on the thumbnail', async ({
-  page,
-}) => {
-  test.setTimeout(90000);
+test('image/video template editors apply text and preserve the draft on cancellation', async ({ page }) => {
   const writes = await setup(page);
   for (const route of ['/image', '/video']) {
     await page.goto(route);
-    await page.locator('.ds-template-card').first().click();
-    await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
-    await expect(page.getByRole('textbox', { name: 'Текст шаблона', exact: true })).toBeVisible();
-    const editor = page.getByRole('dialog', { name: 'Редактировать текст шаблона', exact: true });
-    await expect(editor).toBeVisible();
+    const title = route === '/image' ? 'Главное фото на белом фоне (маркетплейс)' : 'Studio product turn';
+    await page.getByRole('button', { name: title, exact: true }).click();
+    const editor = page.getByRole('dialog', { name: title, exact: true });
+    await expect(editor.getByRole('button', { name: 'Из библиотеки', exact: true })).toHaveCount(0);
+    await editor.getByText('Редактировать исходный шаблон', { exact: true }).click();
     const field = editor.getByRole('textbox', { name: 'Текст шаблона', exact: true });
-    const original = await field.inputValue();
     await field.fill('Черновик для отмены');
-    const centered = await editor.getByRole('button', { name: 'Закрыть', exact: true }).evaluate((el) => {
-      const button = el.getBoundingClientRect(),
-        icon = el.querySelector('svg')!.getBoundingClientRect();
-      return Math.max(
-        Math.abs(button.x + button.width / 2 - icon.x - icon.width / 2),
-        Math.abs(button.y + button.height / 2 - icon.y - icon.height / 2),
-      );
-    });
-    expect(centered).toBeLessThan(1);
-    await editor.getByRole('button', { name: 'Отмена', exact: true }).click();
-    await page.getByRole('button', { name: 'Редактировать шаблон', exact: true }).click();
-    await expect(field).toHaveValue(original);
+    await editor.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    await expect(page.locator(route === '/image' ? '#img-draft' : '#vd-draft')).toHaveValue('');
+    await page.getByRole('button', { name: title, exact: true }).click();
+    await editor.getByText('Редактировать исходный шаблон', { exact: true }).click();
     await field.fill('Обновлённый текст шаблона');
-
-    await page.getByRole('button', { name: 'Готово', exact: true }).click();
-    await expect(page.getByRole('textbox', { name: 'Текст шаблона', exact: true })).toHaveCount(0);
-    const overlay = page.getByRole('button', { name: 'Редактировать шаблон', exact: true });
-    const box = await overlay.boundingBox(),
-      thumb = await page.locator('.img-file.is-template .img-thumb').boundingBox();
-    expect(box!.x).toBeGreaterThanOrEqual(thumb!.x);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(thumb!.x + thumb!.width);
-    expect(box!.width).toBeLessThanOrEqual(28);
+    await editor.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+    await expect(editor).toHaveCount(0);
+    await expect(page.locator(route === '/image' ? '#img-draft' : '#vd-draft')).toHaveValue(
+      'Обновлённый текст шаблона',
+    );
   }
   expect(writes).toEqual([]);
 });
+
 test('library icon filters have accessible names, no audio/link creation, and rename survives refresh', async ({
   page,
 }) => {

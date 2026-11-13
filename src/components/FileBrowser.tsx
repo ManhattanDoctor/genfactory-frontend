@@ -1,3 +1,4 @@
+import { SkeletonCards } from './Skeleton';
 import type { ReactElement } from 'react';
 import './file-browser.css';
 import { FileCard } from './FileCard';
@@ -25,7 +26,7 @@ import { api, getSession } from '../lib/api';
 import { directoryPath, folderTrail, mediaType, resolveFile } from '../lib/files';
 import type { IGnosisFile } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
-import { Modal } from './Modal';
+import { Modal, ModalFooter } from './Modal';
 const FILE_TAG_FILTER_ENABLED = false;
 
 interface IFileBrowserProps {
@@ -439,7 +440,7 @@ export function FileBrowser({
       )}
       {!action && error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
-      {files.isPending && <p role="status">Загружаем файлы…</p>}
+      {user && files.isPending && <SkeletonCards label="Загружаем файлы…" />}
       {files.error && (
         <p role="alert">
           {files.error.message}{' '}
@@ -559,7 +560,7 @@ export function FileBrowser({
             ))}
           </ul>
           {error && <p role="alert">{error}</p>}
-          <div className="file-form-buttons">
+          <ModalFooter className="file-form-buttons">
             <button type="button" className="button" disabled={busy} onClick={() => setConfirmBatch(false)}>
               Отмена
             </button>
@@ -571,7 +572,7 @@ export function FileBrowser({
             >
               {busy ? 'Удаляем…' : 'Удалить безвозвратно'}
             </button>
-          </div>
+          </ModalFooter>
         </Modal>
       )}
       {files.data &&
@@ -660,14 +661,14 @@ export function FileBrowser({
               />
             </label>
             {error && <p role="alert">{error}</p>}
-            <div className="file-form-buttons">
+            <ModalFooter className="file-form-buttons">
               <button type="button" className="button" disabled={busy} onClick={() => setAction(undefined)}>
                 Отмена
               </button>
               <button type="submit" className="button primary" disabled={busy || name.trim().length < 3}>
                 {busy ? 'Сохраняем…' : 'Сохранить'}
               </button>
-            </div>
+            </ModalFooter>
           </form>
         </Modal>
       )}

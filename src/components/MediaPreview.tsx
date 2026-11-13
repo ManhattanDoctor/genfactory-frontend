@@ -1,3 +1,5 @@
+import './media-loading.css';
+import { Skeleton } from './Skeleton';
 import { downloadFile } from '../lib/files';
 import type { ReactElement } from 'react';
 import { GenerationDetails } from './FileGeneration';
@@ -12,21 +14,119 @@ import { Modal } from './Modal';
 export type MediaFile = Pick<IGnosisFile, 'name' | 'type' | 'mime' | 'preview'> &
   Partial<Pick<IGnosisFile, 'path'>>;
 export type PreviewFile = MediaFile & Partial<IGnosisFile>;
-export function Media({
+interface MediaProps {
+  file: MediaFile;
+  controls?: boolean;
+  isPlaybackDisabled?: boolean;
+  className?: string;
+  frameClassName?: string;
+  showLoadingState?: boolean;
+  autoPlay?: boolean;
+  onReady?: () => void;
+}
+export function Media(props: MediaProps): ReactElement {
+  const identity = `${props.file.path}:${props.file.preview?.image?.url}:${props.file.preview?.video?.url}`;
+  const [readyFor, setReadyFor] = useState('');
+  const [failedFor, setFailedFor] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const [seen, setSeen] = useState(false);
+  const frame = useRef<HTMLSpanElement>(null);
+  const loading = readyFor !== identity;
+  const tracked =
+    (props.showLoadingState ?? !props.controls) &&
+    (props.file.type === 'IMAGE' || props.file.type === 'VIDEO');
+  useEffect(() => {
+    if (!tracked || !frame.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setVisible(entry.isIntersecting);
+        if (entry.isIntersecting) setSeen(true);
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(frame.current);
+    return () => observer.disconnect();
+  }, [tracked]);
+  useEffect(() => {
+    if (!tracked || !visible || !loading) return;
+    const timer = setTimeout(() => setFailedFor(identity), 30000);
+    return () => clearTimeout(timer);
+  }, [tracked, visible, loading, identity, attempt]);
+  if (!tracked) return <MediaContent {...props} />;
+  const retry = (): void => {
+    setFailedFor('');
+    setAttempt((value) => value + 1);
+  };
+  return (
+    <span
+      ref={frame}
+      className={`media-loading-frame ${props.frameClassName || ''}`}
+      data-media-type={props.file.type}
+      aria-busy={loading && failedFor !== identity}
+      style={{
+        aspectRatio: `var(--media-loading-ratio, ${
+          props.file.preview?.image?.width && props.file.preview.image.height
+            ? `${props.file.preview.image.width} / ${props.file.preview.image.height}`
+            : loading
+              ? '4 / 3'
+              : 'auto'
+        })`,
+      }}
+    >
+      {seen && (
+        <MediaContent
+          key={`${identity}:${attempt}`}
+          {...props}
+          isPlaybackDisabled={props.isPlaybackDisabled || !visible}
+          onUnavailable={() => setFailedFor(identity)}
+          onReady={() => {
+            setReadyFor(identity);
+            props.onReady?.();
+          }}
+        />
+      )}
+      {loading &&
+        (failedFor === identity ? (
+          <span className="media-loading-error" role="status">
+            Не удалось загрузить
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+                retry();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  retry();
+                }
+              }}
+            >
+              Повторить
+            </span>
+          </span>
+        ) : (
+          <Skeleton className="media-loading-skeleton" />
+        ))}
+    </span>
+  );
+}
+function MediaContent({
   file,
   controls = false,
   isPlaybackDisabled = false,
   className,
   autoPlay,
   onReady,
-}: {
-  file: MediaFile;
-  controls?: boolean;
-  isPlaybackDisabled?: boolean;
-  className?: string;
-  autoPlay?: boolean;
-  onReady?: () => void;
-}): ReactElement {
+  onUnavailable,
+}: MediaProps & { onUnavailable?: () => void }): ReactElement {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (isPlaybackDisabled) videoRef.current?.pause();
+  }, [isPlaybackDisabled]);
   const original = safeMediaUrl(file.path);
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const failSource = (source: string): void => {
@@ -51,8 +151,11 @@ export function Media({
       ? controls || !poster || failedSources.includes(poster)
       : !src;
   useEffect(() => {
-    if (placeholder) onReady?.();
-  }, [placeholder, onReady]);
+    if (placeholder) {
+      if (onUnavailable) onUnavailable();
+      else onReady?.();
+    }
+  }, [placeholder, onReady, onUnavailable]);
   if (!isImage && !isVideo) {
     if (!controls || !isAudio) {
       if (!controls && poster && !failedSources.includes(poster))
@@ -93,6 +196,7 @@ export function Media({
     );
   return isVideo ? (
     <video
+      ref={videoRef}
       className={className}
       src={src}
       poster={poster}
@@ -100,7 +204,7 @@ export function Media({
       controls={controls}
       autoPlay={autoPlay ?? (controls && !isPlaybackDisabled)}
       muted={!controls}
-      preload="metadata"
+      preload={isPlaybackDisabled ? 'none' : 'metadata'}
       playsInline
       loop={!controls}
       onMouseEnter={(event) => {
@@ -109,9 +213,9 @@ export function Media({
       onMouseLeave={(event) => {
         if (!controls) event.currentTarget.pause();
       }}
+      onLoadedData={onReady}
       onLoadedMetadata={(event) => {
         const video = event.currentTarget;
-        onReady?.();
         if (!controls && video.currentTime === 0 && Number.isFinite(video.duration) && video.duration > 0)
           video.currentTime = Math.min(0.1, video.duration / 2);
       }}

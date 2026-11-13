@@ -6,6 +6,7 @@
   margin-top: 36px;
 }
 .studio-shell .main:has(.image-workspace) {
+  --image-wall-gutter: 16px;
   padding: 0;
 }
 .image-workspace {
@@ -57,7 +58,7 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 16px 16px 234px;
+  padding: 16px var(--image-wall-gutter) 234px;
 }
 .image-workspace .img-tile {
   position: relative;
@@ -143,7 +144,7 @@
   min-height: 44px;
   padding: 0 16px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--accent);
   color: #17180a;
   font-size: 14px;
   font-weight: 600;
@@ -539,7 +540,10 @@
 }
 .image-workspace .image-conversation-note nav {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: calc(var(--pagination-space) - 16px) 0;
 }
 @media (max-width: 900px) {
   .image-workspace::after {
@@ -794,4 +798,36 @@
   white-space: pre-wrap;
   line-height: 1.6;
   font-size: 15px;
+}
+
+.studio-shell .main:has(.image-workspace) > .sign-in-notice {
+  width: 100%;
+  flex-shrink: 0;
+  max-width: none;
+  padding: 16px var(--image-wall-gutter) 0;
+}
+@media (max-width: 720px) {
+  .studio-shell .main:has(.image-workspace) {
+    --image-wall-gutter: 10px;
+  }
+}
+
+.studio-shell .main:has(> .sign-in-notice):has(.image-workspace) {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  padding-top: var(--header);
+}
+.studio-shell .main:has(> .sign-in-notice):has(.image-workspace) > .route-view {
+  flex: 1;
+  min-height: 0;
+}
+.studio-shell .main:has(> .sign-in-notice) .image-workspace {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  height: 100%;
+  min-height: 0;
 }
