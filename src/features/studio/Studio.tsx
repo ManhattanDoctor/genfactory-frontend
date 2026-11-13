@@ -7,7 +7,7 @@ import {
   videoReferenceMode,
   supportsVideoReferences,
   videoReferenceError,
-  validateVideoReferenceDimensions,
+  validateVideoReferenceMetadata,
 } from '../catalog/videoInputs';
 import {
   IMAGE_UPLOAD_ACCEPT,
@@ -236,7 +236,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           : true,
     )
     .map((m) => (specialized === 'banana' ? { ...m, name: bananaTitle(m) } : m));
-  const modelKey = (m: IModelDescription) => `${m.reference.provider}:${m.reference.model}`;
+  const modelKey = (m: Pick<IModelDescription, 'reference'>) =>
+    `${m.reference.provider}:${m.reference.model}`;
   const savedReference = conversation ? connection(conversation, kind)?.settings?.model : undefined;
   const retained = useRetainedModel(savedReference, catalog.data ? models : undefined, auth.user?.id);
   const requestedKey =
@@ -766,7 +767,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           actualReferences.push(actual);
           if (!current()) return;
         }
-        if (kind === 'video') await validateVideoReferenceDimensions(model, actualReferences);
+        if (kind === 'video')
+          await validateVideoReferenceMetadata(model, actualReferences, Number(body.options.duration) || 0);
         if (!current()) return;
         const taskBody: ITaskRequest = {
           ...body,
@@ -1021,9 +1023,19 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           draft.changed();
           setPrompt(value);
         }}
-        onModel={(value) => {
+        onModel={(value, templateOptions) => {
           draft.changed();
-          setSelected(modelKey(value));
+          const key = modelKey(value);
+          if (templateOptions) {
+            const chosen = models.find((item) => modelKey(item) === key);
+            initializedModel.current = key;
+            setOptions({
+              ...(currentKey === key ? options : videoDefaults(chosen)),
+              ...templateOptions,
+              model: value.reference.model,
+            });
+          }
+          setSelected(key);
         }}
         onOptions={(value) => {
           draft.changed();

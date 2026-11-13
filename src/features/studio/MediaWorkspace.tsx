@@ -114,7 +114,7 @@ export function MediaWorkspace({
   retryCatalog?: () => void;
   error: string;
   onPrompt: (value: string) => void;
-  onModel: (model: IModelDescription) => void;
+  onModel: (model: Pick<IModelDescription, 'reference'>, templateOptions?: Record<string, unknown>) => void;
   onOptions: (value: Record<string, unknown>) => void;
   onReferences: (value: IGnosisFile[]) => void;
   onLibrary: () => void;
@@ -299,6 +299,14 @@ export function MediaWorkspace({
   const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
   const applyTemplateText = (item: ITemplate, text: string): void => {
+    if (item.model)
+      onModel(
+        { reference: item.model },
+        {
+          ...(typeof options.duration === 'number' ? { duration: options.duration } : {}),
+          ...(item.duration ? { duration: item.duration } : {}),
+        },
+      );
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);

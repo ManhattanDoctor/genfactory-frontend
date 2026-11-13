@@ -124,6 +124,8 @@ function MediaContent({
   onUnavailable,
 }: MediaProps & { onUnavailable?: () => void }): ReactElement {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [playingSource, setPlayingSource] = useState('');
+  const [previewActive, setPreviewActive] = useState(false);
   useEffect(() => {
     if (isPlaybackDisabled) videoRef.current?.pause();
   }, [isPlaybackDisabled]);
@@ -194,7 +196,7 @@ function MediaContent({
         onError={() => failSource(src)}
       />
     );
-  return isVideo ? (
+  const video = isVideo ? (
     <video
       ref={videoRef}
       className={className}
@@ -202,17 +204,21 @@ function MediaContent({
       poster={poster}
       onError={() => failSource(src)}
       controls={controls}
-      autoPlay={autoPlay ?? (controls && !isPlaybackDisabled)}
+      autoPlay={autoPlay ?? (!isPlaybackDisabled && (controls || (previewActive && !!poster)))}
       muted={!controls}
       preload={isPlaybackDisabled ? 'none' : 'metadata'}
       playsInline
       loop={!controls}
       onMouseEnter={(event) => {
-        if (!controls && !isPlaybackDisabled && clip) void event.currentTarget.play().catch(() => {});
+        if (!controls && !isPlaybackDisabled && clip)
+          void event.currentTarget.play().catch(() => setPlayingSource(''));
       }}
       onMouseLeave={(event) => {
         if (!controls) event.currentTarget.pause();
       }}
+      onPlaying={() => setPlayingSource(src)}
+      onWaiting={() => setPlayingSource('')}
+      onPause={() => setPlayingSource('')}
       onLoadedData={onReady}
       onLoadedMetadata={(event) => {
         const video = event.currentTarget;
@@ -229,6 +235,26 @@ function MediaContent({
       loading="lazy"
       onError={() => failSource(src)}
     />
+  );
+  if (!isVideo || controls || !poster || failedSources.includes(poster)) return video;
+  return (
+    <span
+      className="media-video-preview"
+      onMouseEnter={() => setPreviewActive(true)}
+      onMouseLeave={() => {
+        setPreviewActive(false);
+        setPlayingSource('');
+      }}
+    >
+      <img
+        className={`media-video-poster ${playingSource === src && previewActive && !isPlaybackDisabled ? 'is-playing' : ''}`}
+        src={poster}
+        alt={file.name}
+        onLoad={onReady}
+        onError={() => failSource(poster)}
+      />
+      {previewActive && !isPlaybackDisabled && video}
+    </span>
   );
 }
 export function MediaPreview({

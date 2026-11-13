@@ -1,6 +1,10 @@
 import { followsReferenceRatio } from '../src/features/catalog/schema';
-import { describe, expect, it } from 'vitest';
-import { videoInputOptions, videoReferenceMode } from '../src/features/catalog/videoInputs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  videoInputOptions,
+  videoReferenceMode,
+  validateVideoReferenceMetadata,
+} from '../src/features/catalog/videoInputs';
 import { createMessageBody } from '../src/features/studio/conversations';
 import type { IModelDescription, IGnosisFile } from '../src/lib/types';
 const seedance: IModelDescription = {
@@ -119,4 +123,53 @@ it('accepts one Grok first-frame image without reference mode support', () => {
   expect(videoInputOptions(grok, files.slice(0, 1), videoReferenceMode(grok, 1)).frameImages).toEqual([
     { url: files[0].path, type: 'first_frame' },
   ]);
+});
+
+describe('video metadata limits before a paid request', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const wan: IModelDescription = structuredClone(mixedModel);
+  wan.schema.properties!.options!.properties!.inputReferences!['x-referenceLimits']!.video = {
+    maxItems: 5,
+    minSide: 240,
+    maxSide: 4096,
+    maxAspectRatio: 8,
+    minDuration: 1,
+    maxTotalDuration: 15,
+    maxCombinedDuration: 30,
+  };
+  const clip = { type: 'VIDEO', path: 'https://files.test/video.mp4' } as IGnosisFile;
+  it.each([
+    [1280, 720, 2, 1, 4, undefined],
+    [1280, 720, 3, 5, 15, undefined],
+    [1280, 720, 4, 4, 4, 'Общая длительность'],
+    [1280, 720, 10, 1, 21, 'Сумма длительности'],
+    [1280, 720, 0.5, 1, 4, 'не меньше 1 с'],
+    [1280, 200, 2, 1, 4, 'не меньше 240'],
+    [5000, 720, 2, 1, 4, 'не больше 4096'],
+    [3000, 240, 2, 1, 4, '8:1'],
+    [1280, 720, Infinity, 1, 4, 'Не удалось прочитать'],
+  ])('validates %sx%s, %ss × %s with output %ss', async (width, height, duration, count, output, error) => {
+    const released = vi.fn();
+    vi.stubGlobal('document', {
+      createElement: () => {
+        const video = {
+          videoWidth: width,
+          videoHeight: height,
+          duration,
+          onloadedmetadata: undefined as (() => void) | undefined,
+          onerror: undefined as (() => void) | undefined,
+          set src(_value: string) {
+            queueMicrotask(() => this.onloadedmetadata?.());
+          },
+          removeAttribute: released,
+          load: vi.fn(),
+        };
+        return video;
+      },
+    });
+    const result = validateVideoReferenceMetadata(wan, Array(count).fill(clip), output);
+    if (error) await expect(result).rejects.toThrow(error);
+    else await expect(result).resolves.toBeUndefined();
+    expect(released).toHaveBeenCalledWith('src');
+  });
 });

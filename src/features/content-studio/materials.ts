@@ -1,3 +1,4 @@
+import type { IModelDescription } from '../../lib/types';
 import { videoFrames } from '../workspace/videoFrames';
 
 export interface ITemplate {
@@ -7,6 +8,8 @@ export interface ITemplate {
   genre: string;
   addedAt?: string;
   prompt: string;
+  model?: IModelDescription['reference'];
+  duration?: number;
   src: string;
   previewSrc?: string;
   ratio: string;

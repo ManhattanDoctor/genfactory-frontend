@@ -89,3 +89,32 @@ describe('ts-core language prompt rendering', () => {
 it('rejects nonnumeric plural inputs instead of rendering NaN', () => {
   expect(() => fillTemplate('{COUNT, plural, other {# файлов}}', { COUNT: 'abc' })).toThrow();
 });
+
+it('uses Wan 3.0 for every video template without prescribing an image model', () => {
+  const videos = templates.filter((item) => item.kind === 'video');
+  expect(videos).toHaveLength(56);
+  for (const item of videos)
+    expect(item).toHaveProperty('model', { provider: 'OPEN_ROUTER_VIDEO', model: 'alibaba/wan-3.0' });
+  for (const item of templates.filter((item) => item.kind !== 'video'))
+    expect(item).not.toHaveProperty('model');
+});
+
+it('records explicit video durations including timelines and preserves unspecified durations', () => {
+  const get = (n: number) =>
+    templates.find((item) => item.id === `video:2026-11-13:${String(n).padStart(2, '0')}`)!;
+  for (const [n, duration] of [
+    [1, 18],
+    [2, 12],
+    [5, 15],
+    [9, 30],
+    [12, 20],
+    [13, 15],
+    [23, 15],
+  ])
+    expect(get(n)).toHaveProperty('duration', duration);
+  expect(get(3)).not.toHaveProperty('duration');
+  for (const item of templates.filter(
+    (item) => item.kind === 'video' && !item.id.startsWith('video:2026-11-13:'),
+  ))
+    expect(item).toHaveProperty('duration', templateDuration(item.prompt));
+});

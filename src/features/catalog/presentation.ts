@@ -1,6 +1,7 @@
 import type { IModelDescription } from '../../lib/types';
 import { modelDescriptions } from './modelDescriptions';
-export const modelKey = (model: IModelDescription) => `${model.reference.provider}:${model.reference.model}`;
+export const modelKey = (model: Pick<IModelDescription, 'reference'>) =>
+  `${model.reference.provider}:${model.reference.model}`;
 /** Favorites affect display order only, never the default used to execute a request. */
 export function favoritesFirst<T>(items: T[], favorites: string[], key: (item: T) => string): T[] {
   const selected = new Set(favorites);

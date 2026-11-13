@@ -36,7 +36,7 @@ import {
   videoReferenceMode,
   supportsVideoReferences,
   videoReferenceError,
-  validateVideoReferenceDimensions,
+  validateVideoReferenceMetadata,
 } from '../catalog/videoInputs';
 import { mediaOptions } from './request';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
@@ -152,6 +152,8 @@ export function ContentStudio(): ReactElement {
   const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
   const applyTemplateText = (item: ITemplate, prompt: string): void => {
+    if (item.model) setSelectedModel(modelKey({ reference: item.model }));
+    if (item.duration) setDuration(item.duration);
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
@@ -801,7 +803,7 @@ export function ContentStudio(): ReactElement {
           setAttachments((previous) => previous.map((item) => (item.id === id ? { ...item, saved } : item))),
       });
       if (!savedFiles) return;
-      if (mode === 'video') await validateVideoReferenceDimensions(model, savedFiles);
+      if (mode === 'video') await validateVideoReferenceMetadata(model, savedFiles, duration);
       if (!current()) return;
       setUploading(false);
       const request = await buildStudioMessage({

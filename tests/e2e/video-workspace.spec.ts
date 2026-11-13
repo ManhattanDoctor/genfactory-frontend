@@ -8,7 +8,13 @@ const catalog = JSON.parse(readFileSync(new URL('../fixtures/catalog.json', impo
 );
 for (const [index, model] of catalog.entries()) {
   Object.assign(model.schema.properties.options.properties, {
-    duration: { type: 'integer', enum: [4, 6, 8, 10] },
+    duration: {
+      type: 'integer',
+      enum:
+        model.reference.model === 'alibaba/wan-3.0'
+          ? Array.from({ length: 29 }, (_, i) => i + 2)
+          : [4, 6, 8, 10],
+    },
     aspectRatio: { type: 'string', enum: ['9:16', '16:9', '1:1'] },
     generateAudio: ['x-ai/grok-imagine-video-1.5-lite', 'alibaba/wan-3.0'].includes(model.reference.model)
       ? { type: 'boolean', const: true, default: true }
@@ -485,4 +491,87 @@ test('a video model limited to one frame still blocks the second attachment', as
   ).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Библиотека' })).toHaveCount(0);
   expect(state.tasks).toHaveLength(0);
+});
+
+test('applying an updated video template selects Wan and sends its new prompt', async ({ page }) => {
+  const state = await setup(page);
+  await page.goto('/video');
+  await page.getByRole('button', { name: 'Послание в объектив', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('#vd-draft')).toHaveValue(/Герой - тот, кто на загруженном фото/);
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Wan');
+  await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('18 с');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Wan');
+  await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('18 с');
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].options.model).toBe('alibaba/wan-3.0');
+  expect(state.tasks[0].options.duration).toBe(18);
+  expect(state.tasks[0].task.prompt).toContain('The subject from the uploaded photo');
+});
+
+test('a template without duration preserves the selected seconds when switching to Wan', async ({ page }) => {
+  await setup(page);
+  await page.goto('/video');
+  await page.getByRole('button', { name: 'Длительность', exact: true }).click();
+  await page.getByRole('option', { name: '6 с', exact: true }).click();
+  await page.getByRole('button', { name: 'Оживающая вышивка на кепке', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Wan');
+  await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('6 с');
+});
+
+test('generated video keeps its poster during slow hover playback and releases the player on leave', async ({
+  page,
+}, testInfo) => {
+  await setup(page);
+  const preview = {
+    ...result,
+    preview: {
+      image: { status: 'READY', url: '/media/templates/2026-11-13/video/17.jpg', width: 480, height: 270 },
+      video: { status: 'READY', url: '/hover-preview.mp4' },
+    },
+  };
+  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([preview]) }));
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/hover-preview.mp4', async (route) => {
+    await gate;
+    await route.fulfill({
+      contentType: 'video/mp4',
+      body: readFileSync(
+        new URL('../../public/media/templates/2026-11-13/video/previews/17.mp4', import.meta.url),
+      ),
+    });
+  });
+  await page.goto('/video');
+  const card = page.locator('.video-result').first();
+  const poster = card.locator('.media-video-poster');
+  await expect(poster).toBeVisible();
+  await expect(card.locator('video')).toHaveCount(0);
+  const before = await card.boundingBox();
+  await card.locator('.media-video-preview').hover();
+  await expect(card.locator('video')).toHaveCount(1);
+  await expect(poster).toBeVisible();
+  await card.screenshot({ path: testInfo.outputPath('hover-waiting.png') });
+  release();
+  await expect
+    .poll(() =>
+      card
+        .locator('video')
+        .evaluate((v) => !(v as HTMLVideoElement).paused && (v as HTMLVideoElement).readyState >= 2),
+    )
+    .toBe(true);
+  await expect(poster).toBeHidden();
+  expect(Math.abs((await card.boundingBox())!.height - before!.height)).toBeLessThan(1);
+  await card.locator('video').evaluate((v) => v.dispatchEvent(new Event('waiting')));
+  await expect(poster).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(card.locator('video')).toHaveCount(0);
+  await expect(poster).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect(poster).toBeVisible();
+  await expect(card.locator('video')).toHaveCount(0);
 });

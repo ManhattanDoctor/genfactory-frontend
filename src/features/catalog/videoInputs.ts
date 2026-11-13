@@ -64,13 +64,26 @@ export function videoReferenceError(
 }
 
 /** Read the original video metadata before starting a paid request. Preview dimensions are derived and cannot be used here. */
-export async function validateVideoReferenceDimensions(
+export async function validateVideoReferenceMetadata(
   model: IModelDescription,
   files: IGnosisFile[],
+  outputDuration = 0,
 ): Promise<void> {
-  const minimum =
-    model.schema.properties?.options?.properties?.inputReferences?.['x-referenceLimits']?.video?.minPixels;
-  if (!minimum) return;
+  const limits = model.schema.properties?.options?.properties?.inputReferences?.['x-referenceLimits']?.video;
+  if (
+    !limits ||
+    ![
+      limits.minPixels,
+      limits.minSide,
+      limits.maxSide,
+      limits.maxAspectRatio,
+      limits.minDuration,
+      limits.maxTotalDuration,
+      limits.maxCombinedDuration,
+    ].some(Boolean)
+  )
+    return;
+  let totalDuration = 0;
   for (const file of files.filter((item) => item.type === 'VIDEO')) {
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -83,23 +96,44 @@ export async function validateVideoReferenceDimensions(
           error ? reject(error) : resolve();
         };
         const timer = setTimeout(
-          () => finish(new Error('Не удалось проверить разрешение видео. Попробуйте ещё раз.')),
+          () => finish(new Error('Не удалось проверить видео. Попробуйте ещё раз.')),
           15000,
         );
         video.onerror = () => finish(new Error('Не удалось прочитать исходное видео. Выберите другой файл.'));
-        video.onloadedmetadata = () =>
-          finish(
-            video.videoWidth * video.videoHeight < minimum
-              ? new Error(
-                  `Слишком маленькое видео: ${video.videoWidth}×${video.videoHeight}. Модель требует минимум ${minimum} пикселей. Выберите видео большего разрешения.`,
-                )
-              : undefined,
-          );
+        video.onloadedmetadata = () => finish();
         video.src = file.path;
       });
+      const { videoWidth: width, videoHeight: height, duration } = video;
+      if (!width || !height || !Number.isFinite(duration) || duration <= 0)
+        throw new Error('Не удалось прочитать параметры исходного видео. Выберите другой файл.');
+      if (limits.minPixels && width * height < limits.minPixels)
+        throw new Error(
+          `Слишком маленькое видео: ${width}×${height}. Модель требует минимум ${limits.minPixels} пикселей. Выберите видео большего разрешения.`,
+        );
+      if (limits.minSide && Math.min(width, height) < limits.minSide)
+        throw new Error(`Размер каждой стороны видео должен быть не меньше ${limits.minSide} пикселей.`);
+      if (limits.maxSide && Math.max(width, height) > limits.maxSide)
+        throw new Error(`Размер каждой стороны видео должен быть не больше ${limits.maxSide} пикселей.`);
+      if (limits.maxAspectRatio && Math.max(width, height) / Math.min(width, height) > limits.maxAspectRatio)
+        throw new Error(`Соотношение сторон исходного видео не должно превышать ${limits.maxAspectRatio}:1.`);
+      if (limits.minDuration && duration < limits.minDuration)
+        throw new Error(
+          `Длительность каждого исходного видео должна быть не меньше ${limits.minDuration} с.`,
+        );
+      totalDuration += duration;
     } finally {
       video.removeAttribute('src');
       video.load();
     }
   }
+  if (limits.maxTotalDuration && totalDuration > limits.maxTotalDuration)
+    throw new Error(`Общая длительность исходных видео не должна превышать ${limits.maxTotalDuration} с.`);
+  if (
+    totalDuration &&
+    limits.maxCombinedDuration &&
+    totalDuration + outputDuration > limits.maxCombinedDuration
+  )
+    throw new Error(
+      `Сумма длительности исходных видео и результата не должна превышать ${limits.maxCombinedDuration} с. Уменьшите длительность результата.`,
+    );
 }

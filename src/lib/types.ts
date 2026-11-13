@@ -2,7 +2,18 @@ export type MediaKind = 'image' | 'video';
 export interface ISchema {
   'x-referenceLimits'?: Record<
     string,
-    { maxItems: number; maxBytes?: number; minPixels?: number; mimeTypes?: string[] }
+    {
+      maxItems: number;
+      maxBytes?: number;
+      minPixels?: number;
+      minSide?: number;
+      maxSide?: number;
+      maxAspectRatio?: number;
+      minDuration?: number;
+      maxTotalDuration?: number;
+      maxCombinedDuration?: number;
+      mimeTypes?: string[];
+    }
   >;
   type?: string;
   description?: string;

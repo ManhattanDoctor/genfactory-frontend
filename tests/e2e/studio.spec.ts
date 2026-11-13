@@ -8230,111 +8230,127 @@ test('sign-in error aligns with image cards at desktop and mobile widths', async
   }
 });
 
-for (const path of ['/video', '/chat']) {
-  test(`mixed video references survive reload and reach the request on ${path}`, async ({
-    page,
-  }, testInfo) => {
-    test.setTimeout(120_000);
-    const state = await mockApi(page);
-    const models = structuredClone(catalog);
-    const chosen = models.find((m) => m.reference.model === 'bytedance/seedance-2.5')!;
-    chosen.schema.properties!.task!.properties!.fileIds = {
-      type: 'array',
-      items: { type: 'integer' },
-      maxItems: 40,
-    };
-    chosen.schema.properties!.options!.properties!.inputReferences = {
-      type: 'array',
-      maxItems: 40,
-      items: {
-        type: 'object',
-        properties: { url: { type: 'string' }, type: { enum: ['image', 'video'] } },
-        required: ['url', 'type'],
-      },
-      'x-referenceLimits': {
-        image: { maxItems: 30 },
-        video: { maxItems: 10, maxBytes: 200 * 1024 * 1024, mimeTypes: ['video/mp4', 'video/quicktime'] },
-      },
-    };
-    await page.route('**/api/aimodels?*', (route) =>
-      route.fulfill({
-        json: catalogResponse(
-          route.request().url(),
-          catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_CONVERSATION'
-            ? [agent]
-            : models.filter((m) => m.reference.provider === catalogProvider(new URL(route.request().url()))),
-        ),
-      }),
-    );
-    const clip = {
-      ...file,
-      id: 14,
-      uid: 'reference-clip',
-      name: 'Исходный ролик.mp4',
-      type: 'VIDEO',
-      mime: 'video/mp4',
-      size: 1024,
-      path: '/test-video.mp4',
-    };
-    const files = [file, clip];
-    await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination(files) }));
-    await page.route(/\/api\/file\/\d+$/, (route) =>
-      route.fulfill({ json: files.find((f) => f.id === Number(route.request().url().split('/').pop())) }),
-    );
-    await page.goto(path);
-    if (path === '/video') await chooseModel(page, 'OPEN_ROUTER_VIDEO:bytedance/seedance-2.5');
-    else {
-      await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
-      await page.getByRole('button', { name: /^Модель:/ }).click();
-      await page.getByRole('option', { name: modelTitle(chosen), exact: true }).click();
-    }
-    const title = 'Замена персонажа в танце';
-    if (path === '/video') await page.getByRole('button', { name: title, exact: true }).click();
-    else {
-      const card = page
-        .locator('.cw-card')
-        .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
-      await card.hover();
-      await card.getByRole('button', { name: 'Добавить', exact: true }).click();
-    }
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.locator(path === '/video' ? '#vd-draft' : '#cw-draft')).toHaveValue(/@video1/);
-    await page
-      .getByRole('button', {
-        name: path === '/video' ? 'Добавить фото или видео' : 'Добавить файл',
-        exact: true,
-      })
-      .click();
-    const picker = page.getByRole('dialog', { name: 'Библиотека' });
-    await picker.getByText(clip.name, { exact: true }).click();
-    await picker.getByText(file.name, { exact: true }).click();
-    await picker.getByRole('button', { name: 'Добавить (2)', exact: true }).click();
-    await expect(page.locator('.composer-attachment')).toHaveCount(2);
-    await expect(page.locator('.composer-attachment').first()).toContainText(clip.name);
-    // Wait for the existing draft debounce before reloading.
-    await expect
-      .poll(() => page.evaluate(() => JSON.stringify(localStorage)))
-      .toContain('Исходный ролик.mp4');
-    await page.reload();
-    await expect(page.locator('.composer-attachment')).toHaveCount(2);
-    for (const width of [390, 1440]) {
-      await page.setViewportSize({ width, height: 900 });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`mixed-references-${width}.png`) });
-    }
-    await page
-      .getByRole('button', { name: path === '/video' ? 'Собрать видео' : 'Отправить запрос', exact: true })
-      .click();
-    if (path === '/video') {
-      await expect.poll(() => state.tasks.length).toBe(1);
-      expect(state.tasks[0].task.fileIds).toEqual([14, 12]);
-      expect(state.tasks[0].task.referenceMode).toBe('references');
-    } else {
-      await expect.poll(() => state.sends.length).toBe(1);
-      expect(state.sends[0].files).toEqual([14, 12]);
-      expect(parseStudioContext(state.sends[0].text)?.input?.referenceMode).toBe('references');
-    }
-  });
+for (const modelId of ['bytedance/seedance-2.5', 'alibaba/wan-3.0']) {
+  for (const path of ['/video', '/chat']) {
+    test(`mixed video references survive reload and reach the request on ${path} with ${modelId}`, async ({
+      page,
+    }, testInfo) => {
+      test.setTimeout(120_000);
+      const state = await mockApi(page);
+      const models = structuredClone(catalog);
+      const chosen = models.find((m) => m.reference.model === modelId)!;
+      chosen.schema.properties!.task!.properties!.fileIds = {
+        type: 'array',
+        items: { type: 'integer' },
+        maxItems: modelId === 'alibaba/wan-3.0' ? 15 : 40,
+      };
+      chosen.schema.properties!.options!.properties!.inputReferences = {
+        type: 'array',
+        maxItems: modelId === 'alibaba/wan-3.0' ? 15 : 40,
+        items: {
+          type: 'object',
+          properties: { url: { type: 'string' }, type: { enum: ['image', 'video'] } },
+          required: ['url', 'type'],
+        },
+        'x-referenceLimits': {
+          image: { maxItems: modelId === 'alibaba/wan-3.0' ? 10 : 30 },
+          video: {
+            maxItems: modelId === 'alibaba/wan-3.0' ? 5 : 10,
+            maxBytes: 200 * 1024 * 1024,
+            mimeTypes: ['video/mp4', 'video/quicktime'],
+          },
+        },
+      };
+      await page.route('**/api/aimodels?*', (route) =>
+        route.fulfill({
+          json: catalogResponse(
+            route.request().url(),
+            catalogProvider(new URL(route.request().url())) === 'OPEN_ROUTER_CONVERSATION'
+              ? [agent]
+              : models.filter(
+                  (m) => m.reference.provider === catalogProvider(new URL(route.request().url())),
+                ),
+          ),
+        }),
+      );
+      const clip = {
+        ...file,
+        id: 14,
+        uid: 'reference-clip',
+        name: 'Исходный ролик.mp4',
+        type: 'VIDEO',
+        mime: 'video/mp4',
+        size: 1024,
+        path: '/test-video.mp4',
+      };
+      const files = [file, clip];
+      await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination(files) }));
+      await page.route(/\/api\/file\/\d+$/, (route) =>
+        route.fulfill({ json: files.find((f) => f.id === Number(route.request().url().split('/').pop())) }),
+      );
+      await page.goto(path);
+      if (path === '/video') await chooseModel(page, `OPEN_ROUTER_VIDEO:${modelId}`);
+      else {
+        await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+        await page.getByRole('button', { name: /^Модель:/ }).click();
+        await page.getByRole('option', { name: modelTitle(chosen), exact: true }).click();
+      }
+      const title = 'Послание в объектив';
+      if (path === '/video') await page.getByRole('button', { name: title, exact: true }).click();
+      else {
+        const card = page
+          .locator('.cw-card')
+          .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
+        await card.hover();
+        await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+      }
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page.locator(path === '/video' ? '#vd-draft' : '#cw-draft')).toHaveValue(
+        /Герой - тот, кто на загруженном фото/,
+      );
+      // Templates select Wan; the selected model must survive editing and reload.
+      if (path === '/video') await chooseModel(page, `OPEN_ROUTER_VIDEO:${modelId}`);
+      else {
+        await page.getByRole('button', { name: /^Модель:/ }).click();
+        await page.getByRole('option', { name: modelTitle(chosen), exact: true }).click();
+      }
+      await page
+        .getByRole('button', {
+          name: path === '/video' ? 'Добавить фото или видео' : 'Добавить файл',
+          exact: true,
+        })
+        .click();
+      const picker = page.getByRole('dialog', { name: 'Библиотека' });
+      await picker.getByText(clip.name, { exact: true }).click();
+      await picker.getByText(file.name, { exact: true }).click();
+      await picker.getByRole('button', { name: 'Добавить (2)', exact: true }).click();
+      await expect(page.locator('.composer-attachment')).toHaveCount(2);
+      await expect(page.locator('.composer-attachment').first()).toContainText(clip.name);
+      // Wait for the existing draft debounce before reloading.
+      await expect
+        .poll(() => page.evaluate(() => JSON.stringify(localStorage)))
+        .toContain('Исходный ролик.mp4');
+      await page.reload();
+      await expect(page.locator('.composer-attachment')).toHaveCount(2);
+      for (const width of [390, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath(`mixed-references-${width}.png`) });
+      }
+      await page
+        .getByRole('button', { name: path === '/video' ? 'Собрать видео' : 'Отправить запрос', exact: true })
+        .click();
+      if (path === '/video') {
+        await expect.poll(() => state.tasks.length).toBe(1);
+        expect(state.tasks[0].task.fileIds).toEqual([14, 12]);
+        expect(state.tasks[0].task.referenceMode).toBe('references');
+      } else {
+        await expect.poll(() => state.sends.length).toBe(1);
+        expect(state.sends[0].files).toEqual([14, 12]);
+        expect(parseStudioContext(state.sends[0].text)?.input?.referenceMode).toBe('references');
+      }
+    });
+  }
 }
 
 test('Grok conversation accepts a photo as its first frame', async ({ page }) => {
@@ -8583,4 +8599,18 @@ test('undersized video references are blocked before a paid request', async ({ p
   await submit(page, 'Continue this clip', 'video');
   await expect.poll(() => state.tasks.length).toBe(1);
   expect(state.tasks[0].task.fileIds).toEqual([13]);
+});
+
+test('chat video template selects Wan and keeps the updated identity instructions', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+  const card = page
+    .locator('.cw-card')
+    .filter({ has: page.getByRole('button', { name: 'Открыть шаблон: Послание в объектив', exact: true }) });
+  await card.hover();
+  await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('#cw-draft')).toHaveValue(/Герой - тот, кто на загруженном фото/);
+  await expect(page.getByRole('button', { name: /^Модель:/ })).toContainText('Wan');
 });
