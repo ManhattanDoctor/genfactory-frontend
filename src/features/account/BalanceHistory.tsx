@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { TransactionPreview } from './TransactionPreview';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { modelTitle } from '../catalog/presentation';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -220,18 +220,28 @@ function History({ userId }: { userId: number }): ReactElement {
           </ol>
           {query.data.pages > 1 && (
             <div className="pagination">
-              <button className="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-                Предыдущая страница
+              <button
+                type="button"
+                className="button"
+                aria-label="Предыдущая страница"
+                title="Предыдущая страница"
+                disabled={page === 0}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ChevronLeft size={18} aria-hidden="true" />
               </button>
               <span>
                 {page + 1} / {query.data.pages}
               </span>
               <button
+                type="button"
                 className="button"
+                aria-label="Следующая страница"
+                title="Следующая страница"
                 disabled={page + 1 >= query.data.pages}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Следующая страница
+                <ChevronRight size={18} aria-hidden="true" />
               </button>
             </div>
           )}
