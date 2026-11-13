@@ -133,6 +133,22 @@ export function MediaWorkspace({
   const root = useRef<HTMLDivElement>(null);
   const wall = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const element = root.current;
+    if (!viewport || !element) return;
+    const fit = (): void => {
+      element.style.setProperty('--media-viewport-height', `${viewport.height}px`);
+      element.style.setProperty('--media-viewport-top', `${viewport.offsetTop}px`);
+    };
+    fit();
+    viewport.addEventListener('resize', fit);
+    viewport.addEventListener('scroll', fit);
+    return () => {
+      viewport.removeEventListener('resize', fit);
+      viewport.removeEventListener('scroll', fit);
+    };
+  }, []);
   const [columns, setColumns] = useState(4);
   const [bottom, setBottom] = useState(234);
   const selected = imageTemplates.find((item) => item.id === templateId);
@@ -231,7 +247,8 @@ export function MediaWorkspace({
     const measure = () => {
       const width = root.current?.clientWidth || innerWidth;
       setColumns(width < 900 ? 2 : width < 1280 ? 4 : 5);
-      setBottom((dock.current?.offsetHeight || 146) + 88);
+      const dockOffset = dock.current ? Number.parseFloat(getComputedStyle(dock.current).bottom) : 72;
+      setBottom((dock.current?.offsetHeight || 146) + dockOffset + 16);
     };
     const observer = new ResizeObserver(measure);
     if (root.current) observer.observe(root.current);
@@ -599,130 +616,132 @@ export function MediaWorkspace({
           />
         </div>
         <div className="img-tools">
-          <button
-            className="cw-plus"
-            type="button"
-            aria-label={
-              seedance ? 'Добавить стартовый кадр' : video ? 'Добавить кадр' : 'Добавить изображение'
-            }
-            disabled={busy || (!!user && !model)}
-            onClick={onLibrary}
-          >
-            <Plus size={20} />
-          </button>
-          <ImageMenu
-            label={
-              model
-                ? modelTitle(model)
-                : banana
-                  ? 'Nano Banana 2'
-                  : seedance
-                    ? 'Seedance 2.5'
-                    : 'Выбрать модель'
-            }
-            name="Модель"
-            disabled={busy}
-            models={models}
-            details={video || banana}
-            infoKind={kind}
-            describeModel={banana ? bananaDescription : undefined}
-            selection={model && modelKey(model)}
-            favorites={prefs.value.favoriteModels}
-            onFavorite={(key) =>
-              prefs.update((value) => ({ ...value, favoriteModels: toggleItem(value.favoriteModels, key) }))
-            }
-            onSelect={(key) => {
-              const chosen = models.find((m) => modelKey(m) === key);
-              if (chosen) onModel(chosen);
-            }}
-          />
-          {(!!ratios.length || banana) && (
+          <div className="img-settings" aria-label="Параметры генерации">
+            <button
+              className="cw-plus"
+              type="button"
+              aria-label={
+                seedance ? 'Добавить стартовый кадр' : video ? 'Добавить кадр' : 'Добавить изображение'
+              }
+              disabled={busy || (!!user && !model)}
+              onClick={onLibrary}
+            >
+              <Plus size={20} />
+            </button>
             <ImageMenu
               label={
-                referenceRatio
-                  ? 'По исходному кадру'
-                  : ratio || (banana ? (user ? 'Не задаётся' : '1:1') : 'Стороны')
+                model
+                  ? modelTitle(model)
+                  : banana
+                    ? 'Nano Banana 2'
+                    : seedance
+                      ? 'Seedance 2.5'
+                      : 'Выбрать модель'
               }
-              name="Стороны"
-              note={
-                banana
-                  ? 'Форма картинки: квадрат, вертикаль или ширина.'
-                  : video
-                    ? 'Форма кадра: вертикаль, квадрат или ширина.'
-                    : undefined
+              name="Модель"
+              disabled={busy}
+              models={models}
+              details={video || banana}
+              infoKind={kind}
+              describeModel={banana ? bananaDescription : undefined}
+              selection={model && modelKey(model)}
+              favorites={prefs.value.favoriteModels}
+              onFavorite={(key) =>
+                prefs.update((value) => ({ ...value, favoriteModels: toggleItem(value.favoriteModels, key) }))
               }
-              descriptions={video ? videoRatios : undefined}
-              values={banana ? [...new Set([...bananaRatios, ...ratios])] : ratios}
-              allowedValues={banana ? ratios : undefined}
-              ratioIcons={banana}
-              selection={ratio}
-              disabled={busy || referenceRatio || !ratios.length}
-              onSelect={chooseRatio}
+              onSelect={(key) => {
+                const chosen = models.find((m) => modelKey(m) === key);
+                if (chosen) onModel(chosen);
+              }}
             />
-          )}
-          {!video && (!!quality.length || banana) && (
-            <ImageMenu
-              label={String(options[qualityKey] || quality[0] || (user ? 'Не задаётся' : '1K'))}
-              name={banana ? 'Размер' : 'Качество'}
-              note={banana ? 'Крупность файла. 1K быстрее, 4K детальнее.' : undefined}
-              values={quality.map(String)}
-              selection={String(options[qualityKey])}
-              disabled={busy || !quality.length}
-              onSelect={(value) => onOptions({ ...options, [qualityKey]: value })}
-            />
-          )}
-          {video && (
-            <>
-              {fields.resolution && (
-                <ImageMenu
-                  label={String(options.resolution || 'Не задаётся')}
-                  name="Разрешение"
-                  note="Размер видео. Влияет на детализацию и стоимость."
-                  values={choices(fields.resolution, []).map(String)}
-                  selection={String(options.resolution || '')}
-                  disabled={busy || !choices(fields.resolution, []).length}
-                  onSelect={(value) => onOptions({ ...options, resolution: value })}
-                />
-              )}
+            {(!!ratios.length || banana) && (
               <ImageMenu
-                label={options.duration ? `${options.duration} с` : 'Не задаётся'}
-                name="Длительность"
-                note="Длина ролика. От неё зависит, сколько секунд соберёт модель."
-                descriptions={{
-                  ...videoLengths,
-                  ...(Math.max(...choices(fields.duration, [4, 6, 8, 10, 15]).map(Number)) <= 15
-                    ? { '15 с': 'Самый длинный ролик в этом окне.' }
-                    : {}),
-                }}
-                values={choices(fields.duration, [4, 6, 8, 10, 15]).map((v) => `${v} с`)}
-                selection={`${options.duration} с`}
-                disabled={busy || !fields.duration}
-                onSelect={(value) => onOptions({ ...options, duration: Number(value.split(' ')[0]) })}
+                label={
+                  referenceRatio
+                    ? 'По исходному кадру'
+                    : ratio || (banana ? (user ? 'Не задаётся' : '1:1') : 'Стороны')
+                }
+                name="Стороны"
+                note={
+                  banana
+                    ? 'Форма картинки: квадрат, вертикаль или ширина.'
+                    : video
+                      ? 'Форма кадра: вертикаль, квадрат или ширина.'
+                      : undefined
+                }
+                descriptions={video ? videoRatios : undefined}
+                values={banana ? [...new Set([...bananaRatios, ...ratios])] : ratios}
+                allowedValues={banana ? ratios : undefined}
+                ratioIcons={banana}
+                selection={ratio}
+                disabled={busy || referenceRatio || !ratios.length}
+                onSelect={chooseRatio}
               />
+            )}
+            {!video && (!!quality.length || banana) && (
               <ImageMenu
-                label={options.generateAudio ? 'Со звуком' : 'Без звука'}
-                name="Звук"
-                note="Звук ролика."
-                descriptions={videoSound}
-                values={choices(fields.generateAudio, [false, true]).map((value) =>
-                  value ? 'Со звуком' : 'Без звука',
+                label={String(options[qualityKey] || quality[0] || (user ? 'Не задаётся' : '1K'))}
+                name={banana ? 'Размер' : 'Качество'}
+                note={banana ? 'Крупность файла. 1K быстрее, 4K детальнее.' : undefined}
+                values={quality.map(String)}
+                selection={String(options[qualityKey])}
+                disabled={busy || !quality.length}
+                onSelect={(value) => onOptions({ ...options, [qualityKey]: value })}
+              />
+            )}
+            {video && (
+              <>
+                {fields.resolution && (
+                  <ImageMenu
+                    label={String(options.resolution || 'Не задаётся')}
+                    name="Разрешение"
+                    note="Размер видео. Влияет на детализацию и стоимость."
+                    values={choices(fields.resolution, []).map(String)}
+                    selection={String(options.resolution || '')}
+                    disabled={busy || !choices(fields.resolution, []).length}
+                    onSelect={(value) => onOptions({ ...options, resolution: value })}
+                  />
                 )}
-                selection={options.generateAudio ? 'Со звуком' : 'Без звука'}
-                disabled={busy || choices(fields.generateAudio, [false, true]).length < 2}
-                onSelect={(value) => onOptions({ ...options, generateAudio: value === 'Со звуком' })}
-              />
-              <ImageMenu
-                label={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
-                name="Структура ролика"
-                note="Как собрать ролик внутри выбранной длины. На выходе всегда один файл."
-                descriptions={videoShapes}
-                values={['Один кадр', 'Набор сцен']}
-                selection={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
-                disabled={busy}
-                onSelect={(value) => onShape?.(value === 'Набор сцен' ? 'sequence' : 'single')}
-              />
-            </>
-          )}
+                <ImageMenu
+                  label={options.duration ? `${options.duration} с` : 'Не задаётся'}
+                  name="Длительность"
+                  note="Длина ролика. От неё зависит, сколько секунд соберёт модель."
+                  descriptions={{
+                    ...videoLengths,
+                    ...(Math.max(...choices(fields.duration, [4, 6, 8, 10, 15]).map(Number)) <= 15
+                      ? { '15 с': 'Самый длинный ролик в этом окне.' }
+                      : {}),
+                  }}
+                  values={choices(fields.duration, [4, 6, 8, 10, 15]).map((v) => `${v} с`)}
+                  selection={`${options.duration} с`}
+                  disabled={busy || !fields.duration}
+                  onSelect={(value) => onOptions({ ...options, duration: Number(value.split(' ')[0]) })}
+                />
+                <ImageMenu
+                  label={options.generateAudio ? 'Со звуком' : 'Без звука'}
+                  name="Звук"
+                  note="Звук ролика."
+                  descriptions={videoSound}
+                  values={choices(fields.generateAudio, [false, true]).map((value) =>
+                    value ? 'Со звуком' : 'Без звука',
+                  )}
+                  selection={options.generateAudio ? 'Со звуком' : 'Без звука'}
+                  disabled={busy || choices(fields.generateAudio, [false, true]).length < 2}
+                  onSelect={(value) => onOptions({ ...options, generateAudio: value === 'Со звуком' })}
+                />
+                <ImageMenu
+                  label={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
+                  name="Структура ролика"
+                  note="Как собрать ролик внутри выбранной длины. На выходе всегда один файл."
+                  descriptions={videoShapes}
+                  values={['Один кадр', 'Набор сцен']}
+                  selection={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
+                  disabled={busy}
+                  onSelect={(value) => onShape?.(value === 'Набор сцен' ? 'sequence' : 'single')}
+                />
+              </>
+            )}
+          </div>
           <button
             className="cw-send"
             type="submit"
@@ -826,7 +845,7 @@ export function ImageMenu({
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState<IModelDescription>();
   const root = useRef<HTMLDivElement>(null);
-  useComposerMenu(open, root);
+  useComposerMenu(open, root, true);
   useLayoutEffect(() => {
     if (!open || !note) return;
     const menu = root.current?.querySelector<HTMLElement>('.cw-model-menu');

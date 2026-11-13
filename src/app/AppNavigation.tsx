@@ -6,6 +6,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { destinations } from './destinations';
 import { useAuth } from '../features/auth/AuthProvider';
 
+const TOOLS_NAVIGATION_ENABLED = false;
+
 export function AppNavigation({ onNavigate }: { onNavigate?: () => void }): ReactElement {
   const location = useLocation();
   const { user } = useAuth();
@@ -58,34 +60,38 @@ export function AppNavigation({ onNavigate }: { onNavigate?: () => void }): Reac
       )}
       {user && renderDestination({ to: '/artifacts', label: 'История', icon: 'history' })}
       {user && renderDestination({ to: '/library', label: 'Библиотека', icon: 'assets' })}
-      <button
-        type="button"
-        className="shell-tools-toggle"
-        aria-label="Дополнительные инструменты"
-        aria-expanded={toolsOpen}
-        onClick={() => setToolsOpen(!toolsOpen)}
-      >
-        <span>Инструменты</span>
-        <span aria-hidden="true">{toolsOpen ? '−' : '+'}</span>
-      </button>
-      {toolsOpen && (
-        <div className="shell-tools">
-          {destinations.slice(3).map((item) =>
-            item.to !== '/agent' ? (
-              renderDestination(item)
-            ) : (
-              <ConversationNavigation
-                key={`${user?.id}:agent`}
-                path="/agent"
-                tag="chat"
-                label="AI agent"
-                onNavigate={onNavigate}
-              >
-                {renderDestination(item)}
-              </ConversationNavigation>
-            ),
+      {TOOLS_NAVIGATION_ENABLED && (
+        <>
+          <button
+            type="button"
+            className="shell-tools-toggle"
+            aria-label="Дополнительные инструменты"
+            aria-expanded={toolsOpen}
+            onClick={() => setToolsOpen(!toolsOpen)}
+          >
+            <span>Инструменты</span>
+            <span aria-hidden="true">{toolsOpen ? '−' : '+'}</span>
+          </button>
+          {toolsOpen && (
+            <div className="shell-tools">
+              {destinations.slice(3).map((item) =>
+                item.to !== '/agent' ? (
+                  renderDestination(item)
+                ) : (
+                  <ConversationNavigation
+                    key={`${user?.id}:agent`}
+                    path="/agent"
+                    tag="chat"
+                    label="AI agent"
+                    onNavigate={onNavigate}
+                  >
+                    {renderDestination(item)}
+                  </ConversationNavigation>
+                ),
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
       {onNavigate && renderDestination({ to: '/company', label: 'О компании', icon: 'company' })}
     </nav>

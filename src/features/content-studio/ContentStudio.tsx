@@ -995,7 +995,12 @@ export function ContentStudio(): ReactElement {
                   {mode === 'video' && (
                     <>
                       {(!model || modelProperties.duration) && (
-                        <div className="cw-stepper">
+                        <div
+                          className="cw-stepper"
+                          role="group"
+                          aria-label="Длительность видео"
+                          aria-disabled={busy}
+                        >
                           <button
                             type="button"
                             aria-label="Короче"

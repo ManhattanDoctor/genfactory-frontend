@@ -11,7 +11,13 @@ describe('Tool progress presentation', () => {
       { uid: 'IMAGE', name: undefined, status: 'ERRORED' },
     ]);
     expect(toolLabel(tools[0])).toBe('Ожидаем готовое видео');
-    expect(toolLabel(tools[1])).toContain('ошибка инструмента');
+    expect(toolLabel(tools[1])).toBe('Генерация изображения: ошибка');
+  });
+  it('uses terminal descriptions instead of waiting after a video failure or completion', () => {
+    for (const uid of ['VIDEO', 'VIDEO_OPEN_ROUTER']) {
+      expect(toolLabel({ uid, status: 'ERRORED' })).toBe('Генерация видео: ошибка');
+      expect(toolLabel({ uid, status: 'FINISHED' })).toBe('Генерация видео: завершено');
+    }
   });
   it('ignores malformed progress and does not invent percentages', () => {
     expect(readTools(null)).toEqual([]);

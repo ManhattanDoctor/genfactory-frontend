@@ -12,6 +12,13 @@ export function apiErrorMessage(data: unknown, status: number): string {
   if (value.code === 'AI_MODEL_DISABLED') return 'Модель отключена администратором. Выберите другую модель.';
   if (value.code === 'AI_MODEL_HIDDEN') return 'Модель недоступна для нового выбора. Выберите другую модель.';
   if (value.code === 'INSUFFICIENT_FUNDS') return userBalanceError;
+  if (value.code === 'FILE_AMOUNT_EXCEED')
+    return 'Достигнут лимит количества файлов в библиотеке. Удалите ненужные файлы или обратитесь к администратору.';
+  if (value.code === 'AI_TASK_ABORTED' || value.code === 'TASK_CANCELLED') return 'Запрос отменён.';
+  if (value.code === 'AI_MODEL_NOT_SUPPORT_FILE') return 'Выбранная модель не поддерживает этот файл.';
+  if (value.code === 'FILE_MIME_INVALID') return 'Формат файла не поддерживается.';
+  if (value.code === 'FILE_SIZE_INVALID') return 'Размер файла не поддерживается.';
+  if (value.code === 'REQUEST_INVALID' && value.message === 'REQUEST_INVALID') return serviceError;
   if (value.code === 'AI_VENDOR_ERROR') {
     let reason =
       typeof value.details === 'string'
@@ -35,7 +42,7 @@ export function apiErrorMessage(data: unknown, status: number): string {
       .replace(/data:[^;,]+;base64,[a-zA-Z0-9+/=]+/g, '[binary]')
       .trim()
       .slice(0, 6000);
-    if (reason === serviceError) return serviceError;
+    if (reason === serviceError || reason === 'AI_VENDOR_ERROR') return serviceError;
     if (/^Generated video rejected by content moderation\.?$/i.test(reason)) return videoModerationError;
     let explanation = 'Провайдер отклонил запрос.';
     if (/^Unsupported image settings for [a-z0-9._/-]+:/i.test(reason))

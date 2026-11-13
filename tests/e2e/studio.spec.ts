@@ -733,7 +733,7 @@ test('socket tool progress is scoped to the conversation and errors remain visib
   await expect(page.getByText('Создаём изображение', { exact: true })).toBeVisible();
   await expect(page.getByText('hidden internal arguments')).not.toBeVisible();
   emit('conversation101', [{ uid: 'IMAGE', status: 'ERRORED' }]);
-  await expect(page.getByText('Создаём изображение: ошибка инструмента')).toBeVisible();
+  await expect(page.getByText('Генерация изображения: ошибка')).toBeVisible();
 });
 
 test('HTTP progress restores video activity after reload without resubmitting', async ({ page }) => {
@@ -4364,6 +4364,203 @@ test(
   },
 );
 
+test('library picker keeps batch upload status inside its button and explains the file limit', async ({
+  page,
+}, testInfo) => {
+  await mockApi(page);
+  let uploads = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/file', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    if (++uploads === 4) await gate;
+    await route.fulfill({
+      status: 403,
+      json: { code: 'FILE_AMOUNT_EXCEED', message: 'FileAmountExceedError' },
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Библиотека' });
+  await picker.locator('input[type=file]').setInputFiles(
+    Array.from({ length: 4 }, (_, index) => ({
+      name: `image-${index}.png`,
+      mimeType: 'image/png',
+      buffer: Buffer.from('image'),
+    })),
+  );
+  await expect.poll(() => uploads).toBe(4);
+  const button = picker.getByRole('button', { name: 'Загрузить файл', exact: true });
+  try {
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 844 });
+      await expect(button).toHaveAttribute('aria-busy', 'true');
+      await expect(button.locator('.file-upload-count')).toHaveText('4/4');
+      const bounds = await button.boundingBox();
+      const status = await button.locator('.upload-button-status').boundingBox();
+      const count = await button.locator('.file-upload-count').boundingBox();
+      const search = await picker.getByRole('textbox', { name: 'Поиск по всем файлам' }).boundingBox();
+      expect(status!.x).toBeGreaterThanOrEqual(bounds!.x);
+      expect(status!.x + status!.width).toBeLessThanOrEqual(count!.x);
+      expect(count!.x + count!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
+      expect(search!.width).toBeGreaterThan(40);
+      expect(await picker.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`library-upload-${width}.png`) });
+    }
+  } finally {
+    release();
+  }
+  await expect(picker.getByRole('alert')).toContainText('Достигнут лимит количества файлов');
+  await expect(picker.getByRole('alert')).not.toContainText('FileAmountExceedError');
+  await expect(picker.locator('.file-browser > [role=status]')).toHaveText('Загружено: 0 из 4');
+  await expect(button).toHaveAttribute('aria-busy', 'false');
+  await expect(button).toBeEnabled();
+});
+
+test('mobile library search keeps focus and selection while results refresh', async ({ page }, testInfo) => {
+  await mockApi(page);
+  const searches: Array<string> = [];
+  await page.route('**/api/file?*', async (route) => {
+    const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions') || '{}');
+    searches.push(conditions.name?.value || '');
+    await route.fulfill({ json: pagination([]) });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Библиотека' });
+  const search = picker.getByRole('textbox', { name: 'Поиск по всем файлам' });
+  await expect(search).toHaveCSS('font-size', '16px');
+  await search.click();
+  for (const text of ['ли', 'са']) {
+    await search.pressSequentially(text);
+    const value = await search.inputValue();
+    await expect.poll(() => searches.includes(`%${value}%`)).toBe(true);
+    await expect(search).toBeFocused();
+    expect(await search.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(value.length);
+  }
+  await expect(search).toHaveValue('лиса');
+  await page.setViewportSize({ width: 390, height: 430 });
+  await expect(search).toBeFocused();
+  await expect(search).toBeInViewport();
+  await expect(search).toHaveValue('лиса');
+  await page.screenshot({ path: testInfo.outputPath('library-search-mobile.png') });
+});
+
+for (const pickerMode of [false, true]) {
+  test(`library layout stays within the viewport across browsing and upload states, picker ${pickerMode}`, async ({
+    page,
+  }, testInfo) => {
+    await mockApi(page);
+    const folderName = 'Папка с очень длинным названием проекта и вложенных материалов';
+    const folder = { ...file, id: 80, uid: 'layout-folder', name: folderName, type: 'DIRECTORY' };
+    const items = Array.from({ length: 12 }, (_, index) => ({
+      ...file,
+      id: index + 100,
+      name: `${'ОченьДлинноеИмя'.repeat(8)}-${index}.png`,
+    }));
+    await page.route('**/api/file?*', (route) => {
+      const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions') || '{}');
+      return route.fulfill({
+        json: pagination(
+          conditions.name ? [] : conditions.directory === folder.uid ? items : [folder, ...items],
+        ),
+      });
+    });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/file', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      await gate;
+      await route.fulfill({ status: 400, json: { message: 'Файл не поддерживается.' } });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(pickerMode ? '/chat' : '/library');
+    if (pickerMode) {
+      await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+      await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+    }
+    const surface = pickerMode
+      ? page.getByRole('dialog', { name: 'Библиотека' })
+      : page.locator('.library-page');
+    const search = surface.getByRole('textbox', { name: 'Поиск по всем файлам' });
+    const checkBounds = async (): Promise<void> => {
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await surface.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      const input = await search.boundingBox();
+      expect(input!.width).toBeGreaterThan(40);
+    };
+    for (const width of [320, 390, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 844 });
+      await expect(surface.locator('.file-entry')).toHaveCount(13);
+      await checkBounds();
+      await page.screenshot({ path: testInfo.outputPath(`library-${pickerMode}-${width}.png`) });
+    }
+    if (pickerMode) {
+      await surface.locator('.file-entry').last().scrollIntoViewIfNeeded();
+      const last = await surface.locator('.file-entry').last().boundingBox();
+      const footer = await surface.locator('.library-selection-bar').boundingBox();
+      expect(last!.y + last!.height).toBeLessThanOrEqual(footer!.y);
+    }
+    await surface
+      .locator('.library-card')
+      .filter({ has: page.locator('b', { hasText: folderName }) })
+      .click();
+    await expect(surface.locator('.file-entry')).toHaveCount(13);
+    await page.setViewportSize({ width: 320, height: 430 });
+    await checkBounds();
+    await search.fill('Нет такого файла');
+    await expect(surface.getByText('По вашему запросу ничего не найдено.', { exact: true })).toBeVisible();
+    await expect(search).toBeFocused();
+    await checkBounds();
+    await search.fill('');
+    await expect(surface.locator('.file-entry')).toHaveCount(13);
+    await surface.locator('input[type=file]').setInputFiles({
+      name: `${'LongName'.repeat(14)}.png`,
+      mimeType: 'image/png',
+      buffer: Buffer.from('image'),
+    });
+    const button = surface.getByRole('button', { name: 'Загрузить файл', exact: true });
+    try {
+      for (const width of [320, 390, 768, 1024, 1440]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expect(button).toHaveAttribute('aria-busy', 'true');
+        await checkBounds();
+        await expect
+          .poll(() =>
+            button.evaluate((element) => {
+              const bounds = element.getBoundingClientRect();
+              const status = element.querySelector('.upload-button-status')!.getBoundingClientRect();
+              return status.left >= bounds.left - 1 && status.right <= bounds.right + 1;
+            }),
+          )
+          .toBe(true);
+        await page.screenshot({ path: testInfo.outputPath(`library-busy-${pickerMode}-${width}.png`) });
+      }
+    } finally {
+      release();
+    }
+    await expect(surface.getByRole('alert')).toContainText('Файл не поддерживается.');
+    await page.setViewportSize({ width: 320, height: 430 });
+    await checkBounds();
+    await surface.getByRole('alert').scrollIntoViewIfNeeded();
+    await expect(surface.getByRole('alert')).toBeInViewport();
+    if (pickerMode) {
+      const alert = await surface.getByRole('alert').boundingBox();
+      const footer = await surface.locator('.library-selection-bar').boundingBox();
+      expect(alert!.y + alert!.height).toBeLessThanOrEqual(footer!.y);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`library-error-${pickerMode}.png`) });
+  });
+}
+
 test('library incompatible document is visibly marked and cannot be attached', async ({ page }) => {
   await mockApi(page);
   await page.route('**/api/file?*', (route) =>
@@ -7657,3 +7854,45 @@ for (const path of ['/library', '/history', '/artifacts']) {
     expect(state.tasks).toHaveLength(0);
   });
 }
+
+test('video duration dims as a whole while its studio conversation is running', async ({ page }) => {
+  const state = await mockApi(page);
+  const model = catalog.find(
+    (item) =>
+      item.reference.provider === 'OPEN_ROUTER_VIDEO' &&
+      item.schema.properties?.options?.properties?.duration,
+  )!;
+  const conversation: IConversation = {
+    ...savedConversation(),
+    status: 'LOADING',
+    options: {
+      model: agent.reference.model,
+      tools: [{ uid: 'VIDEO', settings: { model: model.reference, options: {} } }],
+    },
+  };
+  state.conversations.push(conversation);
+  await page.goto('/chat?conversation=101');
+  const duration = page.getByRole('group', { name: 'Длительность видео', exact: true });
+  await expect(duration).toBeVisible();
+  await expect(duration).toHaveAttribute('aria-disabled', 'true');
+  await expect(duration.getByRole('button', { name: 'Короче', exact: true })).toBeDisabled();
+  await expect(duration.getByRole('button', { name: 'Длиннее', exact: true })).toBeDisabled();
+  await expect(duration).toHaveCSS('opacity', '0.45');
+  await expect.poll(() => !!state.socket).toBeTruthy();
+  conversation.status = 'LOADED';
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          uid: crypto.randomUUID(),
+          name: 'ConversationChangedEvent',
+          data: { id: 101, item: { status: 'LOADED' } },
+        },
+      ]),
+  );
+  await expect(duration).toHaveAttribute('aria-disabled', 'false');
+  await expect(duration).toHaveCSS('opacity', '1');
+  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
+});

@@ -176,36 +176,11 @@ test('agent preserves connected tools and requires advanced mode for old tool-en
   expect(state.conversation.options.tools).toEqual([{ uid: 'IMAGE' }]);
 });
 
-test('agent navigation filters conversations on the server before pagination', async ({ page }) => {
+test('hidden tool navigation preserves access to the direct agent route', async ({ page }) => {
   await setup(page);
-  const requested: any[] = [];
-  await page.route('**/api/conversation?*', (route) => {
-    const url = new URL(route.request().url());
-    const conditions = JSON.parse(url.searchParams.get('conditions')!);
-    requested.push(conditions);
-    if (conditions.tags?.condition !== 'INCLUDES_ALL' || conditions.tags?.value?.[0] !== 'chat')
-      return route.fulfill({
-        json: pagination([{ id: 90, userId: 7, name: 'Генерация картинки', tags: ['image'] }]),
-      });
-    const index = Number(url.searchParams.get('pageIndex'));
-    return route.fulfill({
-      json: {
-        ...pagination([
-          { id: 101 + index, userId: 7, name: index ? 'Вторая беседа' : 'Первая беседа', tags: ['chat'] },
-        ]),
-        pages: 2,
-        total: 25,
-        pageIndex: index,
-      },
-    });
-  });
   await page.goto('/agent');
-  await page.getByRole('button', { name: 'Дополнительные инструменты' }).click();
+  await expect(page.locator('#agent-draft')).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Основное меню' });
-  await expect(nav.getByRole('link', { name: 'Первая беседа' })).toBeVisible();
-  await expect(nav.getByText('Генерация картинки')).toHaveCount(0);
-  await nav.getByRole('button', { name: 'Ещё диалоги' }).click();
-  await expect(nav.getByRole('link', { name: 'Вторая беседа' })).toBeVisible();
-  await expect(nav.getByRole('button', { name: 'Ещё диалоги' })).toHaveCount(0);
-  expect(requested.filter((c) => c.tags).every((c) => c.userId === 7)).toBe(true);
+  await expect(nav.getByRole('button', { name: 'Дополнительные инструменты' })).toHaveCount(0);
+  await expect(nav.getByRole('group', { name: 'Диалоги AI agent' })).toHaveCount(0);
 });

@@ -136,19 +136,19 @@ test('image canvas matches designer geometry and guest starts direct login from 
 test('image model controls send actual settings, show result and recover it on reload', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/image');
-  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Riverflow V2.6 Pro');
   await page.getByRole('button', { name: 'Стороны', exact: true }).click();
   await page.getByRole('option', { name: '3:2', exact: true }).click();
   await page.getByRole('button', { name: 'Качество', exact: true }).click();
-  await page.getByRole('option', { name: 'high', exact: true }).click();
+  await page.getByRole('option', { name: '2K', exact: true }).click();
   await page.locator('#img-draft').fill('Закат над лесом');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect(page.locator('.image-result')).toHaveCount(1);
   expect(state.creates).toHaveLength(0);
   expect(state.tasks).toHaveLength(1);
   expect(state.tasks[0].options).toMatchObject({
-    size: '1536x1024',
-    quality: 'high',
+    aspectRatio: '3:2',
+    resolution: '2K',
   });
   expect(state.tasks[0].task.fileIds).toEqual([]);
   await page.reload();
@@ -165,7 +165,7 @@ test('image model controls send actual settings, show result and recover it on r
   await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
   await expect(page.locator('#img-draft')).toHaveValue(/Закат над лесом[\s\S]*Последний референс/);
   expect(state.tasks).toHaveLength(1);
-  await expect(page.locator('.img-files .img-file')).toHaveCount(1);
+  await expect(page.locator('.img-files .composer-attachment')).toHaveCount(1);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(2);
   expect(state.tasks[1].task.fileIds).toEqual([12]);
@@ -239,6 +239,100 @@ for (const width of [390, 768, 1440, 1920])
     expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   });
+for (const width of [320, 390]) {
+  test(`mobile image settings scroll in one row and keep menus usable at ${width}`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    const errors: Array<string> = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    const state = await setup(page);
+    await page.goto('/image');
+    await expect(page.locator('.ds-template-card')).toHaveCount(130);
+    const settings = page.locator('.img-settings');
+    const send = page.getByRole('button', { name: 'Собрать изображение', exact: true });
+    await expect(settings).toHaveCSS('overflow-x', 'auto');
+    expect(await settings.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    const buttons = await settings.locator(':scope > * > button, :scope > button').evaluateAll((items) =>
+      items.map((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.y + rect.height / 2;
+      }),
+    );
+    expect(Math.max(...buttons) - Math.min(...buttons)).toBeLessThan(1);
+    await settings.evaluate((el) => {
+      el.scrollLeft = el.scrollWidth;
+    });
+    await expect(send).toBeInViewport();
+    await page.getByRole('button', { name: 'Качество', exact: true }).click();
+    const menu = page.getByRole('listbox', { name: 'Качество', exact: true });
+    await expect(menu).toBeVisible();
+    expect(await menu.evaluate((el) => el.matches(':popover-open'))).toBe(true);
+    const menuBox = await menu.boundingBox();
+    const dock = await page.locator('.img-dock').boundingBox();
+    expect(menuBox!.y + menuBox!.height).toBeLessThan(dock!.y);
+    expect(menuBox!.x).toBeGreaterThanOrEqual(0);
+    expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: testInfo.outputPath(`image-settings-menu-${width}.png`) });
+    await page.getByRole('option', { name: '2K', exact: true }).click();
+    await expect(menu).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Качество', exact: true })).toContainText('2K');
+    await page.screenshot({ path: testInfo.outputPath(`image-settings-${width}.png`) });
+    expect(state.tasks).toHaveLength(0);
+    expect(errors).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  });
+}
+
+test('image gallery and composer follow the visual viewport through keyboard dismissal', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const viewport = window.visualViewport!;
+    let height = 844,
+      top = 0;
+    Object.defineProperties(viewport, { height: { get: () => height }, offsetTop: { get: () => top } });
+    (
+      window as unknown as { resizeImageViewport: (height: number, top: number) => void }
+    ).resizeImageViewport = (nextHeight, nextTop) => {
+      height = nextHeight;
+      top = nextTop;
+      viewport.dispatchEvent(new Event('resize'));
+      viewport.dispatchEvent(new Event('scroll'));
+    };
+  });
+  const state = await setup(page);
+  await page.goto('/image');
+  await expect(page.locator('.ds-template-card')).toHaveCount(130);
+  const draft = page.getByRole('textbox', { name: 'Идея', exact: true });
+  await draft.fill('Сохранить черновик');
+  for (const [height, top] of [
+    [400, 60],
+    [844, 0],
+    [750, 0],
+    [844, 0],
+  ]) {
+    await page.evaluate(
+      ([height, top]) =>
+        (
+          window as unknown as { resizeImageViewport: (height: number, top: number) => void }
+        ).resizeImageViewport(height, top),
+      [height, top],
+    );
+    await expect
+      .poll(() => page.locator('.img-wall').evaluate((el) => el.getBoundingClientRect().bottom))
+      .toBe(height + top);
+    const wall = await page.locator('.img-wall').boundingBox();
+    const dock = await page.locator('.img-dock').boundingBox();
+    expect(wall!.y + wall!.height - dock!.y - dock!.height).toBeCloseTo(12, 0);
+    await expect(draft).toHaveValue('Сохранить черновик');
+    await expect(draft).toBeFocused();
+    await page.screenshot({ path: testInfo.outputPath(`image-viewport-${height}-${top}.png`) });
+  }
+  expect(state.tasks).toHaveLength(0);
+});
+
 test.describe('complete image template catalog', () => {
   test.describe.configure({ mode: 'parallel' });
   const items: { id: string; kind: string; title: string }[] = JSON.parse(

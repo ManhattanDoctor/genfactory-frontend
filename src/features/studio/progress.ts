@@ -27,11 +27,21 @@ export function readTools(value: unknown): IToolProgress[] {
       status: t.status,
     }));
 }
+const toolResultLabels: Record<string, string> = {
+  IMAGE: 'Генерация изображения',
+  VIDEO: 'Генерация видео',
+  IMAGE_RECOGNITION: 'Анализ изображения',
+  IMAGE_RESIZE: 'Изменение размера изображения',
+  MEDIA_CONVERT: 'Обработка медиа',
+  TTS: 'Озвучка',
+  STT: 'Распознавание речи',
+};
+
 export function toolLabel(tool: IToolProgress): string {
-  const name = toolLabels[tool.uid] || tool.name || 'Выполняем инструмент';
-  return tool.status === 'ERRORED'
-    ? `${name}: ошибка инструмента`
-    : tool.status === 'FINISHED'
-      ? `${name}: завершено`
-      : name;
+  if (tool.status === 'ERRORED' || tool.status === 'FINISHED') {
+    const uid = tool.uid.replace(/_OPEN_(AI|ROUTER)$/, '');
+    const name = toolResultLabels[uid] || tool.name || 'Инструмент';
+    return `${name}: ${tool.status === 'ERRORED' ? 'ошибка' : 'завершено'}`;
+  }
+  return toolLabels[tool.uid] || tool.name || 'Выполняем инструмент';
 }

@@ -86,6 +86,7 @@ test('studio navigation shows five recent dialogs, paginates, folds and opens th
   await page.goto('/chat');
   const nav = page.getByRole('navigation', { name: 'Основное меню' });
   const list = nav.getByRole('group', { name: 'Диалоги Студии контента' });
+  await expect(nav.getByRole('button', { name: 'Дополнительные инструменты' })).toHaveCount(0);
   await expect(list.getByRole('link')).toHaveCount(5);
   await expect(nav.getByText('Чужой диалог')).toHaveCount(0);
   await expect(nav.getByText('Архив', { exact: true })).toHaveCount(0);
@@ -117,11 +118,9 @@ test('studio navigation shows five recent dialogs, paginates, folds and opens th
     'aria-current',
     'page',
   );
-  await nav.getByRole('button', { name: 'Дополнительные инструменты' }).click();
-  const agents = nav.getByRole('group', { name: 'Диалоги AI agent' });
-  await expect(agents.getByRole('link', { name: 'Обсуждение стратегии' })).toBeVisible();
-  await expect(agents.getByRole('link')).toHaveCSS('font-size', '12px');
-  await page.screenshot({ path: testInfo.outputPath('studio-and-agent-navigation.png') });
+  await expect(nav.getByRole('button', { name: 'Дополнительные инструменты' })).toHaveCount(0);
+  await expect(nav.getByRole('group', { name: 'Диалоги AI agent' })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('studio-navigation-tools-hidden.png') });
   expect(state.writes).toEqual([]);
 });
 
@@ -132,6 +131,7 @@ test('mobile studio navigation opens a conversation and closes the menu', async 
   await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
   const nav = page.getByRole('navigation', { name: 'Основное меню' });
   const list = nav.getByRole('group', { name: 'Диалоги Студии контента' });
+  await expect(nav.getByRole('button', { name: 'Дополнительные инструменты' })).toHaveCount(0);
   await expect(list.getByRole('link')).toHaveCount(5);
   await page.screenshot({ path: testInfo.outputPath('studio-navigation-mobile.png') });
   await list.getByRole('link', { name: names[2], exact: true }).click();

@@ -6,6 +6,22 @@ import {
   videoModerationError,
 } from '../src/lib/errorMessages';
 
+it('localizes language-independent backend error codes', () => {
+  for (const code of [
+    'FILE_AMOUNT_EXCEED',
+    'FILE_MIME_INVALID',
+    'FILE_SIZE_INVALID',
+    'AI_MODEL_NOT_SUPPORT_FILE',
+    'AI_TASK_ABORTED',
+  ]) {
+    const message = apiErrorMessage({ code, message: code }, 403);
+    expect(message).not.toContain(code);
+    expect(message).toMatch(/[А-Яа-я]/);
+  }
+  expect(apiErrorMessage({ code: 'REQUEST_INVALID', message: 'REQUEST_INVALID' }, 400)).toBe(serviceError);
+  expect(apiErrorMessage({ code: 'AI_VENDOR_ERROR', message: 'AI_VENDOR_ERROR' }, 400)).toBe(serviceError);
+});
+
 it('explains confirmed moderation for HTTP, socket and persisted conversation errors', () => {
   for (const data of [
     {

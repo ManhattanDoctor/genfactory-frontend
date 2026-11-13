@@ -63,6 +63,11 @@
 .file-browser {
   gap: 16px;
 }
+.file-browser > [role='alert'],
+.file-browser > [role='status'] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .file-browser .file-breadcrumbs {
   font-size: 13px;
   color: #9a9aa0;
@@ -203,6 +208,8 @@
   }
   .file-browser .file-toolbar input {
     flex-basis: 100%;
+    font-size: 16px;
+    line-height: 1.25;
   }
   .file-browser .file-toolbar .button {
     flex: 1 1 0;
@@ -294,6 +301,10 @@
   .library-page .file-toolbar .button[title] {
     width: 40px;
     padding: 0;
+  }
+  .library-page .file-toolbar .button[aria-busy='true'] {
+    width: auto;
+    padding: 0 12px;
   }
   .library-page .file-toolbar .file-action-label {
     display: none;

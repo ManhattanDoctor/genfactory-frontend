@@ -71,8 +71,12 @@ test('home removes search/history and folded navigation keeps centered icons', a
   await expect(page.locator('.home-task,.home-stories')).toHaveCount(0);
   await expect(page.locator('.home-signs')).toHaveCSS('border-top-width', '0px');
   await expect(page.getByRole('link', { name: 'Generate Prompt', exact: true }).first()).not.toBeVisible();
-  await page.getByRole('button', { name: 'Дополнительные инструменты', exact: true }).click();
-  await expect(page.getByRole('link', { name: 'Generate Prompt', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Дополнительные инструменты', exact: true })).toHaveCount(0);
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Основное меню' })
+      .getByRole('link', { name: 'Generate Prompt', exact: true }),
+  ).toHaveCount(0);
   await page.getByRole('button', { name: 'Свернуть меню', exact: true }).click();
   await page.waitForTimeout(650);
   const geometry = await page.locator('.shell-nav-item.active').evaluate((el) => {

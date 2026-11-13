@@ -672,3 +672,8 @@
   resize: none;
   overflow-y: auto;
 }
+
+.content-studio .cw-stepper[aria-disabled='true'] {
+  opacity: var(--ds-opacity-disabled);
+  color: var(--ds-text-disabled);
+}
