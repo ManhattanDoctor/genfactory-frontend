@@ -1,3 +1,4 @@
+import './lib/transport-polyfills';
 import { retryQuery } from './lib/api';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
