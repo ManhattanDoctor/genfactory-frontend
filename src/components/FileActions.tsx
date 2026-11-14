@@ -1,3 +1,5 @@
+import { scheduleRefresh } from '../features/realtime/queryRefresh';
+import { useAuth } from '../features/auth/AuthProvider';
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -16,6 +18,7 @@ export function FileActions({
   disabled?: boolean;
 }): ReactElement {
   const cache = useQueryClient();
+  const { user } = useAuth();
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -80,11 +83,15 @@ export function FileActions({
         );
       if (!alive.current || getSession() !== sid) return;
       setAction(undefined);
-      await Promise.all(
-        ['files', 'artifacts', 'file-preview', 'messages', 'conversation', 'conversations'].map((key) =>
-          cache.invalidateQueries({ queryKey: [key] }),
-        ),
-      );
+      if (user)
+        scheduleRefresh(
+          cache,
+          user.id,
+          sid,
+          ['files', 'file-preview', 'messages', 'conversation', 'conversations'],
+          undefined,
+          file.id,
+        );
     } catch (error) {
       if (alive.current && getSession() === sid)
         setError(error instanceof Error ? error.message : 'Не удалось выполнить действие.');

@@ -159,7 +159,11 @@ export function ContentThread({
                             onAnswer={(answer) => onAnswer(question, reply.id, answer)}
                           />
                         ) : (
-                          <MessageContent text={studioReplyText(reply.text)} files={reply.files} />
+                          <MessageContent
+                            text={studioReplyText(reply.text)}
+                            files={reply.files}
+                            onOpen={setPreview}
+                          />
                         )}
                       </div>
                     )}

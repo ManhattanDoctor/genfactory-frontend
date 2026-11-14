@@ -1,7 +1,15 @@
 import Markdown from 'react-markdown';
 import type { IGnosisFile } from '../lib/types';
 import { safeMediaUrl } from '../lib/api';
-export function MessageContent({ text, files = [] }: { text: string; files?: IGnosisFile[] }) {
+export function MessageContent({
+  text,
+  files = [],
+  onOpen,
+}: {
+  text: string;
+  files?: IGnosisFile[];
+  onOpen?: (file: IGnosisFile) => void;
+}) {
   const attached = new Set(files.map((file) => safeMediaUrl(file.path)));
   return (
     <div className="message-content">
@@ -17,11 +25,27 @@ export function MessageContent({ text, files = [] }: { text: string; files?: IGn
               </a>
             );
           },
-          a: ({ href, children }) => (
-            <a href={safeMediaUrl(href)} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            const url = safeMediaUrl(href);
+            const file = url ? files.find((item) => safeMediaUrl(item.path) === url) : undefined;
+            return (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={
+                  file && onOpen
+                    ? (event) => {
+                        event.preventDefault();
+                        onOpen(file);
+                      }
+                    : undefined
+                }
+              >
+                {children}
+              </a>
+            );
+          },
         }}
       >
         {text}

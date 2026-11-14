@@ -33,6 +33,7 @@ interface IRealtime {
 }
 const Context = createContext<IRealtime>({ connected: false, join: () => () => {} });
 const modelResources = [
+  'model-catalog',
   'models',
   'conversation-models',
   'video-analysis-models',

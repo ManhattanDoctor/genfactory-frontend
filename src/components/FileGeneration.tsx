@@ -1,10 +1,11 @@
+import { api } from '../lib/api';
 import type { ReactElement } from 'react';
 import { Copy, FileImage, ArrowUpRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../features/auth/AuthProvider';
 import { modelTitle } from '../features/catalog/presentation';
-import { api, safeMediaUrl } from '../lib/api';
+import { catalogQuery } from '../features/catalog/catalogQuery';
 import type { IGnosisFile } from '../lib/types';
 import './file-generation.css';
 
@@ -12,10 +13,7 @@ function useGenerationModelName(file: Pick<IGnosisFile, 'origin'>): string {
   const { user } = useAuth();
   const model = file.origin?.generation?.model;
   const catalog = useQuery({
-    queryKey: ['generation-models', user?.id, model?.provider],
-    queryFn: ({ signal }) => api.catalog(model!.provider, signal),
-    enabled: !!user && !!model,
-    staleTime: 300000,
+    ...catalogQuery(user?.id, model?.provider),
   });
   if (!model) return '';
   const match = catalog.data?.find(
@@ -43,7 +41,15 @@ export function GenerationSummary({ file }: { file: Pick<IGnosisFile, 'origin'> 
   );
 }
 
-function SourceFile({ id, mask }: { id: number; mask: boolean }): ReactElement {
+function SourceFile({
+  id,
+  mask,
+  onOpen,
+}: {
+  id: number;
+  mask: boolean;
+  onOpen: (file: IGnosisFile) => void;
+}): ReactElement {
   const { user } = useAuth();
   const source = useQuery({
     queryKey: ['generation-source', user?.id, id],
@@ -51,20 +57,20 @@ function SourceFile({ id, mask }: { id: number; mask: boolean }): ReactElement {
     enabled: !!user,
     retry: false,
   });
-  const url = source.data?.userId === user?.id && safeMediaUrl(source.data?.path);
+  const file = source.data?.userId === user?.id ? source.data : undefined;
   return (
     <li>
       {source.isPending ? (
         'Загрузка исходника…'
-      ) : url ? (
-        <a href={url} target="_blank" rel="noopener noreferrer">
+      ) : file ? (
+        <button type="button" onClick={() => onOpen(file)}>
           <FileImage size={16} aria-hidden="true" />
           <span>
             {mask && <small>Маска · </small>}
-            {source.data!.name}
+            {file.name}
           </span>
           <ArrowUpRight size={14} aria-hidden="true" />
-        </a>
+        </button>
       ) : (
         `Исходник №${id} недоступен`
       )}
@@ -75,9 +81,11 @@ function SourceFile({ id, mask }: { id: number; mask: boolean }): ReactElement {
 export function GenerationDetails({
   file,
   onClose,
+  onOpen,
 }: {
   file: IGnosisFile;
   onClose: () => void;
+  onOpen: (file: IGnosisFile) => void;
 }): ReactElement | null {
   const modelName = useGenerationModelName(file);
   const details = useRef<HTMLElement>(null);
@@ -175,7 +183,7 @@ export function GenerationDetails({
             <h3>Исходные файлы</h3>
             <ol>
               {sources.map((id) => (
-                <SourceFile key={id} id={id} mask={id === generation.maskFileId} />
+                <SourceFile key={id} id={id} mask={id === generation.maskFileId} onOpen={onOpen} />
               ))}
             </ol>
           </>

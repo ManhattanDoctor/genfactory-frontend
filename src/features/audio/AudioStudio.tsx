@@ -1,3 +1,4 @@
+import { scheduleRefresh } from '../realtime/queryRefresh';
 import type { ReactElement } from 'react';
 import { modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
@@ -81,11 +82,11 @@ function AudioEditor(): ReactElement {
     conversation,
   );
   const agents = useQuery({
-    queryKey: ['audio-agents', auth.user?.id],
+    queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user,
     staleTime: 300000,
-    queryFn: async ({ signal }) =>
-      (await api.conversationModels(signal)).filter((m) => m.capabilities?.includes('TOOLS')),
+    queryFn: ({ signal }) => api.conversationModels(signal),
+    select: (models) => models.filter((m) => m.capabilities?.includes('TOOLS')),
   });
   const tools = useQuery({
     queryKey: ['audio-tools', auth.user?.id, conversation?.model || 'OPEN_ROUTER_CONVERSATION'],
@@ -135,12 +136,14 @@ function AudioEditor(): ReactElement {
     onSettled: (_result, failure, variables) => {
       if (getSession() !== variables.sid) return;
       client.setQueryData(['send-error', auth.user?.id, variables.id], failure?.message || null);
-      for (const key of [
-        ['conversation', auth.user?.id, variables.id],
-        ['messages', auth.user?.id, variables.id],
-        ['conversations', auth.user?.id],
-      ])
-        void client.invalidateQueries({ queryKey: key });
+      if (auth.user)
+        scheduleRefresh(
+          client,
+          auth.user.id,
+          variables.sid,
+          ['conversation', 'messages', 'conversations'],
+          variables.id,
+        );
       window.dispatchEvent(new Event('genfactory:generation-finished'));
     },
   });
@@ -165,7 +168,7 @@ function AudioEditor(): ReactElement {
         throw new Error('Не удалось получить аудио или видео вашего аккаунта.');
       draft.changed();
       setFiles([file]);
-      void client.invalidateQueries({ queryKey: ['files', auth.user.id] });
+      scheduleRefresh(client, auth.user.id, sid, ['files']);
     } catch (e) {
       if (current(sid)) setError((e as Error).message);
     } finally {

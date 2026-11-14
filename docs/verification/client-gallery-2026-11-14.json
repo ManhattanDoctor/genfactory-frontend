@@ -1,0 +1,97 @@
+{
+  "environment": "Local Docker Chromium, 1440x1000, 1000 synthetic image cards, three alternating runs per implementation; no simultaneous browser test run. Timings are illustrative, not a device-wide FPS guarantee.",
+  "baseline": "45d909e:src/components/Masonry.tsx",
+  "runs": [
+    {
+      "variant": "baseline",
+      "mountMs": 415.30000000447035,
+      "slots": 1000,
+      "mountedCards": 1000,
+      "nodes": 4036,
+      "height": 68051,
+      "scrollFrameMaxMs": 112
+    },
+    {
+      "variant": "current",
+      "mountMs": 312.20000000298023,
+      "slots": 1000,
+      "mountedCards": 36,
+      "nodes": 1120,
+      "height": 68051,
+      "scrollFrameMaxMs": 99.10000000149012
+    },
+    {
+      "variant": "baseline",
+      "mountMs": 491.30000000447035,
+      "slots": 1000,
+      "mountedCards": 1000,
+      "nodes": 4036,
+      "height": 68051,
+      "scrollFrameMaxMs": 94.10000000149012
+    },
+    {
+      "variant": "current",
+      "mountMs": 362.29999999701977,
+      "slots": 1000,
+      "mountedCards": 36,
+      "nodes": 1120,
+      "height": 68051,
+      "scrollFrameMaxMs": 122.29999999701977
+    },
+    {
+      "variant": "baseline",
+      "mountMs": 568.5999999940395,
+      "slots": 1000,
+      "mountedCards": 1000,
+      "nodes": 4036,
+      "height": 68051,
+      "scrollFrameMaxMs": 101.10000000149012
+    },
+    {
+      "variant": "current",
+      "mountMs": 282.69999999552965,
+      "slots": 1000,
+      "mountedCards": 36,
+      "nodes": 1128,
+      "height": 68051,
+      "scrollFrameMaxMs": 96
+    }
+  ],
+  "median": {
+    "baseline": {
+      "mountMs": 491.3,
+      "mountedCards": 1000,
+      "nodes": 4036,
+      "scrollFrameMaxMs": 101.1
+    },
+    "current": {
+      "mountMs": 312.2,
+      "mountedCards": 36,
+      "nodes": 1120,
+      "scrollFrameMaxMs": 99.1
+    }
+  },
+  "bundleGzipKB": {
+    "beforeCommonTemplates": 136.3,
+    "afterCommonTemplates": 47.82,
+    "lazyImagePrompts": 26.79,
+    "lazyVideoPrompts": 48.51,
+    "lazyPresentationPrompts": 15.31
+  },
+  "contentCheck": "At the catalogue-split stage all 337 records reconstructed exactly against 45d909e. Subsequent video-duration normalization changes video prompts and metadata; see template-duration-audit-2026-11-14.json.",
+  "verification": {
+    "unit": {
+      "command": "npm test",
+      "passed": 572
+    },
+    "productionBuild": "passed",
+    "format": "passed",
+    "browser": {
+      "selected": 29,
+      "passedInMainRun": 23,
+      "passedInFocusedReruns": 6,
+      "notes": "Four OAuth cases required the expected loopback origin. Geometry now waits for the existing animation to settle; video editor fields wait for lazy-loaded content. All selected cases ultimately passed. Full historical e2e suite not run."
+    },
+    "deployment": "not started; manual Astra model switch/review required"
+  }
+}

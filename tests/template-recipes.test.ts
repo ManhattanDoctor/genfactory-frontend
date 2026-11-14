@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
-import templates from '../src/features/content-studio/templates.json';
+import cards from '../src/features/content-studio/templates.json';
+import { loadTemplate } from '../src/features/content-studio/templateCatalog';
+const templates = await Promise.all(cards.map(loadTemplate));
 import fields from '../src/features/content-studio/templateFields.json';
 import {
   templateVariables,
@@ -99,24 +101,16 @@ it('uses Wan 3.0 for every video template without prescribing an image model', (
     expect(item).not.toHaveProperty('model');
 });
 
-it('records explicit video durations including timelines and preserves unspecified durations', () => {
-  const get = (n: number) =>
-    templates.find((item) => item.id === `video:2026-11-13:${String(n).padStart(2, '0')}`)!;
-  for (const [n, duration] of [
-    [1, 18],
-    [2, 12],
-    [5, 15],
-    [9, 30],
-    [12, 20],
-    [13, 15],
-    [23, 15],
-  ])
-    expect(get(n)).toHaveProperty('duration', duration);
-  expect(get(3)).not.toHaveProperty('duration');
-  for (const item of templates.filter(
-    (item) => item.kind === 'video' && !item.id.startsWith('video:2026-11-13:'),
-  ))
-    expect(item).toHaveProperty('duration', templateDuration(item.prompt));
+it('gives every video a recommendation consistent with its complete canonical timeline', () => {
+  for (const item of templates.filter((item) => item.kind === 'video')) {
+    expect(item.recommendedDuration).toBeGreaterThanOrEqual(2);
+    expect(item.recommendedDuration).toBeLessThanOrEqual(30);
+    expect(item).not.toHaveProperty('duration');
+    expect(templateDuration(item.prompt)).toBe(item.recommendedDuration);
+    const ranges = [...item.prompt.matchAll(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?) seconds/g)];
+    if (ranges.length)
+      expect(Math.max(...ranges.map((range) => Number(range[2])))).toBe(item.recommendedDuration);
+  }
 });
 
 it('declares explicit video inputs only for templates that need a source video', () => {
@@ -131,4 +125,9 @@ it('declares explicit video inputs only for templates that need a source video',
     expect(item.referenceVideoSrc).not.toBe(item.previewSrc);
     expect(existsSync(new URL('../public' + item.referenceVideoSrc, import.meta.url))).toBe(true);
   }
+});
+
+it('keeps prompt bodies out of card metadata and rejects unknown references', async () => {
+  expect(cards.every((card) => !('prompt' in card))).toBe(true);
+  await expect(loadTemplate({ ...cards[0], id: 'missing' })).rejects.toThrow('текст шаблона');
 });

@@ -1,5 +1,6 @@
+import { saveTemplateReference, templateReferenceId } from './templateReferenceCache';
 import { useEffect, useRef, useState } from 'react';
-import { api, getSession, type IUploadProgress } from '../../lib/api';
+import { api, ApiError, getSession, type IUploadProgress } from '../../lib/api';
 import type { IGnosisFile } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { templateVideoFile, type ITemplate } from './materials';
@@ -24,7 +25,7 @@ export function useTemplateVideoReference(scope: string | object, mode?: string)
   const prepare = async (
     item: ITemplate,
     existing?: IGnosisFile,
-  ): Promise<{ file?: IGnosisFile } | undefined> => {
+  ): Promise<{ file?: IGnosisFile; uploaded?: boolean } | undefined> => {
     if (active.current) return;
     if (!item.referenceVideoSrc) return {};
     if (!user || !session) {
@@ -43,19 +44,34 @@ export function useTemplateVideoReference(scope: string | object, mode?: string)
     setLoading(true);
     setProgress(undefined);
     try {
-      let file: IGnosisFile;
-      if (existing) file = await api.file(existing.id, session);
-      else {
+      let file: IGnosisFile | undefined;
+      let uploaded = false;
+      const cachedId = existing?.id ?? templateReferenceId(user.id, item);
+      if (cachedId !== undefined) {
+        try {
+          file = await api.file(cachedId, session);
+        } catch (error) {
+          if (!isCurrent()) return;
+          // Only a confirmed deletion permits a replacement upload. Network/auth
+          // errors must not create duplicate files or conceal a server failure.
+          if (!(error instanceof ApiError) || error.status !== 404) throw error;
+          saveTemplateReference(user.id, item);
+        }
+      }
+      if (!isCurrent()) return;
+      if (!file) {
         const source = await templateVideoFile(item, controller.signal);
         if (!isCurrent()) return;
         file = await api.upload(source, session, undefined, (value) => {
           if (isCurrent()) setProgress(value);
         });
+        uploaded = true;
       }
       if (!isCurrent()) return;
       if (file.userId !== user.id || file.type !== 'VIDEO')
         throw new Error('Не удалось прикрепить видео шаблона к вашему аккаунту.');
-      return { file };
+      saveTemplateReference(user.id, item, file.id);
+      return { file, uploaded };
     } catch (error) {
       if (isCurrent()) throw error;
     } finally {

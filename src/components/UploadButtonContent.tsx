@@ -6,10 +6,12 @@ export function UploadButtonContent({
   busy,
   progress,
   children,
+  compact = false,
 }: {
   busy: boolean;
   progress?: IUploadProgress;
   children: ReactNode;
+  compact?: boolean;
 }) {
   if (!busy) return children;
   const percent = progress?.total
@@ -26,7 +28,7 @@ export function UploadButtonContent({
   return (
     <span className="upload-button-status" role="status" title={progress?.fileName}>
       <LoaderCircle size={17} className="upload-button-spinner" aria-hidden="true" />
-      <span>{label}</span>
+      <span className={compact ? 'sr-only' : undefined}>{label}</span>
     </span>
   );
 }

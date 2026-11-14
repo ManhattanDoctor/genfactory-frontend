@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
-import type { ITemplate } from './materials';
+import type { ITemplateCard } from './materials';
 import type { IAttachment } from './studioTypes';
 
 interface Props {
-  picked: ITemplate[];
+  picked: ITemplateCard[];
   attachments: IAttachment[];
   attachmentBusy: boolean;
   onRemoveTemplate: (id: string) => void;

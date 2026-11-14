@@ -1,10 +1,12 @@
+import { fitTemplateDuration, resolveTemplateDuration } from '../content-studio/templateDuration';
+import { useTemplateSelection } from '../content-studio/useTemplateSelection';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
 import type { IUploadProgress } from '../../lib/api';
 import { Skeleton } from '../../components/Skeleton';
 import { supportsVideoReferences } from '../catalog/videoInputs';
 import { downloadFile } from '../../lib/files';
 import { TemplateEditor } from '../content-studio/TemplateEditor';
-import { templateVariables } from '../content-studio/templateRecipe';
+import { templateVariables, templateTimingError } from '../content-studio/templateRecipe';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
 import { ModelTitleWithInfo } from '../catalog/ModelTitleWithInfo';
@@ -41,13 +43,13 @@ import {
   ChevronDown,
   Info,
 } from 'lucide-react';
-import { api, safeMediaUrl } from '../../lib/api';
+import { api } from '../../lib/api';
 import type { IConversation, IGnosisFile, IModelDescription, MediaKind } from '../../lib/types';
 import { favoritesFirst, modelKey, modelTitle, modelSummary } from '../catalog/presentation';
 import { useConversationError } from './useConversationError';
 import { choices, ratioSizes, sizeRatio, suggestedRatios } from '../content-studio/controls';
 import templates from '../content-studio/templates.json';
-import type { ITemplate } from '../content-studio/materials';
+import type { ITemplate, ITemplateCard } from '../content-studio/materials';
 
 import { ModelMark } from '../content-studio/ModelMark';
 import { useAuth } from '../auth/AuthProvider';
@@ -55,7 +57,7 @@ import { usePreferences, toggleItem } from '../workspace/preferences';
 import { Media, MediaPreview } from '../../components/MediaPreview';
 import { Modal } from '../../components/Modal';
 import { Masonry } from '../../components/Masonry';
-import { HomeImageViewer } from '../../app/HomeImageViewer';
+import { useNavigate } from 'react-router-dom';
 import { displayMessageText } from './conversations';
 import { useConversationRoom } from '../realtime/RealtimeProvider';
 import { useConversationProgress } from './useConversationProgress';
@@ -129,6 +131,7 @@ export function MediaWorkspace({
   promptInput: RefObject<HTMLTextAreaElement | null>;
   children?: ReactNode;
 }): ReactElement {
+  const navigate = useNavigate();
   const video = kind === 'video';
   const banana = variant === 'banana';
   const seedance = variant === 'seedance';
@@ -136,7 +139,15 @@ export function MediaWorkspace({
   const generating = busy || pendingCount > 0;
   const imageTemplates = templates.filter((item) => item.kind === kind);
   useConversationRoom(conversation?.id);
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  const prepareTemplate = useTemplateSelection([
+    kind,
+    conversation?.id,
+    session,
+    prompt,
+    options.duration,
+    model?.reference.model,
+  ]);
   const prefs = usePreferences();
   const root = useRef<HTMLDivElement>(null);
   const wall = useRef<HTMLDivElement>(null);
@@ -176,7 +187,7 @@ export function MediaWorkspace({
   useEffect(() => setAnswerView(undefined), [conversation?.id]);
   const downloading = useRef(new Set<number>());
   const [downloadIds, setDownloadIds] = useState<number[]>([]);
-  const [preview, setPreview] = useState<{ file: IGnosisFile; rect: DOMRect }>();
+  const [preview, setPreview] = useState<IGnosisFile>();
   const [page, setPage] = useState(0);
   useEffect(() => {
     setPage(0);
@@ -220,6 +231,15 @@ export function MediaWorkspace({
       ].map((file) => [file.id, file]),
     ).values(),
   ].sort((a, b) => Date.parse(b.createdDate) - Date.parse(a.createdDate) || b.id - a.id);
+  const cardRatios = new Map<string, number>();
+  for (const item of imageTemplates) {
+    const [w, h] = item.ratio.split(':').map(Number);
+    if (w > 0 && h > 0) cardRatios.set(item.id, h / w);
+  }
+  for (const file of files) {
+    const preview = file.preview?.image;
+    if (preview?.width && preview.height) cardRatios.set(`file:${file.id}`, preview.height / preview.width);
+  }
   const repeatInput = (file: IGnosisFile) => {
     if (user) {
       const recipe = readFileRecipe(user.id, file.id);
@@ -306,13 +326,21 @@ export function MediaWorkspace({
   const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
   const applyTemplateText = async (item: ITemplate, text: string): Promise<void> => {
+    const target = item.model
+      ? models.find((candidate) => modelKey(candidate) === modelKey({ reference: item.model! }))
+      : model;
+    const duration = resolveTemplateDuration(item, options.duration, target);
+    const timingError = item.kind === 'video' ? templateTimingError(text, duration) : undefined;
+    if (timingError) {
+      setNotice(timingError);
+      return;
+    }
     if (!(await onPrepareTemplate(item))) return;
     if (item.model)
       onModel(
         { reference: item.model },
         {
-          ...(typeof options.duration === 'number' ? { duration: options.duration } : {}),
-          ...(item.duration ? { duration: item.duration } : {}),
+          ...(duration !== undefined ? { duration } : {}),
         },
       );
     clearTimeout(templateGlowTimer.current);
@@ -327,17 +355,26 @@ export function MediaWorkspace({
     setEditingTemplate(undefined);
     requestAnimationFrame(() => promptInput.current?.focus());
   };
-  const applyTemplate = (item: ITemplate): void => {
+  const applyTemplate = async (card: ITemplateCard): Promise<void> => {
     if (busy) return;
     try {
-      if (!templateVariables(item.prompt).length) {
-        applyTemplateText(item, item.prompt);
-        return;
+      const loaded = await prepareTemplate(card);
+      if (!loaded) return;
+      const target = loaded.model
+        ? models.find((candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }))
+        : model;
+      const item = fitTemplateDuration(loaded, options.duration, target);
+      let needsEditor = true;
+      try {
+        needsEditor = templateVariables(item.prompt).length > 0;
+      } catch {
+        /* Editor reports invalid syntax. */
       }
-    } catch {
-      /* Open the editor to correct invalid template syntax. */
+      if (needsEditor) setEditingTemplate(item);
+      else await applyTemplateText(item, item.prompt);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Не удалось загрузить шаблон.');
     }
-    setEditingTemplate(item);
   };
   const submitTemplate = (): void => {
     let incomplete = !templateText.trim();
@@ -347,7 +384,8 @@ export function MediaWorkspace({
       incomplete = true;
     }
     if (selected && incomplete) {
-      setEditingTemplate({ ...selected, prompt: templateText || selected.prompt });
+      if (templateText) setEditingTemplate({ ...selected, prompt: templateText });
+      else void applyTemplate(selected);
       return;
     }
     onSubmit((): void => {
@@ -430,7 +468,7 @@ export function MediaWorkspace({
           aria-label={`Открыть ${file.name}`}
           onClick={(e) => {
             e.currentTarget.focus({ preventScroll: true });
-            setPreview({ file, rect: e.currentTarget.getBoundingClientRect() });
+            setPreview(file);
           }}
         >
           <Media file={file} />
@@ -441,7 +479,7 @@ export function MediaWorkspace({
             aria-label={`Открыть ${file.name}`}
             onClick={(e) => {
               e.currentTarget.focus({ preventScroll: true });
-              setPreview({ file, rect: e.currentTarget.closest('article')!.getBoundingClientRect() });
+              setPreview(file);
             }}
           >
             <Expand size={18} />
@@ -575,7 +613,15 @@ export function MediaWorkspace({
           </div>
         )}
         <div className="img-masonry" style={{ paddingBottom: bottom }}>
-          <Masonry columns={columns}>{cards}</Masonry>
+          <Masonry
+            columns={columns}
+            scrollRoot={wall}
+            estimateHeight={(key, width) =>
+              key === 'next-page' ? 40 : width * (cardRatios.get(key) ?? 0.75)
+            }
+          >
+            {cards}
+          </Masonry>
         </div>
       </div>
       {editingTemplate && !busy && (
@@ -595,7 +641,11 @@ export function MediaWorkspace({
             setEditingTemplate(undefined);
             requestAnimationFrame(() => promptInput.current?.focus());
           }}
-          onApply={(text) => applyTemplateText(editingTemplate, text)}
+          onApply={(text) => {
+            void applyTemplateText(editingTemplate, text).catch((error) =>
+              setNotice(error instanceof Error ? error.message : 'Не удалось применить шаблон.'),
+            );
+          }}
         />
       )}
       <form
@@ -607,11 +657,6 @@ export function MediaWorkspace({
         }}
       >
         <div className="cw-field">
-          {templateUploadProgress !== undefined && (
-            <UploadButtonContent busy progress={templateUploadProgress || undefined}>
-              {null}
-            </UploadButtonContent>
-          )}
           {(selected || references.length > 0) && (
             <div className="img-files">
               {references.map((file) => (
@@ -646,7 +691,8 @@ export function MediaWorkspace({
                       aria-label="Редактировать шаблон"
                       disabled={busy}
                       onClick={() => {
-                        setEditingTemplate({ ...selected, prompt: templateText || selected.prompt });
+                        if (templateText) setEditingTemplate({ ...selected, prompt: templateText });
+                        else void applyTemplate(selected);
                       }}
                     >
                       <Pencil size={13} />
@@ -691,9 +737,16 @@ export function MediaWorkspace({
                     : 'Добавить изображение'
               }
               disabled={busy || (!!user && !model)}
+              aria-busy={templateUploadProgress !== undefined}
               onClick={onLibrary}
             >
-              <Plus size={20} />
+              <UploadButtonContent
+                compact
+                busy={templateUploadProgress !== undefined}
+                progress={templateUploadProgress || undefined}
+              >
+                <Plus size={20} />
+              </UploadButtonContent>
             </button>
             <ImageMenu
               label={
@@ -845,26 +898,18 @@ export function MediaWorkspace({
           <div className="media-answer-body">{answerView}</div>
         </Modal>
       )}
-      {video && preview && (
+      {preview && (
         <MediaPreview
-          key={preview.file.id}
-          file={preview.file}
+          key={preview.id}
+          file={preview}
           files={files}
           onClose={() => setPreview(undefined)}
-        />
-      )}
-      {!video && preview && safeMediaUrl(preview.file.path) && (
-        <HomeImageViewer
-          image={{
-            src: safeMediaUrl(preview.file.path)!,
-            alt: preview.file.name,
-            preview:
-              preview.file.preview?.image?.status === 'READY'
-                ? safeMediaUrl(preview.file.preview.image.url)
-                : undefined,
+          onAnalyze={(file) => navigate('/prompt', { state: { reference: file, userId: user?.id } })}
+          onUse={(file) => {
+            setPreview(undefined);
+            navigate('/image', { state: { reference: file, userId: user?.id } });
           }}
-          from={preview.rect}
-          onClose={() => setPreview(undefined)}
+          onAnimate={(file) => navigate('/video', { state: { reference: file, userId: user?.id } })}
         />
       )}
       {children}

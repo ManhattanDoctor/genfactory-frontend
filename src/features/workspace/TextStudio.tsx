@@ -1,3 +1,5 @@
+import { catalogQuery } from '../catalog/catalogQuery';
+import { scheduleRefresh } from '../realtime/queryRefresh';
 import type { ReactElement } from 'react';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
 import { modelTitle } from '../catalog/presentation';
@@ -103,7 +105,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
     queryFn: ({ signal }) => api.conversationModels(signal),
   });
   const videoModels = useQuery({
-    queryKey: ['video-analysis-models', auth.user?.id],
+    ...catalogQuery(auth.user?.id, 'OPEN_ROUTER_TEXT'),
     enabled: !!auth.user && !modernAgent,
     queryFn: ({ signal }) => api.catalog('OPEN_ROUTER_TEXT', signal),
     staleTime: 300000,
@@ -148,11 +150,15 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
     mutationFn: ({ id, body, sid }: { id: number; body: IMessageCreate; sid: string }) =>
       api.sendMessage(id, body, sid),
     onSettled: (_data, failure, v) => {
+      if (!auth.user || getSession() !== v.sid) return;
       client.setQueryData(['send-error', auth.user?.id, v.id], failure?.message || null);
-      void client.invalidateQueries({ queryKey: ['conversation', auth.user?.id, v.id] });
-      void client.invalidateQueries({ queryKey: ['messages', auth.user?.id, v.id] });
-      void client.invalidateQueries({ queryKey: ['agent-messages', auth.user?.id, v.id] });
-      void client.invalidateQueries({ queryKey: ['conversations', auth.user?.id] });
+      scheduleRefresh(
+        client,
+        auth.user.id,
+        v.sid,
+        ['conversation', 'messages', 'agent-messages', 'conversations'],
+        v.id,
+      );
       window.dispatchEvent(new Event('genfactory:generation-finished'));
     },
   });
@@ -288,7 +294,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
           setToolIds((v) => (v.includes('VIDEO_RECOGNITION') ? v : [...v, 'VIDEO_RECOGNITION']));
           setNotice('Видео будет проанализировано инструментом «Анализ видео».');
         }
-        void client.invalidateQueries({ queryKey: ['files', auth.user.id] });
+        scheduleRefresh(client, auth.user.id, sid, ['files']);
       }
     } catch (e) {
       if (isCurrent(sid)) setError(e instanceof Error ? e.message : 'Не удалось загрузить материал.');

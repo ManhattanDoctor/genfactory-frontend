@@ -178,7 +178,7 @@ export function ActiveJobs(): ReactElement | null {
 }
 function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
   const client = useQueryClient();
-  const { join } = useRealtime();
+  const { join, connected } = useRealtime();
   const tasks = useMutationState({
     filters: { mutationKey: ['media-task', userId] },
     select: (mutation) => ({
@@ -194,7 +194,8 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
   const executions = useQuery({
     queryKey: ['active-tasks', userId],
     queryFn: ({ signal }) => api.tasks(signal, sid),
-    refetchInterval: (query) => (query.state.data?.length || pendingTasks.length ? 5000 : false),
+    refetchInterval: (query) =>
+      query.state.data?.length || pendingTasks.length ? (connected ? 30000 : 5000) : false,
   });
   const taskNotices = useQuery<ITaskFinished[]>({
     queryKey: ['task-notices', userId],
@@ -234,7 +235,9 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
     // Completed/idle sessions do not poll.
     refetchInterval: (query) =>
       query.state.data?.items.some((item) => item.status === 'LOADING') || tracked.current.size
-        ? 5000
+        ? connected
+          ? 30000
+          : 5000
         : false,
   });
   useEffect(() => {

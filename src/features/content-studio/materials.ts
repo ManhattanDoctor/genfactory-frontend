@@ -9,13 +9,16 @@ export interface ITemplate {
   addedAt?: string;
   prompt: string;
   model?: IModelDescription['reference'];
-  duration?: number;
+  /** Suggested output length; never overrides an existing form selection. */
+  recommendedDuration?: number;
   src: string;
   previewSrc?: string;
   referenceVideoSrc?: string;
   ratio: string;
   references?: { min: number; max?: number };
 }
+export type ITemplateCard = Omit<ITemplate, 'prompt'>;
+
 export interface ITemplateVideoReference {
   templateId: string;
   fileId: number;
@@ -32,7 +35,7 @@ export async function templateVideoFile(template: ITemplate, signal?: AbortSigna
 }
 
 /** A gallery preview is a reference only when explicitly selected for a frame slot. */
-export async function templateFrame(template: ITemplate, slot: 'start' | 'end'): Promise<File> {
+export async function templateFrame(template: ITemplateCard, slot: 'start' | 'end'): Promise<File> {
   if (!['image', 'video'].includes(template.kind))
     throw new Error('Для кадра выберите изображение или видео.');
   const response = await fetch(template.src);

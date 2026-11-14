@@ -2,11 +2,11 @@ import type { ReactElement } from 'react';
 import { modelTitle, modelSummary } from '../catalog/presentation';
 import { Modal } from '../../components/Modal';
 import { useEffect, useRef, useState } from 'react';
-import type { ITemplate } from '../content-studio/materials';
+import type { ITemplateCard } from '../content-studio/materials';
 import './video-workspace.css';
 
 /** Load the short designer preview only while the card is visible. */
-export function VideoTemplateMedia({ item }: { item: ITemplate }): ReactElement {
+export function VideoTemplateMedia({ item }: { item: ITemplateCard }): ReactElement {
   const root = useRef<HTMLSpanElement>(null);
   const clip = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);

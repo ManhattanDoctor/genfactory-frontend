@@ -1,4 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { catalogQuery } from '../catalog/catalogQuery';
 import { api } from '../../lib/api';
 import type { IConversation, IModelDescription, ISchema } from '../../lib/types';
 import { useRetainedModel } from '../catalog/useRetainedModel';
@@ -14,23 +15,21 @@ export function useStudioCatalog(
   mode: StudioMode,
   userId?: number,
 ): UseQueryResult<Array<IModelDescription>, Error> {
+  const presentation = mode === 'presentation';
+  const provider =
+    mode === 'image'
+      ? 'OPEN_ROUTER_IMAGE'
+      : mode === 'video'
+        ? 'OPEN_ROUTER_VIDEO'
+        : 'OPEN_ROUTER_CONVERSATION';
   return useQuery({
-    queryKey: ['content-studio-models', userId, mode],
-    enabled: !!userId,
-    staleTime: 300000,
-    queryFn: async ({ signal }) =>
-      mode === 'presentation'
-        ? api.conversationModels(signal)
-        : (
-            await Promise.all(
-              (mode === 'image'
-                ? ['OPEN_ROUTER_IMAGE']
-                : mode === 'video'
-                  ? ['OPEN_ROUTER_VIDEO']
-                  : ['OPEN_ROUTER_CONVERSATION']
-              ).map((provider) => api.catalog(provider, signal)),
-            )
-          ).flat(),
+    ...catalogQuery(userId, provider),
+    ...(presentation
+      ? {
+          queryKey: ['conversation-models', userId],
+          queryFn: ({ signal }: { signal: AbortSignal }) => api.conversationModels(signal),
+        }
+      : {}),
   });
 }
 

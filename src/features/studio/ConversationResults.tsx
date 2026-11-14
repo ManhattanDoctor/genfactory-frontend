@@ -99,7 +99,7 @@ export function ConversationResults({
             (message.role === 'USER' ? (
               <p className="conversation-text">{displayMessageText(message.text)}</p>
             ) : (
-              <MessageContent text={message.text} files={message.files} />
+              <MessageContent text={message.text} files={message.files} onOpen={setPreview} />
             ))}
           {message.text && (
             <div className="workspace-actions message-actions">

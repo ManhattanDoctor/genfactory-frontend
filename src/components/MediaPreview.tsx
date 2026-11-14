@@ -1,3 +1,4 @@
+import { scheduleRefresh } from '../features/realtime/queryRefresh';
 import './media-loading.css';
 import { Skeleton } from './Skeleton';
 import { downloadFile } from '../lib/files';
@@ -7,10 +8,11 @@ import { FilePlaceholder } from './FilePlaceholder';
 import { useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ExternalLink, MoreHorizontal } from 'lucide-react';
-import { api, safeMediaUrl } from '../lib/api';
+import { api, getSession, safeMediaUrl } from '../lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
+import { mediaUrlIdentity } from '../lib/mediaIdentity';
 export type MediaFile = Pick<IGnosisFile, 'name' | 'type' | 'mime' | 'preview'> &
   Partial<Pick<IGnosisFile, 'path'>>;
 export type PreviewFile = MediaFile & Partial<IGnosisFile>;
@@ -25,7 +27,19 @@ interface MediaProps {
   onReady?: () => void;
 }
 export function Media(props: MediaProps): ReactElement {
-  const identity = `${props.file.path}:${props.file.preview?.image?.url}:${props.file.preview?.video?.url}`;
+  const identity = JSON.stringify({
+    type: props.file.type,
+    mime: props.file.mime,
+    path: mediaUrlIdentity(props.file.path),
+    image: props.file.preview?.image && {
+      ...props.file.preview.image,
+      url: mediaUrlIdentity(props.file.preview.image.url),
+    },
+    video: props.file.preview?.video && {
+      ...props.file.preview.video,
+      url: mediaUrlIdentity(props.file.preview.video.url),
+    },
+  });
   const [readyFor, setReadyFor] = useState('');
   const [failedFor, setFailedFor] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -114,6 +128,22 @@ export function Media(props: MediaProps): ReactElement {
     </span>
   );
 }
+function useMediaUrl(value: string | undefined, failedSources: string[]): string | undefined {
+  const identity = mediaUrlIdentity(value);
+  const [current, setCurrent] = useState({ identity, value });
+  // Keep the mounted source while only its signature changes. If it fails,
+  // use the latest credentials before falling back to another media source.
+  if (
+    current.identity !== identity ||
+    (current.value && failedSources.includes(current.value) && current.value !== value)
+  ) {
+    const next = { identity, value };
+    setCurrent(next);
+    return value;
+  }
+  return current.value;
+}
+
 function MediaContent({
   file,
   controls = false,
@@ -129,14 +159,20 @@ function MediaContent({
   useEffect(() => {
     if (isPlaybackDisabled) videoRef.current?.pause();
   }, [isPlaybackDisabled]);
-  const original = safeMediaUrl(file.path);
   const [failedSources, setFailedSources] = useState<string[]>([]);
+  const original = useMediaUrl(safeMediaUrl(file.path), failedSources);
   const failSource = (source: string): void => {
     setFailedSources((items) => (items.includes(source) ? items : [...items, source]));
   };
   const isVideo = file.type === 'VIDEO' || file.mime?.startsWith('video/');
-  const poster = file.preview?.image?.status === 'READY' ? safeMediaUrl(file.preview.image.url) : undefined;
-  const clip = file.preview?.video?.status === 'READY' ? safeMediaUrl(file.preview.video.url) : undefined;
+  const poster = useMediaUrl(
+    file.preview?.image?.status === 'READY' ? safeMediaUrl(file.preview.image.url) : undefined,
+    failedSources,
+  );
+  const clip = useMediaUrl(
+    file.preview?.video?.status === 'READY' ? safeMediaUrl(file.preview.video.url) : undefined,
+    failedSources,
+  );
   const sources =
     isVideo && isPlaybackDisabled
       ? [poster, original]
@@ -300,7 +336,7 @@ export function MediaPreview({
   }, []);
   const [current, setCurrent] = useState(file);
   const [generationOpen, setGenerationOpen] = useState(false);
-  const mediaKey = `${current.id ?? ''}:${current.path ?? ''}`;
+  const mediaKey = `${current.id ?? ''}:${mediaUrlIdentity(current.path)}`;
   const [readyMedia, setReadyMedia] = useState<string>();
   const mediaReady = useCallback((): void => setReadyMedia(mediaKey), [mediaKey]);
   const saved =
@@ -349,7 +385,8 @@ export function MediaPreview({
     try {
       const preview = await api.createPreview(saved!.id);
       client.setQueryData(['file-preview', file.userId, current.id], { ...current, preview });
-      await client.invalidateQueries({ queryKey: ['files'] });
+      const sid = getSession();
+      if (saved && sid) scheduleRefresh(client, saved.userId, sid, ['files']);
     } catch {
       setNotice('Не удалось запустить создание превью. Попробуйте ещё раз.');
     } finally {
@@ -615,7 +652,15 @@ export function MediaPreview({
         </div>
       )}
       {generationOpen && saved && (
-        <GenerationDetails key={saved.id} file={saved} onClose={() => setGenerationOpen(false)} />
+        <GenerationDetails
+          key={saved.id}
+          file={saved}
+          onClose={() => setGenerationOpen(false)}
+          onOpen={(source) => {
+            setGenerationOpen(false);
+            setCurrent(source);
+          }}
+        />
       )}
       {current.origin?.directoryFallback && (
         <p role="status">Папка результатов стала недоступна. Файл сохранён в корне библиотеки.</p>

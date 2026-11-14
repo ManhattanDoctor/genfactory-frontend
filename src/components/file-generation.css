@@ -127,7 +127,11 @@
   overflow-wrap: anywhere;
   font-size: 13px;
 }
-.file-generation li a {
+.file-generation li button {
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -138,15 +142,15 @@
   color: #f4f4f5;
   text-decoration: none;
 }
-.file-generation li a > svg {
+.file-generation li button > svg {
   flex: none;
   color: #9a9aa0;
 }
-.file-generation li a > span {
+.file-generation li button > span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.file-generation li a:hover {
+.file-generation li button:hover {
   background: #34353b;
 }
 .file-generation :is(button, a):focus-visible {

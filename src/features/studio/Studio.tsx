@@ -1,3 +1,5 @@
+import { syncTemplateDuration, templateTimingError } from '../content-studio/templateRecipe';
+import { catalogQuery } from '../catalog/catalogQuery';
 import { useTemplateVideoReference } from '../content-studio/useTemplateVideoReference';
 import type { ITemplateVideoReference } from '../content-studio/materials';
 import { scheduleRefresh } from '../realtime/queryRefresh';
@@ -73,7 +75,7 @@ import { LibraryPicker } from '../../components/LibraryPicker';
 import { WorkspaceNav } from '../workspace/WorkspaceNav';
 import { usePreferences, type IPreset } from '../workspace/preferences';
 import { creativePrompt } from '../workspace/prompt';
-const providers = { image: ['OPEN_ROUTER_IMAGE'], video: ['OPEN_ROUTER_VIDEO'] };
+const providers = { image: 'OPEN_ROUTER_IMAGE', video: 'OPEN_ROUTER_VIDEO' };
 const suggestions = {
   image: [
     'Съёмка парфюма на камне в утреннем свете',
@@ -139,8 +141,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const agents = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user && !conversationId && legacy,
-    queryFn: async ({ signal }) =>
-      (await api.conversationModels(signal)).filter((m) => m.capabilities?.includes('TOOLS')),
+    queryFn: ({ signal }) => api.conversationModels(signal),
+    select: (models) => models.filter((m) => m.capabilities?.includes('TOOLS')),
     staleTime: 300000,
   });
   const agent = agents.data?.find((m) => m.reference.model === agentKey) || agents.data?.[0];
@@ -221,16 +223,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     return () => cancelAnimationFrame(frame);
   }, [focusPrompt, busy]);
   const catalog = useQuery({
-    queryKey: ['models', auth.user?.id, kind],
-    enabled: !!auth.user,
-    queryFn: async ({ signal }) => {
-      const results = await Promise.all(providers[kind].map((p) => api.catalog(p, signal)));
-      const models = results.flat();
-      return models.filter((m) =>
-        m.capabilities?.includes(kind === 'image' ? 'IMAGE_OUTPUT' : 'VIDEO_OUTPUT'),
-      );
-    },
-    staleTime: 5 * 60_000,
+    ...catalogQuery(auth.user?.id, providers[kind]),
+    select: (models) =>
+      models.filter((model) =>
+        model.capabilities?.includes(kind === 'image' ? 'IMAGE_OUTPUT' : 'VIDEO_OUTPUT'),
+      ),
   });
   const models = (catalog.data || [])
     .filter((m) =>
@@ -625,7 +622,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           throw new Error('Сервер не вернул изображение вашего аккаунта.');
         draft.changed();
         setReferences((prev) => (prev.some((f) => f.id === saved.id) ? prev : [...prev, saved]));
-        void client.invalidateQueries({ queryKey: ['files', auth.user.id] });
+        scheduleRefresh(client, auth.user.id, sid, ['files']);
       }
     } catch (e) {
       if (isCurrent()) setError(e instanceof Error ? e.message : 'Не удалось загрузить файл.');
@@ -651,6 +648,9 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     !legacy && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
       ? insufficientFundsMessage
       : '';
+  useEffect(() => {
+    if (kind === 'video') setPrompt((value) => syncTemplateDuration(value, options.duration));
+  }, [kind, options.duration]);
   const submit = async (onStarted?: () => void): Promise<void> => {
     if (!auth.user || !auth.session) {
       void auth.signIn();
@@ -690,6 +690,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       return;
     }
     if (kind === 'video') {
+      const timingError = templateTimingError(prompt, options.duration);
+      if (timingError) {
+        setError(timingError);
+        return;
+      }
       const issue = videoReferenceError(model, references);
       if (issue) {
         setError(issue);
@@ -1049,7 +1054,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           setOptions(value);
         }}
         onPrepareTemplate={async (item) => {
-          if (busy || uploading) return false;
+          const sid = getSession();
+          if (!sid || busy || uploading) return false;
           const previousId = templateVideoReference?.fileId;
           const existing =
             templateVideoReference?.templateId === item.id
@@ -1066,7 +1072,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
               ...current.filter((value) => value.id !== previousId && value.id !== file?.id),
             ]);
             setTemplateVideoReference(file ? { templateId: item.id, fileId: file.id } : undefined);
-            if (file) void client.invalidateQueries({ queryKey: ['files', auth.user?.id] });
+            if (result.uploaded && auth.user) scheduleRefresh(client, auth.user.id, sid, ['files']);
             return true;
           } catch (error) {
             setError(error instanceof Error ? error.message : 'Не удалось прикрепить видео шаблона.');

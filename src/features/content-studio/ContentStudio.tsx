@@ -1,3 +1,7 @@
+import { fitTemplateDuration, resolveTemplateDuration } from './templateDuration';
+import { loadTemplate } from './templateCatalog';
+import { useTemplateSelection } from './useTemplateSelection';
+import { scheduleRefresh } from '../realtime/queryRefresh';
 import { useTemplateVideoReference } from './useTemplateVideoReference';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
@@ -23,7 +27,7 @@ import {
 import { scriptReferences } from './script';
 import '../catalog/model-favorites.css';
 import { TemplateEditor } from './TemplateEditor';
-import { templateVariables } from './templateRecipe';
+import { templateVariables, templateTimingError, syncTemplateDuration } from './templateRecipe';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api, getSession, type IUploadProgress } from '../../lib/api';
@@ -31,8 +35,8 @@ import type { IGnosisFile, IFileGeneration, IConversationMessage, IPagination } 
 import { useContentConversation } from './useContentConversation';
 import { ContentThread } from './ContentThread';
 import { sizeRatio } from './controls';
-import { referenceLimit, supportsReferences } from '../catalog/schema';
-import { templateFrame, type ITemplate, type ITemplateVideoReference } from './materials';
+import { referenceLimit, supportsReferences, isSchemaValue } from '../catalog/schema';
+import { templateFrame, type ITemplate, type ITemplateCard, type ITemplateVideoReference } from './materials';
 import {
   videoReferenceMode,
   supportsVideoReferences,
@@ -131,9 +135,12 @@ export function ContentStudio(): ReactElement {
   const setRatio = (value: string) => setRatios((current) => ({ ...current, [mode]: value }));
   const [imageQuality, setImageQuality] = useState('');
   const [duration, setDuration] = useState(8);
+  useEffect(() => {
+    if (mode === 'video') setDraft((value) => syncTemplateDuration(value, duration));
+  }, [mode, duration]);
   const [sound, setSound] = useState('Без звука');
   const [shape, setShape] = useState('Один кадр');
-  const [picked, setPicked] = useState<ITemplate[]>([]);
+  const [picked, setPicked] = useState<ITemplateCard[]>([]);
   const [attachments, setAttachments] = useState<IAttachment[]>([]);
   const [templateVideoReference, setTemplateVideoReference] = useState<ITemplateVideoReference>();
   const templateVideo = useTemplateVideoReference(work.scope, mode);
@@ -160,13 +167,22 @@ export function ContentStudio(): ReactElement {
       work.setError('Для видеореференса шаблона уберите опорные кадры из основной формы.');
       return;
     }
+    const sid = getSession();
+    if (!sid) return;
     const previousId = templateVideoReference?.fileId;
     const existing =
       templateVideoReference?.templateId === item.id
         ? attachments.find((attachment) => attachment.saved?.id === previousId)?.saved
         : undefined;
     work.setError('');
+    let chosenDuration: number | undefined;
     try {
+      const target = item.model
+        ? catalog.data?.find((candidate) => modelKey(candidate) === modelKey({ reference: item.model! }))
+        : model;
+      chosenDuration = resolveTemplateDuration(item, duration, target);
+      const timingError = item.kind === 'video' ? templateTimingError(prompt, chosenDuration) : undefined;
+      if (timingError) throw new Error(timingError);
       const result = await templateVideo.prepare(item, existing);
       if (!result) return;
       const file = result.file;
@@ -181,13 +197,13 @@ export function ContentStudio(): ReactElement {
         ),
       ]);
       setTemplateVideoReference(file ? { templateId: item.id, fileId: file.id } : undefined);
-      if (file) void queryClient.invalidateQueries({ queryKey: ['files', user?.id] });
+      if (result.uploaded && user) scheduleRefresh(queryClient, user.id, sid, ['files']);
     } catch (error) {
       work.setError(error instanceof Error ? error.message : 'Не удалось прикрепить видео шаблона.');
       return;
     }
     if (item.model) setSelectedModel(modelKey({ reference: item.model }));
-    if (item.duration) setDuration(item.duration);
+    if (chosenDuration !== undefined) setDuration(chosenDuration);
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
@@ -224,7 +240,7 @@ export function ContentStudio(): ReactElement {
       textarea.current.style.height = '72px';
     }
   }, [draft]);
-  const current = (templates as ITemplate[]).filter((t) => t.kind === mode);
+  const current = (templates as ITemplateCard[]).filter((t) => t.kind === mode);
   const genres = [...new Set(current.map((t) => t.genre).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, 'ru'),
   );
@@ -235,7 +251,8 @@ export function ContentStudio(): ReactElement {
         (b.addedAt || '').localeCompare(a.addedAt || '') ||
         Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)),
     );
-  const pick = async (item: ITemplate): Promise<void> => {
+  const prepareTemplate = useTemplateSelection([work.scope, mode, session, draft, duration, selectedModel]);
+  const pick = async (item: ITemplateCard): Promise<void> => {
     if (busy) return;
     setMobileGallery(false);
     if (frameSlot) {
@@ -267,14 +284,25 @@ export function ContentStudio(): ReactElement {
         if (alive.current) setPreparingFrame(false);
       }
     } else {
-      let needsEditor = item.kind === 'presentation';
       try {
-        needsEditor ||= templateVariables(item.prompt).length > 0;
-      } catch {
-        needsEditor = true;
+        const loaded = await prepareTemplate(item);
+        if (!loaded) return;
+        const target = loaded.model
+          ? catalog.data?.find((candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }))
+          : model;
+        const full = fitTemplateDuration(loaded, duration, target);
+        let needsEditor = full.kind === 'presentation';
+        try {
+          needsEditor ||= templateVariables(full.prompt).length > 0;
+        } catch {
+          needsEditor = true;
+        }
+        if (needsEditor) setEditingTemplate(full);
+        else await applyTemplateText(full, full.prompt);
+      } catch (error) {
+        work.setError(error instanceof Error ? error.message : 'Не удалось загрузить шаблон.');
+        return;
       }
-      if (needsEditor) setEditingTemplate(item);
-      else applyTemplateText(item, item.prompt);
     }
     setSelectedTemplate(undefined);
     textarea.current?.focus();
@@ -416,7 +444,7 @@ export function ContentStudio(): ReactElement {
       setTemplateVideoReference(saved.templateVideoReference);
       if (Array.isArray(saved.templateIds))
         setPicked(
-          (templates as ITemplate[]).filter(
+          (templates as ITemplateCard[]).filter(
             (item) => saved.templateIds.includes(item.id) && modes.some(([kind]) => kind === item.kind),
           ),
         );
@@ -781,6 +809,8 @@ export function ContentStudio(): ReactElement {
     const sourceAttachments = attachments;
     const preparingScript = SCRIPT_WRITER_ENABLED && writer;
     try {
+      const timingError = mode === 'video' ? templateTimingError(sourceDraft, duration) : undefined;
+      if (timingError) throw new Error(timingError);
       if (sourceAttachments.some((item) => item.isUnavailable))
         throw new Error(
           'Референс недоступен. Выберите файл заново в библиотеке или уберите его перед отправкой.',
@@ -801,7 +831,11 @@ export function ContentStudio(): ReactElement {
           throw new Error('Выберите формат из доступных для этой модели.');
         if (qualityOptions.length && !qualityOptions.includes(effectiveQuality))
           throw new Error('Выберите качество из доступных для этой модели.');
-        if (mode === 'video' && modelProperties.duration && !durations.includes(duration))
+        if (
+          mode === 'video' &&
+          modelProperties.duration &&
+          !isSchemaValue(modelProperties.duration, duration)
+        )
           throw new Error('Выберите длительность из доступных для этой модели.');
         if (mode === 'video' && soundOptions.length && !soundOptions.includes(effectiveSound))
           throw new Error('Выберите доступную настройку звука.');
@@ -827,7 +861,11 @@ export function ContentStudio(): ReactElement {
         throw new Error(
           'Для конечного кадра добавьте начальный: текущий видеоинструмент не поддерживает только конечный кадр.',
         );
-      if (picked.some((item) => !item.prompt.trim()))
+      const preparedTemplates = (await Promise.all(picked.map(loadTemplate))).map((item) =>
+        fitTemplateDuration(item, duration, model),
+      );
+      if (!current()) return;
+      if (preparedTemplates.some((item) => !item.prompt.trim()))
         throw new Error(
           'У выбранного шаблона нет описания для генерации. Уберите его и опишите задачу текстом.',
         );
@@ -855,7 +893,7 @@ export function ContentStudio(): ReactElement {
         sourceAttachments,
         savedFiles,
         preparingScript,
-        picked,
+        picked: preparedTemplates,
         settings,
         duration,
         shape,
@@ -1094,6 +1132,7 @@ export function ContentStudio(): ReactElement {
                     }}
                   >
                     <UploadButtonContent
+                      compact
                       busy={uploading || templateVideo.loading}
                       progress={templateVideo.loading ? templateVideo.progress : uploadProgress}
                     >
@@ -1510,7 +1549,9 @@ export function ContentStudio(): ReactElement {
             setEditingTemplate(undefined);
             requestAnimationFrame(() => textarea.current?.focus());
           }}
-          onApply={(prompt) => applyTemplateText(editingTemplate, prompt)}
+          onApply={(prompt) => {
+            void applyTemplateText(editingTemplate, prompt);
+          }}
         />
       )}
     </div>

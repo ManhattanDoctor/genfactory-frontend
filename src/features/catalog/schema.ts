@@ -36,13 +36,17 @@ export function optionFields(model: IModelDescription): [string, ISchema][] {
       ) && ['string', 'integer', 'number', 'boolean'].includes(field.type || ''),
   );
 }
-export function validateRequest(model: IModelDescription, request: ITaskRequest): string[] {
-  let validate = validators.get(model.schema);
+export function isSchemaValue(schema: ISchema, value: unknown): boolean {
+  let validate = validators.get(schema);
   if (!validate) {
-    validate = ajv.compile(model.schema);
-    validators.set(model.schema, validate);
+    validate = ajv.compile(schema);
+    validators.set(schema, validate);
   }
-  if (validate(request)) return [];
+  return !!validate(value);
+}
+export function validateRequest(model: IModelDescription, request: ITaskRequest): string[] {
+  if (isSchemaValue(model.schema, request)) return [];
+  const validate = validators.get(model.schema)!;
   return (validate.errors || [])
     .filter((e) => !['if'].includes(e.keyword))
     .map((e) => `${e.instancePath || 'Запрос'}: ${e.message}`)

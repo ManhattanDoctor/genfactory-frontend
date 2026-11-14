@@ -5,7 +5,12 @@ import { useState } from 'react';
 import { Modal, ModalFooter } from '../../components/Modal';
 import type { ITemplate } from './materials';
 import './template-editor.css';
-import { templateVariableLabel, templateDuration, adaptTemplateDuration } from './templateRecipe';
+import {
+  templateVariableLabel,
+  templateDuration,
+  adaptTemplateDuration,
+  templateTimingError,
+} from './templateRecipe';
 
 export function TemplateEditor({
   item,
@@ -73,6 +78,11 @@ export function TemplateEditor({
     }
     if (!filled.trim()) {
       setError('Введите текст задания.');
+      return;
+    }
+    const timingError = item.kind === 'video' ? templateTimingError(prompt, duration ?? seconds) : undefined;
+    if (timingError) {
+      setError(timingError);
       return;
     }
     onApply(prompt);

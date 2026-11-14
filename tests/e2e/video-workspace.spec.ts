@@ -179,8 +179,8 @@ test('video canvas shows designer templates, guest composer and responsive geome
   await page.route('https://sso.example.test/**', (route) => route.fulfill({ body: 'Mock sign-in' }));
   await page.goto('/video');
   await expect(page.locator('.video-workspace')).toBeVisible();
-  await expect(page.locator('.ds-template-card')).toHaveCount(30);
-  await page.locator('.ds-template-card').first().click();
+  await expect(page.locator('.ds-template-card')).toHaveCount(56);
+  await page.getByRole('button', { name: 'Studio product turn', exact: true }).click();
   await expect(
     page.getByRole('dialog').getByRole('button', { name: 'Использовать шаблон', exact: true }),
   ).toBeVisible();
@@ -496,22 +496,26 @@ test('a video model limited to one frame still blocks the second attachment', as
 test('applying an updated video template selects Wan and sends its new prompt', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/video');
+  await page.getByRole('button', { name: 'Длительность', exact: true }).click();
+  await page.getByRole('option', { name: '6 с', exact: true }).click();
   await page.getByRole('button', { name: 'Послание в объектив', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#vd-draft')).toHaveValue(/Герой - тот, кто на загруженном фото/);
   await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Wan');
-  await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('18 с');
+  await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('6 с');
   await page.reload();
   await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Wan');
-  await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('18 с');
+  await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('6 с');
+  await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+  await pickSource(page);
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
   expect(state.tasks[0].options.model).toBe('alibaba/wan-3.0');
-  expect(state.tasks[0].options.duration).toBe(18);
+  expect(state.tasks[0].options.duration).toBe(6);
   expect(state.tasks[0].task.prompt).toContain('The subject from the uploaded photo');
 });
 
-test('a template without duration preserves the selected seconds when switching to Wan', async ({ page }) => {
+test('a template recommendation preserves the selected seconds when switching to Wan', async ({ page }) => {
   await setup(page);
   await page.goto('/video');
   await page.getByRole('button', { name: 'Длительность', exact: true }).click();

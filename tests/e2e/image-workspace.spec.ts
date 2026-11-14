@@ -124,8 +124,14 @@ test('image canvas matches designer geometry and guest starts direct login from 
   );
   await page.route('https://sso.example.test/**', (route) => route.fulfill({ body: 'Mock sign-in' }));
   await page.goto('/image');
-  await expect(page.locator('.ds-template-card')).toHaveCount(130);
-  expect(await page.locator('.img-dock').boundingBox()).toEqual({ x: 484, y: 782, width: 720, height: 146 });
+  await expect(page.locator('.ds-template-card')).toHaveCount(
+    JSON.parse(
+      readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
+    ).filter((item: { kind: string }) => item.kind === 'image').length,
+  );
+  await expect
+    .poll(() => page.locator('.img-dock').boundingBox())
+    .toEqual({ x: 484, y: 782, width: 720, height: 146 });
   await expect(page.getByRole('button', { name: 'Собрать изображение', exact: true })).toBeDisabled();
   await page.getByRole('textbox', { name: 'Идея', exact: true }).fill('Закат над лесом');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
@@ -229,7 +235,11 @@ for (const width of [390, 768, 1440, 1920])
     await page.setViewportSize({ width, height: 1000 });
     await setup(page);
     await page.goto('/image');
-    await expect(page.locator('.ds-template-card')).toHaveCount(130);
+    await expect(page.locator('.ds-template-card')).toHaveCount(
+      JSON.parse(
+        readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
+      ).filter((item: { kind: string }) => item.kind === 'image').length,
+    );
     const box = await page.locator('.img-dock').boundingBox();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(width);
@@ -248,7 +258,11 @@ for (const width of [320, 390]) {
     page.on('pageerror', (error) => errors.push(error.message));
     const state = await setup(page);
     await page.goto('/image');
-    await expect(page.locator('.ds-template-card')).toHaveCount(130);
+    await expect(page.locator('.ds-template-card')).toHaveCount(
+      JSON.parse(
+        readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
+      ).filter((item: { kind: string }) => item.kind === 'image').length,
+    );
     const settings = page.locator('.img-settings');
     const send = page.getByRole('button', { name: 'Собрать изображение', exact: true });
     await expect(settings).toHaveCSS('overflow-x', 'auto');
@@ -304,7 +318,11 @@ test('image gallery and composer follow the visual viewport through keyboard dis
   });
   const state = await setup(page);
   await page.goto('/image');
-  await expect(page.locator('.ds-template-card')).toHaveCount(130);
+  await expect(page.locator('.ds-template-card')).toHaveCount(
+    JSON.parse(
+      readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
+    ).filter((item: { kind: string }) => item.kind === 'image').length,
+  );
   const draft = page.getByRole('textbox', { name: 'Идея', exact: true });
   await draft.fill('Сохранить черновик');
   for (const [height, top] of [
@@ -335,7 +353,7 @@ test('image gallery and composer follow the visual viewport through keyboard dis
 
 test.describe('complete image template catalog', () => {
   test.describe.configure({ mode: 'parallel' });
-  const items: { id: string; kind: string; title: string; prompt: string }[] = JSON.parse(
+  const items: { id: string; kind: string; title: string }[] = JSON.parse(
     readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
   );
   const images = items.filter((item) => item.kind === 'image');
@@ -348,8 +366,15 @@ test.describe('complete image template catalog', () => {
       await page.goto('/image');
       await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
       for (const item of images.slice(offset, offset + 20)) {
+        const before = await page.locator('#img-draft').inputValue();
         await page.getByRole('button', { name: item.title, exact: true }).click();
         const dialog = page.getByRole('dialog');
+        await expect
+          .poll(
+            async () =>
+              (await dialog.isVisible()) || (await page.locator('#img-draft').inputValue()) !== before,
+          )
+          .toBe(true);
         if (await dialog.isVisible()) {
           for (const input of await dialog.locator('[data-template-variable]').all())
             await input.fill('Тестовые данные');

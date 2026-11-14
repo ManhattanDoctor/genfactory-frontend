@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Heart, Plus } from 'lucide-react';
-import type { ITemplate } from './materials';
+import type { ITemplateCard } from './materials';
 import { TemplateMedia } from './TemplateMedia';
 interface Props {
   genre: string;
@@ -10,11 +10,11 @@ interface Props {
   favorites: string[];
   toggleFavorite: (id: string) => void;
   genres: string[];
-  visible: ITemplate[];
+  visible: ITemplateCard[];
   selectedTemplate?: string;
   setSelectedTemplate: (id: string | undefined) => void;
   busy: boolean;
-  pick: (item: ITemplate) => Promise<void>;
+  pick: (item: ITemplateCard) => Promise<void>;
 }
 export function StudioTemplateGallery({
   genre,

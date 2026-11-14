@@ -1,3 +1,4 @@
+import { catalogQuery } from '../catalog/catalogQuery';
 import type { ReactElement } from 'react';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { isAllowedProvider } from '../../lib/modelPolicy';
@@ -94,7 +95,7 @@ function PromptEditor(): ReactElement {
     staleTime: 300000,
   });
   const videoCatalog = useQuery({
-    queryKey: ['video-analysis-models', auth.user?.id],
+    ...catalogQuery(auth.user?.id, 'OPEN_ROUTER_TEXT'),
     enabled: !!auth.user,
     queryFn: ({ signal }) => api.catalog('OPEN_ROUTER_TEXT', signal),
     staleTime: 300000,

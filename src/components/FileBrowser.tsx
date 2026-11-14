@@ -1,3 +1,4 @@
+import { scheduleRefresh } from '../features/realtime/queryRefresh';
 import { SkeletonCards } from './Skeleton';
 import type { ReactElement } from 'react';
 import './file-browser.css';
@@ -134,11 +135,14 @@ export function FileBrowser({
             .map((file) => `${file.name}: ${results.get(file.id)?.message || 'Удаление не подтверждено.'}`)
             .join('\n'),
         );
-      await Promise.all(
-        ['files', 'artifacts', 'file-preview', 'messages', 'conversation', 'conversations'].map((key) =>
-          cache.invalidateQueries({ queryKey: [key] }),
-        ),
-      );
+      if (user)
+        scheduleRefresh(cache, user.id, sid, [
+          'files',
+          'file-preview',
+          'messages',
+          'conversation',
+          'conversations',
+        ]);
     } catch (error) {
       if (alive.current && getSession() === sid)
         setError(
@@ -226,7 +230,10 @@ export function FileBrowser({
   useEffect(() => {
     if (files.data && page > 0 && page >= files.data.pages) setPage(Math.max(0, files.data.pages - 1));
   }, [files.data, page]);
-  const refresh = (): Promise<void> => cache.invalidateQueries({ queryKey: ['files'] });
+  const refresh = (): void => {
+    const sid = getSession();
+    if (user && sid) scheduleRefresh(cache, user.id, sid, ['files']);
+  };
   async function run(work: () => Promise<unknown>, message = ''): Promise<void> {
     const sid = getSession();
     if (busy || !sid) return;

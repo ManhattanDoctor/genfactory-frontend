@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import type { ITemplate } from './materials';
+import type { ITemplateCard } from './materials';
 
-export function TemplateMedia({ item }: { item: ITemplate }): ReactElement {
+export function TemplateMedia({ item }: { item: ITemplateCard }): ReactElement {
   const [active, setActive] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
