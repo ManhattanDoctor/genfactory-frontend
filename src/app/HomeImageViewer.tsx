@@ -33,18 +33,15 @@ export function HomeImageViewer({
   function fit(): void {
     const node = shot.current?.naturalWidth ? shot.current : thumbnail.current;
     if (!node?.naturalWidth || closingRef.current) return;
-    const headerHeight =
-      node.closest('dialog')?.querySelector('.modal-head')?.getBoundingClientRect().height || 68;
-    const availableHeight = Math.max(1, innerHeight - headerHeight);
     const scale = Math.min(
       Math.min(innerWidth * 0.86, 1200) / node.naturalWidth,
-      (availableHeight * 0.86) / node.naturalHeight,
+      (innerHeight * 0.86) / node.naturalHeight,
     );
     const width = node.naturalWidth * scale;
     const height = node.naturalHeight * scale;
     setRect({
       left: (innerWidth - width) / 2,
-      top: headerHeight + (availableHeight - height) / 2,
+      top: (innerHeight - height) / 2,
       width,
       height,
     });
@@ -105,6 +102,7 @@ export function HomeImageViewer({
   return createPortal(
     <Modal
       title={image.alt}
+      hideHeader
       className={`home-image-view ${active && !closing ? 'is-on' : ''}`}
       onClose={close}
     >

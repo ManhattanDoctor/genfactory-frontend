@@ -7,6 +7,7 @@ export function Modal({
   onClose,
   wide = false,
   headerActions,
+  hideHeader = false,
   className = '',
 }: {
   className?: string;
@@ -15,6 +16,7 @@ export function Modal({
   onClose: () => void;
   wide?: boolean;
   headerActions?: ReactNode;
+  hideHeader?: boolean;
 }): ReactElement {
   const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
@@ -30,7 +32,8 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      aria-labelledby={titleId}
+      aria-labelledby={hideHeader ? undefined : titleId}
+      aria-label={hideHeader ? title : undefined}
       className={`modal ${wide ? 'wide' : ''} ${className}`}
       onCancel={(event) => {
         event.preventDefault();
@@ -40,17 +43,23 @@ export function Modal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-head">
-        <h2 id={titleId} title={title}>
-          {title}
-        </h2>
-        <div className="modal-head-actions">
-          {headerActions}
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть">
-            <X size={20} />
-          </button>
+      {hideHeader ? (
+        <button type="button" className="icon-button modal-close" onClick={onClose} aria-label="Закрыть">
+          <X size={20} />
+        </button>
+      ) : (
+        <div className="modal-head">
+          <h2 id={titleId} title={title}>
+            {title}
+          </h2>
+          <div className="modal-head-actions">
+            {headerActions}
+            <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть">
+              <X size={20} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
       {children}
     </dialog>
   );

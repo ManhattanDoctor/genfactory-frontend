@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { Building2 } from 'lucide-react';
 import { useState } from 'react';
 import { ConversationNavigation } from './ConversationNavigation';
 import './agent-navigation.css';
@@ -27,16 +28,20 @@ export function AppNavigation({ onNavigate }: { onNavigate?: () => void }): Reac
         aria-current={active ? 'page' : undefined}
         className={`shell-nav-item ${active ? 'active' : ''}`}
       >
-        <img
-          src={
-            item.icon === 'history'
-              ? '/media/nav/history.svg'
-              : `/media/prototype/nav/${({ 'mark-studio': 'studio', 'mark-image': 'image', 'mark-video': 'video', prompt: 'edit' } as Record<string, string>)[item.icon] || item.icon}.webp`
-          }
-          alt=""
-          width={18}
-          height={18}
-        />
+        {item.icon === 'company' ? (
+          <Building2 size={18} aria-hidden="true" />
+        ) : (
+          <img
+            src={
+              item.icon === 'history'
+                ? '/media/nav/history.svg'
+                : `/media/prototype/nav/${({ 'mark-studio': 'studio', 'mark-image': 'image', 'mark-video': 'video', prompt: 'edit' } as Record<string, string>)[item.icon] || item.icon}.webp`
+            }
+            alt=""
+            width={18}
+            height={18}
+          />
+        )}
         <span>{item.label}</span>
       </Link>
     );

@@ -50,15 +50,12 @@
 .account-page .button:hover:not(:disabled) {
   background: #35363b;
 }
-.account-page .balance-row strong {
+.account-page .balance-row strong,
+.account-page .balance-row span {
   font-size: 32px;
   font-weight: 500;
   letter-spacing: -0.03em;
   color: #f4f4f5;
-}
-.account-page .balance-row span {
-  color: #9a9aa0;
-  font-size: 13px;
 }
 .account-page .balance-history {
   margin: 0;

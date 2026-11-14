@@ -13,6 +13,13 @@
   --sidebar: 216px;
   --header: 76px;
   --pagination-space: 24px;
+  --workspace-composer-fade: linear-gradient(
+    to top,
+    rgba(11, 11, 12, 0.94) 0%,
+    rgba(11, 11, 12, 0.62) 34%,
+    rgba(11, 11, 12, 0.18) 68%,
+    rgba(11, 11, 12, 0) 100%
+  );
   color-scheme: dark;
 }
 * {

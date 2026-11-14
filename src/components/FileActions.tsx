@@ -237,10 +237,15 @@ export function FileActions({
               <button
                 type="submit"
                 className="button primary"
+                aria-busy={working}
                 disabled={busy || (action === 'edit' && name.trim().length < 3)}
               >
                 {busy
-                  ? 'Сохраняем…'
+                  ? action === 'delete'
+                    ? 'Удаление…'
+                    : action === 'move'
+                      ? 'Перемещение…'
+                      : 'Сохраняем…'
                   : action === 'delete'
                     ? 'Удалить'
                     : action === 'move'

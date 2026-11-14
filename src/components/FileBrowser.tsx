@@ -447,7 +447,7 @@ export function FileBrowser({
       )}
       {!action && error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
-      {user && files.isPending && <SkeletonCards label="Загружаем файлы…" />}
+      {user && files.isPending && <SkeletonCards label="Загружаем файлы…" className="library-grid" />}
       {files.error && (
         <p role="alert">
           {files.error.message}{' '}
@@ -577,7 +577,7 @@ export function FileBrowser({
               disabled={busy}
               onClick={() => void removeBatch()}
             >
-              {busy ? 'Удаляем…' : 'Удалить безвозвратно'}
+              {busy ? 'Удаление…' : 'Удалить безвозвратно'}
             </button>
           </ModalFooter>
         </Modal>

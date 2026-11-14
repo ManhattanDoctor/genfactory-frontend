@@ -1,4 +1,4 @@
-import { SkeletonCards } from '../../components/Skeleton';
+import { Skeleton } from '../../components/Skeleton';
 import { downloadFile } from '../../lib/files';
 import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -189,7 +189,6 @@ export function Artifacts(): ReactElement {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          {user && list.isPending && <SkeletonCards label="Загружаем историю…" />}
           {list.error && (
             <div role="alert">
               <p>Не удалось загрузить историю.</p>
@@ -204,7 +203,24 @@ export function Artifacts(): ReactElement {
               <h2>{query ? 'Ничего не найдено' : 'История пока пуста'}</h2>
             </div>
           )}
-          <div className="history-list file-browser" aria-label="История">
+          <div className="history-list file-browser" aria-label="История" aria-busy={list.isPending}>
+            {user && list.isPending && (
+              <>
+                <div
+                  className="history-day history-day-loading"
+                  role="status"
+                  aria-label="Загружаем историю…"
+                >
+                  <Skeleton />
+                </div>
+                {Array.from({ length: 8 }, (_, index) => (
+                  <div className="history-card history-card-loading" key={index} aria-hidden="true">
+                    <Skeleton className="history-cover" />
+                    <Skeleton className="history-info-loading" />
+                  </div>
+                ))}
+              </>
+            )}
             {list.data?.items.map((item, index) => (
               <Fragment key={`${item.type}:${item.id}`}>
                 {(index === 0 ||

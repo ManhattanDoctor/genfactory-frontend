@@ -14,8 +14,8 @@
 .artifacts-page .file-browser .library-card > div:last-child {
   display: flex;
   flex-direction: column;
-  height: 92px;
-  min-height: 92px;
+  height: var(--history-info-height);
+  min-height: var(--history-info-height);
   padding: 12px;
   overflow: hidden;
 }
@@ -34,7 +34,7 @@
   margin: 12px 12px 0;
 }
 .artifacts-page .history-card .history-meta {
-  height: 60px;
+  height: calc(var(--history-info-height) - 32px);
   box-sizing: border-box;
   align-items: flex-end;
   padding: 4px 12px 12px;
@@ -67,4 +67,18 @@
 }
 .artifacts-page .file-browser .library-card > div:last-child > span {
   flex-shrink: 0;
+}
+.artifacts-page {
+  --history-info-height: 92px;
+}
+.artifacts-page .history-card-loading {
+  overflow: hidden;
+}
+.artifacts-page .history-info-loading {
+  height: var(--history-info-height);
+  border-radius: 0;
+}
+.artifacts-page .history-day-loading > .skeleton {
+  width: 90px;
+  height: 18px;
 }

@@ -9222,3 +9222,61 @@ test('conversation previews are rounded, URL references use placeholders and ful
   await page.screenshot({ path: test.info().outputPath('conversation-video-fullscreen.png') });
   await page.evaluate(() => document.exitFullscreen());
 });
+
+for (const width of [390, 768, 1440]) {
+  test(`artifacts loading cards keep their geometry after the first response ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await mockApi(page);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/artifact?*', async (route) => {
+      await pending;
+      await route.fulfill({
+        json: pagination(
+          Array.from({ length: 8 }, (_, index) => ({
+            id: 100 + index,
+            userId: 7,
+            name: `Result ${index}`,
+            createdDate: file.createdDate,
+            activityDate: file.createdDate,
+            ...(index % 2 === 0
+              ? { type: 'FILE', fileType: 'IMAGE', mime: file.mime, size: 12 }
+              : {
+                  type: 'CONVERSATION',
+                  messageCount: 12,
+                  status: 'LOADED',
+                  workspace: 'CONTENT_STUDIO',
+                  isArchived: false,
+                  isFavorite: false,
+                }),
+          })),
+        ),
+      });
+    });
+    await page.goto('/artifacts');
+    const grid = page.locator('.artifacts-page .history-list');
+    const placeholders = grid.locator(':scope > .history-card-loading');
+    await expect(placeholders).toHaveCount(8);
+    const bounds = (selector: string) =>
+      grid.locator(selector).evaluateAll((elements) =>
+        elements.map((element) => {
+          const { x, y, width, height } = element.getBoundingClientRect();
+          return { x, y, width, height };
+        }),
+      );
+    const before = await bounds(':scope > .history-card-loading');
+    release();
+    await expect(placeholders).toHaveCount(0);
+    await expect(grid.locator(':scope > .file-entry, :scope > .history-card')).toHaveCount(8);
+    const after = await bounds(':scope > .file-entry, :scope > .history-card');
+    for (let index = 0; index < before.length; index++) {
+      for (const key of ['x', 'y', 'width', 'height'] as const) {
+        expect(Math.abs(before[index][key] - after[index][key]), `card ${index} ${key}`).toBeLessThanOrEqual(
+          1,
+        );
+      }
+    }
+  });
+}

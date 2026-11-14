@@ -834,12 +834,12 @@
     height 220ms var(--ds-ease, ease),
     border-radius 220ms var(--ds-ease, ease);
 }
-.home-image-view > .modal-head {
+.home-image-view > .modal-close {
   position: fixed;
-  inset: 0 0 auto;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
   z-index: 82;
   margin: 0;
-  background: #17181b;
 }
 @media (prefers-reduced-motion: reduce) {
   .home-image-view,

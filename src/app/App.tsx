@@ -4,7 +4,7 @@ import { AppUpdateNotice } from '../components/AppUpdateNotice';
 import { ActiveJobs } from '../components/ActiveJobs';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Route, Routes, Link, useLocation } from 'react-router-dom';
-import { Menu } from 'lucide-react';
+import { Building2, Menu } from 'lucide-react';
 import { AppNavigation } from './AppNavigation';
 import { Modal } from '../components/Modal';
 import { formatBalance } from '../lib/money';
@@ -126,7 +126,7 @@ export function App(): ReactElement {
             </button>
           )}
           <Link to="/company" className="shell-account-link shell-company-link" title="О компании">
-            <img src="/media/prototype/nav/company.webp" alt="" width={18} height={18} />
+            <Building2 size={18} aria-hidden="true" />
             <span>О компании</span>
           </Link>
         </div>

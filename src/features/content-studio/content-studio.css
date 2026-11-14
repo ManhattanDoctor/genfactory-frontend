@@ -395,6 +395,10 @@
 
 .content-studio #creatives .cw-thread {
   padding-bottom: calc(12vh + 200px);
+  scrollbar-width: none;
+}
+.content-studio #creatives .cw-thread::-webkit-scrollbar {
+  display: none;
 }
 .content-studio .as-turn {
   flex-shrink: 0;
@@ -636,11 +640,7 @@
   z-index: 3;
   height: min(45%, 360px);
   pointer-events: none;
-  background: linear-gradient(to top, rgba(11, 11, 12, 0.94), rgba(11, 11, 12, 0.62) 45%, transparent);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black 35%);
-  mask-image: linear-gradient(to bottom, transparent, black 35%);
+  background: var(--workspace-composer-fade);
 }
 
 /* Keep the original empty-state hints above the composer fade. */
