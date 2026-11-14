@@ -3,7 +3,12 @@ import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
 import { modelTitle } from '../../src/features/catalog/presentation';
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import type { IConversation, IConversationMessage, IModelDescription } from '../../src/lib/types';
+import {
+  FileReferenceType,
+  type IConversation,
+  type IConversationMessage,
+  type IModelDescription,
+} from '../../src/lib/types';
 const templates: { id: string; kind: string; title: string }[] = JSON.parse(
   readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
 );
@@ -8733,7 +8738,7 @@ for (const path of ['/video', '/chat']) {
           mime: 'video/mp4',
           url: 'https://genfactory.gnosisai.ru/media/templates/2026-11-13/video/references/03.mp4',
         },
-        { type: 'FILE', id: file.id },
+        { type: FileReferenceType.FILE, id: file.id },
       ]);
       expect(state.tasks[0].task.referenceMode).toBe('references');
     } else {
@@ -9176,8 +9181,8 @@ test('conversation previews are rounded, URL references use placeholders and ful
       text: 'Используй референсы',
       files: [file],
       references: [
-        { type: 'FILE', id: file.id },
-        { type: 'URL', url, mime: 'video/mp4' },
+        { type: FileReferenceType.FILE, id: file.id },
+        { type: FileReferenceType.URL, url, mime: 'video/mp4' },
       ],
       createdDate: file.createdDate,
     },
