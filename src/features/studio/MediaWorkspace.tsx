@@ -1,3 +1,4 @@
+import type { TemplatePublicReference } from '../content-studio/templatePublicReference';
 import { fitTemplateDuration, resolveTemplateDuration } from '../content-studio/templateDuration';
 import { useTemplateSelection } from '../content-studio/useTemplateSelection';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
@@ -78,6 +79,8 @@ export function MediaWorkspace({
   onTemplateText,
   onTemplate,
   references,
+  templateReference,
+  onRemoveTemplateReference,
   conversation,
   contextError,
   busy,
@@ -111,6 +114,8 @@ export function MediaWorkspace({
   onTemplateText: (value: string) => void;
   onTemplate: (value: string) => void;
   references: IGnosisFile[];
+  templateReference?: TemplatePublicReference;
+  onRemoveTemplateReference?: () => void;
   conversation?: IConversation;
   contextError?: string;
   busy: boolean;
@@ -657,8 +662,15 @@ export function MediaWorkspace({
         }}
       >
         <div className="cw-field">
-          {(selected || references.length > 0) && (
+          {(selected || templateReference || references.length > 0) && (
             <div className="img-files">
+              {templateReference && (
+                <ComposerAttachment
+                  file={templateReference}
+                  disabled={busy}
+                  onRemove={() => onRemoveTemplateReference?.()}
+                />
+              )}
               {references.map((file) => (
                 <ComposerAttachment
                   key={file.id}

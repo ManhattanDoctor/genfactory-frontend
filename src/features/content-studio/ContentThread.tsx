@@ -1,3 +1,4 @@
+import { FilePlaceholder } from '../../components/FilePlaceholder';
 import type { ReactElement } from 'react';
 import { parseStudioQuestion, studioReplyText, type StudioQuestion } from './studioAgent';
 import { StudioQuestionCard } from './StudioQuestionCard';
@@ -99,7 +100,7 @@ export function ContentThread({
         );
         const waiting = !reply && index === turns.length - 1 && conversation.status === 'LOADING';
         const files = reply?.files || [];
-        const question = reply?.files?.length ? undefined : parseStudioQuestion(reply?.text, ask?.text);
+        const question = reply?.files?.length ? undefined : parseStudioQuestion(reply?.text, ask);
         const copyText = question?.question || reply?.text || prompt;
         const key = reply?.id || ask!.id;
         return (
@@ -128,6 +129,35 @@ export function ContentThread({
                     .map((file) => (
                       <p className="as-file" key={file.id}>
                         {file.name}
+                      </p>
+                    ))}
+                  {ask.references
+                    ?.filter(
+                      (reference) => reference.type === 'URL' && /^https?:\/\//.test(reference.url || ''),
+                    )
+                    .map((reference) => (
+                      <p className="as-file" key={reference.url}>
+                        <a
+                          className="content-external-reference"
+                          href={reference.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <span className="content-thumb">
+                            <FilePlaceholder
+                              file={{
+                                name: 'Внешний референс',
+                                mime: reference.mime || '',
+                                type: reference.mime?.startsWith('image/')
+                                  ? 'IMAGE'
+                                  : reference.mime?.startsWith('video/')
+                                    ? 'VIDEO'
+                                    : 'DOCUMENT',
+                              }}
+                            />
+                          </span>
+                          Внешний референс
+                        </a>
                       </p>
                     ))}
                   {prompt && <p className="as-ask">{prompt}</p>}

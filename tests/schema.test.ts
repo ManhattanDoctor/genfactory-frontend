@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import catalog from './fixtures/catalog.json';
 import { defaults, optionFields, referenceLimit, validateRequest } from '../src/features/catalog/schema';
-import type { IModelDescription, ITaskRequest } from '../src/lib/types';
+import { FileReferenceType, type IModelDescription, type ITaskRequest } from '../src/lib/types';
 const model = catalog[0] as unknown as IModelDescription;
 const request = (): ITaskRequest => ({
   model: model.reference.provider,
@@ -24,9 +24,12 @@ describe('Catalog-driven request contract', () => {
   });
   it('validates reference ownership identifiers format and reference limits', () => {
     const value = request();
-    value.task.fileIds = [-1];
+    value.task.references = [{ type: FileReferenceType.FILE, id: -1 }];
     expect(validateRequest(model, value)).not.toEqual([]);
-    value.task.fileIds = Array.from({ length: referenceLimit(model) + 1 }, (_, i) => i + 1);
+    value.task.references = Array.from({ length: referenceLimit(model) + 1 }, (_, i) => ({
+      type: FileReferenceType.FILE,
+      id: i + 1,
+    }));
     expect(validateRequest(model, value)).not.toEqual([]);
   });
   it('does not mutate catalog defaults or expose infrastructure options', () => {
@@ -36,4 +39,23 @@ describe('Catalog-driven request contract', () => {
     expect(model).toEqual(copy);
     expect(optionFields(model).map(([key]) => key)).not.toContain('stream');
   });
+});
+
+it('validates references against provider constraints without adding legacy fields to the wire request', () => {
+  const value = request();
+  value.task.references = [
+    { type: FileReferenceType.FILE, id: 8 },
+    { type: FileReferenceType.FILE, id: 2 },
+  ];
+  const copy = structuredClone(value);
+  expect(validateRequest(model, value)).toEqual([]);
+  expect(value).toEqual(copy);
+  expect(value.task).not.toHaveProperty('fileIds');
+  value.task.references = [{ type: FileReferenceType.URL, url: 'https://files.test/a.png' }];
+  expect(validateRequest(model, value)).not.toEqual([]);
+  value.task.references = [
+    { type: FileReferenceType.FILE, id: 8 },
+    { type: FileReferenceType.FILE, id: 8 },
+  ];
+  expect(validateRequest(model, value)).not.toEqual([]);
 });

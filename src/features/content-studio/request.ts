@@ -2,7 +2,13 @@ import '../../lib/transport-polyfills';
 import { ObjectUtil } from '@ts-core/common';
 import { videoInputOptions, videoReferenceMode, type VideoReferenceMode } from '../catalog/videoInputs';
 import { ratioSizes } from './controls';
-import type { IGnosisFile, IModelDescription, ITaskRequest, MediaKind } from '../../lib/types';
+import {
+  FileReferenceType,
+  type IGnosisFile,
+  type IModelDescription,
+  type ITaskRequest,
+  type MediaKind,
+} from '../../lib/types';
 import {
   followsReferenceRatio,
   defaults,
@@ -17,7 +23,7 @@ export function mediaOptions(
   model: IModelDescription,
   kind: MediaKind,
   prompt: string,
-  files: IGnosisFile[],
+  files: Array<Pick<IGnosisFile, 'path' | 'type' | 'mime' | 'size'> & { id?: number }>,
   values: Record<string, unknown>,
   referenceMode?: VideoReferenceMode,
 ): Record<string, unknown> {
@@ -53,7 +59,11 @@ export function mediaOptions(
     task: { prompt, session: crypto.randomUUID() },
     options: { ...options, model: model.reference.model },
   };
-  if (files.length && kind === 'image') request.task.fileIds = files.map((file) => file.id);
+  if (files.length && kind === 'image')
+    request.task.references = files.map((file) => {
+      if (file.id === undefined) throw new Error('Для изображения выберите файл из библиотеки.');
+      return { type: FileReferenceType.FILE, id: file.id };
+    });
   if (files.length && kind === 'video')
     ObjectUtil.copyPartial(
       videoInputOptions(model, files, referenceMode || videoReferenceMode(model, files.length)),

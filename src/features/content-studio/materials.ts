@@ -1,4 +1,4 @@
-import type { IModelDescription } from '../../lib/types';
+import type { IModelDescription, IFileReference } from '../../lib/types';
 import { videoFrames } from '../workspace/videoFrames';
 
 export interface ITemplate {
@@ -14,14 +14,17 @@ export interface ITemplate {
   src: string;
   previewSrc?: string;
   referenceVideoSrc?: string;
+  referenceVideoSize?: number;
   ratio: string;
   references?: { min: number; max?: number };
 }
 export type ITemplateCard = Omit<ITemplate, 'prompt'>;
 
 export interface ITemplateVideoReference {
-  templateId: string;
-  fileId: number;
+  templateId?: string;
+  reference?: IFileReference;
+  fileId?: number;
+  source?: 'public';
 }
 
 export async function templateVideoFile(template: ITemplate, signal?: AbortSignal): Promise<File> {

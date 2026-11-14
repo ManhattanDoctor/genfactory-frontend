@@ -11,7 +11,7 @@ export function videoReferenceMode(
 }
 export function videoInputOptions(
   model: IModelDescription,
-  files: IGnosisFile[],
+  files: Array<Pick<IGnosisFile, 'path' | 'type' | 'mime' | 'size'>>,
   mode: VideoReferenceMode,
 ): {
   inputReferences?: Array<{ url: string; type: 'image' | 'video' }>;
@@ -55,7 +55,7 @@ export function videoReferenceError(
     const type = file.type === 'IMAGE' ? 'image' : file.type === 'VIDEO' ? 'video' : '';
     if (!types.includes(type)) return 'Выбранная модель или режим не поддерживает этот тип вложения.';
     const limit = limits?.[type];
-    if (limit?.maxBytes && (!file.size || file.size > limit.maxBytes))
+    if (limit?.maxBytes && file.size !== undefined && (!file.size || file.size > limit.maxBytes))
       return `Размер видео должен быть не больше ${Math.round(limit.maxBytes / 1024 / 1024)} МБ.`;
     if (limit?.mimeTypes && !limit.mimeTypes.includes(file.mime)) return 'Для видео выберите MP4 или MOV.';
     if (limit?.maxItems && files.filter((item) => item.type === file.type).length > limit.maxItems)
@@ -66,7 +66,7 @@ export function videoReferenceError(
 /** Read the original video metadata before starting a paid request. Preview dimensions are derived and cannot be used here. */
 export async function validateVideoReferenceMetadata(
   model: IModelDescription,
-  files: IGnosisFile[],
+  files: Array<Pick<IGnosisFile, 'path' | 'type' | 'mime' | 'size'>>,
   outputDuration = 0,
 ): Promise<void> {
   const limits = model.schema.properties?.options?.properties?.inputReferences?.['x-referenceLimits']?.video;

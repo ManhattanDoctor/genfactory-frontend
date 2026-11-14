@@ -41,12 +41,15 @@ describe('video selected references', () => {
       undefined,
       mode,
     );
-    expect(body.files).toEqual([4, 1, 9, 2]);
-    expect(body.settings.tools[0].input).toEqual({ fileIds: [4, 1, 9, 2], referenceMode: 'references' });
+    expect(body.references).toEqual([4, 1, 9, 2].map((id) => ({ type: 'FILE', id })));
+    expect(body.settings.tools[0].input).toEqual({
+      references: [4, 1, 9, 2].map((id) => ({ type: 'FILE', id })),
+      referenceMode: 'references',
+    });
   });
   it('pins an empty selection to avoid silently using an old conversation image', () => {
     expect(createMessageBody('Видео', 'video', { uid: 'VIDEO' }, []).settings.tools[0].input).toEqual({
-      fileIds: [],
+      references: [],
     });
   });
   it('keeps explicit start/end frames separate', () => {

@@ -1,6 +1,11 @@
+import { FileReferenceType } from '../../lib/types';
+import {
+  templatePublicReference,
+  resolvePublicReference,
+  restoredPublicReference,
+} from '../content-studio/templatePublicReference';
 import { syncTemplateDuration, templateTimingError } from '../content-studio/templateRecipe';
 import { catalogQuery } from '../catalog/catalogQuery';
-import { useTemplateVideoReference } from '../content-studio/useTemplateVideoReference';
 import type { ITemplateVideoReference } from '../content-studio/materials';
 import { scheduleRefresh } from '../realtime/queryRefresh';
 import '../../lib/transport-polyfills';
@@ -181,7 +186,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const [options, setOptions] = useState<Record<string, unknown>>({});
   const [references, setReferences] = useState<IGnosisFile[]>([]);
   const [templateVideoReference, setTemplateVideoReference] = useState<ITemplateVideoReference>();
-  const templateVideo = useTemplateVideoReference(`${scope}:${location.key}`, kind);
+  const publicReference =
+    kind === 'video' && templateVideoReference?.source === 'public'
+      ? resolvePublicReference(templateVideoReference)
+      : undefined;
+  const videoReferences = publicReference ? [publicReference, ...references] : references;
   const fromScratch = freshScope === sourceScope;
   useEffect(() => {
     if (references.length) setFreshScope(undefined);
@@ -212,8 +221,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const uploadScope = useRef('');
   const uploadEpoch = useRef(0);
   const repeatRequest = useRef<ITaskRequest | null>(null);
-  const busy =
-    templateVideo.loading || creating || (legacy && (pendingSends > 0 || conversation?.status === 'LOADING'));
+  const busy = creating || (legacy && (pendingSends > 0 || conversation?.status === 'LOADING'));
   useEffect(() => {
     if (!focusPrompt || busy) return;
     const frame = requestAnimationFrame(() => {
@@ -492,6 +500,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     currentKey,
     options,
     references: references.map((item) => item.id),
+    templateVideoReference,
     shot,
     imageTemplateId,
     imageTemplateText,
@@ -681,11 +690,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       setReferenceChoice(true);
       return;
     }
-    if (references.length && (!supportsReferences(model) || references.length > maxRefs)) {
+    if (videoReferences.length && (!supportsReferences(model) || videoReferences.length > maxRefs)) {
       setError('Выберите модель с поддержкой выбранных референсов или измените их количество.');
       return;
     }
-    if (references.length < minRefs) {
+    if (videoReferences.length < minRefs) {
       setError(`Добавьте референсы для выбранной модели (минимум: ${minRefs}).`);
       return;
     }
@@ -705,7 +714,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     const cleanOptions = Object.fromEntries(
       Object.entries(options).filter(([name, v]) => visibleOptions.has(name) && v !== undefined && v !== ''),
     );
-    if (followsReferenceRatio(model, references.length)) delete cleanOptions.aspectRatio;
+    if (followsReferenceRatio(model, videoReferences.length)) delete cleanOptions.aspectRatio;
     const combinedPrompt =
       !legacy && imageTemplateId
         ? [imageTemplateText.trim(), prompt.trim()].filter(Boolean).join('\n\n')
@@ -718,18 +727,20 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       task: { prompt: preparedPrompt, session: crypto.randomUUID() },
       options: { ...cleanOptions, model: model.reference.model },
     };
-    if (references.length && kind === 'image') body.task.fileIds = references.map((f) => f.id);
+    if (kind === 'image')
+      body.task.references = references.map((file) => ({ type: FileReferenceType.FILE, id: file.id }));
     if (kind === 'video') {
       body.task.referenceMode = videoReferenceMode(
         model,
-        references.length,
-        Array.isArray(options.frameImages) &&
+        videoReferences.length,
+        !publicReference &&
+          Array.isArray(options.frameImages) &&
           options.frameImages.length === references.length &&
           options.frameImages.every((frame, index) => frame.url === references[index].path),
       );
       const issue = videoReferenceError(
         model,
-        references,
+        videoReferences,
         body.task.referenceMode as 'frames' | 'references',
       );
       if (issue) {
@@ -737,7 +748,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         return;
       }
       ObjectUtil.copyPartial(
-        videoInputOptions(model, references, body.task.referenceMode as 'frames' | 'references'),
+        videoInputOptions(model, videoReferences, body.task.referenceMode as 'frames' | 'references'),
         body.options,
       );
       if (
@@ -780,17 +791,30 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           if (!current()) return;
         }
         if (kind === 'video')
-          await validateVideoReferenceMetadata(model, actualReferences, Number(body.options.duration) || 0);
+          await validateVideoReferenceMetadata(
+            model,
+            publicReference ? [publicReference, ...actualReferences] : actualReferences,
+            Number(body.options.duration) || 0,
+          );
         if (!current()) return;
         const taskBody: ITaskRequest = {
           ...body,
           isSaveResult: true,
           fileOutput: fileOutput.value,
-          task: { ...body.task, fileIds: references.map((file) => file.id) },
+          task: {
+            ...body.task,
+            references: references.map((file) => ({ type: FileReferenceType.FILE, id: file.id })),
+          },
           options: { ...body.options },
         };
-        // The server resolves owned IDs into first/last frame URLs itself.
         if (kind === 'video') {
+          taskBody.task.references = [
+            ...(publicReference
+              ? [{ type: FileReferenceType.URL, url: publicReference.path, mime: publicReference.mime }]
+              : []),
+            ...actualReferences.map((file) => ({ type: FileReferenceType.FILE, id: file.id })),
+          ];
+          if (publicReference) taskBody.task.referenceMode = 'references';
           delete taskBody.options.frameImages;
           delete taskBody.options.inputReferences;
         }
@@ -799,6 +823,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           ...JSON.parse(submittedEditor),
           prompt: '',
           references: [],
+          templateVideoReference: undefined,
           imageTemplateId: '',
           imageTemplateText: '',
         });
@@ -819,6 +844,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
               templateId: imageTemplateId,
               templateText: imageTemplateText,
               shape: shot.shape,
+              templateVideoReference,
+              referenceFileIds: references.map((file) => file.id),
             },
           },
         });
@@ -828,6 +855,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         setImageTemplateId('');
         setImageTemplateText('');
         setReferences([]);
+        setTemplateVideoReference(undefined);
         void pending.catch((error) => {
           if (
             !current() ||
@@ -839,6 +867,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           setImageTemplateId(imageTemplateId);
           setImageTemplateText(imageTemplateText);
           setReferences(references);
+          setTemplateVideoReference(templateVideoReference);
           draft.changed();
           setError(imageSendError(error));
         });
@@ -923,19 +952,28 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         scopeRef.current = activeScope;
         navigate(`/${kind}${nextSearch}`, { replace: true });
       }
+      const message = createMessageBody(
+        preparedPrompt,
+        kind,
+        tool,
+        references.map((file) => file.id),
+        fromScratch || !conversationId || (!legacy && !references.length),
+        model.name,
+        body.task.referenceMode,
+      );
+      if (publicReference) {
+        message.references.unshift({
+          type: FileReferenceType.URL,
+          url: publicReference.path,
+          mime: publicReference.mime,
+        });
+        message.settings.tools[0].input = {
+          references: message.references,
+          referenceMode: body.task.referenceMode,
+        };
+      }
       messageSent = true;
-      const response = await send.mutateAsync({
-        id,
-        body: createMessageBody(
-          preparedPrompt,
-          kind,
-          tool,
-          references.map((f) => f.id),
-          fromScratch || !conversationId || (!legacy && !references.length),
-          model.name,
-        ),
-        sid,
-      });
+      const response = await send.mutateAsync({ id, body: message, sid });
       if (getSession() === sid) {
         const saved = saveRecipe(userId, id, response.id, {
           kind,
@@ -1009,6 +1047,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           setImageTemplateId(value);
         }}
         references={references}
+        templateReference={publicReference}
+        onRemoveTemplateReference={() => {
+          draft.changed();
+          setTemplateVideoReference(undefined);
+        }}
         conversation={previewConversation}
         contextError={
           (idParam && !previewConversationId ? 'Некорректный адрес беседы.' : '') ||
@@ -1056,34 +1099,25 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         onPrepareTemplate={async (item) => {
           const sid = getSession();
           if (!sid || busy || uploading) return false;
-          const previousId = templateVideoReference?.fileId;
-          const existing =
-            templateVideoReference?.templateId === item.id
-              ? references.find((file) => file.id === previousId)
-              : undefined;
-          setError('');
-          try {
-            const result = await templateVideo.prepare(item, existing);
-            if (!result) return false;
-            const file = result.file;
-            draft.changed();
-            setReferences((current) => [
-              ...(file ? [file] : []),
-              ...current.filter((value) => value.id !== previousId && value.id !== file?.id),
-            ]);
-            setTemplateVideoReference(file ? { templateId: item.id, fileId: file.id } : undefined);
-            if (result.uploaded && auth.user) scheduleRefresh(client, auth.user.id, sid, ['files']);
-            return true;
-          } catch (error) {
-            setError(error instanceof Error ? error.message : 'Не удалось прикрепить видео шаблона.');
+          const reference = templatePublicReference(item.id);
+          if (item.referenceVideoSrc && !reference) {
+            setError('Видеореференс шаблона недоступен.');
             return false;
           }
+          draft.changed();
+          const previousId = templateVideoReference?.fileId;
+          if (previousId) setReferences((current) => current.filter((file) => file.id !== previousId));
+          setTemplateVideoReference(reference ? { templateId: item.id, source: 'public' } : undefined);
+          setError('');
+          return true;
         }}
-        templateUploadProgress={templateVideo.loading ? templateVideo.progress || null : undefined}
         onReferences={(value) => {
           draft.changed();
           setReferences(kind === 'video' || !model ? value : value.slice(0, maxRefs));
-          if (templateVideoReference && !value.some((file) => file.id === templateVideoReference.fileId))
+          if (
+            templateVideoReference?.fileId &&
+            !value.some((file) => file.id === templateVideoReference.fileId)
+          )
             setTemplateVideoReference(undefined);
         }}
         onLibrary={() => {
@@ -1111,6 +1145,17 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             );
             return;
           }
+          if (
+            kind === 'video' &&
+            generation.options.inputReferences &&
+            !input?.templateVideoReference &&
+            !file.origin?.sourceFileIds?.length
+          ) {
+            setError(
+              'Не удалось восстановить референсы этого запуска. Выберите шаблон и исходные файлы заново.',
+            );
+            return;
+          }
           const chosen = models.find(
             (m) => modelKey(m) === `${generation.model.provider}:${generation.model.model}`,
           );
@@ -1123,7 +1168,11 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           try {
             const sources = await Promise.all(
               [
-                ...new Set([...(file.origin?.sourceFileIds || []), ...(kind === 'image' ? [file.id] : [])]),
+                ...new Set([
+                  ...(file.origin?.sourceFileIds || []),
+                  ...(input?.referenceFileIds || []),
+                  ...(kind === 'image' ? [file.id] : []),
+                ]),
               ].map((id) => api.file(id, sid!)),
             );
             if (getSession() !== sid || scopeRef.current !== activeScope || !mounted.current) return;
@@ -1140,6 +1189,14 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             const values = {
               ...(kind === 'video' ? videoDefaults(chosen) : defaults(chosen.schema.properties?.options)),
               ...generation.options,
+              ...(kind === 'video' && generation.referenceMode === 'frames'
+                ? {
+                    frameImages: sources.map((source, index) => ({
+                      url: source.path,
+                      type: index === 0 ? 'first_frame' : 'last_frame',
+                    })),
+                  }
+                : {}),
               model: chosen.reference.model,
             };
             // Restore sources after the model switch resets the old reference scope.
@@ -1151,7 +1208,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
                 selected: modelKey(chosen),
                 options: values,
                 references: sources,
-                templateVideoReference: undefined,
+                templateVideoReference:
+                  restoredPublicReference(generation.references) || input?.templateVideoReference,
                 shot: input?.shape ? { shape: input.shape } : {},
                 useBrand: false,
                 agentKey,

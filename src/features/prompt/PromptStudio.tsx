@@ -1,3 +1,4 @@
+import { FileReferenceType } from '../../lib/types';
 import { catalogQuery } from '../catalog/catalogQuery';
 import type { ReactElement } from 'react';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
@@ -246,7 +247,7 @@ function PromptEditor(): ReactElement {
         {
           role: 'USER',
           text,
-          files: source,
+          references: source.map((id) => ({ type: FileReferenceType.FILE, id })),
           settings: { tools, ...(!tools.length ? { isToolsDisabled: true } : {}) },
         },
         sid,

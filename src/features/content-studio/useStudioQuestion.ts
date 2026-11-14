@@ -1,8 +1,8 @@
 import { useRef, type RefObject } from 'react';
 import { api, getSession } from '../../lib/api';
-import type { IModelDescription } from '../../lib/types';
+import { FileReferenceType, type IFileReference, type IModelDescription } from '../../lib/types';
 import type { useContentConversation } from './useContentConversation';
-import { parseStudioQuestion, withStudioContext, type StudioQuestion } from './studioAgent';
+import { parseStudioQuestion, type StudioQuestion } from './studioAgent';
 
 export function useStudioQuestion({
   work,
@@ -34,29 +34,26 @@ export function useStudioQuestion({
       if (
         last?.id !== messageId ||
         last.role !== 'ASSISTANT' ||
-        !parseStudioQuestion(last.text, latest.items.find((item) => item.role === 'USER')?.text)
+        !parseStudioQuestion(
+          last.text,
+          latest.items.find((item) => item.role === 'USER'),
+        )
       ) {
         work.setError('На этот вопрос уже ответили. Обновите диалог.');
         return false;
       }
       const connection = { uid: question.context.uid, settings: question.context.settings };
-      const ids: Array<number> =
-        question.context.uid === 'IMAGE'
-          ? (question.context.input.request as { task: { fileIds: Array<number> } }).task.fileIds
-          : (question.context.input.fileIds as Array<number>);
-      let answerContext = question.context;
-      if (!ids.length && !answerContext.historyFiles) {
-        const historyFiles = await work.historyFiles();
-        if (historyFiles.length) {
-          answerContext = { ...answerContext, historyFiles, input: { ...answerContext.input } };
-          delete answerContext.input.isDrawNew;
-        }
-      }
+      const references: IFileReference[] = Array.isArray(question.context.input.references)
+        ? (question.context.input.references as IFileReference[])
+        : (question.context.uid === 'IMAGE'
+            ? (question.context.input.request as { task: { fileIds: number[] } }).task.fileIds
+            : (question.context.input.fileIds as number[])
+          ).map((id) => ({ type: FileReferenceType.FILE, id }));
       return await work.submit(
         {
           role: 'USER',
-          text: withStudioContext(`Ответ на вопрос «${question.question}»: ${answer}`, answerContext),
-          files: ids,
+          text: `Ответ на вопрос «${question.question}»: ${answer}`,
+          references,
           settings: { tools: [connection] },
         },
         answer,

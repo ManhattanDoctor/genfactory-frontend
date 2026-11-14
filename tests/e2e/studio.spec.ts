@@ -1,4 +1,4 @@
-import { withStudioContext, parseStudioContext } from '../../src/features/content-studio/studioAgent';
+import { withStudioContext } from '../../src/features/content-studio/studioAgent';
 import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
 import { modelTitle } from '../../src/features/catalog/presentation';
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
@@ -165,7 +165,10 @@ async function mockApi(page: Page, signedIn = true) {
         ...(video ? { type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' } : {}),
         origin: {
           kind: 'GENERATION',
-          sourceFileIds: input.task.fileIds || [],
+          sourceFileIds:
+            input.task.references
+              ?.filter((item: { type: string }) => item.type === 'FILE')
+              .map((item: { id: number }) => item.id) || [],
           generation: {
             model: { provider: input.model, model: input.options.model },
             prompt: input.task.prompt,
@@ -233,7 +236,12 @@ async function mockApi(page: Page, signedIn = true) {
           id: messages.length + 1,
           role: 'USER',
           text: data.text,
-          files: data.files.length ? [file] : [],
+          references: data.references,
+          settings: data.settings,
+          files:
+            data.references?.some((reference: any) => reference.type === 'FILE') || data.files?.length
+              ? [file]
+              : [],
           createdDate: file.createdDate,
         });
         const result = {
@@ -482,7 +490,7 @@ test('advanced editor: image to video starts a direct video task with the chosen
   expect(state.tasks[0]).toMatchObject({
     model: 'OPEN_ROUTER_VIDEO',
     isSaveResult: true,
-    task: { fileIds: [12] },
+    task: { references: [{ type: 'FILE', id: 12 }] },
   });
   expect(state.sends).toHaveLength(1);
   expect(state.creates).toHaveLength(1);
@@ -496,7 +504,7 @@ test('library reference is attached to a conversation message', async ({ page })
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Change lighting');
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
 });
 test('library reference survives returning to a studio with a cached catalog', async ({ page }) => {
   const state = await mockApi(page);
@@ -509,7 +517,8 @@ test('library reference survives returning to a studio with a cached catalog', a
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Use this reference');
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
+  expect(state.tasks[0].task.fileIds).toBeUndefined();
 });
 test('running conversation survives page load and blocks a second send until server completion', async ({
   page,
@@ -900,7 +909,7 @@ test('advanced editor: reference survives restoration of a different saved video
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Animate the reference', 'video');
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
 });
 
 test('advanced editor: upload attaches a file, removal excludes it from the message', async ({ page }) => {
@@ -914,7 +923,7 @@ test('advanced editor: upload attaches a file, removal excludes it from the mess
   await page.getByRole('button', { name: 'Убрать Test result' }).click();
   await submit(page);
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([]);
+  expect(state.sends[0].references).toEqual([].map((id) => ({ type: 'FILE', id })));
 });
 
 test('advanced editor: upload rejects unsupported format and too many references before any upload', async ({
@@ -1310,7 +1319,7 @@ test('workspace Generate Prompt transfers its answer and reference into image ge
   await page.getByRole('button', { name: 'Собрать промпт', exact: true }).click();
   await expect(page.getByText('Точный промпт для генерации.', { exact: true })).toBeVisible();
   await expect(page.locator('.img-dock .composer-attachment')).toHaveCount(0);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].text).toContain('English');
   await page.locator('.prompt-card').hover();
   await page.getByRole('button', { name: 'В генератор', exact: true }).last().click();
@@ -1321,7 +1330,8 @@ test('workspace Generate Prompt transfers its answer and reference into image ge
   expect(state.sends).toHaveLength(1);
   await submit(page, 'Готовый промпт с референсом');
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
+  expect(state.tasks[0].task.fileIds).toBeUndefined();
 });
 
 test('workspace script stays in the same conversation when changing text modes', async ({ page }) => {
@@ -1411,7 +1421,8 @@ test('workspace library picker attaches a reference without leaving the image ed
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await submit(page, 'Use the selected image');
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
+  expect(state.tasks[0].task.fileIds).toBeUndefined();
 });
 
 test('workspace history supports rename favorites server archive and a running filter', async ({ page }) => {
@@ -1478,7 +1489,7 @@ test('workspace video analysis uploads the original and sends VIDEO_RECOGNITION'
   await page.getByLabel('Ваш запрос', { exact: true }).fill('Опиши визуальный стиль');
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].settings.tools[0]).toMatchObject({
     uid: 'VIDEO_RECOGNITION',
     settings: { isLockSelection: true, options: { maxTokens: 4096 } },
@@ -1519,7 +1530,7 @@ test('workspace documents require an appropriate tool and remain file attachment
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.creates[0].options.tools).toEqual([{ uid: 'DOCUMENT_READ' }]);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
 });
 
 test('workspace local brand and templates remain isolated between accounts', async ({ page }) => {
@@ -1725,7 +1736,7 @@ test('advanced editor: pastes and reorders reference files and preserves order i
     .click();
   await submit(page, 'Use ordered references');
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([13, 12]);
+  expect(state.sends[0].references).toEqual([13, 12].map((id) => ({ type: 'FILE', id })));
 });
 
 test('viewer navigates images and transfers the currently displayed file', async ({ page }) => {
@@ -1788,7 +1799,7 @@ test('advanced editor: repeat restores the exact local run settings and never se
   await submit(page, 'Изменённый вариант');
   await expect.poll(() => state.sends.length).toBe(2);
   expect(state.creates).toHaveLength(2);
-  expect(state.sends[1].files).toEqual([12]);
+  expect(state.sends[1].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
 });
 
 test('advanced editor: old variants explain unknown settings instead of using conversation defaults as history', async ({
@@ -1901,7 +1912,7 @@ test('continuation requires a visible reference choice before any paid request a
   expect(state.sends).toHaveLength(0);
   await page.getByRole('button', { name: 'Создать видео', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].text).not.toContain('Создай с нуля');
   expect(state.edits).toHaveLength(2);
   expect(state.edits.filter((edit) => edit.system)).toHaveLength(1);
@@ -1913,7 +1924,7 @@ test('continuation requires a visible reference choice before any paid request a
   await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toHaveValue('');
   await submit(page, 'Теперь добавь свет', 'video');
   await expect.poll(() => state.sends.length).toBe(2);
-  expect(state.sends[1].files).toEqual([12]);
+  expect(state.sends[1].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.edits).toHaveLength(3);
   expect(state.edits.filter((edit) => edit.system)).toHaveLength(1);
 });
@@ -1946,7 +1957,7 @@ test('advanced editor: fresh choice and cancelling the chooser do not submit; ch
     .getByRole('button', { name: /^(Создать изображение|Собрать изображение)$/, exact: true })
     .click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([]);
+  expect(state.sends[0].references).toEqual([].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].text).toContain('Создай с нуля');
 });
 
@@ -2559,7 +2570,7 @@ test('advanced editor: new conversation carries result folder and tags without c
   await submit(page, 'Draw a product');
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.creates[0].fileOutput).toEqual({ directory: 'results-folder', tags: ['catalog', 'summer'] });
-  expect(state.sends[0].files).toEqual([]);
+  expect(state.sends[0].references).toEqual([].map((id) => ({ type: 'FILE', id })));
 });
 
 test('thumbnail actions float above the card and close with Escape without opening the viewer', async ({
@@ -2775,7 +2786,7 @@ test('audio STT takes the exact video from the file menu and saves transcription
   await page.getByRole('button', { name: 'Расшифровать файл' }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   await expect(page.locator('.reference-list .composer-attachment')).toHaveCount(0);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].text).toContain('fileId=12');
   expect(state.sends[0].text).toContain('isFile=true');
   expect(state.sends[0].settings.tools[0]).toMatchObject({
@@ -3433,7 +3444,7 @@ test('content studio uploads a reference and sends video with its file id', asyn
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.uploads).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].settings.tools[0]).toMatchObject({
     uid: 'VIDEO',
     settings: { options: { duration: 8, generateAudio: false } },
@@ -3551,23 +3562,26 @@ test('content studio gallery creates explicit first and last image frames and se
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.uploads).toBe(2);
-  expect(state.sends[0].files).toEqual([12, 13]);
+  expect(state.sends[0].references).toEqual([12, 13].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].settings.tools[0].uid).toBe('VIDEO');
   expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
 });
 
-test('content studio template is a recipe and portrait format is translated to image size', async ({
+test('content studio template is a recipe and selected format stays in structured settings', async ({
   page,
 }) => {
   const state = await mockApi(page);
   await page.goto('/chat');
   await page.getByRole('button', { name: 'Изображение', exact: true }).click();
-  await page.locator('.cw-card-media').first().click();
-  await page.locator('.cw-add').first().click();
+  const template = page.getByRole('button', {
+    name: 'Открыть шаблон: Главное фото на белом фоне (маркетплейс)',
+    exact: true,
+  });
+  await template.getByRole('button', { name: 'Добавить', exact: true }).click();
   await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
-  await page.getByRole('dialog').getByRole('button', { name: 'Из библиотеки' }).click();
-  await selectLibraryFile(page, 'Test result');
   await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+  await selectLibraryFile(page, 'Test result');
   await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
   await page.getByRole('option', { name: '2:3', exact: true }).click();
   await expect(page.locator('#cw-draft')).toHaveValue(/Красная чашка/);
@@ -3576,9 +3590,10 @@ test('content studio template is a recipe and portrait format is translated to i
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].text).toContain('Professional e-commerce main product photo');
   expect(state.sends[0].text).not.toContain('{PRODUCT}');
-  expect(state.sends[0].settings.tools[0].settings.options.size).toBe('1024x1536');
-  expect(state.sends[0].text).toContain('Размер (options.size): 1024x1536');
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].settings.tools[0].settings.options.aspectRatio).toBe('2:3');
+  expect(state.sends[0].text).not.toContain('Параметры текущего запуска');
+  expect(state.sends[0].settings.tools[0].settings.isLockSelection).toBe(true);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.uploads).toBe(0);
 });
 
@@ -3703,7 +3718,7 @@ test('content studio adapts a multi-shot template to the selected continuous tak
   );
   expect(state.sends[0].text).toContain('один непрерывный план без склеек');
   expect(state.sends[0].text).toContain('не переноси это разбиение в сценарий и промпт инструмента VIDEO');
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].settings.tools[0]).toMatchObject({
     uid: 'VIDEO',
     settings: { isLockSelection: true },
@@ -3861,7 +3876,7 @@ test('content studio applies a saved script with references without generating u
   await page.screenshot({ path: '/tmp/content-script-applied.png' });
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(2);
-  expect(state.sends[1].files).toEqual([12]);
+  expect(state.sends[1].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[1].text).toContain('Утверждённый сценарий: чашка вращается');
   expect(state.sends[1].settings.tools[0].uid).toBe('VIDEO');
   expect(state.uploads).toBe(1);
@@ -3954,7 +3969,7 @@ test('content studio restores actual result settings and sources instead of curr
     model: generation.model,
     options: generation.options,
   });
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.uploads).toBe(0);
 });
 
@@ -4020,8 +4035,8 @@ test('content studio preserves custom generation dimensions when restoring the s
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].settings.tools[0].settings.options.size).toBe('1536x1536');
-  expect(parseStudioContext(state.sends[0].text)!.input.isDrawNew).toBeUndefined();
-  expect(state.sends[0].files).toEqual([]);
+  expect(state.sends[0].text).not.toContain('[Genfactory:studio-context');
+  expect(state.sends[0].references).toEqual([].map((id) => ({ type: 'FILE', id })));
 });
 
 test('content studio library reuses saved references without uploading or sending on selection', async ({
@@ -4042,7 +4057,7 @@ test('content studio library reuses saved references without uploading or sendin
   await page.locator('#cw-draft').fill('Use this saved image');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.uploads).toBe(0);
 });
 
@@ -4221,16 +4236,15 @@ test('optional template clears previous references and sends explicitly from scr
   await expect(page.locator('#cw-draft')).toHaveValue(/Спокойный парк/);
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([]);
-  expect(parseStudioContext(state.sends[0].text)!.input.isDrawNew).toBe(true);
+  expect(state.sends[0].references).toEqual([].map((id) => ({ type: 'FILE', id })));
+  expect(state.sends[0].text).toContain('Создай с нуля');
   expect(state.uploads).toBe(0);
   await expect(page.locator('#cw-draft')).toHaveValue('');
   await page.locator('#cw-draft').fill('Сделай свет мягче на предыдущем результате');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(2);
-  expect(
-    parseStudioContext(state.sends[1].text)!.historyFiles?.some((file) => file.role === 'ASSISTANT'),
-  ).toBe(true);
+  expect(state.sends[1].references).toEqual([]);
+  expect(state.sends[1].text).toContain('предыдущем результате');
 });
 
 for (const command of ['подтверждаю', 'да сделай уже видео!']) {
@@ -4742,19 +4756,14 @@ test('image submission clears its reference after a response but keeps it on unc
   const state = await mockApi(page);
   await page.goto('/image');
   await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: /Test result/ })
-    .click();
+  await selectLibraryFile(page, 'Test result');
   await submit(page, 'Preserve the reference cup');
   await expectCompleted(page);
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
+  expect(state.tasks[0].task.fileIds).toBeUndefined();
   await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: /Test result/ })
-    .click();
+  await selectLibraryFile(page, 'Test result');
   state.abortAfterAccept = true;
   await submit(page, 'Try another angle');
   await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
@@ -5653,11 +5662,8 @@ test('content studio binds all four Seedance references to the required VIDEO ca
   await page.locator('#cw-draft').fill('Все предметы в одной сцене');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].files).toEqual([14, 8, 23, 6]);
-  expect(parseStudioContext(state.sends[0].text)?.input).toEqual({
-    fileIds: [14, 8, 23, 6],
-    referenceMode: 'references',
-  });
+  expect(state.sends[0].references).toEqual([14, 8, 23, 6].map((id) => ({ type: 'FILE', id })));
+  expect(state.sends[0].text).toContain('Режим видеореференсов: references');
   expect(state.sends[0].settings.tools[0].isRequired).not.toBe(true);
   expect(state.creates[0].options.tools[0]).not.toHaveProperty('input');
 });
@@ -5740,10 +5746,8 @@ for (const referenceMode of ['references', 'frames'] as const)
     await expect(page.locator('.cw-files .composer-attachment')).toHaveCount(files.length);
     await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
     await expect.poll(() => state.sends.length).toBe(1);
-    expect(parseStudioContext(state.sends[0].text)?.input).toEqual({
-      fileIds: files.map((f) => f.id),
-      referenceMode,
-    });
+    expect(state.sends[0].references).toEqual(files.map((f) => ({ type: 'FILE', id: f.id })));
+    expect(state.sends[0].text).toContain(`Режим видеореференсов: ${referenceMode}`);
   });
 
 for (const restored of [false, true])
@@ -5832,8 +5836,8 @@ for (const width of [1440, 390])
     await expect.poll(() => state.sends.length).toBe(1);
     expect(state.sends[0].settings).not.toHaveProperty('studioAnswerTo');
     expect(state.sends[0].settings.tools[0]).toEqual({ uid: context.uid, settings: context.settings });
-    expect(parseStudioContext(state.sends[0].text)).toEqual(context);
-    expect(state.sends[0].files).toEqual([12]);
+    expect(state.sends[0].text).not.toContain('[Genfactory:studio-context');
+    expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
     await expect(card.getByRole('button', { name: 'На товаре', exact: true })).toBeDisabled();
     expect(state.sends).toHaveLength(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -5957,7 +5961,7 @@ test('studio blocks attachment removal during a pending request and clears accep
   await expect.poll(() => state.sends.length).toBe(1);
   await expect(tile).toHaveCount(0);
   await expect(page.locator('#cw-draft')).toHaveValue('');
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   await page.reload();
   await expect(page.locator('.cw-files')).toHaveCount(0);
 });
@@ -6205,15 +6209,11 @@ test('studio continues an older chair brief with a historical photo while the co
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   const body = state.sends[0];
-  const context = parseStudioContext(body.text)!;
-  expect(context.historyFiles).toEqual([
-    { id: 12, name: file.name, type: 'IMAGE', role: 'USER', messageId: 1 },
-  ]);
-  expect(context.input).toEqual({ request: { task: { fileIds: [] } } });
-  expect(body.files).toEqual([]);
+  expect(body.text).not.toContain('[Genfactory:studio-context');
+  expect(body.references).toEqual([].map((id) => ({ type: 'FILE', id })));
   expect(body.settings.tools[0].isRequired).toBeUndefined();
   expect(body.settings.tools[0].input).toBeUndefined();
-  expect(state.edits.some((edit) => edit.system?.includes('historyFiles'))).toBe(true);
+  expect(state.edits.some((edit) => edit.system?.includes('Каталог references'))).toBe(true);
   await expect(page.locator('.cw-files')).toHaveCount(0);
 });
 
@@ -6293,10 +6293,10 @@ test('answering a legacy question recovers the older photo without changing the 
     .click();
   await expect.poll(() => state.sends.length).toBe(1);
   const sent = state.sends[0];
-  expect(sent.files).toEqual([]);
+  expect(sent.references).toEqual([].map((id) => ({ type: 'FILE', id })));
   expect(sent.settings.tools[0]).toEqual({ uid: 'IMAGE', settings: context.settings });
-  expect(parseStudioContext(sent.text)?.historyFiles?.map((file) => file.id)).toEqual([12]);
-  expect(parseStudioContext(sent.text)?.input).not.toHaveProperty('isDrawNew');
+  expect(sent.text).not.toContain('[Genfactory:studio-context');
+  expect(sent.settings.tools[0].input).toBeUndefined();
 });
 
 test('a socket event refreshes its conversation without refetching the other open thread', async ({
@@ -7216,7 +7216,8 @@ test('image templates use the studio editor, validate fields and references, and
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
   expect(state.tasks[0].task.prompt).toBe(prompt.trim());
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
+  expect(state.tasks[0].task.fileIds).toBeUndefined();
   expect(state.tasks[0].options).toMatchObject({ aspectRatio: '1:1', resolution: '2K' });
 });
 
@@ -7707,7 +7708,8 @@ test('video clears sent references immediately, restores a failed draft and leav
     await selectLibraryFile(page, 'Test result');
     await submit(page, 'Оживи лампу', 'video');
     await expect.poll(() => requests.length).toBe(1);
-    expect(requests[0].task.fileIds).toEqual([12]);
+    expect(requests[0].task.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
+    expect(requests[0].task.fileIds).toBeUndefined();
     expect(requests[0].options.frameImages).toBeUndefined();
     expect(requests[0].options.inputReferences).toBeUndefined();
     await expect(page.locator('#vd-draft')).toHaveValue('');
@@ -8104,10 +8106,11 @@ for (const path of ['/image', '/chat']) {
       .click();
     if (path === '/image') {
       await expect.poll(() => state.tasks.length).toBe(1);
-      expect(state.tasks[0].task.fileIds).toEqual([13, 12]);
+      expect(state.tasks[0].task.references).toEqual([13, 12].map((id) => ({ type: 'FILE', id })));
+      expect(state.tasks[0].task.fileIds).toBeUndefined();
     } else {
       await expect.poll(() => state.sends.length).toBe(1);
-      expect(state.sends[0].files).toEqual([13, 12]);
+      expect(state.sends[0].references).toEqual([13, 12].map((id) => ({ type: 'FILE', id })));
     }
   });
 }
@@ -8345,12 +8348,13 @@ for (const modelId of ['bytedance/seedance-2.5', 'alibaba/wan-3.0']) {
         .click();
       if (path === '/video') {
         await expect.poll(() => state.tasks.length).toBe(1);
-        expect(state.tasks[0].task.fileIds).toEqual([14, 12]);
+        expect(state.tasks[0].task.references).toEqual([14, 12].map((id) => ({ type: 'FILE', id })));
+        expect(state.tasks[0].task.fileIds).toBeUndefined();
         expect(state.tasks[0].task.referenceMode).toBe('references');
       } else {
         await expect.poll(() => state.sends.length).toBe(1);
-        expect(state.sends[0].files).toEqual([14, 12]);
-        expect(parseStudioContext(state.sends[0].text)?.input?.referenceMode).toBe('references');
+        expect(state.sends[0].references).toEqual([14, 12].map((id) => ({ type: 'FILE', id })));
+        expect(state.sends[0].text).toContain('Режим видеореференсов: references');
       }
     });
   }
@@ -8612,7 +8616,8 @@ test('undersized video references are blocked before a paid request', async ({ p
   clip.path = '/media/templates/2026-11-13/video/06.mp4';
   await submit(page, 'Continue this clip', 'video');
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.fileIds).toEqual([13]);
+  expect(state.tasks[0].task.references).toEqual([13].map((id) => ({ type: 'FILE', id })));
+  expect(state.tasks[0].task.fileIds).toBeUndefined();
 });
 
 test('chat video template selects Wan and keeps the updated identity instructions', async ({ page }) => {
@@ -8702,7 +8707,7 @@ for (const path of ['/video', '/chat']) {
     await applyVideoTemplate(page, path, 'Замена персонажа в танце');
     await expect(page.locator('.composer-attachment')).toHaveCount(2);
     await expect(page.locator('.composer-attachment').first()).toContainText(clip.name);
-    expect(state.uploads).toBe(1);
+    expect(state.uploads).toBe(0);
     await applyVideoTemplate(page, path, 'Замена персонажа в танце');
     await expect(page.locator('.composer-attachment')).toHaveCount(2);
     await expect
@@ -8712,7 +8717,7 @@ for (const path of ['/video', '/chat']) {
     await expect(page.locator('.composer-attachment')).toHaveCount(2);
     await applyVideoTemplate(page, path, 'Замена персонажа в танце');
     await expect(page.locator('.composer-attachment')).toHaveCount(2);
-    expect(state.uploads).toBe(1);
+    expect(state.uploads).toBe(0);
     await page.setViewportSize({ width: 390, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('template-reference-mobile.png') });
@@ -8721,79 +8726,69 @@ for (const path of ['/video', '/chat']) {
       .click();
     if (path === '/video') {
       await expect.poll(() => state.tasks.length).toBe(1);
-      expect(state.tasks[0].task.fileIds).toEqual([314, 12]);
+      expect(state.tasks[0].task).not.toHaveProperty('fileIds');
+      expect(state.tasks[0].task.references).toEqual([
+        {
+          type: 'URL',
+          mime: 'video/mp4',
+          url: 'https://genfactory.gnosisai.ru/media/templates/2026-11-13/video/references/03.mp4',
+        },
+        { type: 'FILE', id: file.id },
+      ]);
       expect(state.tasks[0].task.referenceMode).toBe('references');
     } else {
       await expect.poll(() => state.sends.length).toBe(1);
-      expect(state.sends[0].files).toEqual([314, 12]);
-      expect(parseStudioContext(state.sends[0].text)?.input?.referenceMode).toBe('references');
+      expect(state.sends[0].references).toEqual([
+        {
+          type: 'URL',
+          url: 'https://genfactory.gnosisai.ru/media/templates/2026-11-13/video/references/03.mp4',
+          mime: 'video/mp4',
+        },
+        { type: 'FILE', id: 12 },
+      ]);
+      expect(state.sends[0].text).not.toContain('[Genfactory:studio-context');
+      expect(state.sends[0].text).toContain('Режим видеореференсов: references');
     }
   });
 
-  test(`template video download failure preserves the draft and can be retried on ${path}`, async ({
-    page,
-  }) => {
-    const { state } = await templateVideoSetup(page);
-    await page.goto(path);
-    if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
-    const draft = page.locator(path === '/video' ? '#vd-draft' : '#cw-draft');
-    await draft.fill('Мой исходный текст');
-    const source = '**/media/templates/2026-11-13/video/references/03.mp4';
-    await page.route(source, (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
-    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
-    await expect(
-      page.getByText('Не удалось загрузить видео шаблона. Повторите выбор.', { exact: true }),
-    ).toBeVisible();
-    await expect(draft).toHaveValue('Мой исходный текст');
-    expect(state.uploads).toBe(0);
-    expect(state.tasks).toHaveLength(0);
-    expect(state.sends).toHaveLength(0);
-    await page.unroute(source);
-    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
-    await expect(page.locator('.composer-attachment')).toHaveCount(1);
-    await applyVideoTemplate(page, path, 'Послание в объектив');
-    await expect(page.locator('.composer-attachment')).toHaveCount(0);
-  });
+  if (path === '/chat')
+    test(`template selection does not download the source even when the media endpoint fails on ${path}`, async ({
+      page,
+    }) => {
+      const { state } = await templateVideoSetup(page);
+      await page.goto(path);
+      if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+      const draft = page.locator('#cw-draft');
+      await draft.fill('Мой исходный текст');
+      const source = '**/media/templates/2026-11-13/video/references/03.mp4';
+      await page.route(source, (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
+      await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+      await expect(page.locator('.composer-attachment')).toHaveCount(1);
+      await expect(page.locator('.cw-plus .upload-button-spinner')).toHaveCount(0);
+      expect(state.uploads).toBe(0);
+      expect(state.tasks).toHaveLength(0);
+      expect(state.sends).toHaveLength(0);
+      await page.unroute(source);
+      await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+      await expect(page.locator('.composer-attachment')).toHaveCount(1);
+      await applyVideoTemplate(page, path, 'Послание в объектив');
+      await expect(page.locator('.composer-attachment')).toHaveCount(0);
+    });
 }
 
-for (const path of ['/video', '/chat']) {
-  test(`late template video upload cannot change another editor on ${path}`, async ({ page }) => {
-    const { clip } = await templateVideoSetup(page);
-    let release!: () => void;
-    const pending = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    let started = false;
-    await page.route('**/api/file', async (route) => {
-      if (route.request().method() !== 'POST') return route.fallback();
-      started = true;
-      await pending;
-      await route.fulfill({ json: clip });
-    });
+for (const path of ['/chat']) {
+  test(`public template selection does not leak into another editor on ${path}`, async ({ page }) => {
+    const { state } = await templateVideoSetup(page);
     await page.goto(path);
-    if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
     await applyVideoTemplate(page, path, 'Замена персонажа в танце');
-    await expect.poll(() => started).toBe(true);
-    const spinner = page.locator('.cw-plus .upload-button-spinner');
-    await expect(spinner).toBeVisible();
-    await expect(page.locator('.cw-field > .upload-button-status')).toHaveCount(0);
-    const statusLabel = page.locator('.cw-plus .upload-button-status .sr-only');
-    await expect(statusLabel).toContainText(/Загрузка|Сохранение|Подготовка/);
-    const labelBounds = await statusLabel.boundingBox();
-    expect(labelBounds!.width).toBeLessThanOrEqual(1);
-    expect(labelBounds!.height).toBeLessThanOrEqual(1);
+    await expect(page.locator('.composer-attachment')).toHaveCount(1);
+    await expect(page.locator('.cw-plus .upload-button-spinner')).toHaveCount(0);
     await page.getByRole('link', { name: 'Изображения', exact: true }).click();
     await expect(page).toHaveURL(/\/image/);
-    const finished = page.waitForResponse(
-      (r) => new URL(r.url()).pathname === '/api/file' && r.request().method() === 'POST',
-    );
-    release();
-    await finished;
-    await page.evaluate(
-      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-    );
     await expect(page.locator('.composer-attachment')).toHaveCount(0);
     await expect(page.getByRole('textbox', { name: 'Идея', exact: true })).toHaveValue('');
+    expect(state.uploads).toBe(0);
   });
 }
 
@@ -8906,12 +8901,13 @@ test('generation sources and attached message links use the shared file viewer',
 });
 
 for (const lookupStatus of [200, 404, 503]) {
-  test(`template reference reuse across editors handles lookup ${lookupStatus}`, async ({ page }) => {
+  test(`chat template reference reuse after reload handles lookup ${lookupStatus}`, async ({ page }) => {
     const { state, clip } = await templateVideoSetup(page);
-    await page.goto('/video');
-    await applyVideoTemplate(page, '/video', 'Замена персонажа в танце');
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+    await applyVideoTemplate(page, '/chat', 'Замена персонажа в танце');
     await expect(page.locator('.composer-attachment')).toHaveCount(1);
-    expect(state.uploads).toBe(1);
+    expect(state.uploads).toBe(0);
     await page.locator('.composer-attachment-remove').click();
     await expect(page.locator('.composer-attachment')).toHaveCount(0);
     // Full navigation also verifies persistence beyond the React Query lifetime.
@@ -8926,15 +8922,9 @@ for (const lookupStatus of [200, 404, 503]) {
       });
     });
     await applyVideoTemplate(page, '/chat', 'Замена персонажа в танце');
-    await expect.poll(() => lookups).toBeGreaterThan(0);
-    if (lookupStatus === 503) {
-      await expect(page.locator('.cw-plus .upload-button-spinner')).toHaveCount(0);
-      await expect(page.locator('.composer-attachment')).toHaveCount(0);
-      expect(state.uploads).toBe(1);
-    } else {
-      await expect(page.locator('.composer-attachment')).toHaveCount(1);
-      expect(state.uploads).toBe(lookupStatus === 404 ? 2 : 1);
-    }
+    await expect(page.locator('.composer-attachment')).toHaveCount(1);
+    expect(lookups).toBe(0);
+    expect(state.uploads).toBe(0);
   });
 }
 
@@ -9108,4 +9098,122 @@ test('unsupported template duration preserves the form and does not upload a ref
   await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('1 с');
   expect(state.uploads).toBe(0);
   expect(state.tasks).toHaveLength(0);
+});
+
+test('public template reference can be removed or switched without uploads or source fetches', async ({
+  page,
+}) => {
+  const { state } = await templateVideoSetup(page);
+  let sourceFetches = 0;
+  page.on('request', (request) => {
+    if (
+      request.url().includes('/media/templates/') &&
+      request.url().endsWith('.mp4') &&
+      ['fetch', 'xhr'].includes(request.resourceType())
+    )
+      sourceFetches++;
+  });
+  await page.goto('/video');
+  for (const title of [
+    'Замена персонажа в танце',
+    'Замена героев в сцене у бара',
+    'Новая сцена по видеореференсу',
+  ]) {
+    await applyVideoTemplate(page, '/video', title);
+    await expect(page.locator('.composer-attachment')).toHaveCount(1);
+    await expect(page.locator('.composer-attachment')).toContainText(`${title} — референс.mp4`);
+    await expect(page.locator('.composer-attachment-preview .file-placeholder')).toBeVisible();
+    await expect(
+      page.locator('.composer-attachment-preview img, .composer-attachment-preview video'),
+    ).toHaveCount(0);
+  }
+  await page
+    .getByRole('button', { name: 'Убрать Новая сцена по видеореференсу — референс.mp4', exact: true })
+    .click();
+  await expect(page.locator('.composer-attachment')).toHaveCount(0);
+  await applyVideoTemplate(page, '/video', 'Замена персонажа в танце');
+  await applyVideoTemplate(page, '/video', 'Послание в объектив');
+  await expect(page.locator('.composer-attachment')).toHaveCount(0);
+  expect(state.uploads).toBe(0);
+  expect(sourceFetches).toBe(0);
+  expect(state.tasks).toHaveLength(0);
+});
+
+test('public template request failure restores its reference and the user photo', async ({ page }) => {
+  const { state } = await templateVideoSetup(page);
+  await page.route('**/api/task', (route) =>
+    route.request().method() === 'POST'
+      ? route.fulfill({ status: 503, json: { message: 'Unavailable' } })
+      : route.fallback(),
+  );
+  await page.goto('/video');
+  await page.locator('.img-settings .cw-plus').click();
+  await selectLibraryFile(page, file.name);
+  await applyVideoTemplate(page, '/video', 'Замена персонажа в танце');
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect(page.getByText(/Сервис временно недоступен.*Проверьте результат/)).toBeVisible();
+  await expect(page.locator('.composer-attachment')).toHaveCount(2);
+  await expect(page.locator('.composer-attachment').first()).toContainText(
+    'Замена персонажа в танце — референс.mp4',
+  );
+  expect(state.uploads).toBe(0);
+});
+
+test('conversation previews are rounded, URL references use placeholders and fullscreen video fits the frame', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), tags: ['genfactory', 'content-studio'] });
+  const url = 'https://external.example.test/reference.mp4';
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url() === url) requests.push(url);
+  });
+  state.messages.set(101, [
+    {
+      id: 1,
+      role: 'USER',
+      text: 'Используй референсы',
+      files: [file],
+      references: [
+        { type: 'FILE', id: file.id },
+        { type: 'URL', url, mime: 'video/mp4' },
+      ],
+      createdDate: file.createdDate,
+    },
+    {
+      id: 2,
+      role: 'ASSISTANT',
+      text: 'Готово',
+      files: [
+        { ...file, id: 13, type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4', preview: undefined },
+      ],
+      createdDate: file.createdDate,
+    },
+  ]);
+  await page.goto('/chat?conversation=101');
+  const thumb = page.locator('.as-thumbs .content-thumb').first();
+  await expect(thumb).toBeVisible();
+  expect(
+    await thumb.evaluate((element) => ({
+      radius: getComputedStyle(element).borderRadius,
+      overflow: getComputedStyle(element).overflow,
+    })),
+  ).toEqual({ radius: '10px', overflow: 'hidden' });
+  const external = page.locator('.content-external-reference');
+  await expect(external.locator('.file-placeholder')).toBeVisible();
+  await expect(external.locator('img, video')).toHaveCount(0);
+  expect(requests).toEqual([]);
+  await thumb.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: test.info().outputPath('rounded-reference-placeholders.png') });
+  const video = page.locator('video.as-pic');
+  await expect(video).toBeVisible();
+  await video.evaluate((element) => element.requestFullscreen());
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement?.tagName)).toBe('VIDEO');
+  await expect(video).toHaveCSS('object-fit', 'contain');
+  const box = await video.boundingBox();
+  expect(box!.width).toBe(page.viewportSize()!.width);
+  expect(box!.height).toBe(page.viewportSize()!.height);
+  await page.screenshot({ path: test.info().outputPath('conversation-video-fullscreen.png') });
+  await page.evaluate(() => document.exitFullscreen());
 });

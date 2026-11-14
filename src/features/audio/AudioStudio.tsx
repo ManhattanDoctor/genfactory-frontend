@@ -1,3 +1,4 @@
+import { FileReferenceType } from '../../lib/types';
 import { scheduleRefresh } from '../realtime/queryRefresh';
 import type { ReactElement } from 'react';
 import { modelTitle } from '../catalog/presentation';
@@ -268,7 +269,7 @@ function AudioEditor(): ReactElement {
       void client.invalidateQueries({ queryKey: ['conversations', userId] });
       const body: IMessageCreate = {
         role: 'USER',
-        files: mode === 'stt' ? [files[0].id] : [],
+        references: mode === 'stt' ? [{ type: FileReferenceType.FILE, id: files[0].id }] : [],
         settings: { tools: [{ ...tool, isRequired: true }] },
         text:
           mode === 'tts'

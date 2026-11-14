@@ -1,3 +1,5 @@
+import { FileReferenceType, type IFileReference } from '../../lib/types';
+import type { TemplatePublicReference } from './templatePublicReference';
 import type {
   IGnosisFile,
   IFileGeneration,
@@ -10,8 +12,6 @@ import { sizeRatio } from './controls';
 import { fields } from './studioConfig';
 import type { IAttachment, StudioMode } from './studioTypes';
 import type { useStudioModels } from './useStudioModels';
-import type { StudioHistoryFile } from './studioHistory';
-import { withStudioContext } from './studioAgent';
 import { videoReferenceMode } from '../catalog/videoInputs';
 import { mediaOptions } from './request';
 import { modelKey } from '../catalog/presentation';
@@ -34,6 +34,7 @@ interface StudioMessageOptions {
   sourceDraft: string;
   sourceAttachments: IAttachment[];
   savedFiles: IGnosisFile[];
+  publicReference?: TemplatePublicReference;
   preparingScript: boolean;
   picked: ITemplate[];
   settings: Record<string, string>;
@@ -42,7 +43,6 @@ interface StudioMessageOptions {
   brandRules: string;
   restoredGeneration?: IFileGeneration;
   startsFresh: boolean;
-  readHistoryFiles: () => Promise<StudioHistoryFile[]>;
   isCurrent: () => boolean;
 }
 export async function buildStudioMessage({
@@ -52,6 +52,7 @@ export async function buildStudioMessage({
   sourceDraft,
   sourceAttachments,
   savedFiles,
+  publicReference,
   preparingScript,
   picked,
   settings,
@@ -60,9 +61,15 @@ export async function buildStudioMessage({
   brandRules,
   restoredGeneration,
   startsFresh,
-  readHistoryFiles,
   isCurrent,
 }: StudioMessageOptions): Promise<{ body: IMessageCreate; tools: Array<IToolConnection> } | undefined> {
+  const references: IFileReference[] = [
+    ...(publicReference
+      ? [{ type: FileReferenceType.URL, url: publicReference.path, mime: publicReference.mime }]
+      : []),
+    ...savedFiles.map((file) => ({ type: FileReferenceType.FILE, id: file.id })),
+  ];
+  const media = publicReference ? [publicReference, ...savedFiles] : savedFiles;
   const {
     referenceRatio,
     effectiveRatio,
@@ -107,7 +114,7 @@ export async function buildStudioMessage({
   if (preparingScript || mode === 'presentation') {
     body = {
       role: 'USER',
-      files: savedFiles.map((file) => file.id),
+      references,
       settings: { tools: [], isToolsDisabled: true },
       text:
         mode === 'presentation'
@@ -128,9 +135,10 @@ export async function buildStudioMessage({
     const preservedSize = typeof replay?.size === 'string' && sizeRatio(replay.size) === effectiveRatio;
     const referenceMode =
       mode === 'video'
-        ? videoReferenceMode(
+        ? restoredGeneration?.referenceMode ||
+          videoReferenceMode(
             model,
-            savedFiles.length,
+            media.length,
             sourceAttachments.some((file) => !!file.slot),
           )
         : undefined;
@@ -138,7 +146,7 @@ export async function buildStudioMessage({
       model,
       mode,
       prompt,
-      savedFiles,
+      media,
       {
         ...replay,
         ...(ratioOptions.length && !preservedSize ? { aspectRatio: effectiveRatio } : {}),
@@ -155,26 +163,8 @@ export async function buildStudioMessage({
     );
     const tool = toolSettings(mode, model, options);
     tools = [tool];
-    const launch = [
-      `Модель: ${model.reference.model}`,
-      modelProperties.size && options.size
-        ? `Размер (options.size): ${options.size}`
-        : referenceRatio
-          ? 'Формат: по исходному кадру'
-          : ratioOptions.length
-            ? `Формат: ${effectiveRatio}`
-            : '',
-      effectiveQuality ? `Качество: ${effectiveQuality}` : '',
-      mode === 'video' && modelProperties.duration ? `Длительность: ${duration} с` : '',
-      mode === 'video' && audioValues.length ? effectiveSound : '',
-    ]
-      .filter(Boolean)
-      .join('; ');
     body = createMessageBody(
-      withMessageContext(
-        sourceDraft,
-        `${context}\n\nПараметры текущего запуска (важнее текста шаблона): ${launch}. Не переопределяй их при вызове инструмента.`,
-      ),
+      prompt,
       mode,
       tool,
       savedFiles.map((file) => file.id),
@@ -183,20 +173,11 @@ export async function buildStudioMessage({
       referenceMode,
       true,
     );
-    const historyFiles = await readHistoryFiles();
+    body.references = references;
+    if (publicReference)
+      body.text += '\nИспользуй все вложения текущего сообщения, включая внешний видеореференс.';
+    if (referenceMode) body.text += `\nРежим видеореференсов: ${referenceMode}.`;
     if (!isCurrent()) return;
-    body.text = withStudioContext(body.text, {
-      ...(historyFiles.length ? { historyFiles } : {}),
-      uid: mode === 'image' ? 'IMAGE' : 'VIDEO',
-      settings: tool.settings!,
-      input:
-        mode === 'image'
-          ? {
-              request: { task: { fileIds: savedFiles.map((file) => file.id) } },
-              ...(savedFiles.length ? { isDrawNew: false } : historyFiles.length ? {} : { isDrawNew: true }),
-            }
-          : { fileIds: savedFiles.map((file) => file.id), referenceMode },
-    });
   }
   return { body, tools };
 }

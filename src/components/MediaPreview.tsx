@@ -14,7 +14,7 @@ import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
 import { mediaUrlIdentity } from '../lib/mediaIdentity';
 export type MediaFile = Pick<IGnosisFile, 'name' | 'type' | 'mime' | 'preview'> &
-  Partial<Pick<IGnosisFile, 'path'>>;
+  Partial<Pick<IGnosisFile, 'path'>> & { isExternal?: boolean };
 export type PreviewFile = MediaFile & Partial<IGnosisFile>;
 interface MediaProps {
   file: MediaFile;
@@ -47,7 +47,14 @@ export function Media(props: MediaProps): ReactElement {
   const [seen, setSeen] = useState(false);
   const frame = useRef<HTMLSpanElement>(null);
   const loading = readyFor !== identity;
+  const externalPlaceholder =
+    !props.controls &&
+    props.file.isExternal &&
+    (((!props.file.preview?.image?.url || props.file.preview.image.status !== 'READY') &&
+      (!props.file.preview?.video?.url || props.file.preview.video.status !== 'READY')) ||
+      failedFor === identity);
   const tracked =
+    !externalPlaceholder &&
     (props.showLoadingState ?? !props.controls) &&
     (props.file.type === 'IMAGE' || props.file.type === 'VIDEO');
   useEffect(() => {
@@ -67,6 +74,7 @@ export function Media(props: MediaProps): ReactElement {
     const timer = setTimeout(() => setFailedFor(identity), 30000);
     return () => clearTimeout(timer);
   }, [tracked, visible, loading, identity, attempt]);
+  if (externalPlaceholder) return <FilePlaceholder file={props.file} className={props.className} />;
   if (!tracked) return <MediaContent {...props} />;
   const retry = (): void => {
     setFailedFor('');
@@ -160,7 +168,10 @@ function MediaContent({
     if (isPlaybackDisabled) videoRef.current?.pause();
   }, [isPlaybackDisabled]);
   const [failedSources, setFailedSources] = useState<string[]>([]);
-  const original = useMediaUrl(safeMediaUrl(file.path), failedSources);
+  const original = useMediaUrl(
+    controls || !file.isExternal ? safeMediaUrl(file.path) : undefined,
+    failedSources,
+  );
   const failSource = (source: string): void => {
     setFailedSources((items) => (items.includes(source) ? items : [...items, source]));
   };

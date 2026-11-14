@@ -10,6 +10,13 @@ export function apiErrorMessage(data: unknown, status: number): string {
       ? (data as { code?: unknown; message?: unknown; details?: unknown })
       : {};
   const referenceErrors: Record<string, string> = {
+    FILE_REFERENCES_REQUIRED: 'Обновите страницу: запрос использует устаревший формат вложений.',
+    FILE_REFERENCES_INVALID: 'Некорректный список вложений.',
+    FILE_REFERENCE_INVALID: 'Выберите файл или укажите ссылку на референс.',
+    FILE_REFERENCE_UNAVAILABLE: 'Исходный файл недоступен. Выберите его заново в библиотеке.',
+    FILE_REFERENCE_DUPLICATE: 'Один референс выбран несколько раз.',
+    FILE_REFERENCE_URL_INVALID: 'Укажите корректную HTTP или HTTPS ссылку.',
+    FILE_REFERENCE_MIME_UNKNOWN: 'Не удалось определить формат референса по ссылке.',
     VIDEO_REFERENCE_MODE_INVALID: 'Выберите доступный режим референсов.',
     VIDEO_REFERENCE_MODES_MIXED: 'Не смешивайте опорные кадры и обычные референсы.',
     VIDEO_REFERENCE_TYPE_UNSUPPORTED: 'Модель или режим не поддерживает этот тип вложения.',
@@ -17,9 +24,9 @@ export function apiErrorMessage(data: unknown, status: number): string {
     VIDEO_REFERENCE_LIMIT_EXCEEDED: 'Превышено допустимое количество референсов модели.',
     VIDEO_REFERENCE_UNAVAILABLE: 'Исходный файл недоступен. Выберите его заново в библиотеке.',
   };
-  const referenceCode = (value.code === 'VIDEO_REFERENCE_INVALID' ? [value.details] : []).find(
-    (item) => typeof item === 'string' && referenceErrors[item],
-  );
+  const referenceCode = (
+    ['VIDEO_REFERENCE_INVALID', 'FILE_REFERENCE_INVALID'].includes(String(value.code)) ? [value.details] : []
+  ).find((item) => typeof item === 'string' && referenceErrors[item]);
   if (typeof referenceCode === 'string') return referenceErrors[referenceCode];
   if (value.code === 'AI_MODEL_DISABLED') return 'Модель отключена администратором. Выберите другую модель.';
   if (value.code === 'AI_MODEL_HIDDEN') return 'Модель недоступна для нового выбора. Выберите другую модель.';

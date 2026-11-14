@@ -1,8 +1,16 @@
+import type { ITemplateVideoReference } from '../content-studio/materials';
 import type { IConversationMessage, IGnosisFile, MediaKind, IModelDescription } from '../../lib/types';
 import { displayMessageText } from './conversations';
 export interface IGenerationRecipe {
   kind: MediaKind;
-  workspaceInput?: { idea: string; templateId: string; templateText: string; shape?: string };
+  workspaceInput?: {
+    idea: string;
+    templateId: string;
+    templateText: string;
+    shape?: string;
+    templateVideoReference?: ITemplateVideoReference;
+    referenceFileIds?: number[];
+  };
   imageInput?: { idea: string; templateId: string; templateText: string };
   prompt: string;
   model: IModelDescription['reference'];

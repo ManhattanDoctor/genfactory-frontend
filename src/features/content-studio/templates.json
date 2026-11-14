@@ -52,7 +52,8 @@
       "model": "alibaba/wan-3.0"
     },
     "referenceVideoSrc": "/media/templates/2026-11-13/video/references/03.mp4",
-    "recommendedDuration": 15
+    "recommendedDuration": 15,
+    "referenceVideoSize": 9101153
   },
   {
     "id": "video:2026-11-13:04",
@@ -89,7 +90,8 @@
       "model": "alibaba/wan-3.0"
     },
     "referenceVideoSrc": "/media/templates/2026-11-13/video/05.mp4",
-    "recommendedDuration": 15
+    "recommendedDuration": 15,
+    "referenceVideoSize": 2894336
   },
   {
     "id": "video:2026-11-13:06",
@@ -144,7 +146,8 @@
       "model": "alibaba/wan-3.0"
     },
     "referenceVideoSrc": "/media/templates/2026-11-13/video/references/08.mp4",
-    "recommendedDuration": 20
+    "recommendedDuration": 20,
+    "referenceVideoSize": 1782072
   },
   {
     "id": "video:2026-11-13:09",

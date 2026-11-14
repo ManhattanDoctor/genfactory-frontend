@@ -1,3 +1,4 @@
+import { FileReferenceType } from '../../lib/types';
 import { stripStudioContext } from '../content-studio/studioAgent';
 import type {
   IConversation,
@@ -9,7 +10,7 @@ import type {
 } from '../../lib/types';
 
 const referencePolicy =
-  'Только при явном выборе «Создать с нуля» не используй предыдущие изображения: IMAGE isDrawNew=true, VIDEO fileIds=[]. В остальных случаях учитывай контекст беседы; если исходное изображение неоднозначно, уточни выбор до вызова платного инструмента. ';
+  'Только при явном выборе «Создать с нуля» не используй предыдущие изображения: IMAGE isDrawNew=true, VIDEO references=[]. В остальных случаях учитывай контекст беседы; если исходное изображение неоднозначно, уточни выбор до вызова платного инструмента. ';
 const legacyReferencePolicy =
   'Если референсы не указаны, создавай с нуля: IMAGE isDrawNew=true, VIDEO fileIds=[]. ';
 
@@ -59,7 +60,7 @@ export function createConversationBody(
       'не переопределяй их аргументами вызова, если пользователь явно не просит. По умолчанию создавай один результат. ' +
       'Не запускай повторную платную генерацию автоматически после ошибки. Не выдумывай готовые файлы. ' +
       referencePolicy +
-      'Если указаны референсы, передай точные fileIds в их порядке. Отвечай кратко на языке пользователя.',
+      'Если указаны референсы, передай их в исходном порядке: IMAGE и VIDEO используют references. Отвечай кратко на языке пользователя.',
   };
 }
 export function createMessageBody(
@@ -79,19 +80,19 @@ export function createMessageBody(
       : 'Создай видео с помощью VIDEO.';
   const references = fileIds.length
     ? `Референсы (fileIds, порядок важен): ${fileIds.join(', ')}.`
-    : autonomous
-      ? 'Новых вложений нет; учитывай материалы этой беседы из historyFiles, если задача их продолжает.'
-      : fromScratch
-        ? 'Создай с нуля, без референсов из предыдущих сообщений.'
+    : fromScratch
+      ? 'Создай с нуля, без референсов из предыдущих сообщений.'
+      : autonomous
+        ? 'Новых вложений нет; учитывай материалы этой беседы из истории, если задача их продолжает.'
         : 'Продолжи беседу с учётом контекста. Если исходное изображение неоднозначно, уточни выбор до генерации.';
   const selectedModel =
     modelLabel && tool.settings?.model
-      ? `[Genfactory:model]\n${JSON.stringify({ name: modelLabel, ...tool.settings.model })}\nНазвание в интерфейсе и технический идентификатор выше обозначают одну выбранную модель. Используй её и сохранённые настройки инструмента; не выбирай похожую модель по названию. Не уточняй выбор из-за различия этих двух названий.\n[/Genfactory:model]\n\n`
+      ? `Выбранная модель: ${modelLabel} (${tool.settings.model.model}).\n\n`
       : '';
   return {
     role: 'USER',
     text: `${instruction}\n${references}\n\n${selectedModel}${prompt.trim()}`,
-    files: fileIds,
+    references: fileIds.map((id) => ({ type: FileReferenceType.FILE, id })),
     settings: {
       tools: [
         {
@@ -100,7 +101,12 @@ export function createMessageBody(
             ? {
                 isRequired: true,
                 ...(kind === 'video'
-                  ? { input: { fileIds, ...(referenceMode ? { referenceMode } : {}) } }
+                  ? {
+                      input: {
+                        references: fileIds.map((id) => ({ type: FileReferenceType.FILE, id })),
+                        ...(referenceMode ? { referenceMode } : {}),
+                      },
+                    }
                   : {}),
               }
             : {}),
@@ -112,17 +118,18 @@ export function createMessageBody(
 
 // Keep the user's text separate from UI settings inside the existing text-only API.
 export function withMessageContext(text: string, context: string): string {
-  return `${text.trim()}\n\n[Genfactory:context]\n${JSON.stringify(context)}\n[/Genfactory:context]`;
+  return [text.trim(), context.trim()].filter(Boolean).join('\n\n');
 }
 
 // Only our exact envelope is hidden; messages from other clients remain untouched.
 export function displayMessageText(text: string): string {
   text = stripStudioContext(text);
   const prefix =
-    /^(Помоги с задачей в Студии контента\.|Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Новых вложений нет; учитывай материалы этой беседы из historyFiles, если задача их продолжает\.|Прикреплённых файлов в этом запросе нет\.|Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.|Продолжи беседу с учётом контекста\. Если исходное изображение неоднозначно, уточни выбор до генерации\.)\n\n/;
+    /^(Помоги с задачей в Студии контента\.|Создай изображение с помощью IMAGE\.|Создай видео с помощью VIDEO\.)\n(Новых вложений нет; учитывай материалы этой беседы из истории, если задача их продолжает\.|Прикреплённых файлов в этом запросе нет\.|Референсы \(fileIds, порядок важен\): [\d, ]+\.|Создай с нуля, без референсов из предыдущих сообщений\.|Продолжи беседу с учётом контекста\. Если исходное изображение неоднозначно, уточни выбор до генерации\.)\n\n/;
   const generated = prefix.test(text) || /^\[Genfactory:(?:chat|prompt|script|presentation)\]\n/.test(text);
   let value = text
     .replace(prefix, '')
+    .replace(/^Выбранная модель: [^\n]+\n\n/, '')
     .replace(/^\[Genfactory:model\]\n[^\n]*\n[^\n]*\n\[\/Genfactory:model\]\n\n/, '')
     .replace(/^\[Genfactory:(?:image|video)\]\n[\s\S]*?\n\nИдея:\n/, 'Идея:\n')
     .replace(
@@ -188,7 +195,7 @@ export function videoRequest(idea: string, template: string, shape: string): str
     (shape === 'sequence'
       ? 'Несколько последовательных сцен внутри выбранной длительности, на выходе один файл. '
       : 'Один непрерывный кадр, одно действие, без склеек и смены сцен. ') +
-    'Передай точные fileIds референсов в их порядке. Не повторяй платную генерацию автоматически после ошибки.\n\n' +
+    'Передай точные references референсов в их порядке. Не повторяй платную генерацию автоматически после ошибки.\n\n' +
     'Идея:\n' +
     (idea.trim() || 'Собери ролик по шаблону и вложениям.') +
     (template.trim() ? '\n\nШаблон:\n' + template.trim() : '')

@@ -1,3 +1,14 @@
+export enum FileReferenceType {
+  FILE = 'FILE',
+  URL = 'URL',
+}
+export interface IFileReference {
+  type: FileReferenceType;
+  id?: number;
+  url?: string;
+  mime?: string;
+}
+
 export type MediaKind = 'image' | 'video';
 export interface ISchema {
   'x-referenceLimits'?: Record<
@@ -63,6 +74,8 @@ export interface IFileOutputSettings {
   tags?: string[];
 }
 export interface IFileGeneration {
+  referenceMode?: 'frames' | 'references';
+  references?: IFileReference[];
   model: IModelDescription['reference'];
   prompt: string;
   options: Record<string, unknown>;
@@ -121,10 +134,10 @@ export interface ITaskFinished {
 export interface ITaskRequest {
   model: string;
   task: {
+    references?: IFileReference[];
     referenceMode?: 'frames' | 'references';
     session?: string;
     prompt?: string;
-    fileIds?: number[];
     text?: string;
     file?: number;
   };
@@ -181,6 +194,8 @@ export interface IConversation {
   system?: string;
 }
 export interface IConversationMessage {
+  references?: IFileReference[] | null;
+  settings?: IMessageCreate['settings'];
   id: number;
   role: 'USER' | 'ASSISTANT' | 'COMMAND';
   text?: string;
@@ -200,7 +215,7 @@ export interface IConversationCreate {
 export interface IMessageCreate {
   role: 'USER';
   text: string;
-  files: number[];
+  references: IFileReference[];
   settings: { tools: IToolConnection[]; isToolsDisabled?: boolean };
 }
 

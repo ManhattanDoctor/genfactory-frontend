@@ -43,7 +43,7 @@ describe('Video canvas settings', () => {
       },
       [12],
     );
-    expect(body.files).toEqual([12]);
+    expect(body.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
     expect(body.settings.tools[0].settings?.options).toEqual({ duration: 4 });
     expect(body.text).toContain('Несколько последовательных сцен');
     expect(displayMessageText(body.text)).toBe('Идея:\nЧашка\n\nШаблон:\nПоворот {PRODUCT}');

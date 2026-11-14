@@ -1,3 +1,4 @@
+import { FileReferenceType } from '../../lib/types';
 import { catalogQuery } from '../catalog/catalogQuery';
 import { scheduleRefresh } from '../realtime/queryRefresh';
 import type { ReactElement } from 'react';
@@ -374,7 +375,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
             aspects,
             brand: useBrand ? prefs.value.brand : '',
           }),
-      files: files.map((f) => f.id),
+      references: files.map((f) => ({ type: FileReferenceType.FILE, id: f.id })),
       settings: {
         tools: videos.length && videoTool ? [videoTool] : [],
         ...(modernAgent ? { isToolsDisabled: true } : {}),

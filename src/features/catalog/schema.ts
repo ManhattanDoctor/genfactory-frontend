@@ -1,5 +1,5 @@
 import Ajv from 'ajv';
-import type { IModelDescription, ISchema, ITaskRequest } from '../../lib/types';
+import { FileReferenceType, type IModelDescription, type ISchema, type ITaskRequest } from '../../lib/types';
 const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
 const validators = new WeakMap<ISchema, ReturnType<typeof ajv.compile>>();
 export function defaults(schema?: ISchema): Record<string, unknown> {
@@ -45,7 +45,26 @@ export function isSchemaValue(schema: ISchema, value: unknown): boolean {
   return !!validate(value);
 }
 export function validateRequest(model: IModelDescription, request: ITaskRequest): string[] {
-  if (isSchemaValue(model.schema, request)) return [];
+  let payload: unknown = request;
+  // The catalog describes provider-native image constraints; only the wire format uses references.
+  if (
+    request.task.references !== undefined &&
+    model.schema.properties?.task?.properties?.fileIds &&
+    !model.schema.properties?.task?.properties?.references
+  ) {
+    const references = request.task.references;
+    if (
+      !Array.isArray(references) ||
+      references.some(
+        (item) => item.type !== FileReferenceType.FILE || !Number.isSafeInteger(item.id) || item.id! <= 0,
+      ) ||
+      new Set(references.map((item) => item.id)).size !== references.length
+    )
+      return ['Выберите доступные файлы-референсы без повторений.'];
+    const { references: _references, ...task } = request.task;
+    payload = { ...request, task: { ...task, fileIds: references.map((item) => item.id!) } };
+  }
+  if (isSchemaValue(model.schema, payload)) return [];
   const validate = validators.get(model.schema)!;
   return (validate.errors || [])
     .filter((e) => !['if'].includes(e.keyword))
@@ -54,12 +73,14 @@ export function validateRequest(model: IModelDescription, request: ITaskRequest)
 }
 export function supportsReferences(model?: IModelDescription): boolean {
   return !!(
+    model?.schema.properties?.task?.properties?.references ||
     model?.schema.properties?.task?.properties?.fileIds ||
     model?.schema.properties?.options?.properties?.frameImages
   );
 }
 export function referenceLimit(model?: IModelDescription): number {
   return (
+    model?.schema.properties?.task?.properties?.references?.maxItems ??
     model?.schema.properties?.task?.properties?.fileIds?.maxItems ??
     model?.schema.properties?.options?.properties?.frameImages?.maxItems ??
     0
@@ -69,6 +90,7 @@ export function referenceLimit(model?: IModelDescription): number {
 export function referenceMinimum(model?: IModelDescription): number {
   const task = model?.schema.properties?.task;
   const options = model?.schema.properties?.options;
+  if (task?.required?.includes('references')) return Math.max(1, task.properties?.references?.minItems ?? 1);
   if (task?.required?.includes('fileIds')) return Math.max(1, task.properties?.fileIds?.minItems ?? 1);
   if (options?.required?.includes('frameImages'))
     return Math.max(1, options.properties?.frameImages?.minItems ?? 1);

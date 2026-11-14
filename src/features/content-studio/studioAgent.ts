@@ -1,5 +1,10 @@
 import type { StudioHistoryFile } from './studioHistory';
-import type { IToolConnection } from '../../lib/types';
+import {
+  FileReferenceType,
+  type IConversationMessage,
+  type IFileReference,
+  type IToolConnection,
+} from '../../lib/types';
 
 export const STUDIO_QUESTION_PREFIX = '[Genfactory:studio-question:v1]\n';
 export interface StudioQuestion {
@@ -33,7 +38,10 @@ export function stripStudioContext(text: string): string {
   const start = text.lastIndexOf(CONTEXT_START);
   return start >= 0 && text.endsWith(CONTEXT_END) ? text.slice(0, start).trimEnd() : text;
 }
-export function parseStudioQuestion(text?: string, requestText?: string): StudioQuestion | undefined {
+export function parseStudioQuestion(
+  text?: string,
+  requestText?: string | IConversationMessage,
+): StudioQuestion | undefined {
   if (!text?.startsWith(STUDIO_QUESTION_PREFIX) || text.length > 20000) return;
   try {
     const value = JSON.parse(text.slice(STUDIO_QUESTION_PREFIX.length));
@@ -53,7 +61,18 @@ export function parseStudioQuestion(text?: string, requestText?: string): Studio
       new Set(value.choices).size !== value.choices.length
     )
       return;
-    const context = parseStudioContext(requestText) || value.context;
+    const message = typeof requestText === 'object' ? requestText : undefined;
+    const connection = message?.settings?.tools?.find((tool) => ['IMAGE', 'VIDEO'].includes(tool.uid));
+    const references =
+      message?.references ?? message?.files?.map((file) => ({ type: FileReferenceType.FILE, id: file.id }));
+    const context =
+      connection && references
+        ? {
+            uid: connection.uid,
+            settings: connection.settings,
+            input: { references },
+          }
+        : parseStudioContext(typeof requestText === 'string' ? requestText : message?.text) || value.context;
     if (
       !['IMAGE', 'VIDEO'].includes(context?.uid) ||
       context?.settings?.isLockSelection !== true ||
@@ -63,7 +82,25 @@ export function parseStudioQuestion(text?: string, requestText?: string): Studio
       typeof context.input !== 'object'
     )
       return;
-    const ids = context.uid === 'IMAGE' ? context.input.request?.task?.fileIds : context.input.fileIds;
+    const toolReferences: IFileReference[] | undefined = context.input.references;
+    if (
+      toolReferences &&
+      (!Array.isArray(toolReferences) ||
+        toolReferences.some((item) =>
+          item.type === FileReferenceType.FILE
+            ? !Number.isSafeInteger(item.id) || item.id! <= 0
+            : context.uid !== 'VIDEO' ||
+              item.type !== FileReferenceType.URL ||
+              typeof item.url !== 'string' ||
+              !/^https?:\/\//.test(item.url),
+        ))
+    )
+      return;
+    const ids = toolReferences
+      ? toolReferences.filter((item) => item.type === FileReferenceType.FILE).map((item) => item.id)
+      : context.uid === 'IMAGE'
+        ? context.input.request?.task?.fileIds
+        : context.input.fileIds;
     if (
       !Array.isArray(ids) ||
       ids.some((id: unknown) => !Number.isSafeInteger(id) || Number(id) <= 0) ||

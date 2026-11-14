@@ -51,15 +51,17 @@ describe('Conversation tool contracts', () => {
   it('preserves reference order in both file attachments and instructions without saving URLs', () => {
     const tool = toolSettings('video', model, { duration: 4 });
     const body = createMessageBody('Move closer', 'video', tool, [42, 12]);
-    expect(body.files).toEqual([42, 12]);
+    expect(body.references).toEqual([42, 12].map((id) => ({ type: 'FILE', id })));
     expect(body.text).toContain('42, 12');
-    expect(body.settings.tools).toEqual([{ ...tool, isRequired: true, input: { fileIds: [42, 12] } }]);
+    expect(body.settings.tools).toEqual([
+      { ...tool, isRequired: true, input: { references: [42, 12].map((id) => ({ type: 'FILE', id })) } },
+    ]);
     expect(JSON.stringify(body)).not.toContain('frameImages');
   });
   it('explicitly prevents reuse of old images for a fresh generation', () => {
     const body = createMessageBody('Ocean', 'image', { uid: 'IMAGE' }, [], true);
     expect(body.text).toContain('без референсов');
-    expect(body.files).toEqual([]);
+    expect(body.references).toEqual([].map((id) => ({ type: 'FILE', id })));
   });
   it('recognizes universal string connections and does not silently add a missing tool', () => {
     const conversation = { options: { tools: ['IMAGE'] } } as IConversation;
@@ -89,7 +91,7 @@ it('migrates only the legacy instruction in Genfactory conversations', () => {
 
 it('shows image idea and template while hiding preparation instructions', () => {
   const request = createMessageBody(imageRequest('Чашка', 'Фото {PRODUCT}'), 'image', { uid: 'IMAGE' }, [12]);
-  expect(request.files).toEqual([12]);
+  expect(request.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(displayMessageText(request.text)).toBe('Идея:\nЧашка\n\nШаблон:\nФото {PRODUCT}');
   expect(displayMessageText('Чужое сообщение')).toBe('Чужое сообщение');
 });
@@ -108,27 +110,17 @@ it('binds the displayed model alias to its exact ID without exposing the instruc
     true,
     'Nano Banana 2 Lite',
   );
-  expect(body.text).toContain(JSON.stringify({ name: 'Nano Banana 2 Lite', ...lite.reference }));
+  expect(body.text).toContain(`Nano Banana 2 Lite (${lite.reference.model})`);
+  expect(body.text).not.toContain('[Genfactory:model]');
   expect(body.settings.tools).toEqual([{ ...tool, isRequired: true }]);
   expect(displayMessageText(body.text)).toBe('Идея:\nСоздай чашку на Nano Banana 2 Lite');
 });
 
-it('separates studio settings from user text without changing the sent context', () => {
-  const source = 'Хочу ролик.\nСтруктура: мой собственный текст';
-  const context =
-    'Сценарий для ролика длительностью 8 с, формат 9:16. Не увеличивай длительность.\n\nСтруктура: Один кадр';
-  const request =
-    '[Genfactory:script]\nСлужебная инструкция\n\nЗапрос пользователя:\n' +
-    withMessageContext(source, context);
-  expect(displayMessageText(request)).toBe(source);
-  expect(request).toContain(JSON.stringify(context));
-  const ownMarker = source + '\n\n[Genfactory:context]\n"Цитата пользователя"\n[/Genfactory:context]';
-  expect(
-    displayMessageText(
-      '[Genfactory:script]\nИнструкция\n\nЗапрос пользователя:\n' + withMessageContext(ownMarker, context),
-    ),
-  ).toBe(ownMarker);
-  expect(displayMessageText(ownMarker)).toBe(ownMarker);
+it('adds readable creative instructions without JSON metadata blocks', () => {
+  const source = 'Хочу ролик.';
+  const context = 'Свет: мягкий. Структура: Один кадр.';
+  expect(withMessageContext(source, context)).toBe(`${source}\n\n${context}`);
+  expect(withMessageContext(source, context)).not.toContain('[Genfactory:context]');
 });
 
 it('hides the exact old studio footer from conversation 121 but preserves ordinary text', () => {

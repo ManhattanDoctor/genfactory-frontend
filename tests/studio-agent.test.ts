@@ -112,7 +112,7 @@ it('keeps historical materials in the original question context without reattach
     true,
   );
   body.text = withStudioContext(body.text, snapshot);
-  expect(body.files).toEqual([]);
+  expect(body.references).toEqual([]);
   expect(body.settings.tools).toEqual([{ uid: 'VIDEO', settings: context.settings }]);
   expect(displayMessageText(body.text)).toBe('Сделай постер этого кресла');
   expect(
@@ -121,4 +121,49 @@ it('keeps historical materials in the original question context without reattach
       body.text,
     )?.context,
   ).toEqual(snapshot);
+});
+
+it('restores question settings and mixed references from structured message fields without a text envelope', () => {
+  const references = [
+    { type: 'URL', url: 'https://cdn.test/clip.mp4', mime: 'video/mp4' },
+    { type: 'FILE', id: 12 },
+  ];
+  const message = {
+    id: 1,
+    role: 'USER',
+    text: 'Фото',
+    references,
+    settings: { tools: [{ uid: 'VIDEO', settings: context.settings }] },
+  };
+  const parsed = parseStudioQuestion(
+    STUDIO_QUESTION_PREFIX + JSON.stringify({ ...question, context: undefined }),
+    message as never,
+  );
+  expect(parsed?.context.settings).toEqual(context.settings);
+  expect(parsed?.context.input).toEqual({ references });
+});
+
+it('restores IMAGE inputs as ordered references and rejects URL inputs', () => {
+  const references = [
+    { type: 'FILE', id: 12 },
+    { type: 'FILE', id: 8 },
+  ];
+  const message = {
+    id: 1,
+    role: 'USER',
+    text: 'Правка',
+    references,
+    settings: { tools: [{ uid: 'IMAGE', settings: context.settings }] },
+  };
+  const text = STUDIO_QUESTION_PREFIX + JSON.stringify({ ...question, context: undefined });
+  expect(parseStudioQuestion(text, message as never)?.context.input).toEqual({ references });
+  expect(parseStudioQuestion(text, { ...message, references: [] } as never)?.context.input).toEqual({
+    references: [],
+  });
+  expect(
+    parseStudioQuestion(text, {
+      ...message,
+      references: [{ type: 'URL', url: 'https://cdn.test/image.png' }],
+    } as never),
+  ).toBeUndefined();
 });
