@@ -465,7 +465,7 @@
   pointer-events: auto;
   transform: none;
 }
-.image-workspace .img-actions button {
+.image-workspace .img-actions > button {
   display: grid;
   place-items: center;
   width: 40px;
@@ -520,7 +520,7 @@
     pointer-events: auto;
     transform: none;
   }
-  .image-workspace .img-actions button {
+  .image-workspace .img-actions > button {
     width: 44px;
     height: 44px;
   }

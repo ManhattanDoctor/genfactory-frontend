@@ -37,6 +37,7 @@ export function Modal({
       className={`modal ${wide ? 'wide' : ''} ${className}`}
       onCancel={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         onClose();
       }}
       onClick={(e) => {

@@ -723,3 +723,19 @@
   overflow: hidden;
   border-radius: 16px;
 }
+
+.content-studio .cw-template-open {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+}
+.content-studio .cw-template-open:focus-visible {
+  outline: 2px solid var(--ds-accent, #d1fe17);
+  outline-offset: -2px;
+}

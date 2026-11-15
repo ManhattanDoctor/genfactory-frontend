@@ -63,10 +63,14 @@
   display: none;
 }
 .shell-account .jobs-button {
-  background: #192b2d;
-  border: 1px solid #315052;
-  color: #d4f3ec;
+  background: #222325;
+  border: 1px solid #303134;
+  color: #ffffffdb;
   gap: 8px;
+}
+.shell-account .jobs-button:hover {
+  background: #2a2b30;
+  border-color: #3a3b40;
 }
 .shell-account .jobs-button > svg {
   flex: none;
@@ -291,15 +295,17 @@
     right: 12px;
   }
   .studio-shell .mobile-navigation-modal {
+    --modal-gutter: 14px;
+    --modal-padding: 14px;
     position: fixed;
     inset: 0 auto 0 0;
     margin: 0;
-    width: min(320px, calc(100vw - 44px));
+    width: min(280px, calc(100vw - 72px));
     max-width: none;
     height: 100dvh;
     max-height: 100dvh;
     border-radius: 0 20px 20px 0;
-    padding: 20px 14px;
+    padding: var(--modal-padding);
     animation: drawer-enter 0.24s ease-out;
     overflow-y: auto;
     scrollbar-width: none;
@@ -357,11 +363,16 @@
   .studio-shell .content-studio.mobile-gallery-open .cw-gallery {
     display: flex;
     position: fixed;
-    z-index: 60;
-    inset: 64px 0 0;
-    height: auto;
-    background: #141719;
-    border-top: 1px solid #373d3c;
+    z-index: 90;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: #17181b;
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
     animation: route-arrive 0.2s ease;
   }
   .studio-shell .content-studio .mobile-gallery-toggle {
@@ -375,12 +386,39 @@
     color: #f1f3ef;
     font-size: 12px;
   }
+  .studio-shell .content-studio .cw-gallery-head {
+    flex: none;
+    gap: 12px;
+    padding: calc(12px + env(safe-area-inset-top)) 12px 12px;
+    border-bottom: 1px solid #303134;
+    background: #17181b;
+  }
+  .studio-shell .content-studio .cw-gallery-head .cw-gallery-tabs.ds-tabs {
+    padding: 4px;
+    border-radius: 12px;
+    background: #222325;
+    box-shadow: none;
+  }
+  .studio-shell .content-studio .cw-gallery-head .cw-gallery-tabs.ds-tabs button {
+    min-height: 40px;
+    border-radius: 8px;
+  }
+  .studio-shell .content-studio .cw-gallery-head .cw-gallery-tabs.ds-tabs button[aria-selected='true'] {
+    background: #35363b;
+    color: #f4f4f5;
+  }
+  .studio-shell .content-studio .cw-gallery-head :is(.cw-width, .cw-tab-rail) {
+    display: none;
+  }
   .studio-shell .content-studio .mobile-gallery-close {
     display: grid;
-    position: absolute;
-    top: 9px;
-    right: 10px;
-    z-index: 4;
+    position: static;
+    order: 1;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #222325;
   }
   .studio-shell .content-studio #cw-gallery {
     display: grid;
@@ -781,34 +819,6 @@
   flex: none;
 }
 
-.template-add-icon {
-  display: none;
-}
-@media (max-width: 720px) {
-  .studio-shell .content-studio #cw-gallery .cw-add,
-  .studio-shell .image-workspace .img-use {
-    inset: 8px auto auto 8px;
-    width: 44px;
-    height: 44px;
-    min-width: 0;
-    min-height: 0;
-    padding: 0;
-    border: 1px solid var(--accent);
-    border-radius: 12px;
-    background: var(--accent);
-    color: #17180a;
-    transform: none;
-    backdrop-filter: blur(8px);
-  }
-  .studio-shell .content-studio #cw-gallery .template-add-icon {
-    display: block;
-  }
-  .studio-shell .content-studio #cw-gallery .template-add-label,
-  .studio-shell .image-workspace .img-use > span {
-    display: none;
-  }
-}
-
 .update-notice-actions {
   display: flex;
   align-items: center;
@@ -872,10 +882,32 @@
   animation: none;
 }
 
-.studio-shell .content-studio #cw-gallery .ds-template-add,
-.studio-shell .image-workspace .img-use {
-  background: var(--accent);
-  color: #17180a;
+.studio-shell .file-actions > summary {
+  inset: 8px auto auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+  backdrop-filter: none;
+  transform: none;
+}
+.studio-shell .file-actions > summary svg {
+  filter: drop-shadow(0 1px 2px #0009);
+}
+@media (max-width: 720px), (pointer: coarse) {
+  .studio-shell .file-actions > summary {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .studio-shell .image-workspace .cw-plus.needs-template-images,

@@ -81,6 +81,13 @@ async function openViewerActions(page: Page) {
   if ((await trigger.isVisible()) && (await trigger.locator('..').getAttribute('open')) === null)
     await trigger.click();
 }
+async function openFileMenuGroup(page: Page, label = 'Дополнительно'): Promise<void> {
+  const summary = page
+    .locator('details[open] > .preview-menu-panel > .file-menu-group > summary')
+    .filter({ hasText: label });
+  if ((await summary.locator('..').getAttribute('open')) === null) await summary.click();
+}
+
 async function mockApi(page: Page, signedIn = true) {
   await page.route('**/test-video.mp4', (route) =>
     route.fulfill({
@@ -505,7 +512,8 @@ test('library reference is attached to a conversation message', async ({ page })
   await page.goto('/library');
   await page.getByRole('button', { name: /Test result/ }).click();
   await openViewerActions(page);
-  await page.getByRole('button', { name: 'Использовать как референс' }).click();
+  await openFileMenuGroup(page, 'Использовать в…');
+  await page.getByRole('button', { name: 'Как референс' }).click();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Change lighting');
   await expect.poll(() => state.sends.length).toBe(1);
@@ -518,7 +526,8 @@ test('library reference survives returning to a studio with a cached catalog', a
   await navigateLegacyRoute(page, '/library');
   await page.getByRole('button', { name: /Test result/ }).click();
   await openViewerActions(page);
-  await page.getByRole('button', { name: 'Использовать как референс' }).click();
+  await openFileMenuGroup(page, 'Использовать в…');
+  await page.getByRole('button', { name: 'Как референс' }).click();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Use this reference');
   await expect.poll(() => state.tasks.length).toBe(1);
@@ -1054,6 +1063,7 @@ test('library pagination, type filter, preview and original link work', async ({
   await page.goto('/library');
   await page.getByRole('button', { name: /IMAGE page 0/ }).click();
   await openViewerActions(page);
+  await openFileMenuGroup(page);
   await expect(page.getByRole('link', { name: 'Открыть оригинал' })).toHaveAttribute(
     'href',
     /gallery-1.jpg$/,
@@ -1065,7 +1075,7 @@ test('library pagination, type filter, preview and original link work', async ({
   await page.getByRole('button', { name: 'Видео', exact: true }).click();
   await page.getByRole('button', { name: /VIDEO page 0/ }).click();
   await expect(page.getByRole('dialog').locator('video')).toHaveAttribute('controls', '');
-  await expect(page.getByRole('button', { name: 'Использовать как референс' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Как референс' })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
@@ -1757,7 +1767,8 @@ test('viewer navigates images and transfers the currently displayed file', async
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Second image' })).toBeVisible();
   await openViewerActions(page);
-  await page.getByRole('button', { name: 'Использовать как референс', exact: true }).click();
+  await openFileMenuGroup(page, 'Использовать в…');
+  await page.getByRole('button', { name: 'Как референс', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Убрать Second image', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /^(Ваша идея|Идея|Идея ролика)$/ })).toBeFocused();
 });
@@ -2298,19 +2309,20 @@ test('ready previews are thumbnails while the dialog and download keep the origi
   await expect(page.getByRole('dialog').locator('.preview-status')).toHaveCount(0);
   await expect(page.getByRole('dialog').locator('img')).toHaveAttribute('src', /gallery-1.jpg$/);
   await openViewerActions(page);
+  await openFileMenuGroup(page);
   await expect(page.getByRole('link', { name: 'Открыть оригинал' })).toHaveAttribute(
     'href',
     /gallery-1.jpg$/,
   );
 });
 
-test('an existing file can queue a preview and socket displays completion', async ({ page }) => {
+test('a failed preview can be retried beside its status and socket displays completion', async ({ page }) => {
   const state = await mockApi(page);
   let started = false;
   const ready = { image: { status: 'READY', url: '/media/gallery-2.jpg' } };
   await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([file]) }));
   await page.route('**/api/file/' + file.id, (route) =>
-    route.fulfill({ json: { ...file, ...(started ? { preview: ready } : {}) } }),
+    route.fulfill({ json: { ...file, preview: started ? ready : { image: { status: 'FAILED' } } } }),
   );
   await page.route('**/api/file/' + file.id + '/preview', (route) => {
     expect(route.request().method()).toBe('POST');
@@ -2323,7 +2335,12 @@ test('an existing file can queue a preview and socket displays completion', asyn
     .first()
     .click();
   await openViewerActions(page);
-  await page.getByRole('button', { name: 'Создать превью', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Создать превью', exact: true })).toHaveCount(0);
+  await page.locator('.preview-menu > summary').click();
+  await page
+    .locator('.preview-status')
+    .getByRole('button', { name: 'Повторить создание превью', exact: true })
+    .click();
   await expect(page.getByText('Превью создаётся…')).toBeVisible();
   state.socket!.send(
     '42/gnosisai,' +
@@ -2502,21 +2519,23 @@ test('file browser navigates folders, edits metadata, moves to root and confirms
   });
   await page.goto('/library');
   await page.getByRole('button', { name: /^Project folder Папка(?:\s|$)/ }).click();
-  await page.locator('.file-actions summary').click();
+  await page.locator('.file-actions > summary').click();
+  await openFileMenuGroup(page);
   await page.getByRole('button', { name: 'Название и теги', exact: true }).click();
   await page.getByLabel('Название', { exact: true }).fill('Updated material');
   await page.getByLabel('Теги через запятую').fill('campaign, campaign, ready');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(page.getByRole('button', { name: /Updated material/ })).toBeVisible();
   expect(writes[0]).toEqual({ name: 'Updated material', tags: ['campaign', 'ready'] });
-  await page.locator('.file-actions summary').click();
+  await page.locator('.file-actions > summary').click();
+  await openFileMenuGroup(page);
   await page.getByRole('button', { name: 'Переместить', exact: true }).click();
   await page.getByRole('button', { name: 'Переместить сюда', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(writes[1]).toEqual({ directory: null });
   await page.getByRole('button', { name: 'Корень библиотеки', exact: true }).click();
   const entry = page.locator('.file-entry').filter({ hasText: 'Updated material' });
-  await entry.locator('summary').click();
+  await entry.locator('.file-actions > summary').click();
   await entry.getByRole('button', { name: 'Удалить', exact: true }).click();
   expect(items.some((f) => f.id === 12)).toBe(true);
   await page.getByRole('dialog').getByRole('button', { name: 'Удалить', exact: true }).click();
@@ -2585,15 +2604,16 @@ test('thumbnail actions float above the card and close with Escape without openi
   await page.goto('/library');
   const entry = page.locator('.file-entry').first();
   const initial = await entry.boundingBox();
-  await entry.locator('summary').click();
+  await entry.locator('.file-actions > summary').click();
+  await openFileMenuGroup(page);
   await expect(entry.getByRole('button', { name: 'Название и теги', exact: true })).toBeVisible();
   expect((await entry.boundingBox())!.height).toBeCloseTo(initial!.height, 1);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(entry.locator('details')).not.toHaveAttribute('open');
-  await entry.locator('summary').click();
+  await expect(entry.locator('.file-actions')).not.toHaveAttribute('open');
+  await entry.locator('.file-actions > summary').click();
   await page.getByRole('textbox', { name: 'Поиск по всем файлам', exact: true }).click();
-  await expect(entry.locator('details')).not.toHaveAttribute('open');
+  await expect(entry.locator('.file-actions')).not.toHaveAttribute('open');
 });
 
 test('tag chips and suggestions filter the entire library with explicit all or any matching', async ({
@@ -2775,7 +2795,7 @@ test('audio TTS uses catalog settings, validates text, and restores saved prefer
   expect(state.forbidden).toEqual([]);
 });
 
-test('audio STT takes the exact video from the file menu and saves transcription in the same conversation', async ({
+test('audio STT takes the exact video from the library and saves transcription in the same conversation', async ({
   page,
 }) => {
   const state = await mockAudio(page);
@@ -2785,8 +2805,10 @@ test('audio STT takes the exact video from the file menu and saves transcription
   await page.goto('/library');
   await page.locator('.library-card').filter({ hasText: 'Test result' }).first().click();
   await openViewerActions(page);
-  await page.getByRole('button', { name: 'Расшифровать', exact: true }).click();
-  await expect(page).toHaveURL(/audio\?mode=stt/);
+  await expect(page.getByRole('button', { name: 'Расшифровать', exact: true })).toHaveCount(0);
+  await page.goto('/audio?mode=stt');
+  await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
+  await selectLibraryFile(page, 'Test result');
   await page.getByLabel('Язык (код, например ru)').fill('ru');
   await page.getByRole('button', { name: 'Расшифровать файл' }).click();
   await expect.poll(() => state.sends.length).toBe(1);
@@ -2915,6 +2937,7 @@ test('audio transcript opens as plain text and transfers the full content withou
   await expect(page.locator('.file-text-preview')).toHaveText(transcript);
   await expect(page.locator('.file-text-preview script')).toHaveCount(0);
   await openViewerActions(page);
+  await openFileMenuGroup(page, 'Использовать в…');
   await page.getByRole('button', { name: 'Озвучить текст', exact: true }).click();
   await expect(page.getByLabel('Текст для озвучки', { exact: true })).toHaveValue(transcript);
   expect(state.sends).toHaveLength(0);
@@ -3355,7 +3378,7 @@ test('content studio prototype controls, templates and guest favorites work with
   await expect(page.locator('.cw-card')).toHaveCount(1);
   await page.reload();
   await expect(page.locator('.cw-card').first().locator('.cw-fav')).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('.cw-add').first().click();
+  await page.locator('.cw-template-open').first().click();
   await expect(page.getByRole('dialog', { name: 'Studio product turn' })).toBeVisible();
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page.locator('#cw-draft')).toHaveValue('');
@@ -3554,8 +3577,7 @@ test('content studio gallery creates explicit first and last image frames and se
     await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
     await page.getByRole('button', { name: `${label} кадр Не задан`, exact: true }).click();
     await page.getByRole('button', { name: 'Выбрать шаблон', exact: true }).click();
-    await page.locator('.cw-card-media').first().click();
-    await page.locator('.cw-add').first().click();
+    await page.locator('.cw-template-open').first().click();
     await expect(page.locator('.composer-attachment').filter({ hasText: `${label} кадр` })).toBeVisible({
       timeout: 20000,
     });
@@ -3582,7 +3604,7 @@ test('content studio template is a recipe and selected format stays in structure
     name: 'Открыть шаблон: Главное фото на белом фоне (маркетплейс)',
     exact: true,
   });
-  await template.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await template.click();
   await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
   await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
@@ -3703,7 +3725,7 @@ test('content studio adapts a multi-shot template to the selected continuous tak
   const card = page
     .locator('.cw-card')
     .filter({ has: page.locator('strong', { hasText: 'Macro: detail and texture' }) });
-  await card.locator('.cw-add').click();
+  await card.locator('.cw-template-open').click();
   const dialog = page.getByRole('dialog', { name: 'Macro: detail and texture', exact: true });
   await expect(dialog.locator('.template-settings')).toContainText('Структура: Один кадр');
   for (const input of await dialog.locator('[data-template-variable]').all()) await input.fill('Синяя чашка');
@@ -4114,6 +4136,7 @@ test('library shows stored generation details and handles unavailable sources wi
   await expect(page.locator('.file-generation-summary')).toContainText('4 с · 480p');
   await page.getByRole('button', { name: /Test result/ }).click();
   await openViewerActions(page);
+  await openFileMenuGroup(page);
   await page.getByRole('button', { name: 'Параметры генерации', exact: true }).click();
   await expect(page.getByText('Historical prompt with roses', { exact: true })).toBeVisible();
   await expect(page.getByText('Исходник №999 недоступен')).toBeVisible();
@@ -4143,7 +4166,7 @@ for (const title of ['Studio product turn', 'Product in use']) {
     await page.getByRole('button', { name: 'Короче', exact: true }).click();
     const card = page.locator('.cw-card').filter({ has: page.locator('strong', { hasText: title }) });
     await card.hover();
-    await card.locator('.cw-add').click();
+    await card.locator('.cw-template-open').click();
     await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Заполните');
     await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
@@ -4193,8 +4216,7 @@ test.describe('complete template catalog', () => {
         await page.getByRole('button', { name: modeName, exact: true }).click();
         for (const [index, item] of items.slice(offset, offset + 20).entries()) {
           const card = page.locator('.cw-card').nth(offset + index);
-          await card.locator('.cw-card-media').click();
-          await card.locator('.cw-add').click();
+          await card.locator('.cw-template-open').click();
           const dialog = page.getByRole('dialog', { name: item.title, exact: true });
           const inputs = dialog.locator('[data-template-variable]');
           for (const input of await inputs.all()) await input.fill('Тестовые данные');
@@ -4660,7 +4682,12 @@ test('library move picker describes empty subfolders and still moves into a fold
     return route.fulfill({ json: file });
   });
   await page.goto('/library');
-  await page.locator('.file-entry').filter({ hasText: 'Test result' }).locator('summary').click();
+  await page
+    .locator('.file-entry')
+    .filter({ hasText: 'Test result' })
+    .locator('.file-actions > summary')
+    .click();
+  await openFileMenuGroup(page);
   await page.getByRole('button', { name: 'Переместить', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: /^ДТП Папка(?:\s|$)/ }).click();
@@ -6729,12 +6756,12 @@ for (const isLink of [false, true]) {
     await page.goto('/library');
     await page.getByLabel(`Действия с «${item.name}»`, { exact: true }).click();
     const saved = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Скачать', exact: true }).click();
+    await page.getByRole('button', { name: 'Скачать файл', exact: true }).click();
     expect((await saved).suggestedFilename()).toBe('original.png');
     expect(downloads).toBe(1);
     await page.getByLabel('Действия с «Folder»', { exact: true }).click();
     await expect(
-      page.locator('details[open]').getByRole('button', { name: 'Скачать', exact: true }),
+      page.locator('details[open]').getByRole('button', { name: 'Скачать файл', exact: true }),
     ).toHaveCount(0);
   });
 }
@@ -6821,7 +6848,7 @@ test('artifacts reuse file and conversation cards with colliding IDs and open ex
     const summary = await page.locator('.artifacts-page .file-generation-summary').boundingBox();
     expect(Math.abs(fileDate!.y - conversationDate!.y)).toBeLessThan(1);
     expect(summary!.y + summary!.height).toBeLessThanOrEqual(fileDate!.y);
-    const fileActions = await page.locator('.artifacts-page .file-actions summary').boundingBox();
+    const fileActions = await page.locator('.artifacts-page .file-actions > summary').boundingBox();
     const conversationActions = await page.locator('.artifacts-page .history-actions summary').boundingBox();
     expect(
       Math.abs(fileActions!.y - fileBox!.y - (conversationActions!.y - conversationBox!.y)),
@@ -7031,10 +7058,12 @@ test('artifacts expose shared file and conversation actions and refresh after ed
   await expect(page.locator('.artifacts-page .history-source')).toHaveCount(2);
   await expect(page.locator('.artifacts-page .history-source svg')).toHaveCount(0);
   await page.getByLabel('Действия с «Artifact image»', { exact: true }).click();
-  for (const label of ['Скачать', 'Название и теги', 'Переместить', 'Удалить'])
+  await openFileMenuGroup(page);
+  for (const label of ['Скачать файл', 'Название и теги', 'Переместить', 'Удалить'])
     await expect(
       page.locator('.file-actions').getByRole('button', { name: label, exact: true }),
     ).toBeVisible();
+  await openFileMenuGroup(page);
   await page.getByRole('button', { name: 'Название и теги', exact: true }).click();
   await page.getByLabel('Название', { exact: true }).fill('Renamed image');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
@@ -7260,7 +7289,7 @@ test('studio keeps the shared template editor and applies the same prepared imag
     .locator('.cw-card')
     .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
   await card.hover();
-  await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await card.locator('.cw-template-open').click();
   const dialog = page.getByRole('dialog', { name: title, exact: true });
   await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('Заполните все поля');
@@ -7287,7 +7316,7 @@ test('template source remains editable without variables and reports malformed I
     .locator('.cw-card')
     .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
   await card.hover();
-  await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await card.locator('.cw-template-open').click();
   const dialog = page.getByRole('dialog', { name: title, exact: true });
   await expect(dialog.getByRole('textbox', { name: 'Готовый текст для редактора' })).toBeVisible();
   await expect(dialog.getByRole('textbox', { name: 'Текст шаблона', exact: true })).toBeHidden();
@@ -7540,6 +7569,7 @@ for (const { width, mediaType } of [
     await expect(heading).toHaveCSS('text-overflow', 'ellipsis');
     const settings = dialog.getByRole('button', { name: 'Параметры генерации', exact: true });
     await openViewerActions(page);
+    await openFileMenuGroup(page);
     await expect(settings).toBeVisible();
     await expect(dialog.getByText('A calm forest', { exact: true })).not.toBeVisible();
     release();
@@ -7814,7 +7844,8 @@ for (const width of [1440, 390]) {
     const entry = page
       .locator('.file-entry')
       .filter({ has: page.locator('b', { hasText: savedImage.name }) });
-    await entry.locator('.file-actions summary').click();
+    await entry.locator('.file-actions > summary').click();
+    await openFileMenuGroup(page);
     await entry.getByRole('button', { name: 'Название и теги', exact: true }).click();
     await header('Название и теги');
     await expect(page.getByLabel('Теги через запятую')).toHaveValue('cloud-s3-check, private-tag');
@@ -8087,7 +8118,7 @@ for (const path of ['/image', '/chat']) {
           .locator('.cw-card')
           .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
         await card.hover();
-        await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+        await card.locator('.cw-template-open').click();
       }
     };
     await open();
@@ -8172,7 +8203,7 @@ for (const path of ['/image', '/chat']) {
           .locator('.cw-card')
           .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
         await card.hover();
-        await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+        await card.locator('.cw-template-open').click();
       }
     };
     await page.clock.install({ time: new Date('2026-11-13T12:00:00Z') });
@@ -8313,7 +8344,7 @@ for (const modelId of ['bytedance/seedance-2.5', 'alibaba/wan-3.0']) {
           .locator('.cw-card')
           .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
         await card.hover();
-        await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+        await card.locator('.cw-template-open').click();
       }
       await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page.locator(path === '/video' ? '#vd-draft' : '#cw-draft')).toHaveValue(
@@ -8633,7 +8664,7 @@ test('chat video template selects Wan and keeps the updated identity instruction
     .locator('.cw-card')
     .filter({ has: page.getByRole('button', { name: 'Открыть шаблон: Послание в объектив', exact: true }) });
   await card.hover();
-  await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await card.locator('.cw-template-open').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#cw-draft')).toHaveValue(/Герой - тот, кто на загруженном фото/);
   await expect(page.getByRole('button', { name: /^Модель:/ })).toContainText('Wan');
@@ -8694,7 +8725,7 @@ async function applyVideoTemplate(page: Page, path: string, title: string) {
       .locator('.cw-card')
       .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
     await card.hover();
-    await card.getByRole('button', { name: 'Добавить', exact: true }).click();
+    await card.locator('.cw-template-open').click();
   }
 }
 
@@ -8842,15 +8873,16 @@ for (const width of [390, 1440])
       const media = dialog.locator(video ? '.media-preview video' : '.media-preview img');
       await expect(media).toBeVisible();
       await openViewerActions(page);
+      await openFileMenuGroup(page);
       await expect(dialog.getByRole('link', { name: 'Открыть оригинал' })).toHaveAttribute(
         'href',
         video ? /test-video.mp4$/ : /gallery-1.jpg$/,
       );
       await expect(dialog.getByRole('button', { name: 'Скачать файл', exact: true })).toBeVisible();
-      if (!video)
-        await expect(
-          dialog.getByRole('button', { name: 'Использовать как референс', exact: true }),
-        ).toBeVisible();
+      if (!video) {
+        await openFileMenuGroup(page, 'Использовать в…');
+        await expect(dialog.getByRole('button', { name: 'Как референс', exact: true })).toBeVisible();
+      }
       await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
       await expect(dialog).toHaveCount(0);
       if (path !== '/library') await expect(trigger).toBeFocused();
@@ -8879,6 +8911,7 @@ test('generation sources and attached message links use the shared file viewer',
   await page.goto('/library');
   await page.locator('.library-card').first().click();
   await openViewerActions(page);
+  await openFileMenuGroup(page);
   await page.getByRole('button', { name: 'Параметры генерации', exact: true }).click();
   await page.getByRole('button', { name: source.name, exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(1);
@@ -9278,5 +9311,417 @@ for (const width of [390, 768, 1440]) {
         );
       }
     }
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`dialog header stays visible while long content scrolls at ${width}px`, async ({ page }) => {
+    await mockApi(page);
+    await page.setViewportSize({ width, height: 240 });
+    await page.goto('/library');
+    await page.locator('.file-entry .file-actions > summary').first().click();
+    await page.getByRole('button', { name: 'Удалить', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    const geometry = await dialog.evaluate((element) => {
+      const header = element.querySelector('.modal-head')!;
+      const content = element.querySelector('.file-form > p')!;
+      const before = {
+        header: header.getBoundingClientRect().top,
+        content: content.getBoundingClientRect().top,
+      };
+      element.scrollTop = element.scrollHeight;
+      return {
+        scroll: element.scrollTop,
+        headerShift: header.getBoundingClientRect().top - before.header,
+        contentShift: content.getBoundingClientRect().top - before.content,
+      };
+    });
+    expect(geometry.scroll).toBeGreaterThan(0);
+    expect(Math.abs(geometry.headerShift)).toBeLessThanOrEqual(1);
+    expect(geometry.contentShift).toBeLessThan(0);
+    await expect(dialog.getByRole('button', { name: 'Закрыть', exact: true })).toBeInViewport();
+    await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+  });
+}
+
+for (const path of ['/chat', '/image']) {
+  test(`template dismissal preserves composer draft and does not focus it on ${path}`, async ({ page }) => {
+    await mockApi(page);
+    await page.goto(path);
+    if (path === '/chat') await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+    const draft = page.locator(path === '/chat' ? '#cw-draft' : '#img-draft');
+    await draft.fill('Мой исходный текст');
+    const title = 'Главное фото на белом фоне (маркетплейс)';
+    const open =
+      path === '/chat'
+        ? page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true })
+        : page.getByRole('button', { name: title, exact: true });
+    for (const close of ['button', 'escape']) {
+      await open.click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+      if (close === 'button') await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+      else await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(draft).not.toBeFocused();
+      await expect(draft).toHaveValue('Мой исходный текст');
+    }
+    await open.click();
+    await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+    await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+    await expect(draft).toBeFocused();
+    await expect(draft).toHaveValue(/Красная чашка/);
+  });
+}
+
+test('result card deletion is last and removes the file after confirmation', async ({ page }) => {
+  await mockApi(page);
+  let deleted = false;
+  await page.route('**/api/file?*', (route) =>
+    route.fulfill({ json: pagination(deleted ? [] : [{ ...file, origin: { kind: 'GENERATION' } }]) }),
+  );
+  await page.route('**/api/file/12', (route) => {
+    if (route.request().method() === 'DELETE') {
+      deleted = true;
+      return route.fulfill({ status: 204 });
+    }
+    return route.fulfill({ json: file });
+  });
+  await page.goto('/image');
+  const card = page.locator('.image-result').first();
+  await card.hover();
+  await expect(card.locator('.img-actions > button')).toHaveCount(3);
+  await expect(card.locator('.img-actions > button').last()).toHaveAttribute(
+    'aria-label',
+    'Удалить Test result',
+  );
+  await card.getByRole('button', { name: 'Удалить Test result', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Удалить файл', exact: true });
+  await expect(dialog).toBeVisible();
+  expect(deleted).toBe(false);
+  const confirm = dialog.getByRole('button', { name: 'Удалить', exact: true });
+  await expect(confirm).toHaveCSS('color', 'rgb(23, 27, 6)');
+  await confirm.hover();
+  await expect(confirm).toHaveCSS('color', 'rgb(23, 27, 6)');
+  await confirm.click();
+  await expect.poll(() => deleted).toBe(true);
+  await expect(page.locator('.image-result')).toHaveCount(0);
+});
+
+test('mobile navigation fits a narrow viewport', async ({ page }) => {
+  await mockApi(page);
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto('/image');
+  await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Меню', exact: true });
+  await expect(menu).toBeVisible();
+  await expect
+    .poll(async () =>
+      menu.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return (
+          r.left >= 0 &&
+          r.right <= innerWidth &&
+          r.top >= 0 &&
+          r.bottom <= innerHeight &&
+          el.scrollWidth <= el.clientWidth
+        );
+      }),
+    )
+    .toBe(true);
+});
+
+test('library file action confirmations retain dark text on accent buttons', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/library');
+  for (const action of ['Удалить', 'Название и теги', 'Переместить']) {
+    await page.locator('.file-actions > summary').first().click();
+    if (action !== 'Удалить') await openFileMenuGroup(page);
+    await page.locator('.file-actions[open]').getByRole('button', { name: action, exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    const confirm = dialog.locator('.modal-footer .button.primary');
+    await expect(confirm).toHaveCSS('color', 'rgb(23, 27, 6)');
+    await confirm.hover();
+    await expect(confirm).toHaveCSS('color', 'rgb(23, 27, 6)');
+    await dialog.getByRole('button', { name: 'Отмена', exact: true }).click();
+  }
+});
+
+test('mobile file viewer actions and menu fit and deletion closes the viewer', async ({ page }) => {
+  await mockApi(page);
+  let deleted = false;
+  await page.route('**/api/file/12', (route) => {
+    if (route.request().method() === 'DELETE') {
+      deleted = true;
+      return route.fulfill({ status: 204 });
+    }
+    return route.fulfill({ json: file });
+  });
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto('/library');
+  await page
+    .getByRole('button', { name: /Test result/ })
+    .first()
+    .click();
+  const viewer = page.getByRole('dialog', { name: 'Test result', exact: true });
+  await expect(viewer).toBeVisible();
+  await viewer.locator('.preview-menu > summary').click();
+  const header = viewer.locator('.preview-menu-panel');
+  await expect(header.getByRole('button', { name: 'Скачать файл', exact: true })).toBeVisible();
+  await openFileMenuGroup(page);
+  await expect(header.getByRole('link', { name: 'Открыть оригинал', exact: true })).toHaveAttribute(
+    'target',
+    '_blank',
+  );
+  await viewer.locator('.preview-menu > summary').click();
+  for (const width of [320, 360, 390]) {
+    await page.setViewportSize({ width, height: 640 });
+    await viewer.locator('.preview-menu > summary').click();
+    const panel = viewer.locator('.preview-menu-panel');
+    await expect(panel).toBeVisible();
+    const rect = await panel.boundingBox();
+    expect(rect!.x).toBeGreaterThanOrEqual(0);
+    expect(rect!.x + rect!.width).toBeLessThanOrEqual(width);
+    expect(rect!.y + rect!.height).toBeLessThanOrEqual(640);
+    await viewer.locator('.preview-menu > summary').click();
+  }
+  await viewer.locator('.preview-menu > summary').click();
+  await header.getByRole('button', { name: 'Удалить', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: 'Удалить файл', exact: true });
+  await expect(confirm.locator('.button.primary')).toHaveCSS('color', 'rgb(23, 27, 6)');
+  await confirm.getByRole('button', { name: 'Удалить', exact: true }).click();
+  await expect.poll(() => deleted).toBe(true);
+  await expect(viewer).toHaveCount(0);
+});
+
+for (const mode of ['file', 'clipboard', 'activation', 'link', 'unsupported']) {
+  test(`file sharing supports ${mode} without eager downloads`, async ({ page }) => {
+    await mockApi(page);
+    let downloads = 0;
+    await page.route('**/api/file/12/content', (route) => {
+      downloads++;
+      return route.fulfill({ contentType: 'image/png', body: Buffer.from('original file bytes') });
+    });
+    await page.addInitScript((mode) => {
+      const state = { calls: [] as any[], clipboard: '', active: mode !== 'activation' };
+      (window as any).shareTest = state;
+      Object.defineProperty(navigator, 'userActivation', {
+        configurable: true,
+        value: {
+          get isActive() {
+            return state.active;
+          },
+        },
+      });
+      Object.defineProperty(navigator, 'canShare', {
+        configurable: true,
+        value: (data: ShareData) => mode !== 'unsupported' && !!data.files?.length,
+      });
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value:
+          mode === 'clipboard'
+            ? undefined
+            : async (data: ShareData) => {
+                state.calls.push({
+                  name: data.files?.[0].name,
+                  type: data.files?.[0].type,
+                  text: await data.files?.[0].text(),
+                  url: data.url,
+                });
+                if (state.calls.length === 1 && mode === 'file')
+                  throw new DOMException('Cancelled', 'AbortError');
+              },
+      });
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (text: string) => {
+            state.clipboard = text;
+          },
+        },
+      });
+    }, mode);
+    await page.goto('/library');
+    await page
+      .getByRole('button', { name: /Test result/ })
+      .first()
+      .click();
+    const viewer = page.getByRole('dialog', { name: 'Test result', exact: true });
+    await viewer.locator('.preview-menu > summary').click();
+    expect(downloads).toBe(0);
+    const share = viewer.getByRole('button', {
+      name: mode === 'clipboard' || mode === 'link' ? 'Поделиться ссылкой' : 'Отправить файл',
+      exact: true,
+    });
+    await share.click();
+    if (mode === 'unsupported') {
+      await expect(viewer).toContainText('Браузер не может отправить этот файл');
+      expect(await page.evaluate(() => (window as any).shareTest.calls.length)).toBe(0);
+      expect(await page.evaluate(() => (window as any).shareTest.clipboard)).toBe('');
+    } else if (mode === 'link') {
+      await expect.poll(() => page.evaluate(() => (window as any).shareTest.calls.length)).toBe(1);
+      expect(await page.evaluate(() => (window as any).shareTest.calls[0].url)).toContain(
+        '/media/gallery-1.jpg',
+      );
+      expect(downloads).toBe(0);
+    } else if (mode === 'clipboard') {
+      await expect(viewer).toContainText('Ссылка на файл скопирована');
+      expect(await page.evaluate(() => (window as any).shareTest.clipboard)).toContain(
+        '/media/gallery-1.jpg',
+      );
+      expect(downloads).toBe(0);
+    } else {
+      if (mode === 'activation') {
+        await expect(viewer).toContainText('Файл готов.');
+        expect(await page.evaluate(() => (window as any).shareTest.calls.length)).toBe(0);
+        await page.evaluate(() => {
+          (window as any).shareTest.active = true;
+        });
+      } else {
+        await expect.poll(() => page.evaluate(() => (window as any).shareTest.calls.length)).toBe(1);
+        await expect(viewer).not.toContainText('Не удалось поделиться');
+      }
+      await share.click();
+      await expect(viewer.locator('.preview-menu')).not.toHaveAttribute('open');
+      const calls = await page.evaluate(() => (window as any).shareTest.calls);
+      expect(calls.at(-1)).toMatchObject({ type: 'image/png', text: 'original file bytes' });
+      expect(calls.at(-1).url).toBeUndefined();
+      expect(downloads).toBe(1);
+    }
+  });
+}
+
+for (const width of [360, 1440]) {
+  test(`file menus have the same actions in library gallery and viewer at ${width}px`, async ({ page }) => {
+    await mockApi(page);
+    await page.setViewportSize({ width, height: 844 });
+    const result = { ...file, origin: { kind: 'GENERATION' } };
+    await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination([result]) }));
+    await page.route('**/api/file/12', (route) => route.fulfill({ json: result }));
+    let expected: string[] | undefined;
+    for (const path of ['/library', '/image']) {
+      await page.goto(path);
+      const menu = page.locator('.file-actions').first();
+      await expect(menu.locator(':scope > summary')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await expect(menu.locator(':scope > summary')).toHaveCSS('border-top-width', '0px');
+      await menu.locator(':scope > summary').click();
+      const panel = menu.locator('.preview-menu-panel');
+      await expect(panel).toBeVisible();
+      const actions = (await panel.locator(':scope > button, :scope > a').allTextContents()).map((text) =>
+        text.trim(),
+      );
+      if (expected) expect(actions).toEqual(expected);
+      else expected = actions;
+      expect(actions).toEqual(['Скачать файл', 'Поделиться ссылкой', 'Отправить файл', 'Удалить']);
+      await expect(panel.locator('.file-menu-group > summary')).toHaveText([
+        'Использовать в…',
+        'Дополнительно',
+      ]);
+      await expect(panel.getByRole('button', { name: 'Анимировать', exact: true })).toBeHidden();
+      await expect(panel.getByRole('link', { name: 'Открыть оригинал' })).toBeHidden();
+      await expect(panel.getByRole('button', { name: 'Как референс', exact: true })).toBeHidden();
+      await openFileMenuGroup(page, 'Использовать в…');
+      await expect(panel.getByRole('button', { name: 'Как референс', exact: true })).toBeVisible();
+      await expect(panel.getByRole('button', { name: 'Анимировать', exact: true })).toBeVisible();
+      await openFileMenuGroup(page);
+      await expect(panel.getByRole('link', { name: 'Открыть оригинал' })).toBeVisible();
+      await expect(panel.getByRole('button', { name: 'Как референс', exact: true })).toBeHidden();
+      await expect(panel.getByRole('button', { name: 'Анимировать', exact: true })).toBeHidden();
+      const box = await panel.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+      await page.keyboard.press('Escape');
+      await expect(menu).not.toHaveAttribute('open');
+      if (path === '/library')
+        await page
+          .getByRole('button', { name: /Test result/ })
+          .first()
+          .click();
+      else await page.getByRole('button', { name: 'Открыть Test result', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: 'Test result', exact: true });
+      await viewer.locator('.preview-menu > summary').click();
+      await expect(viewer.locator('.preview-menu-panel')).toBeVisible();
+      expect(
+        (await viewer.locator('.preview-menu-panel > button, .preview-menu-panel > a').allTextContents()).map(
+          (text) => text.trim(),
+        ),
+      ).toEqual(expected);
+      await openFileMenuGroup(page);
+      await viewer.getByRole('button', { name: 'Название и теги', exact: true }).click();
+      const editor = page.getByRole('dialog', { name: 'Название и теги', exact: true });
+      await expect(editor.getByLabel('Название', { exact: true })).toHaveValue('Test result');
+      await page.keyboard.press('Escape');
+      await expect(editor).toHaveCount(0);
+      await expect(viewer).toBeVisible();
+    }
+  });
+}
+
+for (const width of [360, 390]) {
+  test(`mobile studio settings use a full screen panel with a fixed header at ${width}px`, async ({
+    page,
+  }) => {
+    await mockApi(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
+    const panel = page.locator('aside.cw-gallery');
+    await expect(panel).toBeVisible();
+    await expect.poll(async () => Math.round((await panel.boundingBox())!.y)).toBe(0);
+    const box = (await panel.boundingBox())!;
+    expect(Math.round(box.width)).toBe(width);
+    expect(Math.round(box.height)).toBe(844);
+    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    const close = page.getByRole('button', { name: 'Закрыть шаблоны и настройки', exact: true });
+    const tabs = await panel.locator('.cw-gallery-tabs').boundingBox();
+    const closeBox = (await close.boundingBox())!;
+    expect(closeBox.width).toBeGreaterThanOrEqual(44);
+    expect(closeBox.x).toBeGreaterThanOrEqual(tabs!.x + tabs!.width);
+    await expect(panel.locator('.cw-tab-rail')).toBeHidden();
+    const header = panel.locator('.cw-gallery-head');
+    const before = await header.boundingBox();
+    await panel.locator('.cw-settings-pane').evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    expect(await header.boundingBox()).toEqual(before);
+    await expect(close).toBeVisible();
+    await page.screenshot({ path: `/tmp/gnosis-studio-settings-${width}.png` });
+    await close.click();
+    await expect(panel).toBeHidden();
+    await expect(page.locator('#cw-draft')).toBeVisible();
+  });
+}
+
+for (const width of [360, 1440]) {
+  test(`studio template card applies directly and favorite stays independent at ${width}px`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/chat');
+    const draft = page.locator('#cw-draft');
+    await draft.fill('Мой черновик');
+    if (width < 720) await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
+    const card = page.locator('.cw-card').filter({
+      has: page.getByRole('button', { name: 'Открыть шаблон: Послание в объектив', exact: true }),
+    });
+    await expect(card.locator('.cw-add')).toHaveCount(0);
+    await card.getByRole('button', { name: 'В избранное: Послание в объектив', exact: true }).click();
+    await expect(draft).toHaveValue('Мой черновик');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const apply = card.getByRole('button', { name: 'Открыть шаблон: Послание в объектив', exact: true });
+    if (width < 720) await apply.click();
+    else {
+      await apply.focus();
+      await page.keyboard.press('Space');
+    }
+    await expect(draft).toHaveValue(/Герой - тот, кто на загруженном фото/);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(state.sends).toHaveLength(0);
+    expect(state.tasks).toHaveLength(0);
   });
 }

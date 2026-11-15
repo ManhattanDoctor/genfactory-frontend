@@ -182,3 +182,9 @@
 .file-generation-popover > .file-generation-content {
   padding: 16px;
 }
+
+.modal > .file-generation.file-generation-popover {
+  position: static;
+  width: 100%;
+  max-height: none;
+}

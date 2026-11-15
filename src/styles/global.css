@@ -765,6 +765,10 @@ a svg {
   width: min(1000px, calc(100vw - 32px));
 }
 .modal-head {
+  position: sticky;
+  top: calc(-1 * var(--modal-padding));
+  z-index: 20;
+  background: inherit;
   flex: none;
   display: flex;
   align-items: center;
@@ -3452,7 +3456,7 @@ a svg,
 .file-actions[open] {
   z-index: 40;
 }
-.file-actions summary {
+.file-actions > summary {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3467,38 +3471,14 @@ a svg,
   box-shadow: none;
   color: #fff;
 }
-.file-actions summary::-webkit-details-marker {
+.file-actions > summary::-webkit-details-marker {
   display: none;
 }
-.file-actions summary svg {
+.file-actions > summary svg {
   filter: drop-shadow(0 1px 2px #0009);
 }
-.file-actions summary:hover {
+.file-actions > summary:hover {
   background: transparent;
-}
-.file-actions > div {
-  display: grid;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  width: 220px;
-  max-width: calc(100vw - 48px);
-  z-index: 30;
-  padding: 6px;
-  gap: 2px;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 12px 40px #0009;
-}
-.file-actions > div > button {
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: 7px;
-}
-.file-actions > div > button:hover {
-  background: var(--line);
 }
 .file-tag-filter {
   display: grid;
@@ -3541,18 +3521,19 @@ a svg,
 }
 
 .preview-menu {
-  position: relative;
+  position: static;
   flex: 0 0 auto;
   z-index: 10;
 }
-.preview-menu summary {
+.preview-menu > summary {
   list-style: none;
   cursor: pointer;
 }
-.preview-menu summary::-webkit-details-marker {
+.preview-menu > summary::-webkit-details-marker {
   display: none;
 }
 .preview-menu-panel {
+  color: inherit;
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -3591,6 +3572,7 @@ a svg,
 }
 
 .modal-head-actions {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3813,4 +3795,30 @@ video:-webkit-full-screen {
   object-fit: contain !important;
   border-radius: 0 !important;
   background: #000;
+}
+
+.file-menu-group > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.file-menu-group > summary::-webkit-details-marker {
+  display: none;
+}
+.file-menu-group > summary > svg {
+  margin-left: auto;
+  flex: none;
+}
+.file-menu-group[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.file-menu-group-items {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+  margin-left: 12px;
+}
+.preview-menu-item.file-menu-delete {
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 7px 7px;
+  margin-top: 6px;
+  padding-top: 14px;
 }

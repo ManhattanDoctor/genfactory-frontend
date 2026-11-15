@@ -1,3 +1,4 @@
+import { FileActions } from '../../components/FileActions';
 import type { TemplatePublicReference } from '../content-studio/templatePublicReference';
 import { fitTemplateDuration, resolveTemplateDuration } from '../content-studio/templateDuration';
 import { useTemplateSelection } from '../content-studio/useTemplateSelection';
@@ -33,7 +34,6 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   ArrowUp,
   Plus,
-  Check,
   Pencil,
   Download,
   RotateCcw,
@@ -478,17 +478,8 @@ export function MediaWorkspace({
         >
           <Media file={file} />
         </button>
+        <FileActions file={file} />
         <div className="img-actions">
-          <button
-            type="button"
-            aria-label={`Открыть ${file.name}`}
-            onClick={(e) => {
-              e.currentTarget.focus({ preventScroll: true });
-              setPreview(file);
-            }}
-          >
-            <Expand size={18} />
-          </button>
           <button
             type="button"
             aria-label={`Скачать ${file.name}`}
@@ -508,6 +499,7 @@ export function MediaWorkspace({
           >
             <RotateCcw size={18} />
           </button>
+          <FileActions file={file} variant="delete-button" />
         </div>
       </article>
     )),
@@ -551,10 +543,6 @@ export function MediaWorkspace({
           <span className="img-cap">
             <span>{item.genre}</span>
             <strong>{item.title}</strong>
-          </span>
-          <span className="img-use" aria-hidden="true">
-            {!video && selected?.id === item.id ? <Check size={18} /> : <Plus size={18} />}
-            <span>{selected?.id === item.id ? 'Выбран' : 'Добавить'}</span>
           </span>
         </span>
       </button>
@@ -642,10 +630,7 @@ export function MediaWorkspace({
           ]
             .filter(Boolean)
             .join(' · ')}
-          onClose={() => {
-            setEditingTemplate(undefined);
-            requestAnimationFrame(() => promptInput.current?.focus());
-          }}
+          onClose={() => setEditingTemplate(undefined)}
           onApply={(text) => {
             void applyTemplateText(editingTemplate, text).catch((error) =>
               setNotice(error instanceof Error ? error.message : 'Не удалось применить шаблон.'),

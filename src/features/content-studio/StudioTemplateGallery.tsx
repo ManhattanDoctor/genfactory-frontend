@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { Heart, Plus } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import type { ITemplateCard } from './materials';
 import { TemplateMedia } from './TemplateMedia';
 interface Props {
@@ -11,8 +11,6 @@ interface Props {
   toggleFavorite: (id: string) => void;
   genres: string[];
   visible: ITemplateCard[];
-  selectedTemplate?: string;
-  setSelectedTemplate: (id: string | undefined) => void;
   busy: boolean;
   pick: (item: ITemplateCard) => Promise<void>;
 }
@@ -25,8 +23,6 @@ export function StudioTemplateGallery({
   toggleFavorite,
   genres,
   visible,
-  selectedTemplate,
-  setSelectedTemplate,
   busy,
   pick,
 }: Props): ReactElement {
@@ -66,35 +62,22 @@ export function StudioTemplateGallery({
       <div className="cw-scroll" id="cw-gallery">
         {visible.map((item) => (
           <article
-            className={`cw-card ds-template-card ${selectedTemplate === item.id ? 'is-picked' : ''}`}
+            className="cw-card ds-template-card"
             data-kind={item.kind === 'presentation' ? 'slides' : item.kind}
             key={item.id}
           >
-            <div
-              className="cw-card-media ds-template-media"
-              role="button"
-              tabIndex={0}
-              aria-label={`Открыть шаблон: ${item.title}`}
-              onClick={() => setSelectedTemplate(selectedTemplate === item.id ? undefined : item.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter')
-                  setSelectedTemplate(selectedTemplate === item.id ? undefined : item.id);
-              }}
-            >
+            <div className="cw-card-media ds-template-media">
               <TemplateMedia item={item} />
               <button
                 type="button"
-                className="cw-add ds-template-add"
-                aria-label="Добавить"
+                className="cw-template-open"
+                aria-label={`Открыть шаблон: ${item.title}`}
                 disabled={busy}
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={(event) => {
+                  event.currentTarget.focus({ preventScroll: true });
                   void pick(item);
                 }}
-              >
-                <Plus className="template-add-icon" size={18} aria-hidden="true" />
-                <span className="template-add-label">Добавить</span>
-              </button>
+              />
               <button
                 type="button"
                 className={`cw-fav ${favorites.includes(item.id) ? 'is-on' : ''}`}

@@ -82,6 +82,19 @@
   }
 }
 
+@media (max-width: 600px), (pointer: coarse) {
+  .composer-attachment {
+    height: 48px;
+  }
+  .composer-attachment .composer-attachment-remove {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+    margin-right: 1px;
+    touch-action: manipulation;
+  }
+}
+
 .composer-attachment .composer-attachment-remove:disabled {
   opacity: 0.4;
   cursor: default;

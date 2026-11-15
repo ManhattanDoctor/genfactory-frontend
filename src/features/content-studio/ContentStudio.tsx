@@ -44,7 +44,7 @@ import {
 } from '../catalog/videoInputs';
 import { mediaOptions } from './request';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
-import { ArrowUp, Plus } from 'lucide-react';
+import { ArrowUp, Plus, X } from 'lucide-react';
 import { LibraryPicker } from '../../components/LibraryPicker';
 import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
@@ -214,7 +214,6 @@ export function ContentStudio(): ReactElement {
     work.setError('');
     requestAnimationFrame(() => textarea.current?.focus());
   };
-  const [selectedTemplate, setSelectedTemplate] = useState<string>();
   const [mobileGallery, setMobileGallery] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -268,6 +267,7 @@ export function ContentStudio(): ReactElement {
           },
         ]);
         setFrameSlot(undefined);
+        textarea.current?.focus();
       } catch (error) {
         if (alive.current && frameEpoch.current === epoch)
           work.setError(error instanceof Error ? error.message : 'Не удалось подготовить кадр.');
@@ -295,8 +295,6 @@ export function ContentStudio(): ReactElement {
         return;
       }
     }
-    setSelectedTemplate(undefined);
-    textarea.current?.focus();
   };
   const controls = useStudioModels({
     catalog,
@@ -1269,7 +1267,7 @@ export function ContentStudio(): ReactElement {
                 aria-label="Закрыть шаблоны и настройки"
                 onClick={() => setMobileGallery(false)}
               >
-                ×
+                <X size={20} aria-hidden="true" />
               </button>
               <div className="cw-gallery-tabs ds-tabs" role="tablist" aria-label="Шаблоны или настройки">
                 {['templates', 'settings'].map((key, index) => (
@@ -1316,8 +1314,6 @@ export function ContentStudio(): ReactElement {
                   toggleFavorite={toggleFavorite}
                   genres={genres}
                   visible={visible}
-                  selectedTemplate={selectedTemplate}
-                  setSelectedTemplate={setSelectedTemplate}
                   busy={busy}
                   pick={pick}
                 />
@@ -1550,10 +1546,7 @@ export function ContentStudio(): ReactElement {
             .filter(Boolean)
             .join(' · ')}
           duration={duration}
-          onClose={() => {
-            setEditingTemplate(undefined);
-            requestAnimationFrame(() => textarea.current?.focus());
-          }}
+          onClose={() => setEditingTemplate(undefined)}
           onApply={(prompt) => {
             void applyTemplateText(editingTemplate, prompt);
           }}

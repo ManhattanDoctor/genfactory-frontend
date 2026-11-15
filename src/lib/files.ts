@@ -59,3 +59,16 @@ export async function downloadFile(
   link.click();
   if (object) setTimeout(() => URL.revokeObjectURL(object), 1000);
 }
+
+export async function readFileText(
+  file: Pick<IGnosisFile, 'id' | 'mime' | 'size'>,
+  signal?: AbortSignal,
+): Promise<string> {
+  if (file.mime?.split(';')[0].trim().toLowerCase() !== 'text/markdown')
+    return (await api.fileText(file.id, signal)).text;
+  const limit = 2 * 1024 * 1024;
+  if ((file.size ?? 0) > limit) throw new Error('Текст больше 2 МБ. Скачайте оригинал файла.');
+  const blob = await api.downloadFile(file.id);
+  if (blob.size > limit) throw new Error('Текст больше 2 МБ. Скачайте оригинал файла.');
+  return blob.text();
+}
