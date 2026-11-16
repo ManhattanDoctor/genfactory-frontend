@@ -116,3 +116,41 @@ test('keeps the video node and playback position when signatures rotate', async 
       ),
   ).toBe(true);
 });
+
+test('shows video controls after metadata without waiting for the first decoded frame', async ({ page }) => {
+  // Some browsers load only metadata until the user starts playback.
+  await page.addInitScript(() => {
+    const addEventListener = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function (type, listener, options) {
+      if (this instanceof HTMLVideoElement && type === 'loadeddata') return;
+      return addEventListener.call(this, type, listener, options);
+    };
+  });
+  await page.clock.install();
+  await page.route('**/fixture-video*', (route) =>
+    route.fulfill({
+      contentType: 'video/mp4',
+      body: readFileSync(new URL('../fixtures/preview.mp4', import.meta.url)),
+    }),
+  );
+  await page.goto('/tests/fixtures/media-refresh.html');
+  await page.waitForFunction(() => typeof (window as any).renderMedia === 'function');
+  await page.evaluate(() => {
+    (window as any).renderMedia(
+      { name: 'Studio video', type: 'VIDEO', mime: 'video/mp4', path: '/fixture-video' },
+      true,
+      { showLoadingState: true, autoPlay: false },
+    );
+  });
+  const video = page.locator('video');
+  await expect
+    .poll(() => video.evaluate((node) => (node as HTMLVideoElement).readyState))
+    .toBeGreaterThanOrEqual(1);
+  await expect(page.locator('.media-loading-frame')).toHaveAttribute('aria-busy', 'false');
+  await expect(video).toHaveJSProperty('paused', true);
+  await page.clock.fastForward(31_000);
+  await expect(page.locator('.media-loading-error')).toHaveCount(0);
+  // A subsequent playback error must still be visible after metadata succeeded.
+  await video.dispatchEvent('error');
+  await expect(page.locator('.media-loading-error')).toContainText('Не удалось загрузить');
+});
