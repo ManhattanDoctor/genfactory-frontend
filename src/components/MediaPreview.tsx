@@ -99,7 +99,10 @@ export function Media(props: MediaProps): ReactElement {
           key={`${identity}:${attempt}`}
           {...props}
           isPlaybackDisabled={props.isPlaybackDisabled || !visible}
-          onUnavailable={() => setFailedFor(identity)}
+          onUnavailable={() => {
+            setReadyFor((current) => (current === identity ? '' : current));
+            setFailedFor(identity);
+          }}
           onReady={() => {
             setReadyFor(identity);
             props.onReady?.();
@@ -266,6 +269,7 @@ function MediaContent({
       onPause={() => setPlayingSource('')}
       onLoadedData={onReady}
       onLoadedMetadata={(event) => {
+        if (controls) onReady?.();
         const video = event.currentTarget;
         if (!controls && video.currentTime === 0 && Number.isFinite(video.duration) && video.duration > 0)
           video.currentTime = Math.min(0.1, video.duration / 2);
