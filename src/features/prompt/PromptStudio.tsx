@@ -85,7 +85,6 @@ function PromptEditor(): ReactElement {
     enabled: !!auth.user && !!id,
     retry: false,
     queryFn: ({ signal }) => api.conversation(id!, signal),
-    refetchInterval: (q) => (pending || q.state.data?.status === 'LOADING' ? 2000 : false),
   });
   const conversation = detail.data;
   const busy = creating || pending > 0 || conversation?.status === 'LOADING';
@@ -144,7 +143,6 @@ function PromptEditor(): ReactElement {
     initialPageParam: 0,
     queryFn: ({ pageParam, signal }) => api.messages(id!, pageParam, signal),
     getNextPageParam: (last) => (last.pageIndex + 1 < last.pages ? last.pageIndex + 1 : undefined),
-    refetchInterval: busy ? 2000 : false,
   });
   const ordered = (messages.data?.pages.flatMap((p) => p.items) || []).slice().sort((a, b) => a.id - b.id);
   const cards: Card[] = [];
@@ -370,7 +368,7 @@ function PromptEditor(): ReactElement {
       }
     } catch (e) {
       setError(
-        `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте результат перед повторной отправкой. Автоматического повтора нет.`,
+        `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте результат перед повторной отправкой.`,
       );
     } finally {
       sending.current = false;

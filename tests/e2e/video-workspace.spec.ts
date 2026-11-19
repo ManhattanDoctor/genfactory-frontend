@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { mediaTaskResponse } from './mediaTaskMock';
 import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
 import { modelTitle } from '../../src/features/catalog/presentation';
@@ -60,7 +61,7 @@ const pagination = (items: unknown[]) => ({
   pageIndex: 0,
 });
 async function setup(page: Page, guest = false) {
-  if (!guest) await page.addInitScript(() => localStorage.setItem('genfactory.session', 'video-test'));
+  if (!guest) await mockSession(page, 'video-test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   const state = {
     creates: [] as any[],
@@ -128,16 +129,12 @@ async function pickSource(page: Page, name = 'Чашка.png'): Promise<void> {
   if (await confirm.isVisible()) await confirm.click();
 }
 async function applyVideoTemplate(page: Page, index: number): Promise<void> {
-  await page.locator('.ds-template-card').nth(index).click();
-  const dialog = page.getByRole('dialog');
-  for (const field of await dialog.locator('[data-template-variable]').all()) await field.fill('Синяя чашка');
-  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-  const adapt = dialog.getByRole('button', { name: /Адаптировать под/ });
-  if (await adapt.isVisible()) {
-    await adapt.click();
-    await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-  }
-  await expect(dialog).toHaveCount(0);
+  await page
+    .locator('.ds-template-card')
+    .nth(index)
+    .getByRole('button', { name: /^Использовать шаблон:/ })
+    .click();
+  await expect(page.getByRole('group', { name: 'Параметры шаблона' })).toBeVisible();
   await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
   await pickSource(page);
 }
@@ -149,8 +146,8 @@ test('Wan keeps audio enabled when restoring a saved draft that requested silenc
   await page.goto('/video');
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
   await page.getByRole('option', { name: modelTitle(wan), exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveText('Со звуком');
-  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveCount(0);
+  await expect(page.locator('.video-model-limits')).toContainText('Со звуком');
   await page.locator('#vd-draft').fill('Чашка медленно поворачивается');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.video:new:all')))
@@ -162,8 +159,8 @@ test('Wan keeps audio enabled when restoring a saved draft that requested silenc
     localStorage.setItem(key, JSON.stringify(draft));
   });
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveText('Со звуком');
-  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveCount(0);
+  await expect(page.locator('.video-model-limits')).toContainText('Со звуком');
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
   expect(state.tasks[0].options.generateAudio).toBe(true);
@@ -180,16 +177,45 @@ test('video canvas shows designer templates, guest composer and responsive geome
   await page.goto('/video');
   await expect(page.locator('.video-workspace')).toBeVisible();
   await expect(page.locator('.ds-template-card')).toHaveCount(56);
-  await page.getByRole('button', { name: 'Studio product turn', exact: true }).click();
-  await expect(
-    page.getByRole('dialog').getByRole('button', { name: 'Использовать шаблон', exact: true }),
-  ).toBeVisible();
-  await page.keyboard.press('Escape');
-  await page.locator('#vd-draft').fill('Создай видео');
-  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await page.getByRole('button', { name: 'Использовать шаблон: Studio product turn', exact: true }).click();
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
   expect(state.creates).toHaveLength(0);
   expect(state.tasks).toHaveLength(0);
+});
+
+test('video template fields update the prompt inline and survive reload', async ({ page }) => {
+  const state = await setup(page);
+  await page.goto('/video');
+  const apply = page.getByRole('button', { name: 'Использовать шаблон: Studio product turn', exact: true });
+  await apply.click();
+  const fields = page.getByRole('group', { name: 'Параметры шаблона' });
+  const prompt = page.locator('#vd-draft');
+  await expect(fields).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Добавить фото 1', exact: true }).click();
+  await pickSource(page);
+  const send = page.getByRole('button', { name: 'Собрать видео', exact: true });
+  await expect(send).toBeDisabled();
+  await fields.getByRole('textbox').fill('Синяя чашка');
+  await fields.getByRole('combobox').selectOption('Другое');
+  await fields.getByLabel('Свой фон').fill('Песчаный пляж');
+  await prompt.fill((await prompt.inputValue()) + '\nСохранить ручную правку');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.video:new:all')))
+    .toContain('Сохранить ручную правку');
+  await page.reload();
+  await expect(fields.getByLabel('Свой фон')).toHaveValue('Песчаный пляж');
+  await fields.getByLabel('Свой фон').fill('Морской берег');
+  await expect(prompt).toHaveValue(/Синяя чашка/);
+  await expect(prompt).toHaveValue(/Морской берег/);
+  await expect(prompt).toHaveValue(/Сохранить ручную правку/);
+  await send.click();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.prompt).toContain('Морской берег');
+  await apply.click();
+  await fields.getByRole('button', { name: 'Сбросить шаблон' }).click();
+  await expect(prompt).toHaveValue('');
+  await expect(fields).toHaveCount(0);
 });
 
 test('video sends template, first frame and real settings through VIDEO and restores redo without attaching the output', async ({
@@ -197,8 +223,8 @@ test('video sends template, first frame and real settings through VIDEO and rest
 }) => {
   const state = await setup(page);
   await page.goto('/video');
-  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveText('Со звуком');
-  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Звук', exact: true })).toHaveCount(0);
+  await expect(page.locator('.video-model-limits')).toContainText('Со звуком');
   await applyVideoTemplate(page, 0);
   const templateText = await page.locator('#vd-draft').inputValue();
   await expect(page.getByRole('button', { name: 'Стороны', exact: true })).toHaveText('По исходному кадру');
@@ -222,7 +248,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
   await expect(page.locator('.video-result')).toHaveCount(1);
   expect(state.tasks).toHaveLength(1);
   expect(state.uploads).toBe(0);
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([{ type: 'FILE', id: 12 }]);
   expect(state.tasks[0]).toMatchObject({
     isSaveResult: true,
     model: 'OPEN_ROUTER_VIDEO',
@@ -281,7 +307,10 @@ test('all 30 video templates open the shared editor without sending and model in
   const cards = page.locator('.ds-template-card');
   await expect(cards).toHaveCount(30);
   for (let index = 0; index < 30; index++) {
-    await cards.nth(index).click();
+    await cards
+      .nth(index)
+      .getByRole('button', { name: /^Использовать шаблон:/ })
+      .click();
     await expect(
       page.getByRole('dialog').getByRole('button', { name: 'Использовать шаблон', exact: true }),
     ).toBeVisible();
@@ -458,7 +487,10 @@ test('Wan uses both catalog-supported frames in order and restores them for a re
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect(page.locator('.video-result')).toHaveCount(1);
   expect(state.tasks).toHaveLength(1);
-  expect(state.tasks[0].task.fileIds).toEqual([12, 14]);
+  expect(state.tasks[0].task.references).toEqual([
+    { type: 'FILE', id: 12 },
+    { type: 'FILE', id: 14 },
+  ]);
   expect(state.tasks[0].options).not.toHaveProperty('aspectRatio');
   expect(state.tasks[0]).toMatchObject({
     isSaveResult: true,
@@ -498,15 +530,20 @@ test('applying an updated video template selects Wan and sends its new prompt', 
   await page.goto('/video');
   await page.getByRole('button', { name: 'Длительность', exact: true }).click();
   await page.getByRole('option', { name: '6 с', exact: true }).click();
-  await page.getByRole('button', { name: 'Послание в объектив', exact: true }).click();
+  await page.getByRole('button', { name: 'Использовать шаблон: Послание в объектив', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#vd-draft')).toHaveValue(/Герой - тот, кто на загруженном фото/);
   await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Wan');
   await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('6 с');
+  await expect(page.getByRole('button', { name: 'Собрать видео', exact: true })).toBeDisabled();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('genfactory.draft.v1.7.video:new:all')))
+    .toContain('videoTemplateMinimum');
   await page.reload();
   await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Wan');
   await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('6 с');
-  await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Собрать видео', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Добавить фото 1', exact: true }).click();
   await pickSource(page);
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
@@ -520,7 +557,9 @@ test('a template recommendation preserves the selected seconds when switching to
   await page.goto('/video');
   await page.getByRole('button', { name: 'Длительность', exact: true }).click();
   await page.getByRole('option', { name: '6 с', exact: true }).click();
-  await page.getByRole('button', { name: 'Оживающая вышивка на кепке', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Использовать шаблон: Оживающая вышивка на кепке', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Wan');
   await expect(page.getByRole('button', { name: 'Длительность', exact: true })).toHaveText('6 с');
 });

@@ -19,7 +19,7 @@ export function Company(): ReactElement {
         </h1>
         <img
           src="/media/company/hero-robot.webp"
-          alt="Кибернетический портрет — визуальный образ NTIAI"
+          alt="Кибернетический портрет - визуальный образ NTIAI"
           width={864}
           height={1132}
         />

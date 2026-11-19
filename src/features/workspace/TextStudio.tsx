@@ -1,3 +1,6 @@
+import { MODEL_SEARCH_MIN_COUNT } from '../catalog/presentation';
+import { ModelBrowser } from '../catalog/ModelBrowser';
+import { useConversationRoom } from '../realtime/RealtimeProvider';
 import { FileReferenceType } from '../../lib/types';
 import { catalogQuery } from '../catalog/catalogQuery';
 import { scheduleRefresh } from '../realtime/queryRefresh';
@@ -44,6 +47,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
   const rawId = params.get('conversation');
   const id =
     rawId && /^[1-9]\d*$/.test(rawId) && Number.isSafeInteger(Number(rawId)) ? Number(rawId) : undefined;
+  useConversationRoom(id);
   const incoming = location.state as {
     userId?: number;
     prompt?: string;
@@ -71,6 +75,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [modelBrowser, setModelBrowser] = useState(false);
   const [picker, setPicker] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
@@ -91,7 +96,6 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
     queryKey: ['conversation', auth.user?.id, id],
     enabled: !!auth.user && !!id,
     retry: false,
-    refetchInterval: (query) => (query.state.data?.status === 'LOADING' ? 2000 : false),
     queryFn: ({ signal }) => api.conversation(id!, signal),
   });
   const conversation = detail.data;
@@ -465,7 +469,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
     } catch (e) {
       if (isCurrent(sid))
         setError(
-          `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте историю перед повторной отправкой. Автоматического повтора нет.`,
+          `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте историю перед повторной отправкой.`,
         );
     } finally {
       if (mounted.current) setCreating(false);
@@ -502,7 +506,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
             models.error?.message ||
             (rawId && !id ? 'Некорректный адрес беседы.' : '') ||
             (send.error?.message || sendError.data
-              ? `${send.error?.message || sendError.data} Проверьте историю перед повторной отправкой. Автоматического повтора нет.`
+              ? `${send.error?.message || sendError.data} Проверьте историю перед повторной отправкой.`
               : '') ||
             (conversation?.status === 'ERROR'
               ? 'Предыдущий запрос завершился с ошибкой. Проверьте сообщения.'
@@ -710,6 +714,27 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
                 </SelectControl>
               </label>
             )}
+            {!conversation && (models.data?.length ?? 0) >= MODEL_SEARCH_MIN_COUNT && (
+              <button
+                type="button"
+                className="button"
+                disabled={busy || uploading}
+                onClick={() => setModelBrowser(true)}
+              >
+                Поиск моделей
+              </button>
+            )}
+            {!conversation && modelBrowser && (
+              <ModelBrowser
+                models={models.data || []}
+                value={model ? model.reference.provider + ':' + model.reference.model : ''}
+                onSelect={(next) => {
+                  setSelected(next.reference.model);
+                  setToolIds([]);
+                }}
+                onClose={() => setModelBrowser(false)}
+              />
+            )}
             {models.error && (
               <p className="error">
                 Не удалось загрузить модели.
@@ -789,7 +814,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
             <div className="studio-empty">
               <h2>
                 {mode === 'chat'
-                  ? 'Сначала — хорошая идея.'
+                  ? 'Сначала - хорошая идея.'
                   : mode === 'prompt'
                     ? 'От референса к точному описанию.'
                     : 'История начинается с замысла.'}

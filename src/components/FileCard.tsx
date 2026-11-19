@@ -52,7 +52,6 @@ export function FileCard({
         className="library-media"
         isVideo={file.type === 'VIDEO' || file.mime?.startsWith('video/')}
       >
-        {source && <span className="history-source file-source">{source}</span>}
         {selectionMode && !folder && !incompatible && (
           <span className={`file-select-mark${checked ? ' is-selected' : ''}`} aria-hidden="true">
             {checked && <Check size={16} />}
@@ -68,6 +67,7 @@ export function FileCard({
       </CardPreview>
       <div>
         <b title={file.name}>{file.name}</b>
+        {source && <span className="history-source">{source}</span>}
         <GenerationSummary file={file} />
         {!file.origin?.generation && (
           <span>

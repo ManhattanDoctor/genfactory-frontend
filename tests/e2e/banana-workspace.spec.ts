@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { mediaTaskResponse } from './mediaTaskMock';
 import { catalogProvider, catalogResponse } from './modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
@@ -41,7 +42,7 @@ const pagination = (items: unknown[]) => ({
   pageIndex: 0,
 });
 async function setup(page: Page, guest = false) {
-  if (!guest) await page.addInitScript(() => localStorage.setItem('genfactory.session', 'video-test'));
+  if (!guest) await mockSession(page, 'video-test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   const state = {
     creates: [] as any[],

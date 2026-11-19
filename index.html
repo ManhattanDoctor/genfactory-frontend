@@ -5,15 +5,59 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0b0b0c" />
-    <meta
-      name="description"
-      content="Genfactory — ваша студия изображений и видео. От первой идеи до готового кадра."
-    />
-    <title>Genfactory — творческая студия</title>
+    <meta name="description" content="Более 80 моделей AI-генерации контента" />
+    <title>Genfactory</title>
+    <style>
+      #startup-error:not([hidden]) {
+        position: fixed; inset: 0; overflow: auto; display: grid; padding: 24px;
+        box-sizing: border-box; background: #0b0b0c; color: #f6f6f7;
+        font: 16px/1.55 system-ui, sans-serif; text-align: center; color-scheme: dark;
+      }
+      #startup-error section { max-width: 34rem; margin: auto; }
+      #startup-error h1 { font-size: clamp(1.6rem, 5vw, 2.5rem); line-height: 1.16; }
+      #startup-error small { display: block; color: #b9b9bd; }
+      .startup-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 24px 0; }
+      .startup-actions > * {
+        padding: 10px 18px; border: 1px solid #646469; border-radius: 10px;
+        color: inherit; font: inherit; text-decoration: none; cursor: pointer;
+      }
+      .startup-actions button { background: #f6f6f7; color: #151516; }
+    </style>
+    <script>
+      // React removes the initial markup on its first commit. Later requests never rearm this timer.
+      setTimeout(() => {
+        const screen = document.getElementById('startup-error');
+        if (!screen) return;
+        const suppliedCode = document.querySelector('meta[name="genfactory-network-code"]')?.content;
+        if (/^NET-[A-Z0-9-]{1,32}$/i.test(suppliedCode || '')) {
+          document.getElementById('startup-code').textContent = suppliedCode;
+          const link = document.getElementById('startup-support');
+          link.href = link.href.replace('NET-TIMEOUT', encodeURIComponent(suppliedCode));
+        }
+        screen.hidden = false;
+      }, 8000);
+    </script>
     <link rel="icon" href="/favicon.svg" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main id="startup-error" hidden aria-labelledby="startup-title">
+        <section>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M12 2 3.5 5.5v6c0 4.5 3.4 8.1 8.5 10.5 5.1-2.4 8.5-6 8.5-10.5v-6L12 2Z" />
+            <path d="M12 7v6m0 2v2" />
+          </svg>
+          <h1 id="startup-title">С этой сети GenFactory сейчас недоступен</h1>
+          <p>Запрос до сервиса не дошёл или был остановлен по пути. Чаще всего так бывает с корпоративным VPN или фильтром сети.</p>
+          <code>код: <span id="startup-code">NET-TIMEOUT</span></code>
+          <div class="startup-actions">
+            <button type="button" onclick="location.reload()">Обновить страницу</button>
+            <a id="startup-support" href="mailto:support@genfactory.ru?subject=GenFactory%20NET-TIMEOUT">Написать в поддержку</a>
+          </div>
+          <small>Попробуйте другую сеть или отключите VPN и обновите страницу. Если ошибка повторяется - пришлите код из этого экрана.</small>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

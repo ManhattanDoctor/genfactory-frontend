@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { test, expect } from '@playwright/test';
 const date = '2026-11-05T12:00:00Z';
 const file = {
@@ -24,7 +25,7 @@ for (const width of [390, 1440])
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
-    await page.addInitScript(() => localStorage.setItem('genfactory.session', 'test'));
+    await mockSession(page, 'test');
     await page.routeWebSocket('**/socket.io/**', () => {});
     let originals = 0,
       sends = 0,

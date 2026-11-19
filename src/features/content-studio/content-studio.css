@@ -1,10 +1,3 @@
-@font-face {
-  font-family: Caveat;
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/media/prototype/content/caveat-600.ttf') format('truetype');
-}
 .content-studio {
   --ds-font: 'Inter Variable', 'Helvetica Neue', Arial, sans-serif;
   height: calc(100dvh - var(--header));
@@ -41,9 +34,6 @@
 }
 .content-studio .content-original-icon {
   display: contents;
-}
-.content-studio .ms-hint em {
-  font-style: normal;
 }
 .content-studio .cw-mode button .content-original-icon svg {
   width: 20px;
@@ -294,8 +284,20 @@
   margin: 8px 16px;
   font-size: 13px;
 }
-.content-studio .cw-chat:has(.as-turn) .ms-block {
-  display: none;
+
+.content-studio #cw-compose:has(.content-feedback.error) {
+  --composer-error-inset: 12px;
+  padding-inline: var(--composer-error-inset);
+  padding-bottom: 0;
+}
+.content-studio #cw-compose .content-feedback.error {
+  align-self: stretch;
+  margin: 0 calc(-1 * var(--composer-error-inset));
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  overflow-wrap: anywhere;
 }
 
 .content-studio .as-reply.as-body {
@@ -376,21 +378,26 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.content-studio .as-actions button {
+.content-studio .as-actions .button {
   min-height: 44px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #c8c8ce;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
-.content-studio .as-actions button:disabled {
-  opacity: 0.4;
+
+.content-studio .content-result-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
   cursor: default;
+}
+.content-studio .content-result-actions .button svg {
+  flex-shrink: 0;
+}
+.content-studio .content-result-actions .button:active:not(:disabled) {
+  background: var(--ds-line-soft);
+  transform: translateY(1px);
 }
 
 .content-studio #creatives .cw-thread {
@@ -402,17 +409,6 @@
 }
 .content-studio .as-turn {
   flex-shrink: 0;
-}
-.content-studio .as-actions a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 12px;
-  border-radius: 8px;
-  color: #c8c8ce;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
 }
 .content-studio .content-thumb {
   display: block;
@@ -643,21 +639,11 @@
   background: var(--workspace-composer-fade);
 }
 
-/* Keep the original empty-state hints above the composer fade. */
-.content-studio #creatives .cw-chat:not(:has(.cw-turn)) > .ms-block {
-  z-index: 4;
-}
-.content-studio #creatives .cw-chat:has(.cw-turn) > .ms-block {
-  display: none;
-}
-/* The handwritten desktop hints do not belong in the mobile composer. */
-@media (max-width: 900px) {
-  .content-studio #creatives .cw-chat > .ms-block {
-    display: none;
-  }
-  .content-studio #creatives .cw-chat:not(:has(.cw-turn)) > .ms-block {
-    display: none;
-  }
+.content-studio .cw-settings-pane > .button {
+  align-self: stretch;
+  flex-shrink: 0;
+  max-width: calc(100% - 24px);
+  margin: 12px 12px 0;
 }
 
 /* Settings no longer have a writer-toggle header: retain a deliberate inset,
@@ -695,10 +681,43 @@
 .content-studio .cw-shot-frame {
   --media-loading-width: min(100%, 420px);
   --media-loading-height: auto;
-  --media-loading-ratio: 3 / 4;
+  --media-loading-ratio: auto;
 }
-.content-studio .cw-shot-frame[data-media-type='VIDEO'] {
-  --media-loading-ratio: 9 / 16;
+.content-studio .cw-shot-frame[aria-busy='true'],
+.content-studio .cw-shot-frame:has(.media-loading-error) {
+  --media-loading-height: 72px;
+}
+.content-studio .cw-shot-frame .as-pic {
+  height: auto;
+  aspect-ratio: auto;
+}
+
+.content-studio .studio-pending-result {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.content-studio .studio-thread-link {
+  min-height: 44px;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.content-studio .studio-message-text {
+  line-height: 24px;
+  min-width: 0;
+}
+.content-studio .studio-message-content {
+  display: flow-root;
+}
+.content-studio .studio-message-preview {
+  max-height: 7lh;
+  overflow: hidden;
 }
 
 .content-studio .as-thumbs .content-thumb,
@@ -738,4 +757,97 @@
 .content-studio .cw-template-open:focus-visible {
   outline: 2px solid var(--ds-accent, #d1fe17);
   outline-offset: -2px;
+}
+
+.content-studio .cw-gallery-tabs.ds-tabs button:has(.settings-change-dot) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-change-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ds-accent);
+}
+
+.content-studio .gallery-collapse {
+  display: none;
+}
+@media (min-width: 901px) {
+  .content-studio #creative-workspace {
+    position: relative;
+  }
+  .content-studio .gallery-collapse {
+    display: inline-flex;
+    position: absolute;
+    top: 10px;
+    right: 8px;
+    z-index: 5;
+    margin: 0;
+  }
+  .content-studio .gallery-collapse span {
+    left: 15px;
+  }
+  .content-studio .gallery-collapse span:first-child {
+    top: 18px;
+  }
+  .content-studio .gallery-collapse span:last-child {
+    top: 24px;
+  }
+  .content-studio .cw-gallery-head {
+    padding-right: 60px;
+  }
+  .content-studio #creative-workspace[data-gallery-hidden='true'] {
+    grid-template-columns: minmax(0, 1fr);
+    --ds-content: 100%;
+  }
+  .content-studio #creative-workspace[data-gallery-hidden='true'] > .cw-gallery {
+    display: none;
+  }
+
+  .content-studio #creative-workspace[data-gallery='s'][data-gallery-hidden='false'] {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+  .content-studio .cw[data-gallery='s'] .cw-gallery-tabs {
+    min-width: max-content;
+  }
+  .content-studio .cw[data-gallery='s'] .cw-gallery-body {
+    contain: inline-size;
+  }
+  /* Reserve the indicator's space so changing a setting doesn't resize the panel. */
+  .content-studio .cw[data-gallery='s'] .cw-gallery-tabs button:nth-child(2) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .content-studio
+    .cw[data-gallery='s']
+    .cw-gallery-tabs
+    button:nth-child(2):not(:has(.settings-change-dot))::after {
+    content: '';
+    width: 8px;
+  }
+}
+
+.content-studio .studio-mode-selector {
+  align-self: center;
+  max-width: 100%;
+}
+.content-studio .studio-mode-selector button {
+  font-size: var(--ds-text-ui);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding-inline: 12px;
+  white-space: nowrap;
+  color: var(--ds-text-muted);
+}
+.content-studio .studio-mode-selector button[aria-pressed='true'] {
+  background: var(--ds-accent);
+  color: var(--ds-on-accent);
 }

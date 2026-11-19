@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { catalogProvider, catalogResponse } from './modelCatalog';
@@ -29,7 +30,7 @@ const work = {
 const pageOf = (items: unknown[]) => ({ items, total: items.length, pages: 1, pageSize: 20, pageIndex: 0 });
 async function setup(page: Page) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.addInitScript(() => localStorage.setItem('genfactory.session', 'visual-test'));
+  await mockSession(page, 'visual-test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   const writes: string[] = [];
   await page.route('**/api/**', async (route) => {
@@ -212,11 +213,11 @@ test('model names are unbranded and alphabetical, favorites keep their priority'
     .getByRole('option')
     .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('aria-label')!));
   const centering = await menu
-    .locator('.image-model-row')
+    .locator('.gf-model-row')
     .first()
     .evaluate((el) => {
       const row = el.getBoundingClientRect(),
-        mark = el.querySelector('.image-choice-mark')!.getBoundingClientRect();
+        mark = el.querySelector('.gf-model-check')!.getBoundingClientRect();
       return Math.abs(row.y + row.height / 2 - mark.y - mark.height / 2);
     });
   expect(centering).toBeLessThan(1);
@@ -247,7 +248,9 @@ test('visible video previews loop with motion allowed', async ({ page }) => {
   await setup(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/video');
-  const clip = page.locator('.video-template-media video').first();
+  const card = page.getByRole('article', { name: 'Послание в объектив', exact: true });
+  await card.getByRole('button', { name: /^Посмотреть/ }).click();
+  const clip = card.locator('video');
   await expect(clip).toBeAttached();
   await expect
     .poll(

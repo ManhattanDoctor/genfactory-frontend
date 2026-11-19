@@ -2,6 +2,10 @@ name: GENFACTORY - BUILD
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      demo:
+        type: boolean
+        default: false
     outputs:
       digest:
         description: Published container digest
@@ -64,7 +68,7 @@ jobs:
           file: docker/genfactory/Dockerfile
           push: true
           tags: |
-            ${{ steps.meta.outputs.image }}:latest
+            ${{ steps.meta.outputs.image }}:${{ inputs.demo && 'demo' || 'latest' }}
             ${{ steps.meta.outputs.image }}:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}

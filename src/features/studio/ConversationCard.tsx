@@ -48,6 +48,7 @@ export function ConversationCard({
   title,
   opening = false,
   heading,
+  sourceBelowTitle = false,
   children,
 }: {
   conversation: IConversationCardData;
@@ -55,8 +56,12 @@ export function ConversationCard({
   title?: string;
   opening?: boolean;
   heading?: ReactNode;
+  sourceBelowTitle?: boolean;
   children?: ReactNode;
 }): ReactElement {
+  const source = c.tags?.includes('content-studio') && (
+    <span className="history-source">Студия контента</span>
+  );
   return (
     <article className="generation-card history-card">
       <button
@@ -71,7 +76,7 @@ export function ConversationCard({
         <div className="history-visual">
           <ConversationCover conversation={c} isStatic />
           <div className="history-badges">
-            {c.tags?.includes('content-studio') && <span className="history-source">Студия контента</span>}
+            {!sourceBelowTitle && source}
             {c.status !== 'LOADED' && (
               <span className="history-status" data-status={c.status}>
                 {c.status === 'LOADING' ? (
@@ -88,6 +93,7 @@ export function ConversationCard({
           )}
         </div>
         {heading ?? <h2 title={c.name}>{c.name}</h2>}
+        {sourceBelowTitle && source}
       </header>
       <div className="history-meta">
         <p className="small muted">

@@ -1,6 +1,11 @@
 name: GENFACTORY - RELEASE (build + deploy)
 on:
   workflow_dispatch:
+    inputs:
+      demo:
+        description: Deploy to genfactory.ru
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -8,10 +13,13 @@ permissions:
 jobs:
   build:
     uses: ./.github/workflows/genfactory-build.yml
+    with:
+      demo: ${{ inputs.demo }}
     secrets: inherit
   deploy:
     needs: build
     uses: ./.github/workflows/genfactory-deploy.yml
     with:
+      demo: ${{ inputs.demo }}
       digest: ${{ needs.build.outputs.digest }}
     secrets: inherit

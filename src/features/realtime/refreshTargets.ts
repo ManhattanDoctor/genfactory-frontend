@@ -2,6 +2,7 @@ const conversationResources = new Set([
   'conversation',
   'messages',
   'agent-messages',
+  'prompt-messages',
   'conversation-progress',
 ]);
 export interface RefreshTarget {
@@ -15,7 +16,7 @@ export function refreshTargets(keys: string[], conversationId?: unknown, fileId?
     resource,
     ...(conversationResources.has(resource) && validId(conversationId)
       ? { id: conversationId }
-      : resource === 'file-preview' && validId(fileId)
+      : (resource === 'file-preview' || resource === 'file-preview-update') && validId(fileId)
         ? { id: fileId }
         : {}),
   }));

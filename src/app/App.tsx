@@ -58,7 +58,7 @@ export function App(): ReactElement {
         >
           <Menu size={22} />
         </button>
-        <Link to="/" className="brand" aria-label="Genfactory — главная">
+        <Link to="/" className="brand" aria-label="Genfactory - главная">
           GENFACTORY
         </Link>
       </header>
@@ -94,9 +94,11 @@ export function App(): ReactElement {
                 <span>
                   <b>Мой аккаунт</b>
                   <small>
-                    {auth.balances.RUB === undefined
+                    {auth.error
                       ? 'Баланс недоступен'
-                      : `${formatBalance(auth.balances.RUB, 'RUB')} GF`}
+                      : Number(auth.balances.RUB ?? '0') <= 0
+                        ? 'Пополните баланс'
+                        : `${formatBalance(auth.balances.RUB, 'RUB')} GF`}
                   </small>
                 </span>
               </Link>

@@ -15,8 +15,8 @@ import type { useStudioModels } from './useStudioModels';
 import { videoReferenceMode } from '../catalog/videoInputs';
 import { mediaOptions } from './request';
 import { modelKey } from '../catalog/presentation';
-import { textInstruction } from '../workspace/prompt';
-import { createMessageBody, toolSettings, withMessageContext } from '../studio/conversations';
+import { textInstructions } from '../workspace/prompt';
+import { createMessageBody, toolSettings } from '../studio/conversations';
 
 interface StudioMessageOptions {
   mode: StudioMode;
@@ -108,23 +108,26 @@ export async function buildStudioMessage({
   ]
     .filter(Boolean)
     .join('\n\n');
-  const prompt = withMessageContext(sourceDraft, context);
+  const prompt = sourceDraft.trim();
   let tools: IToolConnection[] = [];
   let body: IMessageCreate;
   if (preparingScript || mode === 'presentation') {
     body = {
       role: 'USER',
       references,
-      settings: { tools: [], isToolsDisabled: true },
-      text:
-        mode === 'presentation'
-          ? `[Genfactory:presentation]\nПодготовь текст по слайдам на основе задачи и истории проекта. Это текстовая структура, не готовый файл презентации. Используй только факты из брифа и истории. Не утверждай ничего о рынке, конкурентах, достижениях и цифрах без источника пользователя. Недостающие данные обозначай «Нужно уточнить». Предположения выделяй как гипотезы, а не факты.\n\nЗапрос пользователя:\n${prompt}`
-          : textInstruction('script', prompt, {
-              language: 'Русский',
-              target: mode,
-              aspects: [],
-              brand: '',
-            }),
+      text: prompt,
+      settings: {
+        tools: [],
+        isToolsDisabled: true,
+        instructions: [
+          mode === 'presentation'
+            ? 'Подготовь текст по слайдам на основе задачи и истории проекта. Это текстовая структура, не готовый файл презентации. Используй только факты из брифа и истории. Не утверждай ничего о рынке, конкурентах, достижениях и цифрах без источника пользователя. Недостающие данные обозначай «Нужно уточнить». Предположения выделяй как гипотезы, а не факты.'
+            : textInstructions('script', { language: 'Русский', target: mode, aspects: [], brand: '' }),
+          context,
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      },
     };
   } else {
     const replay =
@@ -174,9 +177,14 @@ export async function buildStudioMessage({
       true,
     );
     body.references = references;
-    if (publicReference)
-      body.text += '\nИспользуй все вложения текущего сообщения, включая внешний видеореференс.';
-    if (referenceMode) body.text += `\nРежим видеореференсов: ${referenceMode}.`;
+    body.settings.instructions = [
+      body.settings.instructions,
+      context,
+      publicReference ? 'Используй все вложения текущего сообщения, включая внешний видеореференс.' : '',
+      referenceMode ? `Режим видеореференсов: ${referenceMode}.` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
     if (!isCurrent()) return;
   }
   return { body, tools };

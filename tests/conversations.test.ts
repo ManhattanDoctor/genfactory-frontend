@@ -52,7 +52,8 @@ describe('Conversation tool contracts', () => {
     const tool = toolSettings('video', model, { duration: 4 });
     const body = createMessageBody('Move closer', 'video', tool, [42, 12]);
     expect(body.references).toEqual([42, 12].map((id) => ({ type: 'FILE', id })));
-    expect(body.text).toContain('42, 12');
+    expect(body.text).toBe('Move closer');
+    expect(body.settings.instructions).toContain('в указанном порядке');
     expect(body.settings.tools).toEqual([
       { ...tool, isRequired: true, input: { references: [42, 12].map((id) => ({ type: 'FILE', id })) } },
     ]);
@@ -60,7 +61,8 @@ describe('Conversation tool contracts', () => {
   });
   it('explicitly prevents reuse of old images for a fresh generation', () => {
     const body = createMessageBody('Ocean', 'image', { uid: 'IMAGE' }, [], true);
-    expect(body.text).toContain('без референсов');
+    expect(body.text).toBe('Ocean');
+    expect(body.settings.instructions).toContain('без референсов');
     expect(body.references).toEqual([].map((id) => ({ type: 'FILE', id })));
   });
   it('recognizes universal string connections and does not silently add a missing tool', () => {
@@ -110,7 +112,7 @@ it('binds the displayed model alias to its exact ID without exposing the instruc
     true,
     'Nano Banana 2 Lite',
   );
-  expect(body.text).toContain(`Nano Banana 2 Lite (${lite.reference.model})`);
+  expect(body.settings.instructions).toContain(`Nano Banana 2 Lite (${lite.reference.model})`);
   expect(body.text).not.toContain('[Genfactory:model]');
   expect(body.settings.tools).toEqual([{ ...tool, isRequired: true }]);
   expect(displayMessageText(body.text)).toBe('Идея:\nСоздай чашку на Nano Banana 2 Lite');

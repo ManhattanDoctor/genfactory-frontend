@@ -5,13 +5,31 @@ import { studioSystem } from './studioPrompt';
 import { assertAllowedProvider } from '../../lib/modelPolicy';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { useMutation, useIsMutating, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useIsMutating,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
-import type { IConversation, IModelDescription, IMessageCreate, IToolConnection } from '../../lib/types';
+import type {
+  IConversation,
+  IConversationMessage,
+  IPagination,
+  IModelDescription,
+  IMessageCreate,
+  IToolConnection,
+} from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { videoModerationError } from '../../lib/errorMessages';
 
 export interface ContentConversation {
+  thread: {
+    page: number;
+    setPage: (page: number) => void;
+    messages: UseQueryResult<IPagination<IConversationMessage>, Error>;
+  };
   historyFiles: () => Promise<Array<StudioHistoryFile>>;
   id: number | undefined;
   conversation: IConversation | undefined;
@@ -71,6 +89,13 @@ export function useContentConversation(): ContentConversation {
     retry: false,
     queryFn: ({ signal }) => api.conversation(id!, signal),
   });
+  const [pagination, setPagination] = useState({ scope: active, page: 0 });
+  const page = pagination.scope === active ? pagination.page : 0;
+  const messages = useQuery({
+    queryKey: ['messages', auth.user?.id, id, page],
+    enabled: !!auth.user && !!id,
+    queryFn: ({ signal }) => api.messages(id!, page, signal),
+  });
   const agents = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user,
@@ -88,7 +113,7 @@ export function useContentConversation(): ContentConversation {
         setError(
           failure.message === videoModerationError
             ? failure.message
-            : `${failure.message} Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
+            : `${failure.message} Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен.`,
           true,
         );
       if (!auth.user) return;
@@ -182,7 +207,7 @@ export function useContentConversation(): ContentConversation {
       if (current()) {
         const message = e instanceof Error ? e.message : 'Запрос не выполнен.';
         setError(
-          `${message}${sent && message !== videoModerationError ? ' Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.' : ''}`,
+          `${message}${sent && message !== videoModerationError ? ' Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен.' : ''}`,
           sent,
         );
       }
@@ -199,6 +224,7 @@ export function useContentConversation(): ContentConversation {
     return cachedStudioHistoryFiles(client, conversation, sid);
   }
   return {
+    thread: { page, setPage: (page) => setPagination({ scope: active, page }), messages },
     historyFiles,
     scope: active,
     id,

@@ -1,3 +1,6 @@
+import { ComposerTemplatePanel } from './ComposerTemplatePanel';
+import { RequiredPhotoSlots } from '../../components/RequiredPhotoSlots';
+import { MediaModelPicker } from '../catalog/MediaModelPicker';
 import { fitTemplateDuration, resolveTemplateDuration } from './templateDuration';
 import { loadTemplate } from './templateCatalog';
 import { useTemplateSelection } from './useTemplateSelection';
@@ -13,7 +16,6 @@ import { useStudioQuestion } from './useStudioQuestion';
 import { buildStudioMessage } from './buildStudioMessage';
 import { fields, modes, SCRIPT_WRITER_ENABLED } from './studioConfig';
 import type { StudioMode, IAttachment, IReferenceDraft } from './studioTypes';
-import { StudioEmptyState } from './StudioEmptyState';
 import { StudioAttachments } from './StudioAttachments';
 import { uploadStudioAttachments } from './uploadStudioAttachments';
 import {
@@ -25,9 +27,17 @@ import {
 } from '../../lib/image-upload';
 import { scriptReferences } from './script';
 import '../catalog/model-favorites.css';
-import { TemplateEditor } from './TemplateEditor';
-import { templateVariables, templateTimingError, syncTemplateDuration } from './templateRecipe';
-import { useEffect, useRef, useState } from 'react';
+import { ComposerTemplateFields } from './ComposerTemplateFields';
+import { PromptTemplate } from './PromptTemplate';
+import {
+  prepareComposerTemplate,
+  rebaseComposerTemplate,
+  updateComposerField,
+  type ComposerTemplate,
+} from './templateComposer';
+import { templateTimingError, syncTemplateDuration } from './templateRecipe';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEventCallback } from '../../lib/useEventCallback';
 import { useLocation } from 'react-router-dom';
 import { api, getSession, type IUploadProgress } from '../../lib/api';
 import type { IGnosisFile, IFileGeneration, IConversationMessage, IPagination } from '../../lib/types';
@@ -50,7 +60,8 @@ import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { defaultAssistant } from '../catalog/defaultAssistant';
-import { modelKey, modelTitle, modelSummary } from '../catalog/presentation';
+import { isAllowedProvider } from '../../lib/modelPolicy';
+import { modelKey, modelTitle } from '../catalog/presentation';
 import templates from './templates.json';
 import './prototype.css';
 import './content-studio.css';
@@ -69,6 +80,7 @@ export function ContentStudio(): ReactElement {
   const queryClient = useQueryClient();
   const submittedDraft = useRef<ISubmittedDraft | undefined>(undefined);
 
+  const [awaitingAcceptance, setAwaitingAcceptance] = useState<object>();
   const [preparingFrame, setPreparingFrame] = useState(false);
   const frameEpoch = useRef(0);
   const [uploading, setUploading] = useState(false);
@@ -100,18 +112,19 @@ export function ContentStudio(): ReactElement {
     }
   });
   const favorites = user ? prefs.value.favoriteTemplates : guestFavorites;
-  const toggleFavorite = (id: string) => {
+  const toggleFavorite = useEventCallback((id: string) => {
     const next = favorites.includes(id) ? favorites.filter((value) => value !== id) : [...favorites, id];
     if (user) prefs.update((current) => ({ ...current, favoriteTemplates: next }));
     else {
       setGuestFavorites(next);
       localStorage.setItem('genfactory.content-template-favorites.guest', JSON.stringify(next));
     }
-  };
-  const [mode, setMode] = useState<StudioMode>('video');
+  });
+  const [mode, setMode] = useState<StudioMode>('image');
   const [panel, setPanel] = useState('templates');
   const [selectedModel, setSelectedModel] = useState('Auto');
   const catalog = useStudioCatalog(mode, user?.id);
+  const [galleryHidden, setGalleryHidden] = useState(false);
   const [width, setWidth] = useState(() => {
     const saved = localStorage.getItem('genfactory.content-gallery-width');
     return ['s', 'm', 'l'].includes(saved || '') ? saved! : 'm';
@@ -123,21 +136,18 @@ export function ContentStudio(): ReactElement {
   const [brand, setBrand] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({
     ...Object.fromEntries(fields.map((f) => [f.id, f.options[0]])),
-    quality: '720p',
+    quality: '',
   });
   const [ratios, setRatios] = useState<Record<StudioMode, string>>({
-    image: '1:1',
-    video: '9:16',
+    image: '',
+    video: '',
     presentation: '16:9',
   });
   const ratio = ratios[mode];
   const setRatio = (value: string) => setRatios((current) => ({ ...current, [mode]: value }));
   const [imageQuality, setImageQuality] = useState('');
-  const [duration, setDuration] = useState(8);
-  useEffect(() => {
-    if (mode === 'video') setDraft((value) => syncTemplateDuration(value, duration));
-  }, [mode, duration]);
-  const [sound, setSound] = useState('Без звука');
+  const [durationOverride, setDuration] = useState(0);
+  const [sound, setSound] = useState('');
   const [shape, setShape] = useState('Один кадр');
   const [picked, setPicked] = useState<ITemplateCard[]>([]);
   const [attachments, setAttachments] = useState<IAttachment[]>([]);
@@ -154,16 +164,42 @@ export function ContentStudio(): ReactElement {
   const [frameMenu, setFrameMenu] = useState<'start' | 'end'>();
   const [library, setLibrary] = useState<{ scope: string; slot?: 'start' | 'end' }>();
   const [appliedTemplate, setAppliedTemplate] = useState('');
-  const [templateImageRequirement, setTemplateImageRequirement] = useState({ scope: '', min: 0 });
-  useEffect(() => {
-    if (!draft.trim()) setTemplateImageRequirement({ scope: '', min: 0 });
-  }, [draft]);
+  const [templateId, setTemplateId] = useState('');
+  const [composerTemplate, setComposerTemplate] = useState<ComposerTemplate>();
+  const currentTemplate = useMemo(
+    () => (templates as ITemplateCard[]).find((item) => item.id === templateId && item.kind === mode),
+    [mode, templateId],
+  );
+  const templateRecipe = useMemo(
+    () => new PromptTemplate(composerTemplate?.slots.map((slot) => slot.expression).join(' ') || ''),
+    [composerTemplate?.slots],
+  );
+  function clearTemplateFields(): void {
+    setComposerTemplate(undefined);
+    setTemplateId('');
+    setAppliedTemplate('');
+  }
   const [templateStartsFresh, setTemplateStartsFresh] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<ITemplate>();
   const [templateGlowActive, setTemplateGlowActive] = useState(false);
   const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
-  const applyTemplateText = async (item: ITemplate, prompt: string): Promise<void> => {
+  function resetComposerTemplate(): void {
+    const referenceId = templateVideoReference?.fileId;
+    if (referenceId) {
+      setAttachments((files) => files.filter((file) => (file.saved?.id ?? file.restoreId) !== referenceId));
+    }
+    clearTemplateFields();
+    setTemplateVideoReference(undefined);
+    setTemplateStartsFresh(false);
+    setTemplateGlowActive(false);
+    setDraft('');
+    work.setError('');
+    studioDraft.changed();
+    textarea.current?.focus();
+  }
+  const applyTemplateText = (item: ITemplate): void => {
+    const prepared = prepareComposerTemplate(item.prompt, (item.references?.min ?? 0) > 0);
+    const prompt = prepared.text;
     if (busy) return;
     if (item.referenceVideoSrc && attachments.some((attachment) => attachment.slot)) {
       work.setError('Для видеореференса шаблона уберите опорные кадры из основной формы.');
@@ -199,22 +235,57 @@ export function ContentStudio(): ReactElement {
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
     setAppliedTemplate(item.title);
-    setTemplateImageRequirement({
-      scope: draftScope,
-      min: Math.max(1, (item.references?.min ?? 0) - (item.referenceVideoSrc ? 1 : 0)),
-    });
-
+    setTemplateId(item.id);
+    setComposerTemplate(prepared.slots.length ? prepared : undefined);
     setTemplateStartsFresh(true);
     setDraft(prompt);
     setPicked([]);
     setWriter(false);
     setRestoredGeneration(undefined);
     setFrameSlot(undefined);
-    setEditingTemplate(undefined);
     work.setError('');
     requestAnimationFrame(() => textarea.current?.focus());
   };
+  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 720px)').matches);
+  const sheet = useRef<HTMLDialogElement>(null);
+  const studio = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const element = studio.current;
+    if (!mobile || !viewport || !element) return;
+    const fit = () => {
+      const covered = Math.max(
+        0,
+        element.getBoundingClientRect().bottom - viewport.offsetTop - viewport.height,
+      );
+      element.style.setProperty('--studio-keyboard-inset', `${covered}px`);
+      element.style.setProperty('--studio-visible-height', `${viewport.height}px`);
+    };
+    fit();
+    viewport.addEventListener('resize', fit);
+    viewport.addEventListener('scroll', fit);
+    return () => {
+      viewport.removeEventListener('resize', fit);
+      viewport.removeEventListener('scroll', fit);
+      element.style.removeProperty('--studio-keyboard-inset');
+      element.style.removeProperty('--studio-visible-height');
+    };
+  }, [mobile]);
   const [mobileGallery, setMobileGallery] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 720px)');
+    const change = () => {
+      setMobile(query.matches);
+      if (!query.matches) setMobileGallery(false);
+    };
+    query.addEventListener('change', change);
+    return () => query.removeEventListener('change', change);
+  }, []);
+  useEffect(() => {
+    if (mobileGallery) sheet.current?.showModal();
+    else sheet.current?.close();
+  }, [mobileGallery]);
+
   const input = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const focusRestoredDraft = useRef(false);
@@ -230,72 +301,21 @@ export function ContentStudio(): ReactElement {
       textarea.current.style.height = '72px';
     }
   }, [draft]);
-  const current = (templates as ITemplateCard[]).filter((t) => t.kind === mode);
-  const genres = [...new Set(current.map((t) => t.genre).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, 'ru'),
+  const current = useMemo(() => (templates as ITemplateCard[]).filter((t) => t.kind === mode), [mode]);
+  const genres = useMemo(
+    () => [...new Set(current.map((t) => t.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru')),
+    [current],
   );
-  const visible = current
-    .filter((t) => (!genre || t.genre === genre) && (!favoritesOnly || favorites.includes(t.id)))
-    .sort(
-      (a, b) =>
-        (b.addedAt || '').localeCompare(a.addedAt || '') ||
-        Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)),
-    );
-  const prepareTemplate = useTemplateSelection([work.scope, mode, session, draft, duration, selectedModel]);
-  const pick = async (item: ITemplateCard): Promise<void> => {
-    if (busy) return;
-    setMobileGallery(false);
-    if (frameSlot) {
-      const slot = frameSlot;
-      const epoch = ++frameEpoch.current;
-      setPreparingFrame(true);
-      work.setError('');
-      try {
-        const file = await templateFrame(item, slot);
-        if (!alive.current || frameEpoch.current !== epoch) return;
-        const url = URL.createObjectURL(file);
-        urls.current.add(url);
-        setAttachments((previous) => [
-          ...previous.filter((attachment) => attachment.slot !== slot),
-          {
-            id: crypto.randomUUID(),
-            name: `${slot === 'start' ? 'Первый' : 'Последний'} кадр — ${item.title}`,
-            url,
-            type: file.type,
-            slot,
-            file,
-          },
-        ]);
-        setFrameSlot(undefined);
-        textarea.current?.focus();
-      } catch (error) {
-        if (alive.current && frameEpoch.current === epoch)
-          work.setError(error instanceof Error ? error.message : 'Не удалось подготовить кадр.');
-      } finally {
-        if (alive.current) setPreparingFrame(false);
-      }
-    } else {
-      try {
-        const loaded = await prepareTemplate(item);
-        if (!loaded) return;
-        const target = loaded.model
-          ? catalog.data?.find((candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }))
-          : model;
-        const full = fitTemplateDuration(loaded, duration, target);
-        let needsEditor = full.kind === 'presentation';
-        try {
-          needsEditor ||= templateVariables(full.prompt).length > 0;
-        } catch {
-          needsEditor = true;
-        }
-        if (needsEditor) setEditingTemplate(full);
-        else await applyTemplateText(full, full.prompt);
-      } catch (error) {
-        work.setError(error instanceof Error ? error.message : 'Не удалось загрузить шаблон.');
-        return;
-      }
-    }
-  };
+  const visible = useMemo(() => {
+    const favoriteIds = new Set(favorites);
+    return current
+      .filter((t) => (!genre || t.genre === genre) && (!favoritesOnly || favoriteIds.has(t.id)))
+      .sort(
+        (a, b) =>
+          (b.addedAt || '').localeCompare(a.addedAt || '') ||
+          Number(favoriteIds.has(b.id)) - Number(favoriteIds.has(a.id)),
+      );
+  }, [current, genre, favoritesOnly, favorites]);
   const controls = useStudioModels({
     catalog,
     mode,
@@ -318,46 +338,174 @@ export function ContentStudio(): ReactElement {
     qualityOptions,
     effectiveQuality,
     durations,
-    audioValues,
     soundOptions,
     effectiveSound,
   } = controls;
+  const duration = durationOverride || controls.defaults.duration;
+  useEffect(() => {
+    if (mode === 'video') setDraft((value) => syncTemplateDuration(value, duration));
+  }, [mode, duration]);
+  const prepareTemplate = useTemplateSelection([work.scope, mode, session, draft, duration, selectedModel]);
+  const pick = useEventCallback(async (item: ITemplateCard): Promise<void> => {
+    if (busy) return;
+    if (!user || !session) {
+      void signIn();
+      return;
+    }
+    setMobileGallery(false);
+    if (frameSlot) {
+      const slot = frameSlot;
+      const epoch = ++frameEpoch.current;
+      setPreparingFrame(true);
+      work.setError('');
+      try {
+        const file = await templateFrame(item, slot);
+        if (!alive.current || frameEpoch.current !== epoch) return;
+        const url = URL.createObjectURL(file);
+        urls.current.add(url);
+        setAttachments((previous) => [
+          ...previous.filter((attachment) => attachment.slot !== slot),
+          {
+            id: crypto.randomUUID(),
+            name: `${slot === 'start' ? 'Первый' : 'Последний'} кадр - ${item.title}`,
+            url,
+            type: file.type,
+            slot,
+            file,
+          },
+        ]);
+        setFrameSlot(undefined);
+        textarea.current?.focus();
+      } catch (error) {
+        if (alive.current && frameEpoch.current === epoch)
+          work.setError(error instanceof Error ? error.message : 'Не удалось подготовить кадр.');
+      } finally {
+        if (alive.current) setPreparingFrame(false);
+      }
+    } else {
+      try {
+        const loaded = await prepareTemplate(item);
+        if (!loaded) return;
+        const target = loaded.model
+          ? catalog.data?.find((candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }))
+          : model;
+        const full = fitTemplateDuration(loaded, duration, target);
+        applyTemplateText(full);
+      } catch (error) {
+        work.setError(error instanceof Error ? error.message : 'Не удалось загрузить шаблон.');
+        return;
+      }
+    }
+  });
+  const visibleFields = fields.filter(
+    (field) =>
+      mode !== 'presentation' &&
+      (mode === 'video' || !['camera', 'move'].includes(field.id)) &&
+      (field.id !== 'quality' || qualityOptions.length > 0),
+  );
+  const settingsChanged =
+    writer !== SCRIPT_WRITER_ENABLED ||
+    visibleFields.some((field) =>
+      field.id === 'quality'
+        ? effectiveQuality !== controls.defaults.quality
+        : settings[field.id] !== field.options[0],
+    ) ||
+    (mode !== 'presentation' &&
+      !referenceRatio &&
+      ratioOptions.length > 0 &&
+      effectiveRatio !== controls.defaults.ratio) ||
+    (mode === 'video' &&
+      (((!model || !!modelProperties.duration) && duration !== controls.defaults.duration) ||
+        (soundOptions.length > 0 && effectiveSound !== controls.defaults.sound) ||
+        shape !== 'Один кадр' ||
+        attachments.some((file) => file.slot)));
+  function resetSettings(): void {
+    setWriter(SCRIPT_WRITER_ENABLED);
+    setSettings((current) => ({
+      ...current,
+      ...Object.fromEntries(
+        visibleFields.filter((field) => field.id !== 'quality').map((field) => [field.id, field.options[0]]),
+      ),
+      ...(mode === 'video' ? { quality: '' } : {}),
+    }));
+    setRatio('');
+    if (mode === 'image') setImageQuality('');
+    if (mode === 'video') {
+      setDuration(0);
+      setSound('');
+      setShape('Один кадр');
+      setAttachments((current) => current.filter((file) => !file.slot));
+      setFrameMenu(undefined);
+      setFrameSlot(undefined);
+    }
+    setRestoredGeneration(undefined);
+  }
   const pageReload = useRef(
     (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type ===
       'reload',
   );
-  const studioValue = {
-    entryKey: location.key,
-    mode,
-    selectedModel,
-    writer,
-    brand,
-    settings,
-    ratios,
-    imageQuality,
-    duration,
-    sound,
-    shape,
-    restoredGeneration,
-    appliedTemplate,
-    templateStartsFresh,
-    templateVideoReference,
-    templateIds: picked.map((item) => item.id),
-    draft,
-    references: attachments.map((item): IReferenceDraft => ({
-      id: item.saved?.id ?? item.restoreId,
-      userId: item.saved?.userId ?? user?.id,
-      name: item.name,
-      slot: item.slot,
-    })),
-  };
+  const studioValue = useMemo(
+    () => ({
+      entryKey: location.key,
+      mode,
+      selectedModel,
+      writer,
+      brand,
+      settings,
+      ratios,
+      imageQuality,
+      duration: durationOverride,
+      sound,
+      shape,
+      restoredGeneration,
+      appliedTemplate,
+      templateId,
+      composerTemplate,
+      templateStartsFresh,
+      templateVideoReference,
+      templateIds: picked.map((item) => item.id),
+      draft,
+      references: attachments.map((item): IReferenceDraft => ({
+        id: item.saved?.id ?? item.restoreId,
+        userId: item.saved?.userId ?? user?.id,
+        name: item.name,
+        slot: item.slot,
+      })),
+    }),
+    [
+      location.key,
+      mode,
+      selectedModel,
+      writer,
+      brand,
+      settings,
+      ratios,
+      imageQuality,
+      durationOverride,
+      sound,
+      shape,
+      restoredGeneration,
+      appliedTemplate,
+      templateId,
+      composerTemplate,
+      templateStartsFresh,
+      templateVideoReference,
+      picked,
+      draft,
+      attachments,
+      user?.id,
+    ],
+  );
   const initialStudioValue = useRef({ ...studioValue, draft: '' });
   const studioDraft = useDraft(`content-studio.${work.id ?? 'new'}`, studioValue, true);
   const draftScope = `${user?.id ?? 'guest'}:${work.id ?? `new:${location.key}`}`;
-  const needsTemplateImages =
-    templateImageRequirement.scope === draftScope &&
-    !!draft.trim() &&
-    attachments.filter((item) => item.type.startsWith('image/')).length < templateImageRequirement.min;
+  const requiredPhotos = Math.max(0, (currentTemplate?.references?.min ?? 0) - (publicReference ? 1 : 0));
+  const photoCount = attachments.filter(
+    (file) => !file.isUnavailable && file.type.startsWith('image/'),
+  ).length;
+  const needsTemplateImages = photoCount < requiredPhotos;
+  const missingFields =
+    !!currentTemplate && templateRecipe.variables.some((key) => !composerTemplate?.values[key]?.trim());
   useEffect(() => {
     const pending = submittedDraft.current;
     if (pending && (pending.session !== session || pending.conversationId !== work.id))
@@ -389,8 +537,7 @@ export function ContentStudio(): ReactElement {
       setDraft('');
       setRestoringReferences(undefined);
       setLibrary(undefined);
-      setEditingTemplate(undefined);
-      setAppliedTemplate('');
+      clearTemplateFields();
       setTemplateStartsFresh(false);
       setRestoredGeneration(undefined);
       setFrameSlot(undefined);
@@ -424,11 +571,21 @@ export function ContentStudio(): ReactElement {
         }));
       if (typeof saved.imageQuality === 'string') setImageQuality(saved.imageQuality);
       if (typeof saved.duration === 'number' && Number.isFinite(saved.duration)) setDuration(saved.duration);
-      if (['Без звука', 'Со звуком'].includes(saved.sound)) setSound(saved.sound);
+      if (['', 'Без звука', 'Со звуком'].includes(saved.sound)) setSound(saved.sound);
       if (['Один кадр', 'Набор сцен'].includes(saved.shape)) setShape(saved.shape);
       setAppliedTemplate(
         !removedPresentation && typeof saved.appliedTemplate === 'string' ? saved.appliedTemplate : '',
       );
+      setTemplateId(
+        removedPresentation
+          ? ''
+          : (saved.templateId ??
+              (templates as ITemplateCard[]).find(
+                (item) => item.kind === saved.mode && item.title === saved.appliedTemplate,
+              )?.id ??
+              ''),
+      );
+      setComposerTemplate(removedPresentation ? undefined : saved.composerTemplate);
       setTemplateStartsFresh(!removedPresentation && saved.templateStartsFresh === true);
       setTemplateVideoReference(saved.templateVideoReference);
       if (Array.isArray(saved.templateIds))
@@ -510,7 +667,7 @@ export function ContentStudio(): ReactElement {
       cancelled = true;
     };
   }, [restoringReferences, draftScope, session, user?.id]);
-  const studioSerialized = JSON.stringify(studioValue);
+  const studioSerialized = studioDraft.serialized;
   useEffect(() => {
     if (!restoringReferences && readyScope === draftScope && (!work.id || restored.current === work.id))
       studioDraft.changed();
@@ -649,6 +806,12 @@ export function ContentStudio(): ReactElement {
         );
       const target = file.type === 'IMAGE' ? 'image' : file.type === 'VIDEO' ? 'video' : undefined;
       if (!target) throw new Error('Восстановление этого типа результата пока не поддерживается.');
+      if (!isAllowedProvider(generation.model.provider)) {
+        const title = modelTitle({ reference: generation.model, name: generation.model.model });
+        throw new Error(
+          `Для результата использовалась модель ${title}. В Студии доступны модели OpenRouter. Чтобы перенести текст, нажмите «Повторить запрос».`,
+        );
+      }
       const available = await api.catalog(generation.model.provider);
       const selected = available.find(
         (item) =>
@@ -705,6 +868,7 @@ export function ContentStudio(): ReactElement {
         typeof options.duration === 'number' ? options.duration : initialStudioValue.current.duration,
       );
       setSound(options.generateAudio === true ? 'Со звуком' : 'Без звука');
+      clearTemplateFields();
       setDraft(generation.prompt);
       setRestoredGeneration(generation);
       setTemplateVideoReference(publicInput);
@@ -758,6 +922,7 @@ export function ContentStudio(): ReactElement {
         }
       }
       if (!current()) return;
+      clearTemplateFields();
       setDraft(text);
       setWriter(false);
       setAttachments((previous) =>
@@ -790,9 +955,14 @@ export function ContentStudio(): ReactElement {
       return;
     }
     if (busy || submitting.current === work.scope) return;
+    if (missingFields || needsTemplateImages) {
+      work.setError(missingFields ? 'Заполните параметры шаблона.' : 'Добавьте недостающие фото.');
+      return;
+    }
     if (!draft.trim() && !picked.length && !attachments.length) return;
     const submissionScope = work.scope;
     submitting.current = submissionScope;
+    setAwaitingAcceptance(submissionScope);
     work.setError('');
     const sid = session;
     const current = () =>
@@ -820,7 +990,7 @@ export function ContentStudio(): ReactElement {
             sourceAttachments.length + (publicReference ? 1 : 0) > referenceLimit(model))
         )
           throw new Error('Модель не поддерживает выбранное количество референсов.');
-        if (ratioOptions.length && !ratioOptions.includes(ratio))
+        if (ratioOptions.length && !ratioOptions.includes(effectiveRatio))
           throw new Error('Выберите формат из доступных для этой модели.');
         if (qualityOptions.length && !qualityOptions.includes(effectiveQuality))
           throw new Error('Выберите качество из доступных для этой модели.');
@@ -915,6 +1085,7 @@ export function ContentStudio(): ReactElement {
           ...cached.flatMap(([, page]) => page?.items.map((message) => message.id) || []),
         ),
         clear: () => {
+          setAwaitingAcceptance(undefined);
           setTemplateStartsFresh(false);
           setTemplateVideoReference(undefined);
           if (!work.id) studioDraft.clear();
@@ -928,7 +1099,7 @@ export function ContentStudio(): ReactElement {
             ),
           );
           setPicked((previous) => previous.filter((item) => !picked.some((source) => source.id === item.id)));
-          setAppliedTemplate('');
+          clearTemplateFields();
           setRestoredGeneration(undefined);
         },
       };
@@ -950,7 +1121,10 @@ export function ContentStudio(): ReactElement {
     } catch (e) {
       if (current()) work.setError(e instanceof Error ? e.message : 'Не удалось отправить задачу.');
     } finally {
-      if (submitting.current === submissionScope) submitting.current = undefined;
+      if (submitting.current === submissionScope) {
+        submitting.current = undefined;
+        setAwaitingAcceptance(undefined);
+      }
       if (current()) {
         setUploading(false);
         setUploadProgress(undefined);
@@ -959,16 +1133,239 @@ export function ContentStudio(): ReactElement {
   }
   const answerQuestion = useStudioQuestion({ work, busy, session, agent, alive });
 
+  const generationControls = (
+    <>
+      {mode === 'video' && (
+        <>
+          {(!model || modelProperties.duration) && (
+            <div className="cw-stepper" role="group" aria-label="Длительность видео" aria-disabled={busy}>
+              <button
+                type="button"
+                aria-label="Короче"
+                disabled={busy || !durations.some((value) => value < duration)}
+                onClick={() =>
+                  setDuration(
+                    [...durations].sort((a, b) => b - a).find((value) => value < duration) ?? duration,
+                  )
+                }
+              >
+                -
+              </button>
+              <span>{duration} с</span>
+              <button
+                type="button"
+                aria-label="Длиннее"
+                disabled={busy || !durations.some((value) => value > duration)}
+                onClick={() =>
+                  setDuration(
+                    [...durations].sort((a, b) => a - b).find((value) => value > duration) ?? duration,
+                  )
+                }
+              >
+                +
+              </button>
+            </div>
+          )}
+          {soundOptions.length > 0 && (
+            <StudioMenu disabled={busy} label={effectiveSound} options={soundOptions} onSelect={setSound} />
+          )}
+          <StudioMenu
+            disabled={busy}
+            label={shape}
+            options={['Один кадр', 'Набор сцен']}
+            onSelect={setShape}
+          />
+        </>
+      )}
+      {mode !== 'presentation' && ratioOptions.length > 0 && (
+        <StudioMenu
+          disabled={busy || referenceRatio}
+          label={referenceRatio ? 'По исходному кадру' : effectiveRatio}
+          ariaLabel={`Стороны: ${referenceRatio ? 'по исходному кадру' : effectiveRatio}`}
+          options={ratioOptions}
+          onSelect={setRatio}
+        />
+      )}
+    </>
+  );
+  const gallery = (
+    <aside id="studio-gallery" className="cw-gallery" aria-label="Галерея шаблонов" data-gallery-view={panel}>
+      <div className="cw-gallery-head">
+        <button
+          type="button"
+          className="mobile-gallery-close icon-button"
+          aria-label="Закрыть шаблоны и настройки"
+          onClick={() => setMobileGallery(false)}
+        >
+          <X size={20} aria-hidden="true" />
+        </button>
+        <div className="cw-gallery-tabs ds-tabs" role="tablist" aria-label="Шаблоны или настройки">
+          {['templates', 'settings'].map((key, index) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={panel === key}
+              aria-label={key === 'settings' && settingsChanged ? 'Настройки, есть изменения' : undefined}
+              title={key === 'settings' && settingsChanged ? 'Есть изменения' : undefined}
+              onClick={() => setPanel(key)}
+            >
+              {index ? 'Настройки' : 'Шаблоны'}
+              {key === 'settings' && settingsChanged && (
+                <span className="settings-change-dot" aria-hidden="true" />
+              )}
+            </button>
+          ))}
+          <i
+            className="cw-tab-rail"
+            aria-hidden="true"
+            style={{ width: '50%', transform: `translateX(${panel === 'settings' ? '100%' : '0'})` }}
+          />
+        </div>
+        <button
+          type="button"
+          className="cw-width"
+          data-size={width}
+          aria-label={`Ширина галереи: ${{ s: 'узкая', m: 'средняя', l: 'широкая' }[width]}`}
+          onClick={() => {
+            const next = ['s', 'm', 'l'][(['s', 'm', 'l'].indexOf(width) + 1) % 3];
+            setWidth(next);
+            localStorage.setItem('genfactory.content-gallery-width', next);
+          }}
+        >
+          <i />
+          <i />
+          <i />
+        </button>
+      </div>
+      <div className="cw-gallery-body">
+        {panel === 'templates' ? (
+          <StudioTemplateGallery
+            genre={genre}
+            setGenre={setGenre}
+            favoritesOnly={favoritesOnly}
+            setFavoritesOnly={setFavoritesOnly}
+            favorites={favorites}
+            toggleFavorite={toggleFavorite}
+            genres={genres}
+            visible={visible}
+            busy={busy}
+            pick={pick}
+          />
+        ) : (
+          <div className="cw-settings-pane">
+            {mobile && <div className="mobile-generation-controls">{generationControls}</div>}
+            {settingsChanged && (
+              <button className="button" type="button" disabled={busy} onClick={resetSettings}>
+                Сбросить к умолчанию
+              </button>
+            )}
+            {SCRIPT_WRITER_ENABLED && (
+              <div className="cw-extra-toggles">
+                <Toggle
+                  label="Сценарист"
+                  description="Включён - обсуждаем сценарий. Выключен - создаём результат."
+                  value={writer}
+                  onChange={setWriter}
+                />
+              </div>
+            )}
+            {mode === 'presentation' ? (
+              <p className="cw-settings-empty">Для презентации дополнительных настроек съёмки нет.</p>
+            ) : (
+              <div className="cw-shoot">
+                {mode === 'video' &&
+                  (['start', 'end'] as const).map((slot) => (
+                    <div className="cw-shoot-line" key={slot}>
+                      <button
+                        className="cw-shoot-row"
+                        title={
+                          attachments.some((file) => !file.slot)
+                            ? 'Уберите обычные референсы перед выбором опорных кадров.'
+                            : undefined
+                        }
+                        disabled={
+                          busy ||
+                          attachments.some((file) => !file.slot) ||
+                          (!writer && !!model && referenceLimit(model) < (slot === 'end' ? 2 : 1))
+                        }
+                        type="button"
+                        onClick={() => setFrameMenu(frameMenu === slot ? undefined : slot)}
+                      >
+                        <span>{slot === 'start' ? 'Начальный кадр' : 'Конечный кадр'}</span>
+                        <b>{attachments.find((f) => f.slot === slot)?.name || 'Не задан'}</b>
+                      </button>
+                      {frameMenu === slot && (
+                        <div className="content-frame-menu">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFrameSlot(slot);
+                              setFrameMenu(undefined);
+                              input.current?.click();
+                            }}
+                          >
+                            Загрузить
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFrameSlot(slot);
+                              setFrameMenu(undefined);
+                              setPanel('templates');
+                            }}
+                          >
+                            Выбрать шаблон
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFrameMenu(undefined);
+                              setFrameSlot(undefined);
+                              if (!user) void signIn();
+                              else setLibrary({ scope: draftScope, slot });
+                            }}
+                          >
+                            Из библиотеки
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                {visibleFields.map((f) => (
+                  <StudioMenu
+                    disabled={busy}
+                    key={f.id}
+                    fieldId={f.id}
+                    showPreviews={mode === 'video'}
+                    label={f.label}
+                    value={f.id === 'quality' ? effectiveQuality : settings[f.id]}
+                    className="cw-shoot-row"
+                    options={f.id === 'quality' ? qualityOptions : f.options}
+                    onSelect={(value) => {
+                      if (f.id === 'quality' && mode === 'image') setImageQuality(value);
+                      else setSettings((s) => ({ ...s, [f.id]: value }));
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+
   return (
-    <div className={`content-studio ${mobileGallery ? 'mobile-gallery-open' : ''}`}>
+    <div ref={studio} className={`content-studio ${mobileGallery ? 'mobile-gallery-open' : ''}`}>
       <div id="creatives" className="panel ms-dots">
-        <div className="cw" id="creative-workspace" data-gallery={width}>
+        <div className="cw" id="creative-workspace" data-gallery={width} data-gallery-hidden={galleryHidden}>
           <section className="cw-chat" aria-label="Чат проекта">
-            <StudioEmptyState />
             <div className="cw-stage">
               <div className="cw-thread">
                 {work.conversation && (
                   <ContentThread
+                    thread={work.thread}
                     key={work.conversation.id}
                     conversation={work.conversation}
                     busy={busy}
@@ -989,6 +1386,8 @@ export function ContentStudio(): ReactElement {
                     onUseParameters={(file) => void restoreResult(file)}
                     onUseScript={(text, id) => void applyScript(text, id)}
                     onRepeat={(text) => {
+                      work.setError('');
+                      clearTemplateFields();
                       setDraft(text);
                       textarea.current?.focus();
                     }}
@@ -1013,40 +1412,6 @@ export function ContentStudio(): ReactElement {
               </div>
             </div>
             <div className="cw-composer-stack">
-              <div
-                className="cw-mode ds-segment is-ready"
-                id="cw-mode"
-                role="group"
-                aria-label="Вид генерации"
-              >
-                <span
-                  className="cw-mode-rail"
-                  aria-hidden="true"
-                  style={{
-                    width: 44,
-                    transform: `translate(${4 + modes.findIndex(([key]) => key === mode) * 44}px, 4px)`,
-                  }}
-                />
-                {modes.map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-label={label}
-                    aria-pressed={mode === key}
-                    disabled={busy}
-                    onClick={() => {
-                      frameEpoch.current++;
-                      setFrameSlot(undefined);
-                      setMode(key);
-                      setSelectedModel('Auto');
-                      setGenre('');
-                      setFrameMenu(undefined);
-                    }}
-                  >
-                    <Icon name={key} />
-                  </button>
-                ))}
-              </div>
               <form
                 className="cw-compose studio-compose"
                 id="cw-compose"
@@ -1055,7 +1420,73 @@ export function ContentStudio(): ReactElement {
                   void submit();
                 }}
               >
+                <div
+                  className="studio-mode-selector ds-segment"
+                  id="cw-mode"
+                  role="group"
+                  aria-label="Вид генерации"
+                >
+                  {modes.map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-label={label}
+                      aria-pressed={mode === key}
+                      disabled={busy}
+                      onClick={() => {
+                        frameEpoch.current++;
+                        setFrameSlot(undefined);
+                        if (key !== mode) {
+                          clearTemplateFields();
+                          setTemplateVideoReference(undefined);
+                        }
+                        setMode(key);
+                        setSelectedModel('Auto');
+                        setGenre('');
+                        setFrameMenu(undefined);
+                      }}
+                    >
+                      <Icon name={key} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <div className="cw-field">
+                  {currentTemplate && (
+                    <ComposerTemplatePanel
+                      title={currentTemplate.title}
+                      disabled={busy}
+                      onReset={resetComposerTemplate}
+                    >
+                      {composerTemplate && templateRecipe.variables.length > 0 && (
+                        <ComposerTemplateFields
+                          key={currentTemplate.id}
+                          disabled={busy}
+                          recipe={templateRecipe}
+                          values={composerTemplate.values}
+                          onChange={(key, value) => {
+                            const next = updateComposerField(
+                              rebaseComposerTemplate(composerTemplate, draft),
+                              key,
+                              value,
+                            );
+                            setComposerTemplate(next);
+                            setDraft(next.text);
+                            work.setError('');
+                          }}
+                        />
+                      )}
+                      <RequiredPhotoSlots
+                        count={requiredPhotos}
+                        filled={photoCount}
+                        disabled={busy || attachments.some((file) => !!file.slot)}
+                        onAdd={() => {
+                          setFrameSlot(undefined);
+                          setLibrary({ scope: draftScope });
+                        }}
+                      />
+                    </ComposerTemplatePanel>
+                  )}
                   <StudioAttachments
                     publicReference={publicReference}
                     onRemovePublicReference={() => {
@@ -1089,21 +1520,31 @@ export function ContentStudio(): ReactElement {
                     </label>
                     <textarea
                       ref={textarea}
-                      disabled={busy}
+                      disabled={
+                        awaitingAcceptance === work.scope ||
+                        preparingFrame ||
+                        restoringResult ||
+                        readyScope !== draftScope
+                      }
                       id="cw-draft"
                       className="ds-field"
                       rows={3}
                       value={draft}
                       placeholder={
                         mode === 'video' && supportsVideoReferences(model)
-                          ? 'Опишите сюжет и движение. Можно добавить свои фото и видео — укажите, что использовать как образец, что изменить и что сохранить.'
-                          : 'Опишите идею и желаемый результат. Можно добавить свои изображения — объясните, как их использовать и какие детали сохранить.'
+                          ? 'Опишите сюжет и движение. Можно добавить свои фото и видео - укажите, что использовать как образец, что изменить и что сохранить.'
+                          : 'Опишите идею и желаемый результат. Можно добавить свои изображения - объясните, как их использовать и какие детали сохранить.'
                       }
                       onChange={(e) => {
-                        setDraft(e.target.value);
+                        const text = e.target.value;
+                        if (!text.trim()) {
+                          resetComposerTemplate();
+                        } else if (composerTemplate)
+                          setComposerTemplate(rebaseComposerTemplate(composerTemplate, text));
+                        setDraft(text);
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                        if (e.key === 'Enter' && !busy && !e.shiftKey && !e.nativeEvent.isComposing) {
                           e.preventDefault();
                           void submit();
                         }
@@ -1113,14 +1554,6 @@ export function ContentStudio(): ReactElement {
                 </div>
                 <div className="cw-tools">
                   <button
-                    type="button"
-                    className="mobile-gallery-toggle"
-                    aria-expanded={mobileGallery}
-                    onClick={() => setMobileGallery(!mobileGallery)}
-                  >
-                    Шаблоны и настройки
-                  </button>
-                  <button
                     className={`cw-plus ds-icon-button ${needsTemplateImages ? `needs-template-images${templateGlowActive ? ' template-glow-active' : ''}` : ''}`}
                     type="button"
                     aria-label="Добавить файл"
@@ -1129,7 +1562,7 @@ export function ContentStudio(): ReactElement {
                       attachments.some((file) => file.slot)
                         ? 'Меняйте опорные кадры в настройках или уберите их перед добавлением обычных референсов.'
                         : needsTemplateImages
-                          ? `Добавьте свои ${mode === 'video' && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${templateImageRequirement.min}`
+                          ? `Добавьте свои ${mode === 'video' && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${requiredPhotos}`
                           : 'Добавить файл'
                     }
                     onClick={() => {
@@ -1142,110 +1575,65 @@ export function ContentStudio(): ReactElement {
                       <Plus size={24} />
                     </UploadButtonContent>
                   </button>
-                  <StudioMenu
+                  <MediaModelPicker
                     key={mode}
+                    kind={mode}
+                    models={catalog.data || []}
+                    mobile={mobile}
+                    studio
                     disabled={busy}
                     label={model ? modelTitle(model) : 'Выбрать модель'}
-                    selection={model ? modelKey(model) : selectedModel}
-                    ariaLabel={`Модель: ${model ? modelTitle(model) : selectedModel}`}
-                    className="cw-model"
-                    modelIcon={mode}
-                    options={user ? (catalog.data || []).map(modelKey) : ['Сменить модель']}
-                    onSelect={(value) => {
-                      if (!user && value !== 'Auto') void signIn();
-                      else setSelectedModel(value);
-                    }}
-                    titles={user ? (catalog.data || []).map(modelTitle) : undefined}
-                    descriptions={
-                      user
-                        ? (catalog.data || []).map(modelSummary)
-                        : ['Модель раздела подбирается сама.', 'Нужен вход в аккаунт.']
-                    }
-                    searchTerms={
-                      user ? (catalog.data || []).map((item) => `${item.name} ${modelKey(item)}`) : undefined
-                    }
+                    selected={model ? modelKey(model) : selectedModel}
+                    name={`Модель: ${model ? modelTitle(model) : selectedModel}`}
+                    onSelect={setSelectedModel}
                     favorites={user ? prefs.value.favoriteModels : undefined}
-                    onFavorite={(key) =>
-                      prefs.update((current) => ({
-                        ...current,
-                        favoriteModels: toggleItem(current.favoriteModels, key),
-                      }))
+                    onFavorite={
+                      user
+                        ? (key) =>
+                            prefs.update((current) => ({
+                              ...current,
+                              favoriteModels: toggleItem(current.favoriteModels, key),
+                            }))
+                        : undefined
                     }
                     error={prefs.error}
                   />
-                  {mode === 'video' && (
-                    <>
-                      {(!model || modelProperties.duration) && (
-                        <div
-                          className="cw-stepper"
-                          role="group"
-                          aria-label="Длительность видео"
-                          aria-disabled={busy}
-                        >
-                          <button
-                            type="button"
-                            aria-label="Короче"
-                            disabled={busy || !durations.some((value) => value < duration)}
-                            onClick={() =>
-                              setDuration(
-                                [...durations].sort((a, b) => b - a).find((value) => value < duration) ??
-                                  duration,
-                              )
-                            }
-                          >
-                            -
-                          </button>
-                          <span>{duration} с</span>
-                          <button
-                            type="button"
-                            aria-label="Длиннее"
-                            disabled={busy || !durations.some((value) => value > duration)}
-                            onClick={() =>
-                              setDuration(
-                                [...durations].sort((a, b) => a - b).find((value) => value > duration) ??
-                                  duration,
-                              )
-                            }
-                          >
-                            +
-                          </button>
-                        </div>
-                      )}
-                      {soundOptions.length > 0 && (
-                        <StudioMenu
-                          disabled={busy}
-                          label={effectiveSound}
-                          options={soundOptions}
-                          onSelect={setSound}
-                        />
-                      )}
-                      <StudioMenu
-                        disabled={busy}
-                        label={shape}
-                        options={['Один кадр', 'Набор сцен']}
-                        onSelect={setShape}
-                      />
-                    </>
+                  {mobile && (
+                    <button
+                      type="button"
+                      className="mobile-gallery-toggle"
+                      aria-haspopup="dialog"
+                      aria-controls="studio-gallery"
+                      aria-expanded={mobileGallery}
+                      onClick={() => {
+                        setPanel('settings');
+                        setMobileGallery(true);
+                      }}
+                    >
+                      Ещё
+                    </button>
                   )}
-                  {mode !== 'presentation' && ratioOptions.length > 0 && (
-                    <StudioMenu
-                      disabled={busy || referenceRatio}
-                      label={referenceRatio ? 'По исходному кадру' : effectiveRatio}
-                      ariaLabel={`Стороны: ${referenceRatio ? 'по исходному кадру' : effectiveRatio}`}
-                      options={ratioOptions}
-                      onSelect={setRatio}
-                    />
-                  )}
+                  {!mobile && generationControls}
                   <button
                     className="cw-send"
                     type="submit"
                     aria-label="Отправить запрос"
                     aria-busy={busy}
-                    disabled={busy || (!draft.trim() && !picked.length && !attachments.length)}
+                    disabled={
+                      busy ||
+                      missingFields ||
+                      needsTemplateImages ||
+                      (!draft.trim() && !picked.length && !attachments.length)
+                    }
                   >
                     {busy ? <span className="spinner" aria-hidden="true" /> : <ArrowUp size={24} />}
                   </button>
                 </div>
+                {work.busy && awaitingAcceptance !== work.scope && (
+                  <p className="content-feedback" role="status">
+                    Можно набрать следующий запрос. Отправка станет доступна после завершения текущего.
+                  </p>
+                )}
                 {work.error && !(work.isExecutionError && work.conversation?.status === 'ERROR') && (
                   <p className="content-feedback error" role="alert">
                     {work.error}
@@ -1259,166 +1647,33 @@ export function ContentStudio(): ReactElement {
               </form>
             </div>
           </section>
-          <aside className="cw-gallery" aria-label="Галерея шаблонов" data-gallery-view={panel}>
-            <div className="cw-gallery-head">
-              <button
-                type="button"
-                className="mobile-gallery-close icon-button"
-                aria-label="Закрыть шаблоны и настройки"
-                onClick={() => setMobileGallery(false)}
-              >
-                <X size={20} aria-hidden="true" />
-              </button>
-              <div className="cw-gallery-tabs ds-tabs" role="tablist" aria-label="Шаблоны или настройки">
-                {['templates', 'settings'].map((key, index) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={panel === key}
-                    onClick={() => setPanel(key)}
-                  >
-                    {index ? 'Настройки' : 'Шаблоны'}
-                  </button>
-                ))}
-                <i
-                  className="cw-tab-rail"
-                  aria-hidden="true"
-                  style={{ width: '50%', transform: `translateX(${panel === 'settings' ? '100%' : '0'})` }}
-                />
-              </div>
-              <button
-                type="button"
-                className="cw-width"
-                data-size={width}
-                aria-label={`Ширина галереи: ${{ s: 'узкая', m: 'средняя', l: 'широкая' }[width]}`}
-                onClick={() => {
-                  const next = ['s', 'm', 'l'][(['s', 'm', 'l'].indexOf(width) + 1) % 3];
-                  setWidth(next);
-                  localStorage.setItem('genfactory.content-gallery-width', next);
-                }}
-              >
-                <i />
-                <i />
-                <i />
-              </button>
-            </div>
-            <div className="cw-gallery-body">
-              {panel === 'templates' ? (
-                <StudioTemplateGallery
-                  genre={genre}
-                  setGenre={setGenre}
-                  favoritesOnly={favoritesOnly}
-                  setFavoritesOnly={setFavoritesOnly}
-                  favorites={favorites}
-                  toggleFavorite={toggleFavorite}
-                  genres={genres}
-                  visible={visible}
-                  busy={busy}
-                  pick={pick}
-                />
-              ) : (
-                <div className="cw-settings-pane">
-                  {SCRIPT_WRITER_ENABLED && (
-                    <div className="cw-extra-toggles">
-                      <Toggle
-                        label="Сценарист"
-                        description="Включён — обсуждаем сценарий. Выключен — создаём результат."
-                        value={writer}
-                        onChange={setWriter}
-                      />
-                    </div>
-                  )}
-                  {mode === 'presentation' ? (
-                    <p className="cw-settings-empty">Для презентации дополнительных настроек съёмки нет.</p>
-                  ) : (
-                    <div className="cw-shoot">
-                      {mode === 'video' &&
-                        (['start', 'end'] as const).map((slot) => (
-                          <div className="cw-shoot-line" key={slot}>
-                            <button
-                              className="cw-shoot-row"
-                              title={
-                                attachments.some((file) => !file.slot)
-                                  ? 'Уберите обычные референсы перед выбором опорных кадров.'
-                                  : undefined
-                              }
-                              disabled={
-                                busy ||
-                                attachments.some((file) => !file.slot) ||
-                                (!writer && !!model && referenceLimit(model) < (slot === 'end' ? 2 : 1))
-                              }
-                              type="button"
-                              onClick={() => setFrameMenu(frameMenu === slot ? undefined : slot)}
-                            >
-                              <span>{slot === 'start' ? 'Начальный кадр' : 'Конечный кадр'}</span>
-                              <b>{attachments.find((f) => f.slot === slot)?.name || 'Не задан'}</b>
-                            </button>
-                            {frameMenu === slot && (
-                              <div className="content-frame-menu">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFrameSlot(slot);
-                                    setFrameMenu(undefined);
-                                    input.current?.click();
-                                  }}
-                                >
-                                  Загрузить
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFrameSlot(slot);
-                                    setFrameMenu(undefined);
-                                    setPanel('templates');
-                                  }}
-                                >
-                                  Выбрать шаблон
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFrameMenu(undefined);
-                                    setFrameSlot(undefined);
-                                    if (!user) void signIn();
-                                    else setLibrary({ scope: draftScope, slot });
-                                  }}
-                                >
-                                  Из библиотеки
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      {fields
-                        .filter(
-                          (f) =>
-                            (mode === 'video' || !['camera', 'move'].includes(f.id)) &&
-                            (f.id !== 'quality' || qualityOptions.length > 0),
-                        )
-                        .map((f) => (
-                          <StudioMenu
-                            disabled={busy}
-                            key={f.id}
-                            fieldId={f.id}
-                            showPreviews={mode === 'video'}
-                            label={f.label}
-                            value={f.id === 'quality' ? effectiveQuality : settings[f.id]}
-                            className="cw-shoot-row"
-                            options={f.id === 'quality' ? qualityOptions : f.options}
-                            onSelect={(value) => {
-                              if (f.id === 'quality' && mode === 'image') setImageQuality(value);
-                              else setSettings((s) => ({ ...s, [f.id]: value }));
-                            }}
-                          />
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </aside>
+          <button
+            type="button"
+            className="icon-button shell-collapse gallery-collapse"
+            aria-label={galleryHidden ? 'Показать галерею' : 'Скрыть галерею'}
+            title={galleryHidden ? 'Показать галерею' : 'Скрыть галерею'}
+            aria-expanded={!galleryHidden}
+            aria-controls="studio-gallery"
+            onClick={() => setGalleryHidden((hidden) => !hidden)}
+          >
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+          </button>
+          {mobile ? (
+            <dialog
+              ref={sheet}
+              className="studio-mobile-sheet"
+              aria-label="Шаблоны и настройки"
+              onClose={() => setMobileGallery(false)}
+              onClick={(event) => {
+                if (event.target === sheet.current) setMobileGallery(false);
+              }}
+            >
+              {gallery}
+            </dialog>
+          ) : (
+            gallery
+          )}
         </div>
       </div>
       <input
@@ -1525,31 +1780,6 @@ export function ContentStudio(): ReactElement {
           onPick={(file) => pickLibraryFiles([file])}
           onPickMany={pickLibraryFiles}
           onClose={() => setLibrary(undefined)}
-        />
-      )}
-      {editingTemplate && !busy && (
-        <TemplateEditor
-          key={`${draftScope}:${editingTemplate.id}`}
-          item={editingTemplate}
-          launchSettings={[
-            `Модель: ${model ? modelTitle(model) : 'Auto'}`,
-            ...(mode === 'video' ? [`Структура: ${shape}`] : []),
-            referenceRatio
-              ? 'Формат: по исходному кадру'
-              : ratioOptions.length
-                ? `Формат: ${effectiveRatio}`
-                : '',
-            effectiveQuality ? `Качество: ${effectiveQuality}` : '',
-            mode === 'video' && modelProperties.duration ? `Длительность: ${duration} с` : '',
-            mode === 'video' && audioValues.length ? effectiveSound : '',
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-          duration={duration}
-          onClose={() => setEditingTemplate(undefined)}
-          onApply={(prompt) => {
-            void applyTemplateText(editingTemplate, prompt);
-          }}
         />
       )}
     </div>

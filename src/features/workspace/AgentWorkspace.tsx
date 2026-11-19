@@ -79,7 +79,6 @@ export function AgentWorkspace({
     initialPageParam: 0,
     queryFn: ({ pageParam, signal }) => api.messages(conversation!.id, pageParam, signal),
     getNextPageParam: (last) => (last.pageIndex + 1 < last.pages ? last.pageIndex + 1 : undefined),
-    refetchInterval: busy ? 2000 : false,
   });
   const ordered = (messages.data?.pages.flatMap((p) => p.items) || [])
     .slice()

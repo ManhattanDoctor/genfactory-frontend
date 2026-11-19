@@ -6,7 +6,7 @@ import { useRetainedModel } from '../catalog/useRetainedModel';
 import { followsReferenceRatio } from '../catalog/schema';
 import { defaultAssistant } from '../catalog/defaultAssistant';
 import { modelKey } from '../catalog/presentation';
-import { choices, ratioSizes, suggestedRatios } from './controls';
+import { choices, ratioSizes, sizeRatio, suggestedRatios } from './controls';
 import { fields } from './studioConfig';
 import type { IAttachment, StudioMode } from './studioTypes';
 
@@ -40,6 +40,7 @@ export interface StudioModels {
   modelProperties: Record<string, ISchema>;
   ratioOptions: Array<string>;
   referenceRatio: boolean;
+  defaults: { ratio: string; quality: string; duration: number; sound: string };
   effectiveRatio: string;
   qualityOptions: Array<string>;
   effectiveQuality: string;
@@ -61,6 +62,17 @@ interface StudioModelOptions {
   quality: string;
   sound: string;
 }
+function defaultChoice<T extends string | number | boolean>(
+  values: T[],
+  schemaDefault: unknown,
+  fallback: T,
+): T {
+  return (
+    values.find((value) => value === schemaDefault) ??
+    (values.includes(fallback) ? fallback : (values[0] ?? fallback))
+  );
+}
+
 export function useStudioModels({
   catalog,
   mode,
@@ -103,22 +115,40 @@ export function useStudioModels({
     attachments.length,
     attachments.some((file) => !!file.slot) ? 'frames' : undefined,
   );
-  const effectiveRatio = ratio;
+  const defaultRatio = defaultChoice(
+    ratioOptions,
+    modelProperties.aspectRatio?.default ?? sizeRatio(String(modelProperties.size?.default ?? '')),
+    mode === 'video' ? '9:16' : '1:1',
+  );
+  const effectiveRatio = ratio || defaultRatio;
   const qualityField = modelProperties[mode === 'image' ? 'quality' : 'resolution'];
   const qualityOptions = model
     ? choices(qualityField, mode === 'image' ? [] : ['480p', '720p', '1080p'])
     : fields.find((field) => field.id === 'quality')!.options;
-  const effectiveQuality =
-    mode === 'image' ? imageQuality || String(qualityField?.default || qualityOptions[0] || '') : quality;
+  const defaultQuality = defaultChoice(
+    qualityOptions,
+    qualityField?.default,
+    mode === 'image' ? qualityOptions[0] || '' : '720p',
+  );
+  const effectiveQuality = (mode === 'image' ? imageQuality : quality) || defaultQuality;
   const durations = model ? choices(modelProperties.duration, [4, 6, 8, 10, 15]) : [4, 6, 8, 10, 15];
   const audioValues = model ? choices(modelProperties.generateAudio, [false, true]) : [false, true];
   const soundOptions: string[] = audioValues.map((value) => (value ? 'Со звуком' : 'Без звука'));
-  const effectiveSound = soundOptions.length === 1 ? soundOptions[0] : sound;
+  const defaultSound = defaultChoice(audioValues, modelProperties.generateAudio?.default, false)
+    ? 'Со звуком'
+    : 'Без звука';
+  const effectiveSound = soundOptions.length === 1 ? soundOptions[0] : sound || defaultSound;
   return {
     catalog,
     retained,
     model,
     modelProperties,
+    defaults: {
+      ratio: defaultRatio,
+      quality: defaultQuality,
+      duration: defaultChoice(durations, modelProperties.duration?.default, 8),
+      sound: defaultSound,
+    },
     ratioOptions,
     referenceRatio,
     effectiveRatio,

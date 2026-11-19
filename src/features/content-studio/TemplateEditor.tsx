@@ -112,7 +112,7 @@ export function TemplateEditor({
             <div className="template-inputs">
               {item.kind === 'presentation' && (
                 <>
-                  <p>Результат — текст по слайдам, не готовый файл PPTX/PDF.</p>
+                  <p>Результат - текст по слайдам, не готовый файл PPTX/PDF.</p>
                   <label>
                     Тема и исходные факты
                     <textarea rows={4} value={brief} onChange={(e) => setBrief(e.target.value)} />

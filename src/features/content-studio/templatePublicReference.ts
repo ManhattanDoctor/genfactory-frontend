@@ -20,7 +20,7 @@ export function templatePublicReference(
       : 'https://genfactory.gnosisai.ru';
   return {
     isExternal: true,
-    name: `${item.title} — референс.mp4`,
+    name: `${item.title} - референс.mp4`,
     path: new URL(item.referenceVideoSrc, publicOrigin).href,
     type: 'VIDEO',
     mime: 'video/mp4',

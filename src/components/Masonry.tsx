@@ -5,12 +5,14 @@ export function Masonry({
   children,
   columns,
   gap = 12,
+  ordered = false,
   scrollRoot,
   estimateHeight,
 }: {
   children: ReactElement[];
   columns: number;
   gap?: number;
+  ordered?: boolean;
   scrollRoot?: RefObject<HTMLElement | null>;
   estimateHeight?: (key: string, width: number) => number;
 }): ReactElement {
@@ -44,7 +46,9 @@ export function Masonry({
     const element = root.current;
     if (!element) return;
     const previous =
-      assignments.current.columns === columns ? assignments.current.items : new Map<string, number>();
+      !ordered && assignments.current.columns === columns
+        ? assignments.current.items
+        : new Map<string, number>();
     const assigned = new Map(
       children.map((child, index) => [String(child.key), previous.get(String(child.key)) ?? index % columns]),
     );
@@ -93,7 +97,7 @@ export function Masonry({
       if ((child as HTMLElement).dataset.masonryMounted === 'true') observer.observe(child);
     measure();
     return () => observer.disconnect();
-  }, [columns, gap, keys, mountedKeys]);
+  }, [columns, gap, keys, mountedKeys, ordered]);
 
   useLayoutEffect(() => {
     if (!virtual || !root.current) return;

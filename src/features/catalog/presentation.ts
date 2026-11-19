@@ -1,5 +1,7 @@
 import type { IModelDescription } from '../../lib/types';
 import { modelDescriptions } from './modelDescriptions';
+// №37: в коротких каталогах (до пяти моделей включительно) выбор доступен без поля поиска.
+export const MODEL_SEARCH_MIN_COUNT = 6;
 export const modelKey = (model: Pick<IModelDescription, 'reference'>) =>
   `${model.reference.provider}:${model.reference.model}`;
 /** Favorites affect display order only, never the default used to execute a request. */
@@ -30,7 +32,7 @@ export function modelTitle(model: Pick<IModelDescription, 'reference' | 'name'>)
   return raw
     .replace(/^[^:]+:\s*/, '')
     .replace(
-      /^(?:Open\s?AI|Google|Black Forest Labs|Microsoft|ByteDance(?: Seed)?|Alibaba|Tencent|Sourceful|Meta|xAI)\s*[-–·]?\s+/i,
+      /^(?:Open\s?AI|Google|Black Forest Labs|Microsoft|ByteDance(?: Seed)?|Alibaba|Tencent|Sourceful|Meta|xAI|Runway|Kuaishou|Anthropic|Moonshot(?: AI)?|Luma Labs)\s*[-–·]?\s+/i,
       '',
     )
     .trim();

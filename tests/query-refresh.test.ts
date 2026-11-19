@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
-import { createRefreshQueue } from '../src/features/realtime/queryRefresh';
+import { QueryRefreshService } from '../src/features/realtime/QueryRefreshService';
 import { refreshTargets } from '../src/features/realtime/refreshTargets';
 import { ApiError, retryQuery } from '../src/lib/api';
 
@@ -19,7 +19,7 @@ describe('generation refresh queue', () => {
   }
   function setup(isCurrent = (): boolean => true) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const queue = createRefreshQueue(client, 7, isCurrent);
+    const queue = new QueryRefreshService(client, 7, isCurrent);
     cleanup.push(() => {
       queue.dispose();
       client.clear();

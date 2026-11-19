@@ -1,6 +1,8 @@
 import { taskConversationId } from '../realtime/refreshTargets';
 import type { ITaskExecution, ITaskFinished } from '../../lib/types';
 
+export const selectedImageTaskKey = (userId: number) => ['selected-image-task', userId] as const;
+
 export function taskView(item: ITaskExecution): { path: string; title: string; type: string; mime: string } {
   if (item.model.includes('IMAGE'))
     return { path: '/image', title: 'Создаём изображение…', type: 'IMAGE', mime: 'image/png' };

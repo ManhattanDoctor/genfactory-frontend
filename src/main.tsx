@@ -13,7 +13,10 @@ import './styles/global.css';
 import './styles/shell.css';
 import './styles/visual-polish.css';
 const client = new QueryClient({
-  defaultOptions: { queries: { retry: retryQuery, staleTime: 30_000 }, mutations: { retry: false } },
+  defaultOptions: {
+    queries: { retry: retryQuery, staleTime: 30_000, refetchOnWindowFocus: false },
+    mutations: { retry: false },
+  },
 });
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

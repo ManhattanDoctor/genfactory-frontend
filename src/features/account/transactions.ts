@@ -12,7 +12,7 @@ function serial(value: bigint) {
 }
 export function transactionAmount(amount: string, currency: string, precise = false) {
   const value = decimal(amount);
-  if (value === undefined) return '—';
+  if (value === undefined) return '-';
   if (!['RUB', 'USD'].includes(currency)) return `${amount} ${currency}`;
   const majorScale = scale * 100n;
   let formatted: string;

@@ -1,3 +1,4 @@
+import type { VideoComposerTemplate } from './variants';
 import { FileReferenceType } from '../../lib/types';
 import {
   templatePublicReference,
@@ -108,6 +109,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const navigate = useNavigate();
   const [search] = useSearchParams();
   const specialized = search.get('studio');
+  const digestModel = kind === 'image' && !specialized ? search.get('model') : null;
   const legacy = !!specialized && !['banana', 'seedance'].includes(specialized);
   const directTask = useDirectMediaTask(auth.user?.id, kind);
   const client = useQueryClient();
@@ -180,6 +182,9 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       !!conversationId && (mutation.state.variables as { id?: number } | undefined)?.id === conversationId,
   });
   const [prompt, setPrompt] = useState('');
+  const [videoTemplate, setVideoTemplate] = useState<VideoComposerTemplate>();
+  const [videoTemplateMinimum, setVideoTemplateMinimum] = useState(0);
+  const [photoPicker, setPhotoPicker] = useState(false);
   const [imageTemplateId, setImageTemplateId] = useState('');
   const [imageTemplateText, setImageTemplateText] = useState('');
   const [selected, setSelected] = useState('');
@@ -251,7 +256,12 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   const savedReference = conversation ? connection(conversation, kind)?.settings?.model : undefined;
   const retained = useRetainedModel(savedReference, catalog.data ? models : undefined, auth.user?.id);
   const requestedKey =
-    selected || (savedReference ? `${savedReference.provider}:${savedReference.model}` : '');
+    selected ||
+    (savedReference
+      ? `${savedReference.provider}:${savedReference.model}`
+      : digestModel
+        ? `${providers.image}:${digestModel}`
+        : '');
   const model = requestedKey
     ? models.find((m) => modelKey(m) === requestedKey) ||
       (retained && modelKey(retained) === requestedKey ? retained : undefined)
@@ -300,6 +310,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     previousUser.current = auth.user?.id;
     previousKind.current = kind;
     setAgentKey('');
+    setVideoTemplate(undefined);
+    setVideoTemplateMinimum(0);
     setImageTemplateId('');
     setImageTemplateText('');
   }, [kind, auth.user?.id]);
@@ -307,6 +319,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   useLayoutEffect(() => {
     if (previousConversation.current !== undefined && previousConversation.current !== conversationId) {
       setPrompt('');
+      setVideoTemplate(undefined);
+      setVideoTemplateMinimum(0);
       setImageTemplateId('');
       setImageTemplateText('');
       setError('');
@@ -477,6 +491,22 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   }, [models, currentKey, location.key, location.state, auth.user?.id, conversation, conversationId, kind]);
   const maxRefs = !legacy ? referenceLimit(model) : Math.min(4, referenceLimit(model));
   const minRefs = referenceMinimum(model);
+  const imageCount = references.filter((file) => file.type === 'IMAGE').length;
+  const missingPhotos =
+    kind === 'video' && !legacy
+      ? Math.max(
+          0,
+          videoTemplateMinimum - Number(!!publicReference) - imageCount,
+          minRefs - videoReferences.length,
+        )
+      : 0;
+  const videoIssue =
+    kind === 'video' && !legacy && model
+      ? videoReferenceError(model, videoReferences) ||
+        (videoReferences.length + missingPhotos > maxRefs
+          ? 'Для этих вложений выберите другую модель или шаблон.'
+          : '')
+      : '';
   const draft = useDraft(
     `${kind}:${conversationId || 'new'}:${specialized || 'all'}`,
     {
@@ -488,6 +518,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       shot,
       useBrand,
       agentKey,
+      videoTemplate,
+      videoTemplateMinimum,
       imageTemplateId,
       imageTemplateText,
     },
@@ -502,6 +534,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     references: references.map((item) => item.id),
     templateVideoReference,
     shot,
+    videoTemplate,
+    videoTemplateMinimum,
     imageTemplateId,
     imageTemplateText,
   });
@@ -515,9 +549,17 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     if (!pending || pending.key !== currentKey) return;
     pendingDraft.current = null;
     setPrompt(pending.value.prompt);
+    setVideoTemplate(pending.value.videoTemplate);
+    setVideoTemplateMinimum(pending.value.videoTemplateMinimum || 0);
     setImageTemplateId(pending.value.imageTemplateId || '');
     setImageTemplateText(pending.value.imageTemplateText || '');
-    setOptions(pending.value.options);
+    const sound = model?.schema.properties?.options?.properties?.generateAudio;
+    const fixedAudio = sound?.const ?? (sound?.enum?.length === 1 ? sound.enum[0] : undefined);
+    setOptions(
+      kind === 'video' && typeof fixedAudio === 'boolean'
+        ? { ...pending.value.options, generateAudio: fixedAudio }
+        : pending.value.options,
+    );
     setReferences(pending.files);
     setTemplateVideoReference(pending.value.templateVideoReference);
     setShot(pending.value.shot || {});
@@ -577,7 +619,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   useEffect(() => {
     if (legacy || !auth.user || catalog.isFetching || !catalog.isSuccess || busy || uploading) return;
     if (conversationId && !conversation) return;
-    if (!draft.available || location.state) return;
+    if (!draft.available || location.state || digestModel) return;
     const attempt = `${sourceScope}:${catalog.dataUpdatedAt}`;
     if (imageDraftRestored.current === attempt) return;
     imageDraftRestored.current = attempt;
@@ -651,7 +693,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     const message = value instanceof Error ? value.message : 'Ответ не получен.';
     if (message.includes('ConversationForbiddenError') && conversation?.status === 'ERROR')
       return failedConversationMessage;
-    return `${message.replace(/[.\s]+$/u, '')}. Проверьте результат перед повторной отправкой. Автоматического повтора нет.`;
+    return `${message.replace(/[.\s]+$/u, '')}. Проверьте результат перед повторной отправкой.`;
   };
   const imageBlockedReason =
     !legacy && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
@@ -692,6 +734,10 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     }
     if (videoReferences.length && (!supportsReferences(model) || videoReferences.length > maxRefs)) {
       setError('Выберите модель с поддержкой выбранных референсов или измените их количество.');
+      return;
+    }
+    if (videoIssue || missingPhotos) {
+      setError(videoIssue || 'Добавьте обязательные фото перед отправкой.');
       return;
     }
     if (videoReferences.length < minRefs) {
@@ -824,6 +870,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           prompt: '',
           references: [],
           templateVideoReference: undefined,
+          videoTemplate: undefined,
+          videoTemplateMinimum: 0,
           imageTemplateId: '',
           imageTemplateText: '',
         });
@@ -841,6 +889,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             references,
             workspaceInput: {
               idea: prompt,
+              videoTemplate,
+              videoTemplateMinimum,
               templateId: imageTemplateId,
               templateText: imageTemplateText,
               shape: shot.shape,
@@ -852,6 +902,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         clearedSubmission.current = taskBody.task.session;
         draft.clear();
         setPrompt('');
+        setVideoTemplate(undefined);
+        setVideoTemplateMinimum(0);
         setImageTemplateId('');
         setImageTemplateText('');
         setReferences([]);
@@ -864,6 +916,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           )
             return;
           setPrompt(prompt);
+          setVideoTemplate(videoTemplate);
+          setVideoTemplateMinimum(videoTemplateMinimum);
           setImageTemplateId(imageTemplateId);
           setImageTemplateText(imageTemplateText);
           setReferences(references);
@@ -1003,6 +1057,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         new URLSearchParams(window.location.search).get('conversation') === String(id)
       ) {
         setPrompt('');
+        setVideoTemplate(undefined);
+        setVideoTemplateMinimum(0);
         setImageTemplateId('');
         setImageTemplateText('');
         if (!legacy) setReferences([]);
@@ -1012,7 +1068,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         setError(
           !legacy
             ? imageSendError(e)
-            : `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть выполнен. Автоматического повтора нет.`,
+            : `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть выполнен.`,
         );
     } finally {
       submitting.current = false;
@@ -1036,6 +1092,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         model={model}
         options={options}
         prompt={prompt}
+        videoTemplate={videoTemplate}
+        onVideoTemplate={setVideoTemplate}
         templateId={imageTemplateId}
         templateText={imageTemplateText}
         onTemplateText={(value) => {
@@ -1052,13 +1110,25 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           draft.changed();
           setTemplateVideoReference(undefined);
         }}
+        onResetVideoTemplate={() => {
+          draft.changed();
+          const referenceId = templateVideoReference?.fileId;
+          if (referenceId) setReferences((files) => files.filter((file) => file.id !== referenceId));
+          setTemplateVideoReference(undefined);
+          setVideoTemplate(undefined);
+          setVideoTemplateMinimum(0);
+          setPrompt('');
+          setError('');
+          promptInput.current?.focus();
+        }}
         conversation={previewConversation}
         contextError={
           (idParam && !previewConversationId ? 'Некорректный адрес беседы.' : '') ||
           (conversationQuery.error instanceof Error ? conversationQuery.error.message : '')
         }
         busy={busy || uploading}
-        unavailable={!!auth.user && (!!imageBlockedReason || !model)}
+        missingPhotos={missingPhotos}
+        unavailable={!!auth.user && (!!imageBlockedReason || !!videoIssue || !model)}
         retryCatalog={
           catalog.error || agents.error
             ? () => {
@@ -1069,13 +1139,18 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         }
         promptInput={promptInput}
         error={
+          (digestModel && catalog.isSuccess && !model
+            ? 'Модель из дайджеста сейчас недоступна. Выберите другую модель.'
+            : '') ||
           imageBlockedReason ||
+          videoIssue ||
           error ||
           (draft.status.startsWith('Не удалось') ? draft.status : '') ||
           (catalog.error instanceof Error ? catalog.error.message : '')
         }
         onPrompt={(value) => {
           draft.changed();
+          if (!value.trim() && !videoTemplate) setVideoTemplateMinimum(0);
           setPrompt(value);
         }}
         onModel={(value, templateOptions) => {
@@ -1107,6 +1182,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           draft.changed();
           const previousId = templateVideoReference?.fileId;
           if (previousId) setReferences((current) => current.filter((file) => file.id !== previousId));
+          if (kind === 'video') setVideoTemplateMinimum(item.references?.min ?? 0);
           setTemplateVideoReference(reference ? { templateId: item.id, source: 'public' } : undefined);
           setError('');
           return true;
@@ -1120,7 +1196,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           )
             setTemplateVideoReference(undefined);
         }}
-        onLibrary={() => {
+        onLibrary={(photosOnly = false) => {
+          setPhotoPicker(photosOnly);
           if (!auth.user) {
             void auth.signIn();
             return;
@@ -1129,7 +1206,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             setError('Выбранная модель не поддерживает референсы. Выберите другую модель.');
             return;
           }
-          if (references.length >= maxRefs) {
+          if (videoReferences.length >= maxRefs) {
             setError(`Для выбранной модели можно добавить до ${maxRefs} референсов.`);
             return;
           }
@@ -1213,6 +1290,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
                 shot: input?.shape ? { shape: input.shape } : {},
                 useBrand: false,
                 agentKey,
+                videoTemplate: input?.videoTemplate,
+                videoTemplateMinimum: input?.videoTemplateMinimum || 0,
                 imageTemplateId: input?.templateId || '',
                 imageTemplateText: input?.templateText || '',
               },
@@ -1239,13 +1318,15 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         {picker && (
           <LibraryPicker
             acceptedTypes={
-              kind === 'video' && supportsVideoReferences(model) ? ['IMAGE', 'VIDEO'] : ['IMAGE']
+              kind === 'video' && !photoPicker && supportsVideoReferences(model)
+                ? ['IMAGE', 'VIDEO']
+                : ['IMAGE']
             }
             validateFile={(file) =>
-              kind === 'video' && model ? videoReferenceError(model, [...references, file]) : undefined
+              kind === 'video' && model ? videoReferenceError(model, [...videoReferences, file]) : undefined
             }
             multiple
-            maxFiles={maxRefs - references.length}
+            maxFiles={maxRefs - videoReferences.length}
             selected={references.map((f) => f.id)}
             onClose={() => setPicker(false)}
             onPick={(file) => {
@@ -1275,7 +1356,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         </div>
         <span className="studio-kind">
           {kind === 'image' ? <ImagePlus size={17} /> : <Clapperboard size={17} />}{' '}
-          {kind === 'image' ? 'От мысли к кадру' : 'Каждый кадр — начало истории'}
+          {kind === 'image' ? 'От мысли к кадру' : 'Каждый кадр - начало истории'}
         </span>
       </header>
       <WorkspaceNav conversationId={conversationId} draft={{ prompt, references, userId: auth.user?.id }} />
@@ -1410,13 +1491,13 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={
                 kind === 'image'
-                  ? 'Опишите, какое изображение хотите получить. Можно добавить свои фото — укажите, что изменить, а что сохранить.'
-                  : 'Опишите сюжет, движение и атмосферу ролика. Можно добавить свои изображения как исходные кадры — укажите, что оживить и что сохранить.'
+                  ? 'Опишите, какое изображение хотите получить. Можно добавить свои фото - укажите, что изменить, а что сохранить.'
+                  : 'Опишите сюжет, движение и атмосферу ролика. Можно добавить свои изображения как исходные кадры - укажите, что оживить и что сохранить.'
               }
               maxLength={model?.schema.properties?.task?.properties?.prompt?.maxLength || 32_000}
             />
             <div className="prompt-footer">
-              <span>Чем точнее описание — тем ближе результат</span>
+              <span>Чем точнее описание - тем ближе результат</span>
               <span>{prompt.length}</span>
             </div>
             {(!auth.user || supportsReferences(model)) && (
@@ -1694,7 +1775,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             {send.error && send.variables?.id === conversationId && send.variables.sid === auth.session && (
               <p className="error form-error" role="alert">
                 {send.error.message} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть
-                выполнен. Автоматического повтора нет.
+                выполнен.
               </p>
             )}
             {error && (
@@ -1787,7 +1868,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
               <p>
                 Опишите то, что хотите увидеть.
                 <br />
-                Остальное — дело вашей творческой студии.
+                Остальное - дело вашей творческой студии.
               </p>
               <div className="prompt-suggestions">
                 {suggestions[kind].map((text) => (

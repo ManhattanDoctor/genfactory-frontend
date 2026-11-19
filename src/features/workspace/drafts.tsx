@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getSession, api } from '../../lib/api';
 import { useAuth } from '../auth/AuthProvider';
 import type { IGnosisFile } from '../../lib/types';
@@ -21,7 +21,13 @@ export function useDraft<T extends object>(
   scope: string,
   value: T,
   meaningful: boolean,
-): { available: IDraftRecord<T> | undefined; status: string; changed: () => void; clear: () => void } {
+): {
+  available: IDraftRecord<T> | undefined;
+  status: string;
+  serialized: string;
+  changed: () => void;
+  clear: () => void;
+} {
   const auth = useAuth();
   const key = `genfactory.draft.v1.${auth.user?.id ?? 'guest'}.${scope}`;
   const [entry, setEntry] = useState(() => ({ key, available: auth.user ? read<T>(key) : undefined }));
@@ -39,7 +45,7 @@ export function useDraft<T extends object>(
     setEntry({ key, available: auth.user ? read<T>(key) : undefined });
     setStatus('');
   }
-  const serialize = JSON.stringify(value);
+  const serialize = useMemo(() => JSON.stringify(value), [value]);
   const save = (ctx: typeof current) => {
     if (!ctx.dirty) return true;
     if (!ctx.userId || getSession() !== ctx.sid) return !ctx.meaningful;
@@ -82,6 +88,7 @@ export function useDraft<T extends object>(
     };
   }, [key]);
   return {
+    serialized: serialize,
     available: entry.key === key ? entry.available : undefined,
     status,
     changed: () => {

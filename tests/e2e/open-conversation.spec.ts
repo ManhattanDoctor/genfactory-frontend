@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { catalogResponse } from './modelCatalog';
 import { test, expect } from '@playwright/test';
 const pagination = { items: [], total: 0, pages: 0, pageSize: 24, pageIndex: 0 };
@@ -9,7 +10,7 @@ for (const [tag, target] of [
   ['script', 'script'],
 ])
   test(`billing opens saved ${tag} workspace without sending`, async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('genfactory.session', 'test'));
+    await mockSession(page, 'test');
     await page.routeWebSocket('**/socket.io/**', () => {});
     let sends = 0;
     await page.route('**/api/**', (route) => {
@@ -38,7 +39,7 @@ for (const [tag, target] of [
     expect(sends).toBe(0);
   });
 test('resolver does not open a foreign conversation', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('genfactory.session', 'test'));
+  await mockSession(page, 'test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   await page.route('**/api/**', (route) =>
     route.fulfill({

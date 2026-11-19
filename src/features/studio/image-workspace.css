@@ -492,6 +492,10 @@
 .image-workspace .image-result-pending > span:last-child {
   max-width: 92%;
 }
+.image-workspace .image-pending-id {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 .image-workspace .img-spin {
   width: 32px;
   height: 32px;
@@ -824,4 +828,11 @@
   right: auto;
   height: 100%;
   min-height: 0;
+}
+
+.image-workspace .image-mobile-wall {
+  flex-direction: column;
+}
+.image-workspace .image-mobile-wall .image-result-open img {
+  object-fit: cover;
 }

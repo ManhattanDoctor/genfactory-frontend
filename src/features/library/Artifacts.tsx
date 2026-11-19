@@ -245,6 +245,7 @@ export function Artifacts(): ReactElement {
                   </article>
                 ) : (
                   <ConversationCard
+                    sourceBelowTitle
                     conversation={{
                       ...item,
                       lastMessageDate: item.activityDate,

@@ -12,7 +12,7 @@ import type { IGnosisFile } from '../lib/types';
 import { Modal } from './Modal';
 import { mediaUrlIdentity } from '../lib/mediaIdentity';
 export type MediaFile = Pick<IGnosisFile, 'name' | 'type' | 'mime' | 'preview'> &
-  Partial<Pick<IGnosisFile, 'path'>> & { isExternal?: boolean };
+  Partial<Pick<IGnosisFile, 'path' | 'id' | 'userId'>> & { isExternal?: boolean };
 export type PreviewFile = MediaFile & Partial<IGnosisFile>;
 interface MediaProps {
   file: MediaFile;
@@ -25,18 +25,23 @@ interface MediaProps {
   onReady?: () => void;
 }
 export function Media(props: MediaProps): ReactElement {
+  const isVideo = props.file.type === 'VIDEO' || props.file.mime?.startsWith('video/');
+  const originalVideo = props.controls && isVideo;
   const identity = JSON.stringify({
     type: props.file.type,
     mime: props.file.mime,
     path: mediaUrlIdentity(props.file.path),
-    image: props.file.preview?.image && {
-      ...props.file.preview.image,
-      url: mediaUrlIdentity(props.file.preview.image.url),
-    },
-    video: props.file.preview?.video && {
-      ...props.file.preview.video,
-      url: mediaUrlIdentity(props.file.preview.video.url),
-    },
+    controls: !!props.controls,
+    image: !originalVideo &&
+      props.file.preview?.image && {
+        ...props.file.preview.image,
+        url: mediaUrlIdentity(props.file.preview.image.url),
+      },
+    video: !originalVideo &&
+      props.file.preview?.video && {
+        ...props.file.preview.video,
+        url: mediaUrlIdentity(props.file.preview.video.url),
+      },
   });
   const [readyFor, setReadyFor] = useState('');
   const [failedFor, setFailedFor] = useState('');
@@ -51,10 +56,36 @@ export function Media(props: MediaProps): ReactElement {
     (((!props.file.preview?.image?.url || props.file.preview.image.status !== 'READY') &&
       (!props.file.preview?.video?.url || props.file.preview.video.status !== 'READY')) ||
       failedFor === identity);
+  const staticVideoPlaceholder =
+    !props.controls &&
+    props.isPlaybackDisabled &&
+    isVideo &&
+    (props.file.preview?.image?.status !== 'READY' ||
+      !safeMediaUrl(props.file.preview.image.url) ||
+      failedFor === identity);
   const tracked =
     !externalPlaceholder &&
+    !staticVideoPlaceholder &&
     (props.showLoadingState ?? !props.controls) &&
-    (props.file.type === 'IMAGE' || props.file.type === 'VIDEO');
+    (props.file.type === 'IMAGE' ||
+      props.file.type === 'VIDEO' ||
+      props.file.preview?.image?.status === 'READY');
+  const { file } = props;
+  const needsOriginal =
+    !file.isExternal &&
+    !file.path &&
+    file.id !== undefined &&
+    file.userId !== undefined &&
+    (file.type === 'IMAGE' || isVideo) &&
+    !(file.preview?.image?.status === 'READY' && file.preview.image.url) &&
+    !(isVideo && file.preview?.video?.status === 'READY' && file.preview.video.url);
+  const detail = useQuery({
+    queryKey: ['file-preview', file.userId, file.id],
+    enabled: !!tracked && seen && needsOriginal,
+    queryFn: () => api.file(file.id!),
+    retry: false,
+  });
+  const fetchingOriginal = needsOriginal && detail.isPending;
   useEffect(() => {
     if (!tracked || !frame.current) return;
     const observer = new IntersectionObserver(
@@ -72,9 +103,11 @@ export function Media(props: MediaProps): ReactElement {
     const timer = setTimeout(() => setFailedFor(identity), 30000);
     return () => clearTimeout(timer);
   }, [tracked, visible, loading, identity, attempt]);
-  if (externalPlaceholder) return <FilePlaceholder file={props.file} className={props.className} />;
+  if (externalPlaceholder || staticVideoPlaceholder)
+    return <FilePlaceholder file={props.file} className={props.className} />;
   if (!tracked) return <MediaContent {...props} />;
   const retry = (): void => {
+    if (needsOriginal && detail.isError) void detail.refetch();
     setFailedFor('');
     setAttempt((value) => value + 1);
   };
@@ -94,10 +127,11 @@ export function Media(props: MediaProps): ReactElement {
         })`,
       }}
     >
-      {seen && (
+      {seen && !fetchingOriginal && (
         <MediaContent
           key={`${identity}:${attempt}`}
           {...props}
+          file={needsOriginal && detail.data ? detail.data : file}
           isPlaybackDisabled={props.isPlaybackDisabled || !visible}
           onUnavailable={() => {
             setReadyFor((current) => (current === identity ? '' : current));
@@ -185,30 +219,27 @@ function MediaContent({
     file.preview?.video?.status === 'READY' ? safeMediaUrl(file.preview.video.url) : undefined,
     failedSources,
   );
-  const sources =
-    isVideo && isPlaybackDisabled
-      ? [poster, original]
-      : controls
-        ? [original]
-        : isVideo
-          ? [clip, poster, original]
-          : [poster, original];
+  const sources = controls
+    ? [original]
+    : isVideo && isPlaybackDisabled
+      ? [poster]
+      : isVideo
+        ? [clip, poster, original]
+        : [poster, original];
   const src = sources.find((source) => source && !failedSources.includes(source));
   const isImage = file.type === 'IMAGE' || file.mime?.startsWith('image/');
   const isAudio = file.type === 'AUDIO' || file.mime?.startsWith('audio/');
   const placeholder =
-    !isImage && !isVideo && (!controls || !isAudio)
-      ? controls || !poster || failedSources.includes(poster)
-      : !src;
+    !isImage && !isVideo && (!controls || !isAudio) ? !poster || failedSources.includes(poster) : !src;
   useEffect(() => {
-    if (placeholder) {
+    if (placeholder && !(isVideo && isPlaybackDisabled && !controls && !poster)) {
       if (onUnavailable) onUnavailable();
       else onReady?.();
     }
-  }, [placeholder, onReady, onUnavailable]);
+  }, [placeholder, isVideo, isPlaybackDisabled, controls, poster, onReady, onUnavailable]);
   if (!isImage && !isVideo) {
     if (!controls || !isAudio) {
-      if (!controls && poster && !failedSources.includes(poster))
+      if (poster && !failedSources.includes(poster))
         return (
           <img
             className={className}
@@ -435,7 +466,7 @@ export function MediaPreview({
           />
         )}
       </div>
-      {(current.type === 'IMAGE' || current.type === 'VIDEO') && (pendingPreview || failedPreview) && (
+      {(pendingPreview || failedPreview) && (
         <div className="preview-status">
           <span className="muted small" role="status">
             {pendingPreview ? 'Превью создаётся…' : 'Не удалось создать превью полностью. Оригинал доступен.'}

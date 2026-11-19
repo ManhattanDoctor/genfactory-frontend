@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { catalogProvider, catalogResponse } from './modelCatalog';
@@ -5,7 +6,7 @@ const catalog = JSON.parse(readFileSync(new URL('../fixtures/catalog.json', impo
 const pageOf = (items: unknown[]) => ({ items, total: items.length, pages: 1, pageSize: 24, pageIndex: 0 });
 
 async function setup(page: Page, delayed = false, fail = false) {
-  await page.addInitScript(() => localStorage.setItem('genfactory.session', 'direct-task-test'));
+  await mockSession(page, 'direct-task-test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   const state = {
     tasks: [] as any[],
@@ -57,7 +58,9 @@ async function setup(page: Page, delayed = false, fail = false) {
         origin: {
           kind: 'GENERATION',
           operationId: 'task:direct-test',
-          sourceFileIds: input.task.fileIds,
+          sourceFileIds: input.task.references
+            ?.filter((item: any) => item.type === 'FILE')
+            .map((item: any) => item.id),
           generation: {
             model: { provider: input.model, model: input.options.model },
             prompt: input.task.prompt,
@@ -104,7 +107,7 @@ for (const kind of ['image', 'video'] as const) {
     expect(state.tasks[0].task.prompt).toContain('Красная чашка на столе');
     expect(state.tasks[0].task.prompt).not.toMatch(/Genfactory:|вызови IMAGE|вызови VIDEO|Подготовь задачу/);
     expect(state.tasks[0].task.session).toMatch(/^[0-9a-f-]{36}$/);
-    expect(state.tasks[0].task.fileIds).toEqual([]);
+    expect(state.tasks[0].task.references).toEqual([]);
     expect(state.tasks[0]).not.toHaveProperty('conversationId');
     expect(state.assistantCatalog).toBe(0);
     expect(state.conversationWrites).toEqual([]);
@@ -372,7 +375,12 @@ test('Seedance sends four selected photos without truncation', async ({ page }) 
     .fill('Все четыре предмета в одной сцене');
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.fileIds).toEqual([14, 8, 23, 6]);
+  expect(state.tasks[0].task.references).toEqual([
+    { type: 'FILE', id: 14 },
+    { type: 'FILE', id: 8 },
+    { type: 'FILE', id: 23 },
+    { type: 'FILE', id: 6 },
+  ]);
   expect(state.tasks[0].task.referenceMode).toBe('references');
   expect(state.tasks[0].options).not.toHaveProperty('frameImages');
   expect(state.tasks[0].options).not.toHaveProperty('inputReferences');

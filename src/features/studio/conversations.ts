@@ -79,7 +79,7 @@ export function createMessageBody(
       ? 'Создай изображение с помощью IMAGE.'
       : 'Создай видео с помощью VIDEO.';
   const references = fileIds.length
-    ? `Референсы (fileIds, порядок важен): ${fileIds.join(', ')}.`
+    ? 'Используй вложения текущего сообщения в указанном порядке.'
     : fromScratch
       ? 'Создай с нуля, без референсов из предыдущих сообщений.'
       : autonomous
@@ -91,9 +91,10 @@ export function createMessageBody(
       : '';
   return {
     role: 'USER',
-    text: `${instruction}\n${references}\n\n${selectedModel}${prompt.trim()}`,
+    text: prompt.trim(),
     references: fileIds.map((id) => ({ type: FileReferenceType.FILE, id })),
     settings: {
+      instructions: `${instruction}\n${references}\n${selectedModel}`.trim(),
       tools: [
         {
           ...(autonomous ? { uid: tool.uid, settings: tool.settings } : tool),

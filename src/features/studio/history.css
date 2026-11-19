@@ -101,6 +101,9 @@
   height: 100%;
   object-fit: cover;
 }
+.artifacts-page .card-preview :is(img, video) {
+  object-position: center top;
+}
 .work-history .history-cover-placeholder {
   height: 100%;
   font-size: 12px;

@@ -8,6 +8,6 @@ it('converts gnosis balances from minor units rather than displaying 100x the ba
 });
 it('does not invent a scale for unsupported currencies or missing balances', () => {
   expect(formatBalance('123.45', 'OTHER')).toBe('123.45');
-  expect(formatBalance(undefined, 'RUB')).toBe('—');
-  expect(formatBalance('invalid', 'RUB')).toBe('—');
+  expect(formatBalance(undefined, 'RUB')).toBe('-');
+  expect(formatBalance('invalid', 'RUB')).toBe('-');
 });

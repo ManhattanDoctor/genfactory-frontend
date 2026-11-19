@@ -106,15 +106,6 @@
 .file-browser .chips {
   gap: 8px;
 }
-.file-browser .chip {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 999px;
-  background: #2a2b30;
-  color: #f4f4f5;
-  font-size: 14px;
-}
 .file-browser .chip.active {
   background: #f4f4f5;
   color: #111;
@@ -177,11 +168,6 @@
 .file-browser .file-tag-chips {
   padding: 0 12px 12px;
   gap: 4px;
-}
-.file-browser .file-tag-chips .chip {
-  min-height: 24px;
-  padding: 2px 8px;
-  font-size: 11px;
 }
 
 .file-browser .empty-state {
@@ -329,4 +315,15 @@
   .library-page .file-controls .file-filters {
     order: -1;
   }
+}
+
+.file-upload-failures {
+  display: grid;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.file-upload-failures > div {
+  padding: 12px;
+  border: 1px solid var(--ds-line-soft);
+  border-radius: 12px;
 }

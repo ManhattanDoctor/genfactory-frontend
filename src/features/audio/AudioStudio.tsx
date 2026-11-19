@@ -1,3 +1,5 @@
+import { MODEL_SEARCH_MIN_COUNT } from '../catalog/presentation';
+import { ModelBrowser } from '../catalog/ModelBrowser';
 import { FileReferenceType } from '../../lib/types';
 import { scheduleRefresh } from '../realtime/queryRefresh';
 import type { ReactElement } from 'react';
@@ -55,6 +57,7 @@ function AudioEditor(): ReactElement {
   const [preparing, setPreparing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
+  const [modelBrowser, setModelBrowser] = useState(false);
   const [picker, setPicker] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
@@ -285,10 +288,7 @@ function AudioEditor(): ReactElement {
         setFiles((previous) => previous.filter((item) => !files.some((source) => source.id === item.id)));
       }
     } catch (e) {
-      if (current(sid))
-        setError(
-          `${(e as Error).message} Проверьте историю перед повторным запуском. Автоматического повтора нет.`,
-        );
+      if (current(sid)) setError(`${(e as Error).message} Проверьте историю перед повторным запуском.`);
     } finally {
       submitting.current = false;
       if (current(sid)) setPreparing(false);
@@ -447,7 +447,7 @@ function AudioEditor(): ReactElement {
               )}
               {!model && (
                 <option value="">
-                  {chosenKey ? 'Сохранённая модель недоступна — выберите другую' : 'Выберите модель'}
+                  {chosenKey ? 'Сохранённая модель недоступна - выберите другую' : 'Выберите модель'}
                 </option>
               )}
               {favoritesFirst(
@@ -463,6 +463,21 @@ function AudioEditor(): ReactElement {
               ))}
             </SelectControl>
           </label>
+          {(catalog.data?.models.length ?? 0) >= MODEL_SEARCH_MIN_COUNT && (
+            <button type="button" className="button" disabled={busy} onClick={() => setModelBrowser(true)}>
+              Поиск моделей
+            </button>
+          )}
+          {modelBrowser && (
+            <ModelBrowser
+              models={catalog.data?.models || []}
+              value={model ? modelKey(model) : ''}
+              onSelect={(next) =>
+                setSelection({ key: modelKey(next), options: defaults(next.schema.properties?.options) })
+              }
+              onClose={() => setModelBrowser(false)}
+            />
+          )}
           {(catalog.error || tools.error || agents.error) && (
             <p role="alert" className="error">
               Не удалось загрузить каталог.{' '}
@@ -555,7 +570,7 @@ function AudioEditor(): ReactElement {
             />
           ) : (
             <div className="studio-empty">
-              <h2>{mode === 'tts' ? 'Ваш текст обретёт голос.' : 'Из записи — в текст.'}</h2>
+              <h2>{mode === 'tts' ? 'Ваш текст обретёт голос.' : 'Из записи - в текст.'}</h2>
               <p>
                 {mode === 'tts'
                   ? 'Готовая озвучка появится в беседе и библиотеке.'

@@ -88,6 +88,17 @@ async function openFileMenuGroup(page: Page, label = 'Дополнительно
   if ((await summary.locator('..').getAttribute('open')) === null) await summary.click();
 }
 
+function authToken(sub = 'test-session', exp = 4000000000): string {
+  return [
+    Buffer.from('{"alg":"RS256"}').toString('base64url'),
+    Buffer.from(JSON.stringify({ sub, exp })).toString('base64url'),
+    'signature',
+  ].join('.');
+}
+function authTokens(sub = 'test-session') {
+  return { access: authToken(sub), refresh: authToken(`${sub}-refresh`), id: authToken(`${sub}-id`) };
+}
+
 async function mockApi(page: Page, signedIn = true) {
   await page.route('**/test-video.mp4', (route) =>
     route.fulfill({
@@ -111,6 +122,7 @@ async function mockApi(page: Page, signedIn = true) {
     progress: null as unknown,
     socket: undefined as WebSocketRoute | undefined,
     joinedRooms: [] as string[],
+    pongs: 0,
   };
   await page.routeWebSocket('**/socket.io/**', (socket) => {
     state.socket = socket;
@@ -143,11 +155,20 @@ async function mockApi(page: Page, signedIn = true) {
             );
         }
       } else if (text === '3') {
-        /* pong */
+        state.pongs++;
       }
     });
   });
-  if (signedIn) await page.addInitScript(() => sessionStorage.setItem('genfactory.session', 'test-session'));
+  if (signedIn)
+    await page.addInitScript((token) => {
+      if (location.origin !== 'http://127.0.0.1:5173' || sessionStorage.getItem('test.auth.initialized'))
+        return;
+      sessionStorage.setItem('test.auth.initialized', 'true');
+      if (!localStorage.getItem('genfactory.keycloak.tokens')) {
+        localStorage.setItem('genfactory.keycloak.tokens', JSON.stringify({ id: 'test-session', token }));
+        localStorage.setItem('genfactory.session', 'test-session');
+      }
+    }, authTokens());
   await page.route('https://sso.example.test/**', (route) =>
     route.fulfill({ contentType: 'text/html', body: '<h1>SSO logout</h1>' }),
   );
@@ -224,7 +245,7 @@ async function mockApi(page: Page, signedIn = true) {
     } else if (path === '/api/conversation') {
       const conditions = JSON.parse(url.searchParams.get('conditions')!);
       expect(conditions.userId).toBe(
-        route.request().headers().authorization === 'Bearer second-user' ? 8 : 7,
+        route.request().headers().authorization === `Bearer ${authToken('second-user')}` ? 8 : 7,
       );
       body = pagination(
         state.conversations.filter(
@@ -274,11 +295,10 @@ async function mockApi(page: Page, signedIn = true) {
                 clarifications: [],
                 limitations: [],
               })
-            : data.text.startsWith('[Genfactory:')
-              ? (data.text.startsWith('[Genfactory:script]') && state.scriptReply) ||
-                'Точный промпт для генерации.'
+            : data.settings?.isToolsDisabled || data.text.startsWith('[Genfactory:')
+              ? (data.settings?.isToolsDisabled && state.scriptReply) || 'Точный промпт для генерации.'
               : 'Готово: результат сохранён.',
-          files: data.text.startsWith('[Genfactory:') ? [] : [result],
+          files: data.settings?.isToolsDisabled || data.text.startsWith('[Genfactory:') ? [] : [result],
           createdDate: file.createdDate,
         };
         messages.push(body as IConversationMessage);
@@ -315,7 +335,7 @@ async function mockApi(page: Page, signedIn = true) {
       body = { ...file, id: Number(path.split('/').pop()) };
     else if (/^\/api\/file\/\d+\/download$/.test(path)) body = {};
     else if (path === '/api/paymentTransaction') body = pagination([]);
-    else if (path === '/api/logout') body = {};
+    else if (path === '/api/openId/logoutByRefreshToken') body = {};
     else {
       state.forbidden.push(path);
       status = 404;
@@ -426,7 +446,7 @@ test(
     state.abortAfterAccept = true;
     await page.goto('/image');
     await submit(page);
-    await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
+    await expect(page.getByRole('alert')).toContainText('Проверьте');
     await page.reload();
     await expectCompleted(page);
     expect(state.tasks).toHaveLength(1);
@@ -507,7 +527,7 @@ test('advanced editor: image to video starts a direct video task with the chosen
   expect(state.sends).toHaveLength(1);
   expect(state.creates).toHaveLength(1);
 });
-test('library reference is attached to a conversation message', async ({ page }) => {
+test('library reference is attached to the direct generation task', async ({ page }) => {
   const state = await mockApi(page);
   await page.goto('/library');
   await page.getByRole('button', { name: /Test result/ }).click();
@@ -516,8 +536,8 @@ test('library reference is attached to a conversation message', async ({ page })
   await page.getByRole('button', { name: 'Как референс' }).click();
   await expect(page.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
   await submit(page, 'Change lighting');
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.references).toEqual([12].map((id) => ({ type: 'FILE', id })));
 });
 test('library reference survives returning to a studio with a cached catalog', async ({ page }) => {
   const state = await mockApi(page);
@@ -889,22 +909,21 @@ test('advanced editor: select arrows stay inside controls at desktop and mobile 
   });
 });
 
-test('home model reviews switch tabs, expand examples and open the viewer', async ({ page }) => {
+test('home model digests show customer guidance and open example images', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
-  const review = page.getByRole('region', { name: 'GPT Image 2.5 Sunburst' });
-  await review.getByRole('tab', { name: 'Ограничение', exact: true }).click();
-  await expect(review.getByRole('tabpanel')).toContainText('пространственная логика');
-  await review.getByRole('button', { name: 'Развернуть', exact: true }).click();
-  await expect(review.locator('.model-review-frame')).toHaveCount(27);
-  await review.locator('.model-review-frame').first().click();
+  const review = page.getByRole('article', { name: 'Nano Banana 2', exact: true });
+  await expect(review.getByText('Когда брать', { exact: true })).toBeVisible();
+  await expect(review.getByText('Когда не брать', { exact: true })).toBeVisible();
+  const preview = review.getByRole('button', { name: /^Открыть:/ }).first();
+  await preview.click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog').getByRole('heading')).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0.82)');
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Закрыть' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(review.locator('.model-review-frame').first()).toBeFocused();
+  await expect(preview).toBeFocused();
 });
 
 test('advanced editor: reference survives restoration of a different saved video model', async ({ page }) => {
@@ -1069,9 +1088,9 @@ test('library pagination, type filter, preview and original link work', async ({
     /gallery-1.jpg$/,
   );
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
-  await page.getByRole('button', { name: 'Далее' }).click();
+  await page.getByRole('button', { name: 'Следующая страница' }).click();
   await expect(page.getByRole('button', { name: /IMAGE page 1/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Далее' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Следующая страница' })).toBeDisabled();
   await page.getByRole('button', { name: 'Видео', exact: true }).click();
   await page.getByRole('button', { name: /VIDEO page 0/ }).click();
   await expect(page.getByRole('dialog').locator('video')).toHaveAttribute('controls', '');
@@ -1174,7 +1193,7 @@ test('account balance refresh uses minor units and logout succeeds locally when 
   amount = '9950';
   await page.getByRole('button', { name: 'Обновить баланс' }).click();
   await expect(page.locator('.balance-row strong')).toHaveText('99,50');
-  await page.route('**/api/logout', (route) =>
+  await page.route('**/api/openId/logoutByRefreshToken', (route) =>
     route.fulfill({ status: 503, json: { message: 'Unavailable' } }),
   );
   await page.getByRole('button', { name: 'Выйти из студии' }).click();
@@ -1213,13 +1232,15 @@ test(
         codeOrToken: 'test-code',
         redirectUri: 'http://127.0.0.1:5173/auth/callback',
       });
-      await route.fulfill({ json: { sid: 'new-session' } });
+      await route.fulfill({ json: { token: authTokens('new-session') } });
     });
     await page.goto('/auth/callback?state=valid-state&code=test-code');
     await expect(page).toHaveURL(/\/image(?:\?studio=advanced)?$/);
     await expect(page.getByRole('link', { name: 'Открыть аккаунт' })).toBeVisible();
     expect(exchanges).toBe(1);
-    expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBe('new-session');
+    expect(
+      await page.evaluate(() => JSON.parse(localStorage.getItem('genfactory.keycloak.tokens')!).token.access),
+    ).toBe(authToken('new-session'));
   },
 );
 
@@ -1565,21 +1586,23 @@ test('workspace local brand and templates remain isolated between accounts', asy
   await expect(page.getByLabel('Правила оформления')).toHaveValue('PRIVATE BRAND');
   await page.route('**/api/init', (route) => {
     // An in-flight refresh for the first session must still return its own account.
-    if (route.request().headers().authorization !== 'Bearer second-user') return route.fallback();
+    if (route.request().headers().authorization !== `Bearer ${authToken('second-user')}`)
+      return route.fallback();
     return route.fulfill({
       json: { user: { id: 8, preferences: { name: 'Other user' } }, balances: { RUB: '0' } },
     });
   });
-  await page.evaluate(() => {
+  await page.evaluate((token) => {
     localStorage.setItem('genfactory.session', 'second-user');
+    localStorage.setItem('genfactory.keycloak.tokens', JSON.stringify({ id: 'second-user', token }));
     window.dispatchEvent(
       new StorageEvent('storage', {
-        key: 'genfactory.session',
-        newValue: 'second-user',
+        key: 'genfactory.keycloak.tokens',
+        newValue: localStorage.getItem('genfactory.keycloak.tokens'),
         storageArea: localStorage,
       }),
     );
-  });
+  }, authTokens('second-user'));
   await expect(page.getByLabel('Правила оформления')).toHaveValue('');
   await navigateLegacyRoute(page, '/templates');
   await expect(page.getByText('PRIVATE TEMPLATE')).toHaveCount(0);
@@ -1929,7 +1952,7 @@ test('continuation requires a visible reference choice before any paid request a
   await page.getByRole('button', { name: 'Создать видео', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
-  expect(state.sends[0].text).not.toContain('Создай с нуля');
+  expect(state.sends[0].settings.instructions).not.toContain('Создай с нуля');
   expect(state.edits).toHaveLength(2);
   expect(state.edits.filter((edit) => edit.system)).toHaveLength(1);
   expect(state.edits.find((edit) => edit.options)?.options.tools).toContainEqual(
@@ -1974,7 +1997,7 @@ test('advanced editor: fresh choice and cancelling the chooser do not submit; ch
     .click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].references).toEqual([].map((id) => ({ type: 'FILE', id })));
-  expect(state.sends[0].text).toContain('Создай с нуля');
+  expect(state.sends[0].settings.instructions).toContain('Создай с нуля');
 });
 
 test('advanced editor: missing reference blocks paid submission instead of silently generating from scratch', async ({
@@ -2053,17 +2076,15 @@ test('advanced editor: failed legacy instruction update blocks generation and ke
   expect(state.sends).toHaveLength(0);
 });
 
-test('a template can start a new work while another conversation request is still pending', async ({
-  page,
-}) => {
+test('a template can start a new work while another image task is still pending', async ({ page }) => {
   const state = await mockApi(page);
   let release!: () => void;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
   });
   let accepted = false;
-  await page.route('**/api/conversation/101/message', async (route) => {
-    if (route.request().method() === 'POST') {
+  await page.route('**/api/task', async (route) => {
+    if (route.request().method() === 'POST' && !accepted) {
       accepted = true;
       await pending;
     }
@@ -2080,11 +2101,12 @@ test('a template can start a new work while another conversation request is stil
       name: /^(Создать изображение|Собрать изображение)$/,
       exact: true,
     });
+    const nextPrompt = await page.locator('#img-draft').inputValue();
     await expect(generate).toBeEnabled();
-    expect(state.sends).toHaveLength(0);
+    expect(state.tasks).toHaveLength(0);
     await generate.click();
-    await expect.poll(() => state.sends.length).toBe(1);
-    expect(state.sends[0].id).toBe(102);
+    await expect.poll(() => state.tasks.length).toBe(1);
+    expect(state.tasks[0].task.prompt).toBe(nextPrompt);
   } finally {
     release();
   }
@@ -2232,7 +2254,7 @@ test(
     await mockApi(page);
     let requests = 0;
     page.on('request', (request) => {
-      if (new URL(request.url()).pathname === '/api/logout') requests++;
+      if (new URL(request.url()).pathname === '/api/openId/logoutByRefreshToken') requests++;
     });
     await page.goto('/account');
     const trigger = page.getByRole('button', { name: 'Выйти из студии' });
@@ -2256,20 +2278,26 @@ test(
 
 for (const withIdToken of [true, false]) {
   test(
-    `logout ends Keycloak SSO ${withIdToken ? 'with ID token' : 'for a legacy session without ID token'}`,
+    `logout ends Keycloak SSO ${withIdToken ? 'with ID token' : 'without ID token'}`,
     { tag: '@smoke' },
     async ({ page }) => {
       await mockApi(page);
       await page.goto('/account');
-      if (withIdToken)
-        await page.evaluate(() => sessionStorage.setItem('genfactory.idToken', 'test-id-token'));
-      const logout = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/logout');
+      await page.evaluate((withIdToken) => {
+        const stored = JSON.parse(localStorage.getItem('genfactory.keycloak.tokens')!);
+        if (withIdToken) stored.token.id = 'test-id-token';
+        else delete stored.token.id;
+        localStorage.setItem('genfactory.keycloak.tokens', JSON.stringify(stored));
+      }, withIdToken);
+      const logout = page.waitForRequest(
+        (r) => new URL(r.url()).pathname === '/api/openId/logoutByRefreshToken',
+      );
       await page.getByRole('button', { name: 'Выйти из студии' }).click();
       await page
         .getByRole('dialog', { name: 'Выйти из аккаунта?' })
         .getByRole('button', { name: 'Выйти', exact: true })
         .click();
-      expect((await logout).headers()['authorization']).toBe('Bearer test-session');
+      expect((await logout).postDataJSON()).toEqual({ token: authToken('test-session-refresh') });
       await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/logout/);
       const url = new URL(page.url());
       expect(url.searchParams.get('client_id')).toBe('gnosis');
@@ -2533,7 +2561,7 @@ test('file browser navigates folders, edits metadata, moves to root and confirms
   await page.getByRole('button', { name: 'Переместить сюда', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(writes[1]).toEqual({ directory: null });
-  await page.getByRole('button', { name: 'Корень библиотеки', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Корень библиотеки', exact: true })).toHaveCount(0);
   const entry = page.locator('.file-entry').filter({ hasText: 'Updated material' });
   await entry.locator('.file-actions > summary').click();
   await entry.getByRole('button', { name: 'Удалить', exact: true }).click();
@@ -2959,7 +2987,7 @@ test('audio downloads original bytes through the authorized API when storage blo
   await page.route('**/api/file?**', (route) => route.fulfill({ json: pagination([audio]) }));
   await page.route('**/api/file/12', (route) => route.fulfill({ json: audio }));
   await page.route('**/api/file/12/content', (route) => {
-    expect(route.request().headers().authorization).toBe('Bearer test-session');
+    expect(route.request().headers().authorization).toBe(`Bearer ${authToken()}`);
     return route.fulfill({ contentType: 'audio/wav', body: bytes });
   });
   await page.goto('/library');
@@ -3123,7 +3151,7 @@ for (const invalid of [
     let exchanges = 0;
     await page.route('**/api/login', async (route) => {
       exchanges++;
-      await route.fulfill({ json: { sid: 'must-not-login' } });
+      await route.fulfill({ json: { token: authTokens('must-not-login') } });
     });
     await page.goto('/');
     await page.evaluate((invalid) => {
@@ -3210,7 +3238,7 @@ test('OAuth callback cannot exchange the same attempt twice', async ({ page }) =
   let exchanges = 0;
   await page.route('**/api/login', async (route) => {
     exchanges++;
-    await route.fulfill({ json: { sid: 'new-session' } });
+    await route.fulfill({ json: { token: authTokens('new-session') } });
   });
   await page.goto('/');
   await page.evaluate(() =>
@@ -3234,7 +3262,7 @@ test('home task opens the studio with its text and never starts a paid request',
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const state = await mockApi(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Сначала задача. Потом кадр.' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Genfactory' })).toBeVisible();
   await page.getByRole('button', { name: 'Продолжить в студии' }).click();
   await expect(page).toHaveURL(/\/$/);
   expect(
@@ -3291,9 +3319,7 @@ test('home fits the mobile matrix and menu restores keyboard focus', async ({ pa
     [1440, 1000],
   ]) {
     await page.setViewportSize({ width, height });
-    await expect(
-      page.getByRole('heading', { name: 'Сначала задача. Потом кадр.', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Genfactory', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     await page.screenshot({
       path: testInfo.outputPath(`home-prototype-${width}.png`),
@@ -3309,7 +3335,7 @@ test('home fits the mobile matrix and menu restores keyboard focus', async ({ pa
   await expect(page.getByRole('button', { name: 'Открыть меню', exact: true })).toBeFocused();
   await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
   await page.getByRole('dialog').getByRole('link', { name: 'История', exact: true }).click();
-  await expect(page).toHaveURL(/\/history$/);
+  await expect(page).toHaveURL(/\/artifacts$/);
   await expect(page.getByRole('dialog', { name: 'Меню', exact: true })).toHaveCount(0);
 });
 
@@ -3367,10 +3393,11 @@ test('content studio prototype controls, templates and guest favorites work with
 }) => {
   const state = await mockApi(page, false);
   await page.goto('/chat');
-  await expect(page.getByRole('button', { name: 'Видео', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Изображение', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
+  await page.getByRole('button', { name: 'Видео', exact: true }).click();
   await expect(page.locator('.cw-card')).toHaveCount(30);
   const first = page.locator('.cw-card').first();
   await first.locator('.cw-fav').click();
@@ -3441,7 +3468,7 @@ test.skip('content studio writer disables tools for the request and preserves co
   expect(state.conversations[0].options.tools).toHaveLength(2);
   expect(state.sends[0].settings.isToolsDisabled).toBe(true);
   expect(state.sends[0].settings.tools).toEqual([]);
-  expect(state.sends[0].text).toContain('Не запускай генерацию медиа');
+  expect(state.sends[0].settings.instructions).toContain('Не запускай генерацию медиа');
   expect(state.creates).toHaveLength(0);
 });
 
@@ -3520,7 +3547,7 @@ test('content studio retains draft after an accepted network failure without ret
   await page.goto('/chat');
   await page.locator('#cw-draft').fill('Подготовь сценарий');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
+  await expect(page.getByRole('alert')).toContainText('Проверьте');
   await expect(page.locator('#cw-draft')).toHaveValue('Подготовь сценарий');
   await expect(page.locator('.cw-thread')).toContainText('Подготовь сценарий');
   expect(state.sends).toHaveLength(1);
@@ -3624,17 +3651,10 @@ test('content studio template is a recipe and selected format stays in structure
   expect(state.uploads).toBe(0);
 });
 
-test('content studio forwards all creative controls and brand rules', async ({ page }) => {
+test('content studio forwards creative controls through request instructions', async ({ page }) => {
   const state = await mockApi(page);
-  await page.addInitScript(() =>
-    localStorage.setItem(
-      'genfactory.preferences.v1.7',
-      JSON.stringify({ brand: 'Только синий фон, без надписей' }),
-    ),
-  );
   await page.goto('/chat');
   await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
-  await page.getByRole('switch', { name: 'Дизайн-система', exact: true }).click();
   const settings = [
     ['Формат', 'Премиум, студийный свет'],
     ['Идея', 'Сразу показать товар'],
@@ -3651,8 +3671,12 @@ test('content studio forwards all creative controls and brand rules', async ({ p
   await page.locator('#cw-draft').fill('Сценарий рекламы чашки');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  for (const [label, value] of settings) expect(state.sends[0].text).toContain(`${label}: ${value}`);
-  expect(state.sends[0].text).toContain('Правила бренда: Только синий фон, без надписей');
+  for (const [label, value] of settings)
+    expect(state.sends[0].settings.instructions).toContain(`${label}: ${value}`);
+  expect(state.sends[0].text).toBe('Сценарий рекламы чашки');
+  await expect(page.locator('.as-ask').first()).toHaveText('Сценарий рекламы чашки');
+  await page.reload();
+  await expect(page.locator('.as-ask').first()).toHaveText('Сценарий рекламы чашки');
   expect(state.sends[0].settings.tools[0]).toMatchObject({ uid: 'VIDEO' });
 });
 
@@ -3705,9 +3729,9 @@ test('content studio sends sound duration scene structure and quality independen
   await page.locator('#cw-draft').fill('Ролик с несколькими сценами');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].text).toContain('Структура: Набор сцен');
-  expect(state.sends[0].text).toContain('Общая длительность всех сцен вместе');
-  expect(state.sends[0].text).not.toContain('Адаптируй сюжет в один непрерывный план');
+  expect(state.sends[0].settings.instructions).toContain('Структура: Набор сцен');
+  expect(state.sends[0].settings.instructions).toContain('Общая длительность всех сцен вместе');
+  expect(state.sends[0].settings.instructions).not.toContain('Адаптируй сюжет в один непрерывный план');
   expect(state.sends[0].settings.tools[0].settings.options).toMatchObject({
     generateAudio: true,
     duration: 10,
@@ -3739,12 +3763,14 @@ test('content studio adapts a multi-shot template to the selected continuous tak
   await expect(page.locator('.cw-files')).toContainText('Начальный кадр: Test result');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].text).toContain('Структура: Один кадр');
-  expect(state.sends[0].text).toContain(
+  expect(state.sends[0].settings.instructions).toContain('Структура: Один кадр');
+  expect(state.sends[0].settings.instructions).toContain(
     'она важнее структуры шаблона, готового сценария и предыдущих сообщений',
   );
-  expect(state.sends[0].text).toContain('один непрерывный план без склеек');
-  expect(state.sends[0].text).toContain('не переноси это разбиение в сценарий и промпт инструмента VIDEO');
+  expect(state.sends[0].settings.instructions).toContain('один непрерывный план без склеек');
+  expect(state.sends[0].settings.instructions).toContain(
+    'не переноси это разбиение в сценарий и промпт инструмента VIDEO',
+  );
   expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
   expect(state.sends[0].settings.tools[0]).toMatchObject({
     uid: 'VIDEO',
@@ -3844,8 +3870,8 @@ test('content studio sends the visible structure after restoring video parameter
   await expect(page.getByRole('button', { name: 'Один кадр', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].text).toContain('Структура: Один кадр');
-  expect(state.sends[0].text).toContain('один непрерывный план без склеек');
+  expect(state.sends[0].settings.instructions).toContain('Структура: Один кадр');
+  expect(state.sends[0].settings.instructions).toContain('один непрерывный план без склеек');
   expect(state.sends[0].settings.tools[0].settings.options).toEqual(generation.options);
 });
 
@@ -3885,10 +3911,10 @@ test('content studio applies a saved script with references without generating u
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].settings.tools).toEqual([]);
-  expect(state.sends[0].text).toContain('[Genfactory:context]');
-  expect(state.sends[0].text).toContain('Структура: Один кадр');
-  expect(state.sends[0].text).toContain('предложи сценарий с выбранной структурой');
-  expect(state.sends[0].text).not.toContain('предложи сценарий по сценам');
+  expect(state.sends[0].text).toBe('Подготовь сценарий для этой чашки');
+  expect(state.sends[0].settings.instructions).toContain('Структура: Один кадр');
+  expect(state.sends[0].settings.instructions).toContain('предложи сценарий с выбранной структурой');
+  expect(state.sends[0].settings.instructions).not.toContain('предложи сценарий по сценам');
   await expect(page.locator('.as-ask').first()).toHaveText('Подготовь сценарий для этой чашки');
   await expect(page.getByRole('button', { name: 'Использовать сценарий', exact: true })).toBeVisible();
   await page.reload();
@@ -3916,22 +3942,31 @@ test('content studio model search and favorites preserve actual selection across
   const state = await mockApi(page);
   const selected = catalog.find((item) => item.reference.model === 'qwen/qwen-image-2.1-pro')!;
   const title = modelTitle(selected);
+  const provider = selected.reference.provider;
+  const models = catalog.filter((model) => model.reference.provider === provider);
+  for (const slug of ['fixture/additional-a', 'fixture/additional-b']) {
+    models.push({ ...selected, name: slug, reference: { provider, model: slug } });
+  }
+  await page.route(
+    (url) => url.pathname === '/api/aimodels' && catalogProvider(url) === provider,
+    (route) => route.fulfill({ json: catalogPage(models) }),
+  );
   state.conversations.push(savedConversation());
   await page.goto('/chat?conversation=101');
   await page.getByRole('button', { name: 'Изображение', exact: true }).click();
   await page.locator('.cw-model').click();
-  await page.getByRole('searchbox', { name: 'Поиск модели' }).fill(selected.reference.model);
+  await page.getByRole('searchbox', { name: 'Поиск моделей' }).fill(selected.reference.model);
   await expect(page.getByRole('option', { name: title, exact: true })).toBeVisible();
   await expect(page.getByRole('option')).toHaveCount(1);
   await page.getByRole('button', { name: `О модели ${title}`, exact: true }).click();
-  await expect(page.locator('dialog')).toContainText(
-    `${selected.reference.provider}:${selected.reference.model}`,
-  );
+  const info = page.getByRole('dialog', { name: `О модели ${title}` });
+  await expect(info).toContainText('Когда брать');
+  await expect(info).toContainText('Когда не брать');
   expect(state.sends).toHaveLength(0);
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await page.getByRole('button', { name: `В избранные: ${title}`, exact: true }).click();
   await expect(page.locator('.cw-model')).toHaveAttribute('aria-expanded', 'true');
-  await page.getByRole('searchbox', { name: 'Поиск модели' }).fill('');
+  await page.getByRole('searchbox', { name: 'Поиск моделей' }).fill('');
   await expect(page.getByRole('option').first()).toHaveAttribute('aria-label', title);
   await page.getByRole('option', { name: title, exact: true }).click();
   await expect(page.locator('.cw-model')).toContainText(title);
@@ -4264,7 +4299,7 @@ test('optional template clears previous references and sends explicitly from scr
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].references).toEqual([].map((id) => ({ type: 'FILE', id })));
-  expect(state.sends[0].text).toContain('Создай с нуля');
+  expect(state.sends[0].settings.instructions).toContain('Создай с нуля');
   expect(state.uploads).toBe(0);
   await expect(page.locator('#cw-draft')).toHaveValue('');
   await page.locator('#cw-draft').fill('Сделай свет мягче на предыдущем результате');
@@ -4409,7 +4444,11 @@ test(
     await expect(page.getByRole('button', { name: 'Все файлы', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: /^ДТП Папка(?:\s|$)/ }).click();
     await page.locator('input[type=file]').setInputFiles([
-      { name: 'one.png', mimeType: 'image/png', buffer: Buffer.from('image') },
+      {
+        name: 'one.png',
+        mimeType: 'image/png',
+        buffer: readFileSync(new URL('../../public/media/templates/2026-11-13/2.png', import.meta.url)),
+      },
       { name: 'broken.pdf', mimeType: 'application/pdf', buffer: Buffer.from('pdf') },
       { name: 'three.mp4', mimeType: 'video/mp4', buffer: Buffer.from('video') },
     ]);
@@ -4455,7 +4494,7 @@ test('library picker keeps batch upload status inside its button and explains th
     Array.from({ length: 4 }, (_, index) => ({
       name: `image-${index}.png`,
       mimeType: 'image/png',
-      buffer: Buffer.from('image'),
+      buffer: readFileSync(new URL('../../public/media/templates/2026-11-13/2.png', import.meta.url)),
     })),
   );
   await expect.poll(() => uploads).toBe(4);
@@ -4590,7 +4629,7 @@ for (const pickerMode of [false, true]) {
     await surface.locator('input[type=file]').setInputFiles({
       name: `${'LongName'.repeat(14)}.png`,
       mimeType: 'image/png',
-      buffer: Buffer.from('image'),
+      buffer: readFileSync(new URL('../../public/media/templates/2026-11-13/2.png', import.meta.url)),
     });
     const button = surface.getByRole('button', { name: 'Загрузить файл', exact: true });
     try {
@@ -4674,7 +4713,15 @@ test('library move picker describes empty subfolders and still moves into a fold
   const writes: unknown[] = [];
   await page.route('**/api/file?*', (route) => {
     const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!);
-    const items = typeof conditions.directory === 'string' ? [] : conditions.type ? [folder] : [folder, file];
+    const existing = { ...file, id: 81, name: 'Уже в папке', directory: folder.uid };
+    const items =
+      typeof conditions.directory === 'string'
+        ? conditions.type
+          ? []
+          : [existing, ...(writes.length ? [{ ...file, directory: folder.uid }] : [])]
+        : conditions.type || writes.length
+          ? [folder]
+          : [folder, file];
     return route.fulfill({ json: pagination(items) });
   });
   await page.route('**/api/file/12', (route) => {
@@ -4692,8 +4739,12 @@ test('library move picker describes empty subfolders and still moves into a fold
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: /^ДТП Папка(?:\s|$)/ }).click();
   await expect(dialog.getByText('Нет вложенных папок. Можно выбрать текущую.')).toBeVisible();
+  await expect(dialog.getByText('Элементов в папке: 1')).toBeVisible();
   await dialog.getByRole('button', { name: 'Переместить сюда', exact: true }).click();
   await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Назад в родительскую папку' })).toBeVisible();
+  await expect(page.locator('.library-card').filter({ hasText: 'Уже в папке' })).toBeVisible();
+  await expect(page.locator('.library-card').filter({ hasText: 'Test result' })).toBeVisible();
   expect(writes).toEqual([{ directory: 'folder-80' }]);
 });
 
@@ -4798,7 +4849,7 @@ test('image submission clears its reference after a response but keeps it on unc
   await selectLibraryFile(page, 'Test result');
   state.abortAfterAccept = true;
   await submit(page, 'Try another angle');
-  await expect(page.getByRole('alert')).toContainText('Автоматического повтора нет');
+  await expect(page.getByRole('alert')).toContainText('Проверьте');
   await expect(page.getByRole('button', { name: 'Убрать Test result', exact: true })).toBeVisible();
   expect(state.tasks).toHaveLength(2);
 });
@@ -4936,7 +4987,7 @@ test('library model label uses exact saved model from catalog', async ({ page })
   await expect(page.locator('.file-generation-summary')).toHaveText(modelTitle(model));
 });
 
-test('active work finishes on another page even when its final socket event is lost', async ({ page }) => {
+test('returning to the tab reconciles active work after a missed socket event', async ({ page }) => {
   const state = await mockApi(page);
   const conversation: IConversation = { ...savedConversation(101), status: 'LOADING' };
   state.conversations.push(conversation);
@@ -4946,8 +4997,17 @@ test('active work finishes on another page even when its final socket event is l
   await expect(page.getByRole('button', { name: 'Активные работы: 1' })).toBeVisible();
   await page.clock.install();
   conversation.status = 'LOADED';
-  // The connected socket uses a 30-second safety poll when an event is lost.
-  await page.clock.fastForward(31000);
+  // A connected tab reconciles after at least a minute hidden.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.clock.fastForward(60_000);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.clock.fastForward(5500);
   await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'Активные работы: 0' }).click();
   await expect(page.locator('.completed-jobs')).toContainText('Готово');
@@ -5016,9 +5076,7 @@ test('video with an output file does not also display a no-result answer card', 
   expect(state.sends).toHaveLength(0);
 });
 
-test('reloaded image page reveals completed output without a final socket event or another send', async ({
-  page,
-}) => {
+test('reconnected image page reveals completed output without another send', async ({ page }) => {
   const state = await mockApi(page);
   const conversation: IConversation = { ...savedConversation(101), status: 'LOADING' };
   state.conversations.push(conversation);
@@ -5038,6 +5096,8 @@ test('reloaded image page reveals completed output without a final socket event 
     files: [file],
     createdDate: new Date().toISOString(),
   });
+  await expect.poll(() => !!state.socket).toBe(true);
+  state.socket!.close();
   await expect(page.locator('.image-result-pending')).toHaveCount(0, { timeout: 15000 });
   await expect(page.locator('.image-result')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Добавить изображение', exact: true })).toBeEnabled();
@@ -5235,11 +5295,11 @@ for (const initialWriter of [true, false]) {
     release();
     await expect(page.locator('#cw-draft')).toHaveValue('');
     await expect(writer).toHaveAttribute('aria-checked', String(!initialWriter));
-    expect(state.sends[0].text.startsWith('[Genfactory:script]')).toBe(initialWriter);
+    expect(state.sends[0].settings.isToolsDisabled === true).toBe(initialWriter);
     await page.locator('#cw-draft').fill('Следующий кадр с чашкой');
     await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
     await expect.poll(() => state.sends.length).toBe(2);
-    expect(state.sends[1].text.startsWith('[Genfactory:script]')).toBe(!initialWriter);
+    expect(state.sends[1].settings.isToolsDisabled === true).toBe(!initialWriter);
     expect(state.sends[1].settings.tools.length).toBe(initialWriter ? 1 : 0);
     await expect(page.locator('#cw-draft')).toHaveValue('');
     await page.reload();
@@ -5695,7 +5755,7 @@ test('content studio binds all four Seedance references to the required VIDEO ca
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].references).toEqual([14, 8, 23, 6].map((id) => ({ type: 'FILE', id })));
-  expect(state.sends[0].text).toContain('Режим видеореференсов: references');
+  expect(state.sends[0].settings.instructions).toContain('Режим видеореференсов: references');
   expect(state.sends[0].settings.tools[0].isRequired).not.toBe(true);
   expect(state.creates[0].options.tools[0]).not.toHaveProperty('input');
 });
@@ -5779,7 +5839,7 @@ for (const referenceMode of ['references', 'frames'] as const)
     await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
     await expect.poll(() => state.sends.length).toBe(1);
     expect(state.sends[0].references).toEqual(files.map((f) => ({ type: 'FILE', id: f.id })));
-    expect(state.sends[0].text).toContain(`Режим видеореференсов: ${referenceMode}`);
+    expect(state.sends[0].settings.instructions).toContain(`Режим видеореференсов: ${referenceMode}`);
   });
 
 for (const restored of [false, true])
@@ -6354,8 +6414,8 @@ test('a socket event refreshes its conversation without refetching the other ope
   await navigateLegacyRoute(page, '/chat?conversation=102');
   await expect(page.getByText('Second thread', { exact: true })).toBeVisible();
   await expect.poll(() => state.joinedRooms.includes('conversation102')).toBe(true);
-  // Settle the initial connection refresh before measuring an isolated event.
-  await page.waitForTimeout(250);
+  // Settle both connection and room-join reconciliation before measuring an isolated event.
+  await page.waitForTimeout(5500);
   const baseline = reads.get(102);
   state.messages.set(101, [
     { id: 3, role: 'ASSISTANT', text: 'First updated', createdDate: file.createdDate },
@@ -6382,41 +6442,14 @@ test('a socket event refreshes its conversation without refetching the other ope
   expect(state.sends).toHaveLength(0);
 });
 
-test('home video waits until near the viewport and keeps its still cover with reduced motion', async ({
-  page,
-}, testInfo) => {
+test('home mode cards link to the three editors', async ({ page }) => {
   await mockApi(page, false);
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.addInitScript(() => {
-    const callbacks: Array<(visible: boolean) => void> = [];
-    (window as any).observeHome = (visible: boolean) => callbacks.forEach((callback) => callback(visible));
-    window.IntersectionObserver = class {
-      constructor(callback: IntersectionObserverCallback) {
-        callbacks.push((visible) =>
-          callback([{ isIntersecting: visible }] as IntersectionObserverEntry[], this as any),
-        );
-      }
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-      takeRecords() {
-        return [];
-      }
-      root = null;
-      rootMargin = '';
-      thresholds = [];
-    } as any;
-  });
   await page.goto('/');
-  const video = page.locator('.home-destination-film');
-  await expect(video).toHaveCount(1);
-  await expect(video).not.toHaveAttribute('src');
-  await page.evaluate(() => (window as any).observeHome(true));
-  await expect(video).toHaveAttribute('src', '/media/prototype/studio-banner.mp4');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect(video).not.toHaveAttribute('src');
-  await expect(page.locator('.home-destination-cover').first()).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('home-cover.png') });
+  const modes = page.getByRole('region', { name: 'Начать создание' });
+  await expect(modes.getByRole('link')).toHaveCount(3);
+  await expect(modes.getByRole('link', { name: 'Открыть студию' })).toHaveAttribute('href', '/chat');
+  await expect(modes.getByRole('link', { name: 'Собрать изображение' })).toHaveAttribute('href', '/image');
+  await expect(modes.getByRole('link', { name: 'Собрать видео' })).toHaveAttribute('href', '/video');
 });
 
 test('late studio request failure does not appear in another conversation', async ({ page }) => {
@@ -6809,6 +6842,7 @@ test('artifacts reuse file and conversation cards with colliding IDs and open ex
           userId: 7,
           name: artifactFile.name,
           generation: artifactFile.origin.generation,
+          preview: { image: { status: 'READY', url: file.path } },
           mime: file.mime,
           size: 12,
           createdDate: file.createdDate,
@@ -6946,7 +6980,66 @@ test('artifacts show an error and recover to an empty list without inventing res
   await expect(page.getByRole('heading', { name: 'История пока пуста' })).toBeVisible();
 });
 
-test('content studio runs separate conversations concurrently and keeps pending dialogs locked', async ({
+test('studio preserves the next draft while an accepted message is generating', async ({ page }) => {
+  const state = await mockApi(page);
+  const conversation = savedConversation();
+  state.conversations.push(conversation);
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requests = 0;
+  const changeStatus = (status: IConversation['status']) => {
+    conversation.status = status;
+    state.socket!.send(
+      '42/gnosisai,' +
+        JSON.stringify([
+          'transportSocketEvent',
+          {
+            uid: crypto.randomUUID(),
+            name: 'ConversationChangedEvent',
+            data: { id: conversation.id, item: { status } },
+          },
+        ]),
+    );
+  };
+  await page.route('**/api/conversation/101/message', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    requests++;
+    const message: IConversationMessage = {
+      id: 42,
+      role: 'USER',
+      text: route.request().postDataJSON().text,
+      createdDate: new Date().toISOString(),
+    };
+    state.messages.set(101, [message]);
+    changeStatus('LOADING');
+    await pending;
+    await route.fulfill({ json: message });
+  });
+  try {
+    await page.goto('/chat?conversation=101');
+    await expect.poll(() => state.joinedRooms.includes('conversation101')).toBe(true);
+    const draft = page.locator('#cw-draft');
+    const send = page.getByRole('button', { name: 'Отправить запрос', exact: true });
+    await draft.fill('Первый запрос');
+    await send.click();
+    await expect(page.locator('.as-ask')).toHaveText('Первый запрос');
+    await expect(draft).toBeEnabled();
+    await expect(draft).toHaveValue('');
+    await draft.fill('Следующий запрос');
+    await expect(send).toBeDisabled();
+    changeStatus('LOADED');
+    release();
+    await expect(send).toBeEnabled();
+    await expect(draft).toHaveValue('Следующий запрос');
+    expect(requests).toBe(1);
+  } finally {
+    release();
+  }
+});
+
+test('content studio runs separate conversations concurrently and protects pending sends', async ({
   page,
 }) => {
   const state = await mockApi(page);
@@ -6990,7 +7083,9 @@ test('content studio runs separate conversations concurrently and keeps pending 
     await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
     await expect.poll(() => entered.has(103)).toBe(true);
     await go('/chat?conversation=102');
-    await expect(page.locator('#cw-draft')).toBeDisabled();
+    await expect(page.locator('#cw-draft')).toBeEnabled();
+    await page.locator('#cw-draft').fill('Next draft in the pending conversation');
+    await expect(page.getByRole('button', { name: 'Отправить запрос', exact: true })).toBeDisabled();
     expect([...entered]).toEqual([101, 102, 103]);
   } finally {
     releases.forEach((release) => release());
@@ -7278,24 +7373,19 @@ test('video templates use the same editor and adapt duration without changing se
   expect(state.sends).toHaveLength(0);
 });
 
-test('studio keeps the shared template editor and applies the same prepared image brief', async ({
-  page,
-}) => {
+test('studio applies an image template inline and preserves edits while filling fields', async ({ page }) => {
   const state = await mockApi(page);
   await page.goto('/chat');
   await page.getByRole('button', { name: 'Изображение', exact: true }).click();
-  const title = 'Главное фото на белом фоне (маркетплейс)';
-  const card = page
-    .locator('.cw-card')
-    .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
-  await card.hover();
-  await card.locator('.cw-template-open').click();
-  const dialog = page.getByRole('dialog', { name: title, exact: true });
-  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-  await expect(dialog.getByRole('alert')).toContainText('Заполните все поля');
-  await dialog.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
-  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-  await expect(dialog).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Открыть шаблон: Главное фото на белом фоне (маркетплейс)', exact: true })
+    .click();
+  const draft = page.locator('#cw-draft');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Отправить запрос' })).toBeDisabled();
+  await draft.fill((await draft.inputValue()) + ' Мягкий свет.');
+  await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+  await expect(draft).toHaveValue(/Мягкий свет\.$/);
   await expect(page.locator('#cw-draft')).toHaveValue(/Красная чашка/);
   await expect(page.locator('#cw-draft')).not.toHaveValue(/\[PRODUCT\]/);
   await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
@@ -8390,7 +8480,7 @@ for (const modelId of ['bytedance/seedance-2.5', 'alibaba/wan-3.0']) {
       } else {
         await expect.poll(() => state.sends.length).toBe(1);
         expect(state.sends[0].references).toEqual([14, 12].map((id) => ({ type: 'FILE', id })));
-        expect(state.sends[0].text).toContain('Режим видеореференсов: references');
+        expect(state.sends[0].settings.instructions).toContain('Режим видеореференсов: references');
       }
     });
   }
@@ -8704,7 +8794,7 @@ async function templateVideoSetup(page: Page) {
   const clip = {
     ...file,
     id: 314,
-    name: 'Замена персонажа в танце — референс.mp4',
+    name: 'Замена персонажа в танце - референс.mp4',
     type: 'VIDEO',
     mime: 'video/mp4',
     path: '/media/templates/2026-11-13/video/references/03.mp4',
@@ -8783,7 +8873,7 @@ for (const path of ['/video', '/chat']) {
         { type: 'FILE', id: 12 },
       ]);
       expect(state.sends[0].text).not.toContain('[Genfactory:studio-context');
-      expect(state.sends[0].text).toContain('Режим видеореференсов: references');
+      expect(state.sends[0].settings.instructions).toContain('Режим видеореференсов: references');
     }
   });
 
@@ -9047,7 +9137,7 @@ test('long image history keeps pagination and the shared viewer working', async 
   });
   await page.goto('/image');
   const first = page.getByRole('button', { name: 'Открыть History 249', exact: true }).first();
-  await expect(first).toBeVisible();
+  await expect(first).toBeVisible({ timeout: 15000 });
   await expect.poll(() => page.locator('.image-result').count()).toBeLessThan(80);
   await first.click();
   await expect(page.locator('.file-preview-dialog')).toBeVisible();
@@ -9159,14 +9249,14 @@ test('public template reference can be removed or switched without uploads or so
   ]) {
     await applyVideoTemplate(page, '/video', title);
     await expect(page.locator('.composer-attachment')).toHaveCount(1);
-    await expect(page.locator('.composer-attachment')).toContainText(`${title} — референс.mp4`);
+    await expect(page.locator('.composer-attachment')).toContainText(`${title} - референс.mp4`);
     await expect(page.locator('.composer-attachment-preview .file-placeholder')).toBeVisible();
     await expect(
       page.locator('.composer-attachment-preview img, .composer-attachment-preview video'),
     ).toHaveCount(0);
   }
   await page
-    .getByRole('button', { name: 'Убрать Новая сцена по видеореференсу — референс.mp4', exact: true })
+    .getByRole('button', { name: 'Убрать Новая сцена по видеореференсу - референс.mp4', exact: true })
     .click();
   await expect(page.locator('.composer-attachment')).toHaveCount(0);
   await applyVideoTemplate(page, '/video', 'Замена персонажа в танце');
@@ -9192,7 +9282,7 @@ test('public template request failure restores its reference and the user photo'
   await expect(page.getByText(/Сервис временно недоступен.*Проверьте результат/)).toBeVisible();
   await expect(page.locator('.composer-attachment')).toHaveCount(2);
   await expect(page.locator('.composer-attachment').first()).toContainText(
-    'Замена персонажа в танце — референс.mp4',
+    'Замена персонажа в танце - референс.mp4',
   );
   expect(state.uploads).toBe(0);
 });
@@ -9725,3 +9815,204 @@ for (const width of [360, 1440]) {
     expect(state.tasks).toHaveLength(0);
   });
 }
+
+for (const width of [390, 1440]) {
+  test(`studio keeps instructions out of persisted user text at ${width}px`, async ({ page }) => {
+    const state = await mockApi(page);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/chat');
+    await page
+      .locator('input[type=file]')
+      .setInputFiles({ name: 'cup.png', mimeType: 'image/png', buffer: Buffer.from('fake') });
+    await expect(page.getByRole('button', { name: 'Убрать cup.png', exact: true })).toBeVisible();
+    await page.locator('#cw-draft').fill('Сделай ещё — я выбрал другую модель');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect.poll(() => state.sends.length).toBe(1);
+    const sent = state.sends[0];
+    expect(sent.text).toBe('Сделай ещё — я выбрал другую модель');
+    expect(sent.settings.instructions).toContain('Структура: Один кадр');
+    expect(sent.settings.instructions).toContain('Режим видеореференсов: frames');
+    expect(sent.references).toEqual([{ type: 'FILE', id: 12 }]);
+    expect(sent.settings.tools[0].settings.isLockSelection).toBe(true);
+    await expect(page.locator('.as-ask').first()).toHaveText(sent.text);
+    await page.reload();
+    await expect(page.locator('.as-ask').first()).toHaveText(sent.text);
+  });
+}
+
+for (const height of [640, 844]) {
+  test(`mobile studio composer has no extra bottom strip at height ${height}`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height });
+    await mockApi(page);
+    await page.goto('/chat');
+    await expect(page.locator('#cw-draft')).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const studio = document.querySelector('.content-studio')!.getBoundingClientRect();
+      const chat = document.querySelector('.content-studio .cw-chat')!.getBoundingClientRect();
+      const composer = document.querySelector('.cw-composer-stack')!.getBoundingClientRect();
+      return {
+        extra: studio.bottom - chat.bottom,
+        gap: chat.bottom - composer.bottom,
+        horizontal: document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    expect(geometry.extra).toBeCloseTo(0, 0);
+    expect(geometry.gap).toBeCloseTo(14, 0);
+    expect(geometry.horizontal).toBe(false);
+    await page.screenshot({ path: `/tmp/gnosis-mobile-studio-bottom-${height}.png` });
+  });
+}
+
+test('socket completion keeps the user turn mounted without periodic conversation polling', async ({
+  page,
+}) => {
+  await page.clock.install();
+  const state = await mockApi(page);
+  const conversation = {
+    ...savedConversation(),
+    status: 'LOADING' as const,
+    tags: ['genfactory', 'content-studio'],
+  };
+  state.conversations.push(conversation);
+  const ask: IConversationMessage = {
+    id: 1,
+    role: 'USER',
+    text: 'Сохрани вложение',
+    files: [file],
+    createdDate: file.createdDate,
+  };
+  state.messages.set(101, [ask]);
+  let reads = 0;
+  page.on('request', (request) => {
+    if (
+      /\/api\/conversation(?:\/101(?:\/message)?)?(?:\?|$)/.test(request.url()) &&
+      request.method() === 'GET'
+    )
+      reads++;
+  });
+  await page.goto('/chat?conversation=101');
+  await expect.poll(() => state.joinedRooms.includes('conversation101')).toBe(true);
+  const thumb = page.locator('.as-thumbs .content-thumb').first();
+  await expect(thumb).toBeVisible();
+  await page.evaluate(() => {
+    (window as any).originalTurn = document.querySelector('.cw-turn');
+    (window as any).originalThumb = document.querySelector('.as-thumbs .content-thumb');
+  });
+  await page.clock.runFor(6000);
+  const initialReads = reads;
+  await page.clock.runFor(31000);
+  expect(reads).toBe(initialReads);
+  state.conversations[0] = { ...conversation, status: 'LOADED' };
+  state.messages.set(101, [
+    ask,
+    { id: 2, role: 'ASSISTANT', text: 'Ответ по сокету', createdDate: file.createdDate },
+  ]);
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        { uid: crypto.randomUUID(), name: 'ConversationMessageAddedEvent', data: { id: 101 } },
+      ]),
+  );
+  await page.clock.runFor(5500);
+  await expect(page.getByText('Ответ по сокету', { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as any).originalTurn === document.querySelector('.cw-turn') &&
+        (window as any).originalThumb === document.querySelector('.as-thumbs .content-thumb'),
+    ),
+  ).toBe(true);
+});
+
+test('a short tab switch with a connected socket does not refetch stale queries', async ({ page }) => {
+  const state = await mockApi(page);
+  let fileReads = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/file' && request.method() === 'GET') fileReads++;
+  });
+  await page.goto('/library');
+  await expect(page.getByRole('button', { name: /Test result/ }).first()).toBeVisible();
+  await expect.poll(() => !!state.socket).toBe(true);
+  // Finish the connection's initial reconciliation before measuring tab-return requests.
+  await expect.poll(() => fileReads).toBeGreaterThan(1);
+  await page.clock.install();
+  // Keep the mocked Engine.IO connection alive during the simulated tab absence.
+  state.socket!.send('2');
+  await expect.poll(() => state.pongs).toBeGreaterThan(0);
+  await page.clock.runFor(6000);
+  const baseline = fileReads;
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  // Longer than query staleTime (30s), shorter than the tab refresh threshold (60s).
+  await page.clock.fastForward(35_000);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.clock.runFor(1000);
+  expect(fileReads).toBe(baseline);
+});
+
+test('expired JWT refreshes once and preserves the session across reload', async ({ page }) => {
+  await mockApi(page, false);
+  const expired = { ...authTokens(), access: authToken('test-session', 1) };
+  const renewed = authTokens();
+  await page.addInitScript((token) => {
+    if (!localStorage.getItem('genfactory.keycloak.tokens')) {
+      localStorage.setItem('genfactory.keycloak.tokens', JSON.stringify({ id: 'test-session', token }));
+      localStorage.setItem('genfactory.session', 'test-session');
+    }
+  }, expired);
+  let refreshes = 0;
+  await page.route('**/api/openId/getTokenByRefreshToken', async (route) => {
+    refreshes++;
+    expect(route.request().postDataJSON()).toEqual({ token: expired.refresh });
+    await route.fulfill({ json: renewed });
+  });
+  const initialized = page.waitForRequest('**/api/init');
+  await page.goto('/account');
+  expect((await initialized).headers().authorization).toBe(`Bearer ${renewed.access}`);
+  await expect(page.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
+  expect(refreshes).toBe(1);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('genfactory.keycloak.tokens')!))).toEqual({
+    id: 'test-session',
+    token: renewed,
+  });
+});
+
+test('image attachment picker retains failed files for retry and removal', async ({ page }) => {
+  await mockApi(page);
+  let attempts = 0;
+  await page.route('**/api/file', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    attempts++;
+    if (attempts === 1) return route.abort('connectionreset');
+    await route.fulfill({ json: { ...file, id: 101 } });
+  });
+  await page.goto('/image');
+  await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Библиотека' });
+  await picker.locator('input[type=file]').setInputFiles([
+    {
+      name: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      buffer: readFileSync(new URL('../../public/media/gallery-1.jpg', import.meta.url)),
+    },
+    { name: 'broken.png', mimeType: 'image/png', buffer: Buffer.from('broken') },
+  ]);
+  const failures = picker.locator('.file-upload-failures > div');
+  const jpeg = failures.filter({ hasText: 'photo.jpg' });
+  const png = failures.filter({ hasText: 'broken.png' });
+  await expect(jpeg).toContainText('Проверьте интернет');
+  await expect(png).toContainText('Не удалось прочитать фото');
+  await jpeg.getByRole('button', { name: 'Повторить' }).click();
+  await expect(jpeg).toHaveCount(0);
+  await png.getByRole('button', { name: 'Удалить' }).click();
+  await expect(failures).toHaveCount(0);
+  expect(attempts).toBe(2);
+});

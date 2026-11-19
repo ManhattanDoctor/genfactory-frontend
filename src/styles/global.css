@@ -1373,6 +1373,9 @@ a svg {
   height: 100%;
   object-fit: cover;
 }
+.library-page .library-grid .library-media :is(img, video) {
+  object-position: center top;
+}
 .library-card > div:last-child {
   padding: 15px;
 }
@@ -3821,4 +3824,27 @@ video:-webkit-full-screen {
   border-radius: 0 0 7px 7px;
   margin-top: 6px;
   padding-top: 14px;
+}
+
+.file-browser .chip,
+.compact-tag {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #2a2b30;
+  color: #f4f4f5;
+  font-size: 14px;
+}
+.file-browser .file-tag-chips .chip,
+.compact-tag {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+.compact-tag {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  white-space: nowrap;
 }

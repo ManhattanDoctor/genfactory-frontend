@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { catalogProvider, catalogResponse } from './modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -50,7 +51,7 @@ async function setup(
     limitations: [],
   }),
 ) {
-  await page.addInitScript(() => localStorage.setItem('genfactory.session', 'video-test'));
+  await mockSession(page, 'video-test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   const state = {
     creates: [] as any[],
@@ -114,14 +115,16 @@ test('agent sends an image, continues the same dialogue and restores messages', 
   const state = await setup(page, 'Красная чашка');
   await page.goto('/agent');
   await expect(page.locator('.agent-brand')).toBeVisible();
+  const selectedModel = (await page.getByRole('button', { name: 'Модель', exact: true }).innerText()).trim();
   await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: 'Чашка.png Чашка.png 05.11.2026', exact: true })
+    .getByRole('button', { name: /^Чашка\.png Чашка\.png/ })
     .click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Добавить (1)', exact: true }).click();
   await page.getByRole('button', { name: 'Отправить', exact: true }).click();
   await expect(page.locator('.agent-msg.is-assistant')).toHaveCount(1);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([{ type: 'FILE', id: 12 }]);
   expect(state.creates[0].options.tools).toEqual([]);
   expect(state.sends[0].settings.tools).toEqual([]);
   expect(state.sends[0].settings.isToolsDisabled).toBe(true);
@@ -133,7 +136,7 @@ test('agent sends an image, continues the same dialogue and restores messages', 
   await page.reload();
   await expect(page.locator('.agent-msg.is-assistant')).toHaveCount(2);
   await expect(page.locator('.agent-thread')).not.toContainText('[Genfactory:');
-  await expect(page.locator('.agent-who').first()).toHaveText('GPT 5.6 Terra');
+  await expect(page.locator('.agent-who').first()).toHaveText(selectedModel);
 });
 for (const width of [390, 1440])
   test(`agent layout fits ${width}`, async ({ page }) => {

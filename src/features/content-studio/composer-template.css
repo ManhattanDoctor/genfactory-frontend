@@ -1,0 +1,60 @@
+.composer-template-options {
+  max-height: min(28vh, 220px);
+  overflow: auto;
+  margin-bottom: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ds-line-soft);
+}
+.composer-template-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.composer-template-heading:not(:last-child) {
+  margin-bottom: 8px;
+}
+.composer-template-heading span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.composer-template-heading button {
+  flex-shrink: 0;
+}
+.composer-template-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 8px;
+}
+.composer-template-fields label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  font-size: 13px;
+}
+.composer-template-fields label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-template-fields :is(input, select) {
+  min-width: 0;
+  width: 100%;
+}
+.composer-template-photos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.composer-template-fields + .composer-template-photos {
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .composer-template-photos > .button {
+    min-height: 44px;
+  }
+}

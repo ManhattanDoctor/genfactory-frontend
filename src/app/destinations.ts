@@ -1,38 +1,39 @@
+import { Image, MessageCircle, Video } from 'lucide-react';
+
 // Shared by the home cards and navigation; editors keep their existing routes.
 export const destinations = [
   {
     to: '/chat',
     label: 'Студия контента',
-    description: 'Обсудите задачу и подготовьте следующий кадр',
+    CardIcon: MessageCircle,
+    subtitle: 'Генерация в диалоге',
+    description:
+      'Собирайте кадры и ролики в переписке с ИИ: уточняйте задачу, просите правки по уже готовому результату и ведите работу шаг за шагом - без переписывания всего промпта с нуля.',
+    audience: 'Командам и авторам, которым важны итерации, правки и контроль над черновиком.',
+    action: 'Открыть студию',
     icon: 'mark-studio',
-    cover: 'studio-banner',
   },
   {
     to: '/image',
     label: 'Изображения',
-    description: 'Создание и редактирование изображений',
+    CardIcon: Image,
+    subtitle: 'Моно-генерация',
+    description:
+      'Один точный промпт - сразу готовый кадр. Режим для тех, кто умеет формулировать задачу и хочет результат без длинного диалога.',
+    audience: 'Профессионалам: дизайнерам, маркетологам и продакшену с сильным навыком промптов.',
+    action: 'Собрать изображение',
     icon: 'mark-image',
-    cover: 'images-banner',
   },
   {
     to: '/video',
     label: 'Видео',
-    description: 'Ролики по описанию и исходному кадру',
+    CardIcon: Video,
+    subtitle: 'Моно-генерация',
+    description:
+      'Короткий ролик из одного сильного ТЗ. Тот же принцип, что у изображений: вы задаёте сцену, модель отдаёт готовый клип.',
+    audience:
+      'Профи, которые уже умеют ставить видео-промпт и хотят быстрый продакшен без студийного диалога.',
+    action: 'Собрать видео',
     icon: 'mark-video',
-    cover: 'video-banner',
   },
-  {
-    to: '/image?studio=banana',
-    label: 'Nano Banana',
-    description: 'Правка уже готового кадра',
-    icon: 'banana',
-  },
-  {
-    to: '/video?studio=seedance',
-    label: 'Seedance Studio',
-    description: 'Ролики в характере Seedance',
-    icon: 'seedance',
-  },
-  { to: '/prompt', label: 'Generate Prompt', description: 'Слова, которые модель поймёт', icon: 'prompt' },
-  { to: '/agent', label: 'AI agent', description: 'Спросить по задаче', icon: 'agent' },
 ] as const;

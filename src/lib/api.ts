@@ -1,3 +1,6 @@
+import { sessionService, SESSION_KEY } from './SessionService';
+export { SESSION_KEY };
+export { sessionService } from './SessionService';
 import {
   DEFAULT_ASSISTANT,
   isAllowedProvider,
@@ -30,7 +33,6 @@ import type {
 } from './types';
 // Leave room for multipart headers under the existing nginx 1 GiB request limit.
 export const MAX_UPLOAD_BYTES = 1_000_000_000;
-export const SESSION_KEY = 'genfactory.session';
 const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
 export class ApiError extends Error {
   constructor(
@@ -45,22 +47,10 @@ export function retryQuery(failureCount: number, error: Error): boolean {
   return failureCount < 1 && !(error instanceof ApiError && [401, 403, 429].includes(error.status));
 }
 export function getSession(): string | null {
-  const persistent = localStorage.getItem(SESSION_KEY);
-  const legacy = sessionStorage.getItem(SESSION_KEY);
-  if (persistent) {
-    sessionStorage.removeItem(SESSION_KEY);
-    return persistent;
-  }
-  if (legacy) {
-    localStorage.setItem(SESSION_KEY, legacy);
-    sessionStorage.removeItem(SESSION_KEY);
-  }
-  return legacy;
+  return sessionService.getSession();
 }
-export function setSession(sid: string | null): void {
-  sessionStorage.removeItem(SESSION_KEY);
-  if (sid) localStorage.setItem(SESSION_KEY, sid);
-  else localStorage.removeItem(SESSION_KEY);
+export function setSession(_value: null): void {
+  sessionService.clear();
 }
 let pendingWrites = 0;
 export const hasPendingWrites = () => pendingWrites > 0;
@@ -80,7 +70,7 @@ export async function request<T>(
   }
   try {
     const headers = new Headers(init.headers);
-    if (sid) headers.set('Authorization', `Bearer ${sid}`);
+    if (sid) headers.set('Authorization', `Bearer ${await sessionService.access(sid)}`);
     if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
     const res = await fetch(`${base}${path}`, { ...init, headers });
     if (!res.ok) {
@@ -113,7 +103,7 @@ async function uploadFile(
   context?: IFileOutputSettings,
   onProgress?: (progress: IUploadProgress) => void,
 ): Promise<IGnosisFile> {
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error('Максимальный размер загружаемого файла — 1 ГБ.');
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error('Максимальный размер загружаемого файла - 1 ГБ.');
   const session = sid ?? getSession();
   pendingWrites++;
   notifyWrites();
@@ -128,11 +118,12 @@ async function uploadFile(
     data.append('file', file);
     if (context?.directory) data.append('directory', context.directory);
     if (context?.tags !== undefined) data.append('tags', JSON.stringify(context.tags));
+    const access = session ? await sessionService.access(session) : null;
     return await new Promise<IGnosisFile>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${base}/file`);
       xhr.responseType = 'json';
-      if (session) xhr.setRequestHeader('Authorization', `Bearer ${session}`);
+      if (access) xhr.setRequestHeader('Authorization', `Bearer ${access}`);
       const progress = (loaded: number, total: number | undefined, phase: IUploadProgress['phase']) =>
         onProgress?.({ loaded, total, phase, fileName: file.name });
       xhr.upload.onprogress = (event) =>
@@ -141,7 +132,7 @@ async function uploadFile(
       xhr.onerror = () =>
         reject(
           new ApiError(
-            'Соединение прервалось при загрузке файла. Проверьте библиотеку перед повторной загрузкой.',
+            'Соединение прервалось. Проверьте интернет. Если файла нет в библиотеке, повторите загрузку.',
             0,
           ),
         );
@@ -158,7 +149,7 @@ async function uploadFile(
         const response = xhr.response;
         const message =
           xhr.status === 413
-            ? 'Сервер отклонил загрузку из-за размера файла. Максимальный размер — 1 ГБ.'
+            ? 'Сервер отклонил загрузку из-за размера файла. Максимальный размер - 1 ГБ.'
             : apiErrorMessage(response, xhr.status);
         reject(new ApiError(message, xhr.status, response?.details));
       };
@@ -234,7 +225,7 @@ export const api = {
       null,
     ),
   login: (code: string, redirectUri: string) =>
-    request<{ sid: string; idToken?: string }>(
+    request<{ token: import('@ts-core/openid-common').IOpenIdTokenRefreshable }>(
       '/login',
       {
         method: 'POST',
@@ -243,8 +234,14 @@ export const api = {
       },
       null,
     ),
-  logout: (sid: string | null) =>
-    request<void>('/logout', { method: 'POST', signal: AbortSignal.timeout(10_000) }, sid),
+  logout: (token?: string) =>
+    token
+      ? request<void>(
+          '/openId/logoutByRefreshToken',
+          { method: 'POST', body: JSON.stringify({ token }), signal: AbortSignal.timeout(10_000) },
+          null,
+        )
+      : Promise.resolve(),
   fileDownload: (id: number, sid = getSession()): Promise<{ url?: string }> =>
     request<{ url?: string }>(`/file/${id}/download`, {}, sid),
   downloadFile: (id: number, sid = getSession()): Promise<Blob> =>
@@ -430,6 +427,7 @@ export const api = {
     tags: string[] = [],
     tagMatch: 'all' | 'any' = 'all',
     signal?: AbortSignal,
+    pageSize = 24,
   ) => {
     const conditions: Record<string, unknown> = {};
     if (!search && !tags.length)
@@ -451,6 +449,7 @@ export const api = {
       conditions.mime = [
         'text/plain',
         'text/markdown',
+        'text/csv',
         'application/pdf',
         'application/msword',
         'application/json',
@@ -461,7 +460,7 @@ export const api = {
       conditions.mime = { condition: 'CONTAINS', type: 'STRING', value: `${type.toLowerCase()}/%` };
 
     return request<IPagination<IGnosisFile>>(
-      `/file?${new URLSearchParams({ pageSize: '24', pageIndex: String(page), sort: JSON.stringify({ createdDate: false }), conditions: JSON.stringify(conditions) })}`,
+      `/file?${new URLSearchParams({ pageSize: String(pageSize), pageIndex: String(page), sort: JSON.stringify({ createdDate: false }), conditions: JSON.stringify(conditions) })}`,
       { signal },
     );
   },

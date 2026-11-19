@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, hasPendingWrites, MAX_UPLOAD_BYTES, type IUploadProgress } from '../src/lib/api';
+import {
+  sessionService,
+  api,
+  hasPendingWrites,
+  MAX_UPLOAD_BYTES,
+  type IUploadProgress,
+} from '../src/lib/api';
 const heic = vi.hoisted(() => ({ isHeic: vi.fn(), heicTo: vi.fn() }));
 vi.mock('heic-to/csp', () => heic);
 class FakeXHR {
@@ -27,6 +33,8 @@ class FakeXHR {
   }
 }
 beforeEach(() => {
+  vi.spyOn(sessionService, 'access').mockResolvedValue('session');
+  vi.spyOn(sessionService, 'getSession').mockImplementation(() => localStorage.getItem('genfactory.session'));
   vi.stubGlobal('XMLHttpRequest', FakeXHR);
   vi.stubGlobal('localStorage', {
     getItem: () => 'session',
@@ -35,7 +43,10 @@ beforeEach(() => {
   vi.stubGlobal('sessionStorage', { getItem: () => null, removeItem: vi.fn() });
   vi.stubGlobal('window', { dispatchEvent: vi.fn() });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 describe('upload lifecycle', () => {
   it('reports actual transfer progress and keeps the write pending during server processing', async () => {
     const events: IUploadProgress[] = [];
@@ -45,6 +56,7 @@ describe('upload lifecycle', () => {
       { tags: ['speech'] },
       (event) => events.push(event),
     );
+    await Promise.resolve();
     const xhr = FakeXHR.current;
     expect(hasPendingWrites()).toBe(true);
     expect(xhr.setRequestHeader).toHaveBeenCalledWith('Authorization', 'Bearer session');
@@ -64,6 +76,7 @@ describe('upload lifecycle', () => {
   });
   it('explains nginx HTML 413 responses and clears the pending write', async () => {
     const upload = api.upload(new File(['x'], 'audio.wav'), 'session');
+    await Promise.resolve();
     FakeXHR.current.finish(413, null);
     await expect(upload).rejects.toMatchObject({
       status: 413,
@@ -73,6 +86,7 @@ describe('upload lifecycle', () => {
   });
   it('clears a failed upload without resending and expires only the current session', async () => {
     const upload = api.upload(new File(['x'], 'audio.wav'), 'session');
+    await Promise.resolve();
     FakeXHR.current.finish(401, { message: 'Unauthorized' });
     await expect(upload).rejects.toMatchObject({ status: 401 });
     expect(window.dispatchEvent).toHaveBeenCalledWith(
@@ -83,6 +97,7 @@ describe('upload lifecycle', () => {
   });
   it('clears pending state on a network failure without retrying', async () => {
     const upload = api.upload(new File(['x'], 'audio.wav'), 'session');
+    await Promise.resolve();
     FakeXHR.current.onerror?.();
     await expect(upload).rejects.toMatchObject({ status: 0 });
     expect(FakeXHR.current.send).toHaveBeenCalledTimes(1);

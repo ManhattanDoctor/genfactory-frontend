@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { scheduleRefresh } from '../features/realtime/queryRefresh';
 import type { ReactElement } from 'react';
 import { GenerationElapsed } from './GenerationElapsed';
@@ -8,10 +9,15 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IDirectMediaTask } from '../features/studio/useDirectMediaTask';
 import { useRealtime } from '../features/realtime/RealtimeProvider';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { apiErrorMessage } from '../lib/errorMessages';
 import { api, getSession } from '../lib/api';
-import { taskView, visibleTasks, visibleTaskNotices } from '../features/studio/activeTasks';
+import {
+  selectedImageTaskKey,
+  taskView,
+  visibleTasks,
+  visibleTaskNotices,
+} from '../features/studio/activeTasks';
 import { FilePlaceholder } from './FilePlaceholder';
 import type { IGnosisFile, ITaskExecution, ITaskResponse, ITaskFinished, IConversation } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -57,6 +63,7 @@ function TaskCard({
   userId,
   sid,
   title,
+  localRequest,
   status,
   error,
   file,
@@ -68,6 +75,7 @@ function TaskCard({
   userId: number;
   sid: string;
   title?: string;
+  localRequest?: boolean;
   status?: string;
   error?: string;
   file?: IGnosisFile;
@@ -75,10 +83,22 @@ function TaskCard({
   completed?: boolean;
   onOpen: () => void;
 }): ReactElement {
+  const client = useQueryClient();
   const view = taskView(item);
   return (
     <>
-      <Link className={`job-card${completed ? ' completed-job' : ''}`} to={view.path} onClick={onOpen}>
+      <Link
+        className={`job-card${completed ? ' completed-job' : ''}`}
+        to={view.path}
+        onClick={() => {
+          if (view.path === '/image')
+            client.setQueryData(
+              selectedImageTaskKey(userId),
+              `${localRequest ? 'task' : 'execution'}:${item.id}`,
+            );
+          onOpen();
+        }}
+      >
         <div className="job-card-preview">
           {completed ? (
             <TaskPreview item={item} userId={userId} sid={sid} file={file} fileId={fileId} />
@@ -90,6 +110,9 @@ function TaskCard({
           <b className="job-card-title" title={title || view.title}>
             {title || view.title}
           </b>
+          <small className="job-card-id">
+            {localRequest ? 'Запрос' : 'Задача'} {item.id}
+          </small>
           <span className="job-card-status">
             {!completed && <LoaderCircle size={14} aria-hidden="true" />}
             {status || 'Выполняется'}
@@ -161,6 +184,7 @@ function JobCard({
         <b className="job-card-title" title={conversation.name}>
           {conversation.name}
         </b>
+        <small className="job-card-id">Диалог №{conversation.id}</small>
         <span className="job-card-status">
           {!completed && <LoaderCircle size={14} aria-hidden="true" />}
           {completed ? (conversation.status === 'ERROR' ? 'Нужна проверка' : 'Готово') : 'Выполняется'}
@@ -168,6 +192,41 @@ function JobCard({
       </div>
     </Link>
   );
+}
+
+interface JobNotice {
+  key: string;
+  label: string;
+}
+
+function JobPopup({ label, onOpen }: { label: string; onOpen: () => void }): ReactElement | null {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(false), 8000);
+    return () => window.clearTimeout(timer);
+  }, []);
+  if (!visible) return null;
+  return (
+    <div className="job-popup">
+      <span role="status">{label}</span>
+      <button
+        type="button"
+        className="text-button"
+        onClick={() => {
+          setVisible(false);
+          onOpen();
+        }}
+      >
+        Работы
+      </button>
+    </div>
+  );
+}
+
+const openJobsEvent = 'genfactory:open-jobs';
+
+export function openActiveJobs(): void {
+  window.dispatchEvent(new Event(openJobsEvent));
 }
 
 export function ActiveJobs(): ReactElement | null {
@@ -178,7 +237,14 @@ export function ActiveJobs(): ReactElement | null {
 }
 function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
   const client = useQueryClient();
-  const { join, connected } = useRealtime();
+  const { pathname, search } = useLocation();
+  const selectedImage = useQuery<string | null>({
+    queryKey: selectedImageTaskKey(userId),
+    queryFn: () => null,
+    enabled: false,
+  });
+  const imageConversation = new URLSearchParams(search).get('conversation');
+  const { join } = useRealtime();
   const tasks = useMutationState({
     filters: { mutationKey: ['media-task', userId] },
     select: (mutation) => ({
@@ -194,8 +260,6 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
   const executions = useQuery({
     queryKey: ['active-tasks', userId],
     queryFn: ({ signal }) => api.tasks(signal, sid),
-    refetchInterval: (query) =>
-      query.state.data?.length || pendingTasks.length ? (connected ? 30000 : 5000) : false,
   });
   const taskNotices = useQuery<ITaskFinished[]>({
     queryKey: ['task-notices', userId],
@@ -226,19 +290,16 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
     return () => leave.forEach((release) => release());
   }, [taskRooms, join]);
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(openJobsEvent, show);
+    return () => window.removeEventListener(openJobsEvent, show);
+  }, []);
   const [notices, setNotices] = useState<IConversation[]>([]);
   const tracked = useRef(new Map<number, IConversation>());
   const query = useQuery({
     queryKey: ['active-jobs', userId],
     queryFn: ({ signal }) => api.conversations(userId, 0, signal, 'LOADING'),
-    // Reconcile running jobs even if the final socket event was missed on another page.
-    // Completed/idle sessions do not poll.
-    refetchInterval: (query) =>
-      query.state.data?.items.some((item) => item.status === 'LOADING') || tracked.current.size
-        ? connected
-          ? 30000
-          : 5000
-        : false,
   });
   useEffect(() => {
     if (!query.data || query.isError) return;
@@ -273,8 +334,45 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
   const count = running.length + pendingTasks.length + remoteTasks.length;
   const unavailable = query.isError || executions.isError;
   const hasNotices = !!(notices.length || finishedTasks.length || remoteNotices.length);
+  const completions: JobNotice[] = [
+    ...notices.map((c) => ({
+      key: `chat:${c.id}:${c.lastMessageDate}`,
+      label: `Диалог №${c.id} · ${c.name} · ${c.status === 'ERROR' ? 'Нужна проверка' : 'Готово'}`,
+    })),
+    ...finishedTasks.map((task) => ({
+      key: `task:${task.input.body.task.session || task.id}`,
+      label: `Запрос ${task.input.body.task.session || task.id} · ${task.status === 'success' ? 'Готово' : 'Проверьте результат'}`,
+    })),
+    ...remoteNotices.map((notice) => ({
+      key: `execution:${notice.id}`,
+      label: `Задача ${notice.id} · ${notice.result === 'COMPLETED' ? 'Готово' : notice.result === 'CANCELLED' ? 'Отменено' : 'Проверьте результат'}`,
+    })),
+  ];
+  const relevantPopup = (item: JobNotice) =>
+    pathname !== '/image' ||
+    (imageConversation ? item.key.startsWith(`chat:${imageConversation}:`) : item.key === selectedImage.data);
+  const previousCompletions = useRef(new Set(completions.map((item) => item.key)));
+  const [popups, setPopups] = useState<JobNotice[]>([]);
+  useEffect(() => {
+    const arrived = completions.filter(
+      (item) => relevantPopup(item) && !previousCompletions.current.has(item.key),
+    );
+    previousCompletions.current = new Set(completions.map((item) => item.key));
+    if (arrived.length)
+      setPopups((current) =>
+        [...arrived, ...current.filter((item) => !arrived.some((next) => next.key === item.key))].slice(0, 3),
+      );
+  }, [completions]);
   return (
     <>
+      {createPortal(
+        <div className="job-popups" hidden={open}>
+          {popups.filter(relevantPopup).map((item) => (
+            <JobPopup key={item.key} label={item.label} onOpen={() => setOpen(true)} />
+          ))}
+        </div>,
+        document.body,
+      )}
       <button
         className="button jobs-button"
         aria-label={unavailable ? 'Статусы работ недоступны' : `Активные работы: ${count}`}
@@ -282,148 +380,158 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
       >
         <BriefcaseBusiness size={18} aria-hidden="true" /> Работы{' '}
         <span>
-          {unavailable ? '—' : count}
+          {unavailable ? '-' : count}
           {hasNotices ? ' •' : ''}
         </span>
       </button>
-      {open && (
-        <Modal
-          title="Активные работы"
-          className="jobs-modal"
-          onClose={() => setOpen(false)}
-          headerActions={
-            <>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Очистить уведомления"
-                title="Очистить уведомления"
-                disabled={!hasNotices}
-                onClick={() => {
-                  setNotices([]);
-                  client.setQueryData(['task-notices', userId], []);
-                  setDismissedTasks(
-                    tasks.filter((task) => ['success', 'error'].includes(task.status)).map((task) => task.id),
-                  );
-                }}
-              >
-                <ListX size={18} aria-hidden="true" />
-              </button>
-              <Link
-                to="/artifacts"
-                className="icon-button"
-                aria-label="Вся история"
-                title="Вся история"
-                onClick={() => setOpen(false)}
-              >
-                <History size={18} />
-              </Link>
-              <button
-                className="icon-button"
-                aria-label="Обновить статусы"
-                onClick={() => {
-                  void query.refetch();
-                  void executions.refetch();
-                }}
-                disabled={query.isFetching || executions.isFetching}
-              >
-                <RefreshCw size={18} />
-              </button>
-            </>
-          }
-        >
-          <div className="active-jobs-content">
-            {query.isPending || executions.isPending ? (
-              <p role="status">Загружаем работы…</p>
-            ) : unavailable ? (
-              <p role="alert">Не удалось обновить статусы. Попробуйте ещё раз.</p>
-            ) : !count ? (
-              <p>Нет выполняющихся работ.</p>
-            ) : (
-              <ul className="jobs-grid">
-                {pendingTasks.map((task) => (
-                  <li key={`task:${task.id}`}>
+      {open &&
+        createPortal(
+          <Modal
+            title="Активные работы"
+            className="jobs-modal"
+            onClose={() => setOpen(false)}
+            headerActions={
+              <>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Очистить уведомления"
+                  title="Очистить уведомления"
+                  disabled={!hasNotices}
+                  onClick={() => {
+                    setNotices([]);
+                    setPopups([]);
+                    client.setQueryData(['task-notices', userId], []);
+                    setDismissedTasks(
+                      tasks
+                        .filter((task) => ['success', 'error'].includes(task.status))
+                        .map((task) => task.id),
+                    );
+                  }}
+                >
+                  <ListX size={18} aria-hidden="true" />
+                </button>
+                <Link
+                  to="/artifacts"
+                  className="icon-button"
+                  aria-label="Вся история"
+                  title="Вся история"
+                  onClick={() => setOpen(false)}
+                >
+                  <History size={18} />
+                </Link>
+                <button
+                  className="icon-button"
+                  aria-label="Обновить статусы"
+                  onClick={() => {
+                    void query.refetch();
+                    void executions.refetch();
+                  }}
+                  disabled={query.isFetching || executions.isFetching}
+                >
+                  <RefreshCw size={18} />
+                </button>
+              </>
+            }
+          >
+            <div className="active-jobs-content">
+              {query.isPending || executions.isPending ? (
+                <p role="status">Загружаем работы…</p>
+              ) : unavailable ? (
+                <p role="alert">Не удалось обновить статусы. Попробуйте ещё раз.</p>
+              ) : !count ? (
+                <p>Нет выполняющихся работ.</p>
+              ) : (
+                <ul className="jobs-grid">
+                  {pendingTasks.map((task) => (
+                    <li key={`task:${task.id}`}>
+                      <TaskCard
+                        item={{
+                          id: task.input.body.task.session || String(task.id),
+                          model: task.input.body.model,
+                          createdDate: new Date(task.submittedAt).toISOString(),
+                        }}
+                        userId={userId}
+                        sid={sid}
+                        localRequest
+                        title={(task.input.recipe.workspaceInput?.idea || task.input.recipe.prompt).slice(
+                          0,
+                          100,
+                        )}
+                        onOpen={() => setOpen(false)}
+                      />
+                    </li>
+                  ))}
+                  {remoteTasks.map((task) => (
+                    <li key={task.id}>
+                      <TaskCard item={task} userId={userId} sid={sid} onOpen={() => setOpen(false)} />
+                    </li>
+                  ))}
+                  {running.map((c) => (
+                    <li key={c.id}>
+                      <JobCard conversation={c} onOpen={() => setOpen(false)} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!!query.data && query.data.total > running.length && (
+                <p>Всего в работе: {query.data.total}. Здесь показана первая страница.</p>
+              )}
+              {hasNotices && (
+                <section className="completed-jobs" aria-label="Завершённые работы">
+                  <h3>Завершённые</h3>
+                  {notices.map((c) => (
+                    <JobCard key={c.id} conversation={c} completed onOpen={() => setOpen(false)} />
+                  ))}
+                  {finishedTasks.map((task) => (
                     <TaskCard
+                      key={`task:${task.id}`}
                       item={{
-                        id: String(task.id),
+                        id: task.input.body.task.session || String(task.id),
                         model: task.input.body.model,
                         createdDate: new Date(task.submittedAt).toISOString(),
                       }}
                       userId={userId}
                       sid={sid}
+                      completed
+                      localRequest
                       title={(task.input.recipe.workspaceInput?.idea || task.input.recipe.prompt).slice(
                         0,
                         100,
                       )}
+                      status={task.status === 'success' ? 'Готово' : 'Проверьте результат'}
+                      error={task.error?.message}
+                      file={task.output?.files?.[0]}
                       onOpen={() => setOpen(false)}
                     />
-                  </li>
-                ))}
-                {remoteTasks.map((task) => (
-                  <li key={task.id}>
-                    <TaskCard item={task} userId={userId} sid={sid} onOpen={() => setOpen(false)} />
-                  </li>
-                ))}
-                {running.map((c) => (
-                  <li key={c.id}>
-                    <JobCard conversation={c} onOpen={() => setOpen(false)} />
-                  </li>
-                ))}
-              </ul>
-            )}
-            {!!query.data && query.data.total > running.length && (
-              <p>Всего в работе: {query.data.total}. Здесь показана первая страница.</p>
-            )}
-            {hasNotices && (
-              <section className="completed-jobs" aria-label="Завершённые работы">
-                <h3>Завершённые</h3>
-                {notices.map((c) => (
-                  <JobCard key={c.id} conversation={c} completed onOpen={() => setOpen(false)} />
-                ))}
-                {finishedTasks.map((task) => (
-                  <TaskCard
-                    key={`task:${task.id}`}
-                    item={{
-                      id: String(task.id),
-                      model: task.input.body.model,
-                      createdDate: new Date(task.submittedAt).toISOString(),
-                    }}
-                    userId={userId}
-                    sid={sid}
-                    completed
-                    title={(task.input.recipe.workspaceInput?.idea || task.input.recipe.prompt).slice(0, 100)}
-                    status={task.status === 'success' ? 'Готово' : 'Проверьте результат'}
-                    error={task.error?.message}
-                    file={task.output?.files?.[0]}
-                    onOpen={() => setOpen(false)}
-                  />
-                ))}
-                {remoteNotices.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    item={task.item}
-                    userId={userId}
-                    sid={sid}
-                    completed
-                    fileId={task.fileIds?.[0]}
-                    error={
-                      task.result === 'FAILED' && task.error ? apiErrorMessage(task.error, 400) : undefined
-                    }
-                    status={
-                      task.result === 'COMPLETED'
-                        ? 'Готово'
-                        : task.result === 'CANCELLED'
-                          ? 'Отменено'
-                          : 'Проверьте результат'
-                    }
-                    onOpen={() => setOpen(false)}
-                  />
-                ))}
-              </section>
-            )}
-          </div>
-        </Modal>
-      )}
+                  ))}
+                  {remoteNotices.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      item={task.item}
+                      userId={userId}
+                      sid={sid}
+                      completed
+                      fileId={task.fileIds?.[0]}
+                      error={
+                        task.result === 'FAILED' && task.error ? apiErrorMessage(task.error, 400) : undefined
+                      }
+                      status={
+                        task.result === 'COMPLETED'
+                          ? 'Готово'
+                          : task.result === 'CANCELLED'
+                            ? 'Отменено'
+                            : 'Проверьте результат'
+                      }
+                      onOpen={() => setOpen(false)}
+                    />
+                  ))}
+                </section>
+              )}
+            </div>
+          </Modal>,
+          document.body,
+        )}
     </>
   );
 }

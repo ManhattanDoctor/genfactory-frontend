@@ -184,11 +184,11 @@ function History({ userId }: { userId: number }): ReactElement {
                           <>
                             <div>
                               <dt>Входящие токены</dt>
-                              <dd>{t.details.consumption.model.input?.toLocaleString('ru-RU') ?? '—'}</dd>
+                              <dd>{t.details.consumption.model.input?.toLocaleString('ru-RU') ?? '-'}</dd>
                             </div>
                             <div>
                               <dt>Исходящие токены</dt>
-                              <dd>{t.details.consumption.model.output?.toLocaleString('ru-RU') ?? '—'}</dd>
+                              <dd>{t.details.consumption.model.output?.toLocaleString('ru-RU') ?? '-'}</dd>
                             </div>
                           </>
                         )}

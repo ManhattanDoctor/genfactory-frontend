@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { catalogProvider, catalogResponse } from './modelCatalog';
@@ -31,7 +32,7 @@ async function setup(page: Page) {
     writes: [] as string[],
     taskReads: 0,
   };
-  await page.addInitScript(() => localStorage.setItem('genfactory.session', 'active-tasks-test'));
+  await mockSession(page, 'active-tasks-test');
   await page.routeWebSocket('**/socket.io/**', (socket) => {
     state.socket = socket;
     socket.send(
@@ -313,10 +314,14 @@ test('task cards keep their typed placeholders and fit desktop and mobile', asyn
 });
 
 for (const brokenPoster of [false, true]) {
-  test(`a finished video with ${brokenPoster ? 'a broken' : 'no'} poster shows its own first frame as preview`, async ({
+  test(`a finished video with ${brokenPoster ? 'a broken poster keeps a placeholder without downloading the original' : 'no poster shows its own first frame as preview'}`, async ({
     page,
   }) => {
     const { state, emit } = await setup(page);
+    let originalReads = 0;
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/test-video.mp4') originalReads++;
+    });
     await page.route('**/test-video.mp4', (route) =>
       route.fulfill({
         contentType: 'video/mp4',
@@ -340,6 +345,12 @@ for (const brokenPoster of [false, true]) {
     state.active = [];
     await expect.poll(() => !!state.socket).toBe(true);
     emit('TaskFinishedEvent', { id: item.id, item, result: 'COMPLETED', fileIds: [14] });
+    if (brokenPoster) {
+      await expect(jobs.locator('.completed-job .file-placeholder')).toBeVisible();
+      await expect(jobs.locator('.completed-job video')).toHaveCount(0);
+      expect(originalReads).toBe(0);
+      return;
+    }
     const preview = jobs.locator('.completed-job video');
     await expect(preview).toHaveCount(1);
     await expect
@@ -596,4 +607,33 @@ test('a restored generation keeps its elapsed time after reload and shows it in 
   await expect.poll(seconds).toBeGreaterThanOrEqual(65);
   await page.getByRole('button', { name: 'Активные работы: 1', exact: true }).first().click();
   await expect(page.getByRole('dialog').getByLabel('Время генерации')).toBeVisible();
+});
+
+test('image workspace keeps task identities across navigation and only announces the selected completion', async ({
+  page,
+}) => {
+  const { state, emit } = await setup(page);
+  const first = task('image-35-a', 'OPEN_ROUTER_IMAGE');
+  const second = task('image-35-b', 'OPEN_ROUTER_IMAGE');
+  state.active = [first, second];
+  await page.goto('/image');
+  const cards = page.locator('.image-result-pending');
+  await expect(cards.filter({ hasText: first.id })).toBeVisible();
+  await page.locator('a[href="/library"]:visible').first().click();
+  const jobs = await openJobs(page, 2);
+  await jobs.locator('.job-card').filter({ hasText: first.id }).click();
+  await expect(page).toHaveURL(/\/image$/);
+  await expect(cards.filter({ hasText: first.id })).toBeVisible();
+  await expect(cards.filter({ hasText: second.id })).toBeVisible();
+  state.active = [first];
+  emit('TaskFinishedEvent', { id: second.id, item: second, result: 'COMPLETED' });
+  await expect(cards).toHaveCount(1);
+  await expect(cards).toContainText(first.id);
+  await expect(page.locator('.job-popup')).toHaveCount(0);
+  state.active = [];
+  emit('TaskFinishedEvent', { id: first.id, item: first, result: 'COMPLETED' });
+  await expect(page.locator('.job-popup')).toHaveCount(1);
+  await expect(page.locator('.job-popup')).toContainText(first.id);
+  await expect((await openJobs(page, 0)).locator('.completed-job')).toHaveCount(2);
+  expect(state.writes).toEqual([]);
 });

@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { memo, type ReactElement } from 'react';
 import { Heart } from 'lucide-react';
 import type { ITemplateCard } from './materials';
 import { TemplateMedia } from './TemplateMedia';
@@ -14,7 +14,7 @@ interface Props {
   busy: boolean;
   pick: (item: ITemplateCard) => Promise<void>;
 }
-export function StudioTemplateGallery({
+export const StudioTemplateGallery = memo(function StudioTemplateGallery({
   genre,
   setGenre,
   favoritesOnly,
@@ -105,4 +105,4 @@ export function StudioTemplateGallery({
       </div>
     </div>
   );
-}
+});

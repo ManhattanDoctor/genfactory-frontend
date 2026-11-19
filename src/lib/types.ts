@@ -216,7 +216,7 @@ export interface IMessageCreate {
   role: 'USER';
   text: string;
   references: IFileReference[];
-  settings: { tools: IToolConnection[]; isToolsDisabled?: boolean };
+  settings: { tools: IToolConnection[]; isToolsDisabled?: boolean; instructions?: string };
 }
 
 export interface IToolProgress {

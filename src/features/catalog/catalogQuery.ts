@@ -5,7 +5,7 @@ import { api } from '../../lib/api';
 export function catalogQuery(userId: number | undefined, provider: string | undefined) {
   return queryOptions({
     queryKey: ['model-catalog', userId, provider],
-    enabled: !!userId && !!provider,
+    enabled: !!provider,
     staleTime: 300000,
     queryFn: ({ signal }) => api.catalog(provider!, signal),
   });

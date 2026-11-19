@@ -1,3 +1,6 @@
+import { PermissionService } from '../../lib/PermissionService';
+import type { IOpenIdTokenRefreshable } from '@ts-core/openid-common';
+import { sessionService, TOKEN_KEY } from '../../lib/SessionService';
 import type { ReactElement } from 'react';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -5,6 +8,7 @@ import { api, getSession, setSession, SESSION_KEY } from '../../lib/api';
 import type { IInitResponse } from '../../lib/types';
 interface IAuth {
   session: string | null;
+  hasPermission: (name: string, scope: string) => boolean;
   user?: IInitResponse['user'];
   balances: Record<string, string>;
   loading: boolean;
@@ -12,7 +16,7 @@ interface IAuth {
   signIn: () => Promise<void>;
   signInError: string;
   signingIn: boolean;
-  acceptSession: (sid: string) => void;
+  acceptSession: (token: IOpenIdTokenRefreshable) => void;
   signOut: () => Promise<void>;
   refresh: () => Promise<boolean>;
 }
@@ -20,6 +24,10 @@ const Context = createContext<IAuth | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }): ReactElement {
   const [session, changeSession] = useState(getSession);
   const client = useQueryClient();
+  const permissions = PermissionService.get(client);
+  useQuery(permissions.options(session));
+  const currentSession = useRef(session);
+  currentSession.current = session;
   const signInStarted = useRef(false);
   const [signInError, setSignInError] = useState('');
   const [signingIn, setSigningIn] = useState(false);
@@ -29,10 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
     enabled: !!session,
     retry: false,
   });
-  const acceptSession = (sid: string) => {
+  const acceptSession = (token: IOpenIdTokenRefreshable) => {
     client.clear();
-    setSession(sid);
-    changeSession(sid);
+    changeSession(sessionService.accept(token));
   };
   useEffect(() => {
     const restore = (event: PageTransitionEvent) => {
@@ -47,11 +54,13 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       client.clear();
     };
     const synchronize = (event: StorageEvent) => {
-      if (event.storageArea !== localStorage || (event.key !== SESSION_KEY && event.key !== null)) return;
+      if (event.storageArea !== localStorage || (event.key !== TOKEN_KEY && event.key !== null)) return;
       sessionStorage.removeItem(SESSION_KEY);
       sessionStorage.removeItem('genfactory.idToken');
-      changeSession(localStorage.getItem(SESSION_KEY));
-      client.clear();
+      const next = getSession();
+      if (currentSession.current !== next) client.clear();
+      currentSession.current = next;
+      changeSession(next);
     };
     window.addEventListener('genfactory:unauthorized', expired);
     window.addEventListener('storage', synchronize);
@@ -101,15 +110,15 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
     }
   };
   const signOut = async () => {
-    const sid = session;
-    const idToken = sessionStorage.getItem('genfactory.idToken');
+    const token = sessionService.getTokens();
+    const idToken = token?.id;
     setSession(null);
     changeSession(null);
     sessionStorage.removeItem('genfactory.idToken');
     sessionStorage.removeItem('genfactory.oauth');
     client.clear();
     // Finish both sessions: a failed API logout must not leave browser SSO active.
-    const [config] = await Promise.all([api.config(), api.logout(sid).catch(() => undefined)]);
+    const [config] = await Promise.all([api.config(), api.logout(token?.refresh).catch(() => undefined)]);
     const { keycloak } = config;
     const url = new URL(
       `${keycloak.url.replace(/\/$/, '')}/realms/${encodeURIComponent(keycloak.realm)}/protocol/openid-connect/logout`,
@@ -125,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
     <Context.Provider
       value={{
         session,
+        hasPermission: (name, scope) => permissions.has(session, name, scope),
         user: query.data?.user,
         balances: query.data?.balances || {},
         loading: !!session && query.isPending,

@@ -30,7 +30,12 @@ self.addEventListener('message', event => {
         },
       },
     ],
-    resolve: { alias: { util: require.resolve('util/') } },
+    resolve: {
+      alias: {
+        util: require.resolve('util/'),
+        crypto: new URL('./src/lib/server-crypto.ts', import.meta.url).pathname,
+      },
+    },
     server: {
       watch: { usePolling: true, interval: 250 },
       port: 5173,

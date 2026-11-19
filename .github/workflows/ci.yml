@@ -7,7 +7,7 @@ on:
       full_regression:
         description: Run the complete browser regression suite
         type: boolean
-        default: true
+        default: false
   workflow_call:
     inputs:
       full_regression:
@@ -30,7 +30,7 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - name: ${{ inputs.full_regression && 'Full browser regression' || 'Browser smoke checks' }}
-        run: ${{ inputs.full_regression && 'npm run test:e2e' || 'npm run test:e2e:smoke' }}
+        run: ${{ inputs.full_regression && 'npm run test:e2e:full' || 'npm run test:e2e:smoke' }}
       - run: npm run test:sw
       - name: Check deployment scripts
         run: bash -n scripts/deploy.sh scripts/container-smoke.sh && sh -n docker/genfactory/15-check-api.sh

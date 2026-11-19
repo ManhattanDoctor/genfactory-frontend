@@ -23,7 +23,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { api, getSession } from '../lib/api';
+import { api, getSession, MAX_UPLOAD_BYTES } from '../lib/api';
+import { validatePhotoUpload } from '../lib/image-upload';
 import { directoryPath, folderTrail, mediaType, resolveFile } from '../lib/files';
 import type { IGnosisFile } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -40,6 +41,9 @@ interface IFileBrowserProps {
   foldersOnly?: boolean;
   onCreate?: () => void;
   onDirectory?: (directory: string | null) => void;
+  onDestination?: (trail: IGnosisFile[]) => void;
+  initialTrail?: IGnosisFile[];
+  movedFile?: Pick<IGnosisFile, 'id' | 'name'>;
 }
 export function FileBrowser({
   allowBatchRemove = false,
@@ -50,6 +54,9 @@ export function FileBrowser({
   acceptedTypes,
   foldersOnly = false,
   onDirectory,
+  onDestination,
+  initialTrail = [],
+  movedFile,
   onCreate,
 }: IFileBrowserProps): ReactElement {
   const { user } = useAuth();
@@ -77,7 +84,7 @@ export function FileBrowser({
       document.removeEventListener('keydown', closeMenus);
     };
   }, []);
-  const [trail, setTrail] = useState<IGnosisFile[]>([]);
+  const [trail, setTrail] = useState<IGnosisFile[]>(initialTrail);
   const directory = trail.length ? directoryPath(trail[trail.length - 1]) : null;
   const [page, setPage] = useState(0);
   const [type, setType] = useState('');
@@ -158,6 +165,17 @@ export function FileBrowser({
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
   const [uploadBatch, setUploadBatch] = useState<{ index: number; total: number }>();
   const uploadLock = useRef(false);
+  const [failedUploads, setFailedUploads] = useState<
+    Array<{
+      file: File;
+      directory: string | null;
+      sid: string;
+      message: string;
+    }>
+  >([]);
+  const visibleFailures = failedUploads.filter(
+    (item) => item.sid === getSession() && item.directory === directory,
+  );
   async function uploadFiles(selectedFiles: File[]): Promise<void> {
     const sid = getSession();
     if (!selectedFiles.length || !sid || busy || uploadLock.current) return;
@@ -166,19 +184,34 @@ export function FileBrowser({
     setError('');
     setNotice('');
     let completed = 0;
-    const failures: string[] = [];
+
     try {
       for (const [index, file] of selectedFiles.entries()) {
         if (!alive.current || getSession() !== sid) break;
         setUploadBatch({ index: index + 1, total: selectedFiles.length });
         setUploadProgress(undefined);
         try {
+          if (file.size <= MAX_UPLOAD_BYTES) await validatePhotoUpload(file);
+          if (!alive.current || getSession() !== sid) break;
           await api.upload(file, sid, { directory }, (progress) => {
             if (alive.current && getSession() === sid) setUploadProgress(progress);
           });
+          if (alive.current && getSession() === sid)
+            setFailedUploads((current) =>
+              current.filter(
+                (item) => item.file !== file || item.directory !== directory || item.sid !== sid,
+              ),
+            );
           completed++;
         } catch (e) {
-          failures.push(`${file.name}: ${e instanceof Error ? e.message : 'Не удалось загрузить'}`);
+          if (!alive.current || getSession() !== sid) break;
+          const message = e instanceof Error ? e.message : 'Не удалось загрузить файл. Попробуйте ещё раз.';
+          setFailedUploads((current) => [
+            ...current.filter(
+              (item) => item.file !== file || item.directory !== directory || item.sid !== sid,
+            ),
+            { file, directory, sid, message },
+          ]);
         }
       }
       if (alive.current && getSession() === sid) {
@@ -188,7 +221,6 @@ export function FileBrowser({
             ? 'Файл загружен'
             : `Загружено: ${completed} из ${selectedFiles.length}`,
         );
-        if (failures.length) setError(`Не загружены: ${failures.join('; ')}`);
       }
     } finally {
       uploadLock.current = false;
@@ -216,6 +248,16 @@ export function FileBrowser({
       api.browseFiles(page, directory, query, foldersOnly, type, selectedTags, tagMatch, signal),
     enabled: !!user,
   });
+  const contents = useQuery({
+    queryKey: ['files', user?.id, 'directory-count', directory],
+    queryFn: ({ signal }) => api.browseFiles(0, directory, '', false, '', [], 'all', signal, 1),
+    select: (response) => response.total,
+    enabled: !!user && !!onDestination,
+    staleTime: 0,
+  });
+  useEffect(() => {
+    onDestination?.(trail);
+  }, [trail, onDestination]);
   useEffect(() => {
     if (search.trim() === query) return;
     const timer = setTimeout(() => {
@@ -334,6 +376,42 @@ export function FileBrowser({
           ))}
         {(query || !!selectedTags.length) && <span> / Результаты поиска во всех папках</span>}
       </nav>
+      {onDestination && (
+        <p className="muted small" role="status">
+          {contents.isError
+            ? 'Не удалось получить количество элементов в папке.'
+            : contents.data === undefined
+              ? 'Загружаем содержимое папки…'
+              : `Элементов в папке: ${contents.data}`}
+        </p>
+      )}
+      {movedFile &&
+        trail === initialTrail &&
+        !query &&
+        !type &&
+        !selectedTags.length &&
+        files.data &&
+        files.data.pages > 1 &&
+        !files.data.items.some((item) => item.id === movedFile.id) && (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() =>
+              void run(async () => {
+                const sid = getSession();
+                if (!sid) return;
+                const file = await api.file(movedFile.id, sid);
+                if (!alive.current || getSession() !== sid) return;
+                if (file.userId !== user?.id || (file.directory ?? null) !== directory)
+                  throw new Error('Файл больше не находится в этой папке.');
+                const original = await resolveFile(file, sid);
+                if (alive.current && getSession() === sid) onOpen?.(original, [original]);
+              })
+            }
+          >
+            Открыть перемещённый файл «{movedFile.name}»
+          </button>
+        )}
       {!foldersOnly && (
         <div className="file-controls">
           <div className="file-toolbar">
@@ -379,7 +457,11 @@ export function FileBrowser({
               className="button"
               disabled={busy || !!query || !!selectedTags.length}
               aria-label="Загрузить файл"
-              title="Загрузить файл"
+              title={
+                acceptedTypes?.length === 1 && acceptedTypes[0] === 'IMAGE'
+                  ? 'Загрузить фото: JPG, PNG, WebP, HEIC/HEIF'
+                  : 'Загрузить файл'
+              }
               aria-busy={!!uploadBatch}
               onClick={() => upload.current?.click()}
             >
@@ -446,6 +528,35 @@ export function FileBrowser({
         </div>
       )}
       {!action && error && <p role="alert">{error}</p>}
+      {!!visibleFailures.length && (
+        <div className="file-upload-failures" role="alert">
+          {visibleFailures.map((item) => (
+            <div key={failedUploads.indexOf(item)}>
+              <strong>{item.file.name}</strong>
+              <p>{item.message}</p>
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => void uploadFiles([item.file])}
+              >
+                Повторить
+              </button>{' '}
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => {
+                  setFailedUploads((current) => current.filter((failure) => failure !== item));
+                  setNotice('');
+                }}
+              >
+                Удалить
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       {notice && <p role="status">{notice}</p>}
       {user && files.isPending && <SkeletonCards label="Загружаем файлы…" className="library-grid" />}
       {files.error && (

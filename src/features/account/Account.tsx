@@ -48,7 +48,10 @@ export function Account(): ReactElement {
                 </div>
               ))
             ) : (
-              <p>Нет доступных балансов</p>
+              <div className="balance-row">
+                <strong>{formatBalance('0', 'RUB')}</strong>
+                <span>{currencyLabel('RUB')}</span>
+              </div>
             )}
             <p className="muted">Онлайн-пополнение пока недоступно.</p>
             <button

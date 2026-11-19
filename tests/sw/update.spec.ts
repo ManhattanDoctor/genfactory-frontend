@@ -1,3 +1,4 @@
+import { mockSession } from '../e2e/session';
 import { catalogPage, catalogProvider } from '../e2e/modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
 import { createServer, type Server } from 'node:https';
@@ -75,7 +76,7 @@ test.beforeEach(() => {
 });
 async function setup(page: Page, running = false, path = '/agent') {
   let writes = 0;
-  await page.addInitScript(() => localStorage.setItem('genfactory.session', 'test-session'));
+  await mockSession(page, 'test-session');
   await page.route('**/api/**', (route) => {
     if (route.request().method() !== 'GET') writes++;
     const url = new URL(route.request().url());

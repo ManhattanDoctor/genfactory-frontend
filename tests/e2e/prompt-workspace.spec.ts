@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { catalogProvider, catalogResponse } from './modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -51,7 +52,7 @@ async function setup(
   }),
   material: any = source,
 ) {
-  await page.addInitScript(() => localStorage.setItem('genfactory.session', 'video-test'));
+  await mockSession(page, 'video-test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   const state = {
     creates: [] as any[],
@@ -139,7 +140,7 @@ test('prompt analyzes image without tools and restores result before handoff', a
   expect(state.sends).toHaveLength(1);
   expect(state.sends[0].settings.tools).toEqual([]);
   expect(state.sends[0].settings.isToolsDisabled).toBe(true);
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([{ type: 'FILE', id: 12 }]);
   await page.reload();
   await expect(page.locator('.prompt-card h3')).toHaveText('Синяя чашка');
   await page.locator('.prompt-card').hover();
@@ -243,7 +244,7 @@ test('prompt analyzes the original video with a locked tool and restores its sou
     .click();
   await page.getByRole('button', { name: 'Собрать промпт', exact: true }).click();
   await expect(page.locator('.prompt-card h3')).toHaveText('Синяя чашка');
-  expect(state.sends[0].files).toEqual([12]);
+  expect(state.sends[0].references).toEqual([{ type: 'FILE', id: 12 }]);
   expect(state.sends[0].settings.tools).toEqual([
     {
       uid: 'VIDEO_RECOGNITION',

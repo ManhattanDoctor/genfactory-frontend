@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { IGnosisFile } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
 import { FileBrowser } from '../../components/FileBrowser';
@@ -9,6 +9,8 @@ export function Library() {
   const [gallery, setGallery] = useState<IGnosisFile[]>([]);
   const [preview, setPreview] = useState<IGnosisFile>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const move = auth.user && location.state?.userId === auth.user.id ? location.state : undefined;
   useEffect(() => {
     setPreview(undefined);
   }, [auth.user?.id]);
@@ -17,7 +19,9 @@ export function Library() {
       <h1 className="sr-only">Библиотека</h1>
       {auth.user ? (
         <FileBrowser
-          key={auth.user.id}
+          key={`${auth.user.id}:${location.key}`}
+          initialTrail={move?.destination}
+          movedFile={move?.movedFile}
           onCreate={() => navigate('/image')}
           onOpen={(file, files) => {
             setPreview(file);

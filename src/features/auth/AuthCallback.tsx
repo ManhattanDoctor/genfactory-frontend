@@ -31,9 +31,9 @@ export function AuthCallback() {
         if (params.has('error') || !params.get('code'))
           throw new Error('Вход не завершён. Попробуйте ещё раз.');
         const result = await api.login(params.get('code')!, stored.redirectUri);
-        if (typeof result.sid !== 'string' || !result.sid) throw new Error('Не удалось завершить вход.');
-        auth.acceptSession(result.sid);
-        if (result.idToken) sessionStorage.setItem('genfactory.idToken', result.idToken);
+        if (typeof result.token?.access !== 'string' || !result.token.access)
+          throw new Error('Не удалось завершить вход.');
+        auth.acceptSession(result.token);
         navigate('/image', { replace: true });
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Не удалось войти');

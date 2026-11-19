@@ -1,99 +1,103 @@
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../features/auth/AuthProvider';
+import { catalogQuery } from '../features/catalog/catalogQuery';
 import { HomeImageViewer } from './HomeImageViewer';
 import { modelReviews } from './modelReviewData';
+import './model-reviews.css';
 
 export function ModelReviews() {
-  return modelReviews.map((review) => <ModelReview key={review.id} review={review} />);
-}
+  const { user } = useAuth();
+  const catalog = useQuery(catalogQuery(user?.id, 'OPEN_ROUTER_IMAGE'));
+  const [limit, setLimit] = useState(6);
+  const [active, setActive] = useState(0);
+  const track = useRef<HTMLDivElement>(null);
+  const [selected, setSelected] = useState<{ image: { src: string; alt: string }; from: DOMRect }>();
+  const start = Math.min(Math.max(0, active - 2), modelReviews.length - 5);
 
-function ModelReview({ review }: { review: (typeof modelReviews)[number] }) {
-  const [tab, setTab] = useState(0);
-  const [expanded, setExpanded] = useState(false);
-  const [selected, setSelected] = useState<{ image: (typeof review.images)[number]; from: DOMRect } | null>(
-    null,
-  );
   return (
-    <section
-      className={`model-review ${expanded ? 'is-expanded' : ''}`}
-      aria-labelledby={`${review.id}-title`}
-    >
-      <h2 id={`${review.id}-title`}>{review.title}</h2>
-      <p className="model-review-subtitle">{review.subtitle}</p>
-      <div className="model-review-tabs" role="tablist" aria-label={`Обзор ${review.title}`}>
-        {review.tabs.map((item, index) => (
-          <button
-            key={item.label}
-            role="tab"
-            id={`${review.id}-tab-${index}`}
-            aria-controls={`${review.id}-panel-${index}`}
-            aria-selected={tab === index}
-            tabIndex={tab === index ? 0 : -1}
-            onClick={() => setTab(index)}
-            onKeyDown={(event) => {
-              const next =
-                event.key === 'ArrowRight'
-                  ? (index + 1) % review.tabs.length
-                  : event.key === 'ArrowLeft'
-                    ? (index + review.tabs.length - 1) % review.tabs.length
-                    : event.key === 'Home'
-                      ? 0
-                      : event.key === 'End'
-                        ? review.tabs.length - 1
-                        : null;
-              if (next === null) return;
-              event.preventDefault();
-              setTab(next);
-              document.getElementById(`${review.id}-tab-${next}`)?.focus();
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-      <div className="model-review-panels">
-        {review.tabs.map((item, index) => (
-          <p
-            key={item.label}
-            role="tabpanel"
-            id={`${review.id}-panel-${index}`}
-            aria-labelledby={`${review.id}-tab-${index}`}
-            hidden={index !== tab}
-          >
-            {item.text}
-          </p>
-        ))}
-      </div>
-      <div className="model-review-gallery" id={`${review.id}-gallery`}>
-        {(expanded ? review.images : review.images.slice(0, 4)).map((item) => (
-          <button
-            key={item.src}
-            className="model-review-frame"
-            aria-label={`Открыть: ${item.alt}`}
-            onClick={(event) =>
-              setSelected({
-                image: item,
-                from: event.currentTarget.querySelector('img')!.getBoundingClientRect(),
-              })
-            }
-          >
-            <img src={item.src} alt={item.alt} width={item.width} height={item.height} loading="lazy" />
-            {item.note && <span>{item.note}</span>}
-          </button>
-        ))}
-      </div>
-      <button
-        className="model-review-more"
-        aria-label={expanded ? 'Свернуть' : 'Развернуть'}
-        aria-expanded={expanded}
-        aria-controls={`${review.id}-gallery`}
-        onClick={() => setExpanded(!expanded)}
+    <section className="model-digests" aria-labelledby="model-digests-title">
+      <h2 id="model-digests-title">Дайджесты моделей</h2>
+      <div
+        className="digest-grid"
+        ref={track}
+        onScroll={({ currentTarget }) => {
+          const step = (currentTarget.children[1] as HTMLElement).offsetLeft;
+          if (step)
+            setActive(
+              Math.min(modelReviews.length - 1, Math.max(0, Math.round(currentTarget.scrollLeft / step))),
+            );
+        }}
       >
-        <ChevronDown size={22} aria-hidden="true" />
-      </button>
-      {selected && (
-        <HomeImageViewer image={selected.image} from={selected.from} onClose={() => setSelected(null)} />
+        {modelReviews.map((review, index) => {
+          const available = catalog.data?.some(
+            (item) => item.reference.model === review.model && item.capabilities?.includes('IMAGE_OUTPUT'),
+          );
+          return (
+            <article
+              key={review.model}
+              className="digest-card"
+              data-expanded={index < limit}
+              aria-label={review.title}
+            >
+              <h3>{review.title}</h3>
+              <dl>
+                <dt>Когда брать</dt>
+                <dd>{review.use}</dd>
+                <dt>Когда не брать</dt>
+                <dd>{review.avoid}</dd>
+              </dl>
+              {review.images.length > 0 && (
+                <div className="digest-previews">
+                  {review.images.map((image) => (
+                    <button
+                      key={image.src}
+                      type="button"
+                      aria-label={'Открыть: ' + image.alt}
+                      onClick={({ currentTarget }) =>
+                        setSelected({ image, from: currentTarget.getBoundingClientRect() })
+                      }
+                    >
+                      <img src={image.src} alt={image.alt} loading="lazy" width={160} height={120} />
+                    </button>
+                  ))}
+                </div>
+              )}
+              {available === false ? (
+                <span className="muted">Модель недоступна</span>
+              ) : (
+                <Link className="button" to={'/image?' + new URLSearchParams({ model: review.model })}>
+                  Собрать изображение
+                </Link>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {limit < modelReviews.length && (
+        <button className="button digest-more" type="button" onClick={() => setLimit(limit + 6)}>
+          Показать ещё модели
+        </button>
       )}
+      <nav className="digest-pages" aria-label="Дайджесты моделей по порядку">
+        {modelReviews.slice(start, start + 5).map((item, i) => (
+          <button
+            type="button"
+            key={item.model}
+            aria-label={item.title}
+            aria-current={start + i === active ? 'true' : undefined}
+            onClick={() => {
+              const card = track.current?.children[start + i] as HTMLElement | undefined;
+              if (card) track.current?.scrollTo({ left: card.offsetLeft });
+            }}
+          />
+        ))}
+        <span>
+          {active + 1} / {modelReviews.length}
+        </span>
+      </nav>
+      {selected && <HomeImageViewer {...selected} onClose={() => setSelected(undefined)} />}
     </section>
   );
 }

@@ -1,10 +1,16 @@
+import type { ComposerTemplate } from '../content-studio/templateComposer';
 import type { ITemplateVideoReference } from '../content-studio/materials';
 import type { IConversationMessage, IGnosisFile, MediaKind, IModelDescription } from '../../lib/types';
 import { displayMessageText } from './conversations';
+export interface VideoComposerTemplate extends ComposerTemplate {
+  id: string;
+}
 export interface IGenerationRecipe {
   kind: MediaKind;
   workspaceInput?: {
     idea: string;
+    videoTemplate?: VideoComposerTemplate;
+    videoTemplateMinimum?: number;
     templateId: string;
     templateText: string;
     shape?: string;

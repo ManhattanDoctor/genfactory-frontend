@@ -34,7 +34,7 @@ export async function templateVideoFile(template: ITemplate, signal?: AbortSigna
   if (!response.ok) throw new Error('Не удалось загрузить видео шаблона. Повторите выбор.');
   const blob = await response.blob();
   if (!blob.type.startsWith('video/')) throw new Error('Видео шаблона недоступно.');
-  return new File([blob], `${template.title} — референс.mp4`, { type: blob.type });
+  return new File([blob], `${template.title} - референс.mp4`, { type: blob.type });
 }
 
 /** A gallery preview is a reference only when explicitly selected for a frame slot. */

@@ -52,3 +52,19 @@ export function prepareImageUpload(file: File): Promise<File> {
   });
   return conversion;
 }
+
+export async function validatePhotoUpload(file: File): Promise<void> {
+  if (!['image/jpeg', 'image/png'].includes(file.type) && !/\.(jpe?g|png)$/i.test(file.name)) return;
+  const url = URL.createObjectURL(file);
+  try {
+    const photo = new Image();
+    photo.src = url;
+    await photo.decode();
+  } catch {
+    throw new Error(
+      'Не удалось прочитать фото. Откройте его на устройстве или сохраните заново как JPG или PNG.',
+    );
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

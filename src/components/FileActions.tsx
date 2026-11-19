@@ -10,7 +10,7 @@ import { ChevronDown, ExternalLink, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
 import { api, getSession, safeMediaUrl } from '../lib/api';
-import { resolveFile, downloadFile, readFileText } from '../lib/files';
+import { directoryPath, resolveFile, downloadFile, readFileText } from '../lib/files';
 import { Modal, ModalFooter } from './Modal';
 import { FileBrowser } from './FileBrowser';
 
@@ -145,7 +145,7 @@ export function FileActions({
   const [action, setAction] = useState<'edit' | 'move' | 'delete'>();
   const [name, setName] = useState('');
   const [tags, setTags] = useState('');
-  const [destination, setDestination] = useState<string | null>(null);
+  const [destination, setDestination] = useState<IGnosisFile[]>([]);
   const [error, setError] = useState('');
   const lock = useRef(false);
   async function edit(): Promise<void> {
@@ -180,7 +180,7 @@ export function FileActions({
         await api.editFile(
           file.id!,
           action === 'move'
-            ? { directory: destination }
+            ? { directory: destination.length ? directoryPath(destination[destination.length - 1]) : null }
             : {
                 name: name.trim(),
                 tags: [
@@ -205,6 +205,12 @@ export function FileActions({
           undefined,
           file.id,
         );
+      if (action === 'move') {
+        onNavigate?.();
+        navigate('/library', {
+          state: { userId: user?.id, destination, movedFile: { id: file.id, name: current.name } },
+        });
+      }
       if (action === 'delete') onDeleted?.();
     } catch (error) {
       if (alive.current && getSession() === sid)
@@ -425,7 +431,7 @@ export function FileActions({
                       disabled={busy}
                       onClick={() => {
                         closeMenu();
-                        setDestination(null);
+                        setDestination([]);
                         setError('');
                         setAction('move');
                       }}
@@ -541,7 +547,7 @@ export function FileActions({
               {action === 'move' && (
                 <>
                   <p>Откройте папку назначения или выберите корень библиотеки.</p>
-                  <FileBrowser foldersOnly onDirectory={setDestination} />
+                  <FileBrowser foldersOnly onDestination={setDestination} />
                 </>
               )}
               {error && <p role="alert">{error}</p>}

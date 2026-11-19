@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const catalog = JSON.parse(readFileSync(new URL('../fixtures/catalog.json', import.meta.url), 'utf8'));
@@ -24,7 +25,7 @@ const conversation = (i: number) => ({
   createdDate: `2026-11-${String(11 - i).padStart(2, '0')}T10:00:00Z`,
 });
 async function setup(page: Page, signedIn = true) {
-  if (signedIn) await page.addInitScript(() => localStorage.setItem('genfactory.session', 'navigation-test'));
+  if (signedIn) await mockSession(page, 'navigation-test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   const requests: any[] = [];
   const writes: string[] = [];

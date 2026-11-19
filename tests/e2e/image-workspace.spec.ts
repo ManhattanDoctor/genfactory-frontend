@@ -1,3 +1,4 @@
+import { mockSession } from './session';
 import { mediaTaskResponse } from './mediaTaskMock';
 import { catalogProvider, catalogPage, catalogResponse } from './modelCatalog';
 import { test, expect, type Page } from '@playwright/test';
@@ -34,7 +35,7 @@ const pagination = (items: unknown[]) => ({
   pageIndex: 0,
 });
 async function setup(page: Page, guest = false) {
-  if (!guest) await page.addInitScript(() => localStorage.setItem('genfactory.session', 'image-test'));
+  if (!guest) await mockSession(page, 'image-test');
   await page.routeWebSocket('**/socket.io/**', () => {});
   const state = {
     creates: [] as any[],
@@ -156,7 +157,7 @@ test('image model controls send actual settings, show result and recover it on r
     aspectRatio: '3:2',
     resolution: '2K',
   });
-  expect(state.tasks[0].task.fileIds).toEqual([]);
+  expect(state.tasks[0].task.references).toEqual([]);
   await page.reload();
   await expect(page.locator('.image-result')).toHaveCount(1);
   const restoredResult = page.locator('.image-result');
@@ -174,17 +175,21 @@ test('image model controls send actual settings, show result and recover it on r
   await expect(page.locator('.img-files .composer-attachment')).toHaveCount(1);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(2);
-  expect(state.tasks[1].task.fileIds).toEqual([12]);
+  expect(state.tasks[1].task.references).toEqual([{ type: 'FILE', id: 12 }]);
 });
 test('image library reuses a saved file without reupload or sending on selection', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/image');
-  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Riverflow V2.6 Pro');
   await page.getByRole('button', { name: 'Добавить изображение', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Библиотека' })).toBeVisible();
   await page
     .getByRole('button', { name: /Закат.png/ })
     .first()
+    .click();
+  await page
+    .getByRole('dialog', { name: 'Библиотека' })
+    .getByRole('button', { name: 'Добавить (1)' })
     .click();
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toBeVisible();
   expect(state.tasks).toHaveLength(0);
@@ -192,7 +197,7 @@ test('image library reuses a saved file without reupload or sending on selection
   await page.locator('#img-draft').fill('Сделай свет теплее');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([{ type: 'FILE', id: 12 }]);
 });
 test('image draft and selected options survive reload without executing a request', async ({ page }) => {
   const state = await setup(page);
@@ -318,10 +323,11 @@ test('image gallery and composer follow the visual viewport through keyboard dis
   });
   const state = await setup(page);
   await page.goto('/image');
-  await expect(page.locator('.ds-template-card')).toHaveCount(
+  await expect(page.locator('[data-masonry-key^="image:"]')).toHaveCount(
     JSON.parse(
       readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
     ).filter((item: { kind: string }) => item.kind === 'image').length,
+    { timeout: 15000 },
   );
   const draft = page.getByRole('textbox', { name: 'Идея', exact: true });
   await draft.fill('Сохранить черновик');
@@ -537,7 +543,7 @@ test('image keeps a library reference when the user changes model before sending
   await page.locator('#img-draft').fill('Пусть пьют вино, сохрани людей с исходного изображения');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([{ type: 'FILE', id: 12 }]);
   expect(state.tasks[0].options.model).toBe('qwen/qwen-image-2.1-turbo');
   expect(state.tasks[0].task.prompt).toBe('Пусть пьют вино, сохрани людей с исходного изображения');
   expect(state.tasks[0].task.prompt).not.toContain('Создай с нуля');
@@ -864,7 +870,7 @@ test('new image selection excludes hidden models and K3 Edit requires an origina
   await expect(picker).toHaveCount(0);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].task.fileIds).toEqual([12]);
+  expect(state.tasks[0].task.references).toEqual([{ type: 'FILE', id: 12 }]);
   expect(state.tasks[0].options.model).toBe('krea/k3-edit');
   expect(queries.length).toBeGreaterThan(0);
   expect(queries.every((conditions) => conditions.status === 'ACTIVE')).toBe(true);

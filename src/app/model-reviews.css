@@ -1,0 +1,114 @@
+.model-digests {
+  min-width: 0;
+  margin-top: 32px;
+}
+.model-digests > h2 {
+  margin: 0 0 16px;
+}
+.digest-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.digest-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.digest-card[data-expanded='false'],
+.digest-pages {
+  display: none;
+}
+.digest-card h3,
+.digest-card dl,
+.digest-card dd {
+  margin: 0;
+}
+.digest-card dt {
+  font-weight: 600;
+}
+.digest-card dd {
+  margin-top: 4px;
+  color: var(--muted);
+}
+.digest-card dd + dt {
+  margin-top: 12px;
+}
+.digest-card > :last-child {
+  margin-top: auto;
+}
+.digest-previews {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.digest-previews button {
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.digest-previews img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.digest-more {
+  display: flex;
+  width: fit-content;
+  margin: 16px auto 0;
+}
+@media (min-width: 721px) and (max-width: 1100px) {
+  .digest-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .digest-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .digest-card,
+  .digest-card[data-expanded='false'] {
+    display: flex;
+    scroll-snap-align: start;
+  }
+  .digest-more {
+    display: none;
+  }
+  .digest-pages {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--muted);
+  }
+  .digest-pages button {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    min-height: 44px;
+    padding: 0;
+  }
+  .digest-pages button::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .digest-pages button[aria-current]::before {
+    background: var(--accent);
+  }
+}

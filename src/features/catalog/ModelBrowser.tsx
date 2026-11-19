@@ -1,3 +1,5 @@
+import './model-picker-list.css';
+import { MODEL_SEARCH_MIN_COUNT } from './presentation';
 import type { ReactElement } from 'react';
 import { isAllowedProvider } from '../../lib/modelPolicy';
 import { modelTitle, modelSummary } from './presentation';
@@ -33,7 +35,7 @@ export function ModelBrowser({
     (m) =>
       `${modelTitle(m)} ${m.reference.model} ${m.reference.provider}`
         .toLowerCase()
-        .includes(search.toLowerCase()) &&
+        .includes(models.length >= MODEL_SEARCH_MIN_COUNT ? search.toLowerCase() : '') &&
       (filter === 'all' ||
         (filter === 'favorite' && prefs.value.favoriteModels.includes(key(m))) ||
         (filter === 'references' && supportsReferences(m)) ||
@@ -41,13 +43,16 @@ export function ModelBrowser({
   );
   return (
     <Modal title="Выбрать модель" onClose={onClose} wide>
-      <input
-        aria-label="Поиск моделей"
-        autoFocus
-        placeholder="Название модели"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      {models.length >= MODEL_SEARCH_MIN_COUNT && (
+        <input
+          className="gf-model-search"
+          aria-label="Поиск моделей"
+          autoFocus
+          placeholder="Название модели"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      )}
       <div className="chips model-filters">
         {[
           ['all', 'Все'],
