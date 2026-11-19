@@ -187,6 +187,7 @@ async function mockApi(page: Page, signedIn = true) {
         user: { id: 7, preferences: { name: 'Anna', email: 'anna@example.test' } },
         balances: { RUB: '1250.50' },
       };
+    else if (path === '/api/openId/resources' && method === 'GET') body = [];
     else if (path === '/api/config')
       body = { keycloak: { url: 'https://sso.example.test', realm: 'gnosis', clientId: 'gnosis' } };
     else if (path === '/api/task' && method === 'POST') {
