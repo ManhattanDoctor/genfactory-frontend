@@ -2,7 +2,7 @@ import { FileReferenceType } from '../../lib/types';
 import { catalogQuery } from '../catalog/catalogQuery';
 import type { ReactElement } from 'react';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
-import { isAllowedProvider } from '../../lib/modelPolicy';
+import { defaultAssistant } from '../catalog/defaultAssistant';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { promptSystem, videoAnalysisError, videoAnalysisTool } from './videoAnalysis';
 import { useEffect, useRef, useState } from 'react';
@@ -20,7 +20,7 @@ import type { IGnosisFile, IConversationMessage, IToolConnection } from '../../l
 import { useAuth } from '../auth/AuthProvider';
 import { useConversationRoom } from '../realtime/RealtimeProvider';
 import { ImageMenu } from '../studio/MediaWorkspace';
-import { modelKey, modelTitle } from '../catalog/presentation';
+import { modelKey, modelTitle, selectedModel } from '../catalog/presentation';
 import { usePreferences, toggleItem } from '../workspace/preferences';
 import { useDraft, DraftBar, restoreDraftFiles } from '../workspace/drafts';
 import { LibraryPicker } from '../../components/LibraryPicker';
@@ -123,9 +123,10 @@ function PromptEditor(): ReactElement {
     auth.user?.id,
   );
   const model = selected
-    ? models.find((m) => m.reference.model === selected) ||
-      (retained?.reference.model === selected ? retained : undefined)
-    : models.find((m) => m.reference.model === 'gpt-5.4') || models[0];
+    ? selectedModel(selected, models, retained)
+    : savedReference
+      ? retained
+      : models.find((m) => m.reference.model === 'gpt-5.4') || models[0];
   const unavailableModel = !!selected && !!(hasVideo ? videoCatalog.data : catalog.data) && !model;
   const retainedAssistant = useRetainedModel(
     conversation ? { provider: conversation.model, model: conversation.options.model } : undefined,
@@ -133,9 +134,9 @@ function PromptEditor(): ReactElement {
     auth.user?.id,
   );
   const assistantModel = hasVideo
-    ? (conversation ? retainedAssistant : undefined) ||
-      imageModels.find((m) => m.reference.model === 'gpt-4o-mini' && m.capabilities?.includes('TOOLS')) ||
-      imageModels.find((m) => m.capabilities?.includes('TOOLS'))
+    ? conversation
+      ? retainedAssistant
+      : defaultAssistant(catalog.data || [])
     : model;
   const messages = useInfiniteQuery({
     queryKey: ['prompt-messages', auth.user?.id, id],
@@ -199,7 +200,10 @@ function PromptEditor(): ReactElement {
     }
     const video = latest?.files?.some((f) => f.type === 'VIDEO');
     if (video) setSelected('');
-    else if (conversation && isAllowedProvider(conversation.model)) setSelected(conversation.options.model);
+    else if (conversation)
+      setSelected(
+        modelKey({ reference: { provider: conversation.model, model: conversation.options.model } }),
+      );
     restored.current = true;
   }, [messages.data, draft.available]);
   useEffect(() => {
@@ -310,9 +314,8 @@ function PromptEditor(): ReactElement {
         active = await api.conversation(active.id, undefined, sid);
         if (active.userId !== userId || active.status === 'LOADING')
           throw Error('Беседа занята или недоступна.');
-        if (active.model !== assistantModel.reference.provider)
-          throw Error('Для другой модели анализа начните новую работу.');
         if (
+          active.model !== assistantModel.reference.provider ||
           active.options.model !== assistantModel.reference.model ||
           JSON.stringify(active.options.tools || []) !== JSON.stringify(connections) ||
           active.system !== promptSystem
@@ -320,8 +323,12 @@ function PromptEditor(): ReactElement {
           active = await api.editConversation(
             active,
             {
+              model: assistantModel.reference.provider,
               options: {
-                ...active.options,
+                ...(active.model === assistantModel.reference.provider &&
+                active.options.model === assistantModel.reference.model
+                  ? active.options
+                  : {}),
                 model: assistantModel.reference.model,
                 tools: connections,
               },
@@ -584,7 +591,7 @@ function PromptEditor(): ReactElement {
               if (m) {
                 dirty.current = true;
                 draft.changed();
-                setSelected(m.reference.model);
+                setSelected(modelKey(m));
               }
             }}
           />

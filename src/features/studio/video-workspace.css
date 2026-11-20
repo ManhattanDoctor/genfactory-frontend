@@ -46,11 +46,6 @@
 .video-template-error {
   inset: auto 8px 8px;
 }
-.video-workspace .video-template-apply {
-  margin-top: 6px;
-  width: 100%;
-  min-height: 44px;
-}
 .video-workspace .image-result-open video {
   width: 100%;
   display: block;

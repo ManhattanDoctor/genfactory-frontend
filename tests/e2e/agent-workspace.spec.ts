@@ -83,8 +83,10 @@ async function setup(
         createdDate: source.createdDate,
       };
     } else if (path === '/api/conversation') body = pagination([]);
-    else if (path === '/api/conversation/101') body = state.conversation;
-    else if (path === '/api/conversation/101/message' && req.method() === 'POST') {
+    else if (path === '/api/conversation/101') {
+      if (req.method() === 'PUT') Object.assign(state.conversation, req.postDataJSON());
+      body = state.conversation;
+    } else if (path === '/api/conversation/101/message' && req.method() === 'POST') {
       state.sends.push(req.postDataJSON());
       body = { ...req.postDataJSON(), id: 1, files: [source] };
       state.messages.push(
@@ -186,4 +188,34 @@ test('hidden tool navigation preserves access to the direct agent route', async 
   const nav = page.getByRole('navigation', { name: 'Основное меню' });
   await expect(nav.getByRole('button', { name: 'Дополнительные инструменты' })).toHaveCount(0);
   await expect(nav.getByRole('group', { name: 'Диалоги AI agent' })).toHaveCount(0);
+});
+
+test('agent changes provider in the original dialogue only on explicit selection', async ({ page }) => {
+  const state = await setup(page);
+  const reference = { provider: 'OPEN_AI_CONVERSATION', model: 'gpt-4o-mini' };
+  state.conversation = {
+    id: 101,
+    userId: 7,
+    status: 'LOADED',
+    model: reference.provider,
+    options: { model: reference.model },
+    tags: ['chat'],
+  };
+  await page.route('**/api/aimodels/details?*', (route) =>
+    route.fulfill({ json: { ...agent, reference, name: 'Saved assistant' } }),
+  );
+  await page.goto('/agent?conversation=101');
+  const picker = page.getByRole('button', { name: 'Модель', exact: true });
+  await expect(picker).toContainText('Saved assistant');
+  await page.locator('#agent-draft').fill('Первый вопрос');
+  await page.getByRole('button', { name: 'Отправить', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(1);
+  expect(state.conversation.model).toBe(reference.provider);
+  await picker.click();
+  await page.getByRole('option', { name: agent.name, exact: true }).click();
+  await page.locator('#agent-draft').fill('Второй вопрос');
+  await page.getByRole('button', { name: 'Отправить', exact: true }).click();
+  await expect.poll(() => state.sends.length).toBe(2);
+  expect(state.conversation.model).toBe(agent.reference.provider);
+  expect(state.creates).toHaveLength(0);
 });

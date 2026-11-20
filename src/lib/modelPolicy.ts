@@ -24,6 +24,7 @@ export function assertAllowedTools(tools?: Array<unknown>): void {
         'В этой студии доступны только инструменты с моделями OpenRouter. Отключите инструмент ' + uid + '.',
       );
     const provider = (item as { settings?: { model?: { provider?: string } } })?.settings?.model?.provider;
+    if (uid === 'IMAGE' && provider === 'OPEN_AI_IMAGE_GPT') continue;
     if (provider !== undefined) assertAllowedProvider(provider);
   }
 }

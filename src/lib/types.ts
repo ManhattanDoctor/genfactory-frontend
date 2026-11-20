@@ -100,6 +100,7 @@ export interface IGnosisFile {
   type: string;
   mime: string;
   userId: number;
+  groupId?: number;
   createdDate: string;
   tags?: string[];
 }

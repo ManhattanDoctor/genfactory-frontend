@@ -124,71 +124,65 @@ export function GenerationDetails({
     ]),
   ];
   return (
-    <section
-      ref={details}
-      className="file-generation file-generation-popover"
-      aria-label="Параметры генерации"
-    >
-      <div className="file-generation-content">
-        <div className="file-generation-model">
-          <span className="file-generation-label">Модель</span>
-          <strong>{modelName}</strong>
-          <span className="file-generation-identifier">
-            {generation.model.provider} / {generation.model.model}
-          </span>
-        </div>
-        <dl className="file-generation-options">
-          {Object.entries(generation.options).map(([key, value]) => (
-            <div className="file-generation-row" key={key}>
-              <dt>{labels[key] || key}</dt>
-              <dd>
-                {typeof value === 'boolean'
-                  ? value
-                    ? 'Да'
-                    : 'Нет'
-                  : typeof value === 'object'
-                    ? JSON.stringify(value)
-                    : String(value)}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <div className="file-generation-prompt-head">
-          <h3>Промпт</h3>
-          <button
-            type="button"
-            className="file-generation-copy"
-            aria-label="Копировать промпт"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(generation.prompt);
-                setNotice('Промпт скопирован');
-              } catch {
-                setNotice('Не удалось скопировать. Выделите текст промпта вручную.');
-              }
-            }}
-          >
-            <Copy size={14} aria-hidden="true" />
-            Копировать
-          </button>
-        </div>
-        <p className="file-generation-prompt">{generation.prompt}</p>
-        {notice && (
-          <p className="file-generation-notice" role="status">
-            {notice}
-          </p>
-        )}
-        {!!sources.length && (
-          <>
-            <h3>Исходные файлы</h3>
-            <ol>
-              {sources.map((id) => (
-                <SourceFile key={id} id={id} mask={id === generation.maskFileId} onOpen={onOpen} />
-              ))}
-            </ol>
-          </>
-        )}
+    <section ref={details} className="file-generation" aria-label="Параметры генерации">
+      <div className="file-generation-model">
+        <span className="file-generation-label">Модель</span>
+        <strong>{modelName}</strong>
+        <span className="file-generation-identifier">
+          {generation.model.provider} / {generation.model.model}
+        </span>
       </div>
+      <dl className="file-generation-options">
+        {Object.entries(generation.options).map(([key, value]) => (
+          <div className="file-generation-row" key={key}>
+            <dt>{labels[key] || key}</dt>
+            <dd>
+              {typeof value === 'boolean'
+                ? value
+                  ? 'Да'
+                  : 'Нет'
+                : typeof value === 'object'
+                  ? JSON.stringify(value)
+                  : String(value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <div className="file-generation-prompt-head">
+        <h3>Промпт</h3>
+        <button
+          type="button"
+          className="file-generation-copy"
+          aria-label="Копировать промпт"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(generation.prompt);
+              setNotice('Промпт скопирован');
+            } catch {
+              setNotice('Не удалось скопировать. Выделите текст промпта вручную.');
+            }
+          }}
+        >
+          <Copy size={14} aria-hidden="true" />
+          Копировать
+        </button>
+      </div>
+      <p className="file-generation-prompt">{generation.prompt}</p>
+      {notice && (
+        <p className="file-generation-notice" role="status">
+          {notice}
+        </p>
+      )}
+      {!!sources.length && (
+        <>
+          <h3>Исходные файлы</h3>
+          <ol>
+            {sources.map((id) => (
+              <SourceFile key={id} id={id} mask={id === generation.maskFileId} onOpen={onOpen} />
+            ))}
+          </ol>
+        </>
+      )}
     </section>
   );
 }

@@ -1,8 +1,9 @@
+import { conversationQueue, type ConversationQueue } from './ConversationQueue';
 import { scheduleRefresh } from '../realtime/queryRefresh';
 import type { StudioHistoryFile } from './studioHistory';
 import { cachedStudioHistoryFiles } from './historyCache';
 import { studioSystem } from './studioPrompt';
-import { assertAllowedProvider } from '../../lib/modelPolicy';
+import { prepareStudioConversation } from './prepareStudioConversation';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import {
@@ -37,6 +38,7 @@ export interface ContentConversation {
   error: string;
   setError: (message: string, isExecution?: boolean) => void;
   busy: boolean;
+  queue?: ConversationQueue;
   scope: object;
   submit: (
     body: IMessageCreate,
@@ -109,6 +111,8 @@ export function useContentConversation(): ContentConversation {
       api.sendMessage(id, body, sid),
     onSettled: (_data, failure, variables) => {
       if (getSession() !== variables.sid) return;
+      if (failure && auth.user)
+        conversationQueue(client, auth.user.id, variables.id, variables.sid).pauseAfterFailure();
       if (failure && scope.current.token === variables.scopeToken)
         setError(
           failure.message === videoModerationError
@@ -167,18 +171,9 @@ export function useContentConversation(): ContentConversation {
       if (conversation) {
         const fresh = await api.conversation(conversation.id, undefined, sid);
         if (!current()) return false;
-        assertAllowedProvider(fresh.model);
         if (fresh.userId !== userId || fresh.status === 'LOADING')
           throw new Error('Беседа недоступна или уже выполняет запрос.');
-        // Discussion disables tools for this request without deleting saved connections.
-        conversation = await api.editConversation(
-          fresh,
-          {
-            system: studioSystem(fresh.system),
-            ...(body.settings.isToolsDisabled ? {} : { options: { ...fresh.options, tools } }),
-          },
-          sid,
-        );
+        conversation = await prepareStudioConversation(fresh, body, tools, sid);
       } else {
         conversation = await api.createConversation(
           {
@@ -233,6 +228,8 @@ export function useContentConversation(): ContentConversation {
     error: failure.message || detail.error?.message || (raw && !id ? 'Некорректный адрес беседы.' : ''),
     setError,
     busy,
+    queue:
+      id && auth.user && auth.session ? conversationQueue(client, auth.user.id, id, auth.session) : undefined,
     submit,
     agents: agents.data || [],
     latestRequest: send.submittedAt,

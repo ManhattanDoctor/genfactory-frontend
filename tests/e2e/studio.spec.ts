@@ -3992,49 +3992,53 @@ test('content studio model search and favorites preserve actual selection across
   expect(state.sends[0].settings.tools[0].settings.model).toEqual(selected.reference);
 });
 
-test('content studio restores actual result settings and sources instead of current conversation settings', async ({
-  page,
-}) => {
-  const state = await mockApi(page);
-  state.conversations.push(savedConversation());
-  const generation = {
-    model: catalog.find((item) => item.reference.model === 'sourceful/riverflow-v2.6-pro')!.reference,
-    prompt: 'Исторический промпт чашки',
-    options: { size: '1024x1536', background: 'opaque' },
-  };
-  state.messages.set(101, [
-    { id: 1, role: 'USER', text: 'Исходный бриф', files: [file], createdDate: file.createdDate },
-    {
-      id: 2,
-      role: 'ASSISTANT',
-      text: 'Готово',
-      files: [{ ...file, id: 13, origin: { kind: 'GENERATION', sourceFileIds: [12], generation } }],
-      createdDate: file.createdDate,
-    },
-  ]);
-  await page.goto('/chat?conversation=101');
-  await expect(page.getByLabel(`Параметры ${file.name}`)).toContainText(
-    modelTitle(catalog.find((item) => item.reference.model === generation.model.model)!),
-  );
-  await expect(page.getByLabel(`Параметры ${file.name}`)).toContainText('1024x1536');
-  await page.reload();
-  await page.getByRole('button', { name: 'Использовать параметры', exact: true }).click();
-  await expect(page.locator('#cw-draft')).toHaveValue(generation.prompt);
-  await expect(page.locator('#cw-draft')).toBeFocused();
-  await expect(page.locator('.cw-model')).toContainText(
-    modelTitle(catalog.find((item) => item.reference.model === generation.model.model)!),
-  );
-  expect(state.sends).toHaveLength(0);
-  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-  await expect.poll(() => state.sends.length).toBe(1);
-  expect(state.sends[0].settings.tools[0].settings).toEqual({
-    isLockSelection: true,
-    model: generation.model,
-    options: generation.options,
+for (const direct of [false, true])
+  test(`content studio restores actual result settings and sources, direct provider: ${direct}`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    state.conversations.push(savedConversation());
+    const routerModel = catalog.find((item) => item.reference.model === 'sourceful/riverflow-v2.6-pro')!;
+    const historicalModel = direct
+      ? catalog.find(
+          (item) => item.reference.provider === 'OPEN_AI_IMAGE_GPT' && item.reference.model === 'gpt-image-2',
+        )!
+      : routerModel;
+    if (direct)
+      await page.route('**/api/aimodels/details?*', (route) => route.fulfill({ json: historicalModel }));
+    const generation = {
+      model: historicalModel.reference,
+      prompt: 'Исторический промпт чашки',
+      options: { size: '1024x1536', background: 'opaque', ...(direct ? { quality: 'high' } : {}) },
+    };
+    state.messages.set(101, [
+      { id: 1, role: 'USER', text: 'Исходный бриф', files: [file], createdDate: file.createdDate },
+      {
+        id: 2,
+        role: 'ASSISTANT',
+        text: 'Готово',
+        files: [{ ...file, id: 13, origin: { kind: 'GENERATION', sourceFileIds: [12], generation } }],
+        createdDate: file.createdDate,
+      },
+    ]);
+    await page.goto('/chat?conversation=101');
+    await expect(page.getByText(/Изображение · .*1024x1536/)).toBeVisible();
+    await page.reload();
+    await page.getByRole('button', { name: 'Использовать параметры', exact: true }).click();
+    await expect(page.locator('#cw-draft')).toHaveValue(generation.prompt);
+    await expect(page.locator('#cw-draft')).toBeFocused();
+    await expect(page.locator('.cw-model')).toContainText(modelTitle(historicalModel));
+    expect(state.sends).toHaveLength(0);
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect.poll(() => state.sends.length).toBe(1);
+    expect(state.sends[0].settings.tools[0].settings).toMatchObject({
+      isLockSelection: true,
+      model: generation.model,
+      options: generation.options,
+    });
+    expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
+    expect(state.uploads).toBe(0);
   });
-  expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
-  expect(state.uploads).toBe(0);
-});
 
 test('content studio refuses missing historical references without replacing the draft or generating', async ({
   page,
@@ -4177,10 +4181,18 @@ test('library shows stored generation details and handles unavailable sources wi
   await expect(page.getByText('Historical prompt with roses', { exact: true })).toBeVisible();
   await expect(page.getByText('Исходник №999 недоступен')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Копировать промпт' })).toBeVisible();
-  await page.screenshot({ path: '/tmp/library-generation-desktop.png' });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: '/tmp/library-generation-mobile.png' });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const dialog = page.getByRole('dialog', { name: 'Параметры генерации' });
+  const details = dialog.locator('.file-generation');
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(details).toHaveCSS('border-left-width', '0px');
+    await expect(details).toHaveCSS('padding-left', '0px');
+    const modelLabel = await details.getByText('Модель', { exact: true }).boundingBox();
+    const heading = await dialog.getByRole('heading', { name: 'Параметры генерации' }).boundingBox();
+    expect(modelLabel!.x).toBeCloseTo(heading!.x, 0);
+    expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await dialog.screenshot({ path: `/tmp/library-generation-${width}.png` });
+  }
   expect(state.sends).toHaveLength(0);
   expect(state.uploads).toBe(0);
 });
@@ -4426,6 +4438,7 @@ test(
       const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!);
       return route.fulfill({ json: pagination(typeof conditions.directory === 'string' ? [] : [folder]) });
     });
+    await page.route('**/api/group', (route) => route.fulfill({ json: [{ id: 17, name: 'Редакция' }] }));
     const requests: string[] = [];
     await page.route('**/api/file', async (route) => {
       requests.push(route.request().postDataBuffer()!.toString());
@@ -4444,6 +4457,7 @@ test(
     await expect(page).toHaveURL(/\/library$/);
     await expect(page.getByRole('button', { name: 'Все файлы', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: /^ДТП Папка(?:\s|$)/ }).click();
+    await expect(page.getByRole('combobox', { name: 'Группа для загрузки' })).toHaveCount(0);
     await page.locator('input[type=file]').setInputFiles([
       {
         name: 'one.png',
@@ -4457,6 +4471,10 @@ test(
     await expect(page.getByRole('alert')).toContainText('broken.pdf');
     expect(requests).toHaveLength(3);
     for (const request of requests) expect(request).toContain('folder-80');
+    for (const request of requests) expect(request).not.toContain('name="groupId"');
+    await page.getByRole('button', { name: 'Повторить', exact: true }).click();
+    await expect.poll(() => requests.length).toBe(4);
+    expect(requests[3]).not.toContain('name="groupId"');
     const up = page
       .locator('.library-grid > .file-entry')
       .first()
@@ -4706,14 +4724,23 @@ test('library incompatible document is visibly marked and cannot be attached', a
   }
 });
 
-test('library move picker describes empty subfolders and still moves into a folder containing images', async ({
+test('library move picker displays files below folders and still moves into a folder containing images', async ({
   page,
 }) => {
   await mockApi(page);
   const folder = { ...file, id: 80, uid: 'folder-80', name: 'ДТП', type: 'DIRECTORY' };
   const writes: unknown[] = [];
-  await page.route('**/api/file?*', (route) => {
+  let showFolders!: () => void;
+  const loading = new Promise<void>((resolve) => {
+    showFolders = resolve;
+  });
+  await page.route('**/api/file?*', async (route) => {
     const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!);
+    if (
+      typeof conditions.directory === 'string' &&
+      new URL(route.request().url()).searchParams.has('foldersFirst')
+    )
+      await loading;
     const existing = { ...file, id: 81, name: 'Уже в папке', directory: folder.uid };
     const items =
       typeof conditions.directory === 'string'
@@ -4738,10 +4765,35 @@ test('library move picker describes empty subfolders and still moves into a fold
   await openFileMenuGroup(page);
   await page.getByRole('button', { name: 'Переместить', exact: true }).click();
   const dialog = page.getByRole('dialog');
+  const footer = dialog.getByRole('button', { name: 'Переместить сюда', exact: true });
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    const browser = dialog.locator('.file-browser');
+    const first = browser.locator('.file-entry').first();
+    await expect(first).toBeVisible();
+    const row = await first.boundingBox();
+    const area = await browser.boundingBox();
+    expect(row!.y).toBeCloseTo(area!.y, 0);
+    await expect(dialog.getByText(/Элементов в папке|Откройте папку назначения/)).toHaveCount(0);
+    await dialog.screenshot({ path: `/tmp/library-move-${width}.png` });
+  }
+  const bounds = await dialog.boundingBox();
+  const buttonBounds = await footer.boundingBox();
   await dialog.getByRole('button', { name: /^ДТП Папка(?:\s|$)/ }).click();
-  await expect(dialog.getByText('Нет вложенных папок. Можно выбрать текущую.')).toBeVisible();
-  await expect(dialog.getByText('Элементов в папке: 1')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Переместить сюда', exact: true }).click();
+  try {
+    await expect(dialog.getByRole('button', { name: 'Корень библиотеки' })).toBeVisible();
+    expect(await dialog.boundingBox()).toEqual(bounds);
+    expect(await footer.boundingBox()).toEqual(buttonBounds);
+  } finally {
+    showFolders();
+  }
+  await expect(dialog.getByText('Уже в папке')).toBeVisible();
+  const preview = dialog.locator('.file-entry').filter({ hasText: 'Уже в папке' }).locator('.library-media');
+  await expect(preview).toHaveCSS('width', '64px');
+  await expect(preview).toHaveCSS('height', '64px');
+  expect(await dialog.boundingBox()).toEqual(bounds);
+  expect(await footer.boundingBox()).toEqual(buttonBounds);
+  await footer.click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Назад в родительскую папку' })).toBeVisible();
   await expect(page.locator('.library-card').filter({ hasText: 'Уже в папке' })).toBeVisible();
@@ -5465,7 +5517,11 @@ for (const status of ['HIDDEN', 'DISABLED'] as const) {
   test(`content studio restores saved ${status} model and its options`, async ({ page }) => {
     const state = await mockApi(page);
     const retained = { ...catalog[0], name: 'Saved image model', status };
-    state.conversations.push(savedConversation());
+    const saved = savedConversation();
+    saved.options.tools = [
+      { uid: 'IMAGE', settings: { model: retained.reference, options: { quality: 'high' } } },
+    ];
+    state.conversations.push(saved);
     await page.route('**/api/aimodels?*', (route) => {
       if (catalogProvider(route.request().url()) !== retained.reference.provider) return route.fallback();
       return route.fulfill({
@@ -7029,7 +7085,13 @@ test('studio preserves the next draft while an accepted message is generating', 
     await expect(draft).toBeEnabled();
     await expect(draft).toHaveValue('');
     await draft.fill('Следующий запрос');
-    await expect(send).toBeDisabled();
+    await expect(send).toBeEnabled();
+    await send.click();
+    const queued = page.getByRole('button', { name: 'Убрать из очереди: Следующий запрос' });
+    await expect(queued).toBeVisible();
+    expect(requests).toBe(1);
+    await queued.click();
+    await draft.fill('Следующий запрос');
     changeStatus('LOADED');
     release();
     await expect(send).toBeEnabled();
@@ -7086,7 +7148,7 @@ test('content studio runs separate conversations concurrently and protects pendi
     await go('/chat?conversation=102');
     await expect(page.locator('#cw-draft')).toBeEnabled();
     await page.locator('#cw-draft').fill('Next draft in the pending conversation');
-    await expect(page.getByRole('button', { name: 'Отправить запрос', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Отправить запрос', exact: true })).toBeEnabled();
     expect([...entered]).toEqual([101, 102, 103]);
   } finally {
     releases.forEach((release) => release());
@@ -7303,33 +7365,23 @@ test('image templates use the studio editor, validate fields and references, and
   await page.getByRole('option', { name: '2K', exact: true }).click();
   await page.locator('#img-draft').fill('Старый текст');
   const title = 'Главное фото на белом фоне (маркетплейс)';
-  await page.getByRole('button', { name: title, exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: title, exact: true });
-  await expect(dialog.locator('.template-editor')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await page.getByRole('button', { name: `Посмотреть: ${title}`, exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: title });
+  await expect(dialog.getByRole('img', { name: title })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Закрыть' }).click();
   await expect(page.locator('#img-draft')).toHaveValue('Старый текст');
-  await page.getByRole('button', { name: title, exact: true }).click();
-  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-  await expect(dialog.getByRole('alert')).toContainText('Заполните все поля');
-  await dialog.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
-  await expect(dialog.getByRole('button', { name: 'Из библиотеки', exact: true })).toHaveCount(0);
-  await dialog.getByText('Редактировать исходный шаблон', { exact: true }).click();
-  const source = dialog.getByLabel('Текст шаблона', { exact: true });
+  await page.getByRole('button', { name: `Использовать шаблон: ${title}`, exact: true }).click();
+  const fields = page.getByRole('group', { name: 'Параметры шаблона' });
+  await expect(page.getByRole('button', { name: 'Собрать изображение' })).toBeDisabled();
+  await fields.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+  const source = page.locator('#img-draft');
   await source.fill((await source.inputValue()) + '\nМягкий свет.');
-  await expect(dialog.locator('.template-output mark').filter({ hasText: 'Красная чашка' })).toBeVisible();
-  await expect(dialog.locator('.template-output mark').filter({ hasText: 'Мягкий свет' })).toBeVisible();
-  await expect(dialog.locator('.template-source pre mark')).toContainText(['{PRODUCT}']);
-  for (const width of [1440, 390]) {
+  for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(dialog.getByRole('button', { name: 'Использовать шаблон', exact: true })).toBeInViewport();
-    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-    await page.screenshot({
-      path: testInfo.outputPath(`shared-template-editor-${width}.png`),
-      fullPage: true,
-    });
+    await expect(fields).toBeInViewport();
+    expect(await fields.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`image-template-fields-${width}.png`) });
   }
-  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-  await expect(dialog).toHaveCount(0);
   await expect(page.locator('#img-draft')).toHaveValue(/Красная чашка/);
   await expect(page.locator('#img-draft')).toHaveValue(/Мягкий свет/);
   const prompt = await page.locator('#img-draft').inputValue();
@@ -7957,7 +8009,9 @@ for (const width of [1440, 390]) {
     await header('Библиотека');
     await page.screenshot({ path: testInfo.outputPath(`dialog-library-${width}.png`) });
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Главное фото на белом фоне (маркетплейс)', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Посмотреть: Главное фото на белом фоне (маркетплейс)', exact: true })
+      .click();
     await header((await page.getByRole('dialog').locator('.modal-head h2').textContent())!);
     await page.screenshot({ path: testInfo.outputPath(`dialog-template-${width}.png`) });
     await page.keyboard.press('Escape');
@@ -8203,7 +8257,8 @@ for (const path of ['/image', '/chat']) {
     await initialPicker.getByRole('button', { name: 'Добавить (2)', exact: true }).click();
     const title = 'Главное фото на белом фоне (маркетплейс)';
     const open = async () => {
-      if (path === '/image') await page.getByRole('button', { name: title, exact: true }).click();
+      if (path === '/image')
+        await page.getByRole('button', { name: `Использовать шаблон: ${title}`, exact: true }).click();
       else {
         const card = page
           .locator('.cw-card')
@@ -8212,15 +8267,17 @@ for (const path of ['/image', '/chat']) {
         await card.locator('.cw-template-open').click();
       }
     };
-    await open();
     const dialog = page.getByRole('dialog', { name: title, exact: true });
+    if (path === '/image') await page.getByRole('button', { name: `Посмотреть: ${title}` }).click();
+    else await open();
     await expect(dialog.getByRole('button', { name: 'Из библиотеки', exact: true })).toHaveCount(0);
     await expect(dialog.locator('.composer-attachment')).toHaveCount(0);
-    await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Закрыть' }).click();
     await expect(page.locator('.composer-attachment')).toHaveCount(2);
     await open();
-    await dialog.getByLabel('Название вашего продукта', { exact: true }).fill('Корзина');
-    await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+    await page.getByLabel('Название вашего продукта', { exact: true }).fill('Корзина');
+    if (path === '/chat')
+      await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.locator('.composer-attachment')).toHaveCount(2);
     expect(state.tasks).toHaveLength(0);
@@ -8288,7 +8345,8 @@ for (const path of ['/image', '/chat']) {
     if (path === '/chat') await page.getByRole('button', { name: 'Изображение', exact: true }).click();
     const title = 'Портрет в масштабе';
     const apply = async () => {
-      if (path === '/image') await page.getByRole('button', { name: title, exact: true }).click();
+      if (path === '/image')
+        await page.getByRole('button', { name: `Использовать шаблон: ${title}`, exact: true }).click();
       else {
         const card = page
           .locator('.cw-card')
@@ -9070,7 +9128,8 @@ for (const path of ['/image', '/chat']) {
     await expect(page.locator('.ds-template-card').first()).toBeVisible();
     expect(requests).toEqual([]);
     for (const item of images.slice(0, 2)) {
-      if (path === '/image') await page.getByRole('button', { name: item.title, exact: true }).click();
+      if (path === '/image')
+        await page.getByRole('button', { name: `Использовать шаблон: ${item.title}`, exact: true }).click();
       else await applyVideoTemplate(page, path, item.title);
       const prompts = JSON.parse(
         readFileSync(
@@ -9101,7 +9160,10 @@ test('late template prompt cannot overwrite an edited draft', async ({ page }) =
   });
   await page.goto('/image');
   await page
-    .getByRole('button', { name: templates.find((item) => item.kind === 'image')!.title, exact: true })
+    .getByRole('button', {
+      name: `Использовать шаблон: ${templates.find((item) => item.kind === 'image')!.title}`,
+      exact: true,
+    })
     .click();
   await expect.poll(() => started).toBe(true);
   await page.locator('#img-draft').fill('Мой новый текст');
@@ -9447,22 +9509,26 @@ for (const path of ['/chat', '/image']) {
     const open =
       path === '/chat'
         ? page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true })
-        : page.getByRole('button', { name: title, exact: true });
+        : page.getByRole('button', { name: `Посмотреть: ${title}`, exact: true });
     for (const close of ['button', 'escape']) {
       await open.click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
-      await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+      if (path === '/chat')
+        await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
       if (close === 'button') await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
       else await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
       await expect(draft).not.toBeFocused();
       await expect(draft).toHaveValue('Мой исходный текст');
     }
-    await open.click();
+    if (path === '/chat') await open.click();
+    else await page.getByRole('button', { name: `Использовать шаблон: ${title}` }).click();
     await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
-    await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-    await expect(draft).toBeFocused();
+    if (path === '/chat') {
+      await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+      await expect(draft).toBeFocused();
+    }
     await expect(draft).toHaveValue(/Красная чашка/);
   });
 }
@@ -10017,3 +10083,139 @@ test('image attachment picker retains failed files for retry and removal', async
   await expect(failures).toHaveCount(0);
   expect(attempts).toBe(2);
 });
+
+for (const reload of [false, true]) {
+  test(`content studio conversation queue preserves order and cancellation across ${reload ? 'reload' : 'navigation'}`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    const conversation = savedConversation();
+    conversation.status = 'LOADING';
+    state.conversations.push(conversation, savedConversation(102));
+    await page.goto('/chat?conversation=101');
+    const draft = page.locator('#cw-draft');
+    const queue = page.getByRole('region', { name: 'Очередь запросов' });
+    for (const title of ['Запрос один', 'Убрать этот запрос', 'Запрос три']) {
+      await draft.fill(title);
+      await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+      await expect(queue.getByText(title, { exact: true })).toBeVisible();
+    }
+    await queue.getByRole('button', { name: 'Убрать из очереди: Убрать этот запрос' }).click();
+    expect(state.sends).toHaveLength(0);
+    if (reload) {
+      conversation.status = 'LOADED';
+      await page.reload();
+      await expect(queue.getByText('Запрос один', { exact: true })).toBeVisible();
+      expect(state.sends).toHaveLength(0);
+      await queue.getByRole('button', { name: 'Продолжить очередь' }).click();
+    } else {
+      await page.evaluate(() => {
+        history.pushState({}, '', '/chat?conversation=102');
+        dispatchEvent(new PopStateEvent('popstate'));
+      });
+      await expect(queue).toBeHidden();
+      conversation.status = 'LOADED';
+    }
+    await expect.poll(() => state.sends.map((item) => item.id)).toEqual([101, 101]);
+    expect(state.sends[0].text).toContain('Запрос один');
+    expect(state.sends[1].text).toContain('Запрос три');
+  });
+}
+
+test('conversation queue reconciles an interrupted send before continuing', async ({ page }) => {
+  const state = await mockApi(page);
+  const conversation = savedConversation();
+  conversation.status = 'LOADING';
+  state.conversations.push(conversation);
+  const posts: string[] = [];
+  await page.route('**/api/conversation/101/message', async (route) => {
+    const body = route.request().postDataJSON();
+    posts.push(body.text);
+    if (posts.length > 1) return route.fallback();
+    state.messages.set(101, [
+      { id: 40, role: 'USER', text: body.text, references: body.references, createdDate: file.createdDate },
+    ]);
+    await route.abort('failed');
+  });
+  await page.goto('/chat?conversation=101');
+  for (const title of ['Первый в очереди', 'Следующий в очереди']) {
+    await page.locator('#cw-draft').fill(title);
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Убрать из очереди: ' + title })).toBeVisible();
+  }
+  conversation.status = 'LOADED';
+  await page.getByRole('button', { name: 'Сверить с историей' }).click();
+  await expect(page.getByText('Сообщение с этим текстом и вложениями есть в истории.')).toBeVisible();
+  expect(posts).toHaveLength(1);
+  await page.getByRole('button', { name: 'Продолжить очередь' }).click();
+  await expect.poll(() => posts.length).toBe(2);
+  expect(posts[1]).toContain('Следующий в очереди');
+});
+
+for (const queued of [false, true]) {
+  test(`OpenAI assistant uses an OpenRouter tool for a ${queued ? 'queued' : 'direct'} message`, async ({
+    page,
+  }) => {
+    const state = await mockApi(page);
+    const conversation = savedConversation(168);
+    conversation.model = 'OPEN_AI_CONVERSATION';
+    conversation.options = { model: 'gpt-4o-mini' };
+    conversation.status = queued ? 'LOADING' : 'LOADED';
+    state.conversations.push(conversation);
+    await page.goto('/chat?conversation=168');
+    await page.locator('#cw-draft').fill('Проверка модели инструмента');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    if (queued) {
+      await expect(
+        page.getByRole('button', { name: 'Убрать из очереди: Проверка модели инструмента' }),
+      ).toBeVisible();
+      conversation.status = 'LOADED';
+    }
+    await expect.poll(() => state.sends.length).toBe(1);
+    expect(state.sends[0].id).toBe(168);
+    expect(conversation.model).toBe('OPEN_AI_CONVERSATION');
+    expect(conversation.options.model).toBe('gpt-4o-mini');
+    expect(
+      state.sends[0].settings.tools.some((item: { settings?: { model?: { provider: string } } }) =>
+        ['OPEN_ROUTER_IMAGE', 'OPEN_ROUTER_VIDEO'].includes(item.settings?.model?.provider || ''),
+      ),
+    ).toBe(true);
+    expect(state.creates).toHaveLength(0);
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`chat status and expandable messages share insets at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await mockApi(page);
+    state.conversations.push({ ...savedConversation(), status: 'LOADING' });
+    state.messages.set(101, [
+      {
+        id: 1,
+        role: 'USER',
+        text: Array(12).fill('Строка сообщения').join('\n'),
+        createdDate: file.createdDate,
+      },
+    ]);
+    await page.goto('/chat?conversation=101');
+    for (const label of ['Показать ещё', 'Свернуть']) {
+      const toggle = page.getByRole('button', { name: label, exact: true });
+      await expect(toggle).toBeVisible();
+      const spacing = await toggle.evaluate((element) => {
+        const bubble = element.closest('.as-bubble')!;
+        const status = document.querySelector('.studio-pending-result')!;
+        const content = element.previousElementSibling!.getBoundingClientRect();
+        const button = element.getBoundingClientRect();
+        return {
+          status: getComputedStyle(status).padding,
+          bubble: getComputedStyle(bubble).padding,
+          indent: button.left - content.left,
+          above: button.top - content.bottom,
+          below: bubble.getBoundingClientRect().bottom - button.bottom,
+        };
+      });
+      expect(spacing).toEqual({ status: '12px 16px', bubble: '12px 16px', indent: 0, above: 12, below: 12 });
+      await toggle.click();
+    }
+  });
+}

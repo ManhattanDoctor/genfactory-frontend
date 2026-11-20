@@ -506,6 +506,7 @@ export function FileActions({
               if (!busy) setAction(undefined);
             }}
             wide={action === 'move'}
+            className={action === 'move' ? 'file-move-dialog' : undefined}
           >
             <form
               className="file-form"
@@ -545,10 +546,7 @@ export function FileActions({
                 </p>
               )}
               {action === 'move' && (
-                <>
-                  <p>Откройте папку назначения или выберите корень библиотеки.</p>
-                  <FileBrowser foldersOnly onDestination={setDestination} />
-                </>
+                <FileBrowser foldersOnly onOpen={setSource} onDestination={setDestination} />
               )}
               {error && <p role="alert">{error}</p>}
               <ModalFooter className="file-form-buttons">

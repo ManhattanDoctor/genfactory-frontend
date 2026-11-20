@@ -499,7 +499,9 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           videoTemplateMinimum - Number(!!publicReference) - imageCount,
           minRefs - videoReferences.length,
         )
-      : 0;
+      : !legacy && videoTemplate
+        ? Math.max(0, videoTemplateMinimum - imageCount)
+        : 0;
   const videoIssue =
     kind === 'video' && !legacy && model
       ? videoReferenceError(model, videoReferences) ||
@@ -1092,8 +1094,8 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         model={model}
         options={options}
         prompt={prompt}
-        videoTemplate={videoTemplate}
-        onVideoTemplate={setVideoTemplate}
+        composerTemplate={videoTemplate}
+        onComposerTemplate={setVideoTemplate}
         templateId={imageTemplateId}
         templateText={imageTemplateText}
         onTemplateText={(value) => {
@@ -1110,7 +1112,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           draft.changed();
           setTemplateVideoReference(undefined);
         }}
-        onResetVideoTemplate={() => {
+        onResetComposerTemplate={() => {
           draft.changed();
           const referenceId = templateVideoReference?.fileId;
           if (referenceId) setReferences((files) => files.filter((file) => file.id !== referenceId));
@@ -1182,7 +1184,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           draft.changed();
           const previousId = templateVideoReference?.fileId;
           if (previousId) setReferences((current) => current.filter((file) => file.id !== previousId));
-          if (kind === 'video') setVideoTemplateMinimum(item.references?.min ?? 0);
+          setVideoTemplateMinimum(item.references?.min ?? 0);
           setTemplateVideoReference(reference ? { templateId: item.id, source: 'public' } : undefined);
           setError('');
           return true;

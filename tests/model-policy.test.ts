@@ -29,9 +29,9 @@ describe('OpenRouter-only client policy', () => {
     expect(isAllowedProvider(provider)).toBe(false);
     expect(() => assertAllowedProvider(provider)).toThrow('только модели OpenRouter');
   });
-  it('rejects a direct provider nested inside tool settings', () => {
+  it('checks the provider of the configured tool', () => {
     expect(() =>
-      assertAllowedTools([{ uid: 'IMAGE', settings: { model: { provider: 'OPEN_AI_IMAGE_GPT' } } }]),
+      assertAllowedTools([{ uid: 'VIDEO', settings: { model: { provider: 'OPEN_AI_IMAGE_GPT' } } }]),
     ).toThrow('OpenRouter');
     expect(() =>
       assertAllowedTools([{ uid: 'IMAGE', settings: { model: { provider: 'OPEN_ROUTER_IMAGE' } } }]),
@@ -82,7 +82,9 @@ describe('effective tool policy', () => {
       [{ uid: 'IMAGE', settings: { model: { provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1' } } }],
       [],
     );
-    await expect(prepareAllowedTools(tools, async () => [])).rejects.toThrow('OpenRouter');
+    expect((await prepareAllowedTools(tools, async () => []))?.[0].settings?.model).toEqual(
+      tools[0].settings?.model,
+    );
   });
   it('fails before sending when an unconfigured model tool has no allowed model', async () => {
     await expect(prepareAllowedTools(['IMAGE'], async () => [])).rejects.toThrow('Нет доступной модели');

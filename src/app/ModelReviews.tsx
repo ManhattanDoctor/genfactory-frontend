@@ -7,6 +7,8 @@ import { HomeImageViewer } from './HomeImageViewer';
 import { modelReviews } from './modelReviewData';
 import './model-reviews.css';
 
+const visibleReviews = modelReviews.filter((review) => review.images.length > 0);
+
 export function ModelReviews() {
   const { user } = useAuth();
   const catalog = useQuery(catalogQuery(user?.id, 'OPEN_ROUTER_IMAGE'));
@@ -14,7 +16,7 @@ export function ModelReviews() {
   const [active, setActive] = useState(0);
   const track = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<{ image: { src: string; alt: string }; from: DOMRect }>();
-  const start = Math.min(Math.max(0, active - 2), modelReviews.length - 5);
+  const start = Math.min(Math.max(0, active - 2), visibleReviews.length - 5);
 
   return (
     <section className="model-digests" aria-labelledby="model-digests-title">
@@ -26,11 +28,11 @@ export function ModelReviews() {
           const step = (currentTarget.children[1] as HTMLElement).offsetLeft;
           if (step)
             setActive(
-              Math.min(modelReviews.length - 1, Math.max(0, Math.round(currentTarget.scrollLeft / step))),
+              Math.min(visibleReviews.length - 1, Math.max(0, Math.round(currentTarget.scrollLeft / step))),
             );
         }}
       >
-        {modelReviews.map((review, index) => {
+        {visibleReviews.map((review, index) => {
           const available = catalog.data?.some(
             (item) => item.reference.model === review.model && item.capabilities?.includes('IMAGE_OUTPUT'),
           );
@@ -75,13 +77,13 @@ export function ModelReviews() {
           );
         })}
       </div>
-      {limit < modelReviews.length && (
+      {limit < visibleReviews.length && (
         <button className="button digest-more" type="button" onClick={() => setLimit(limit + 6)}>
           Показать ещё модели
         </button>
       )}
       <nav className="digest-pages" aria-label="Дайджесты моделей по порядку">
-        {modelReviews.slice(start, start + 5).map((item, i) => (
+        {visibleReviews.slice(start, start + 5).map((item, i) => (
           <button
             type="button"
             key={item.model}
@@ -94,7 +96,7 @@ export function ModelReviews() {
           />
         ))}
         <span>
-          {active + 1} / {modelReviews.length}
+          {active + 1} / {visibleReviews.length}
         </span>
       </nav>
       {selected && <HomeImageViewer {...selected} onClose={() => setSelected(undefined)} />}

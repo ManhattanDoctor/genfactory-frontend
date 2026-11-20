@@ -618,3 +618,54 @@ test('generated video keeps its poster during slow hover playback and releases t
   await expect(poster).toBeVisible();
   await expect(card.locator('video')).toHaveCount(0);
 });
+
+test('video template composer aligns attachments, photo slots and prompt', async ({ page }) => {
+  await setup(page);
+  await page.goto('/video');
+  await page.getByRole('button', { name: 'Использовать шаблон: Замена героев в сцене у бара' }).click();
+  const field = page.locator('.img-dock .cw-field');
+  const slot = field.getByRole('button', { name: 'Добавить фото 1', exact: true });
+  await expect(slot).toBeVisible();
+  await expect(field.locator('.video-model-limits')).toHaveCount(0);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const rows = await field.evaluate((element) =>
+      Array.from(element.children).map((child) => {
+        const box = child.getBoundingClientRect();
+        const css = getComputedStyle(child);
+        return { left: box.left + parseFloat(css.paddingLeft), top: box.top, bottom: box.bottom };
+      }),
+    );
+    expect(rows).toHaveLength(3);
+    const row = field.locator('.img-files');
+    const attachment = await row.locator('.composer-attachment').first().boundingBox();
+    const button = await slot.boundingBox();
+    expect(attachment).not.toBeNull();
+    expect(button).not.toBeNull();
+    expect(button!.width).toBeLessThan(attachment!.width);
+    expect(button!.height).toBe(attachment!.height);
+    expect(button!.x).toBeCloseTo(attachment!.x + attachment!.width + 8);
+    expect(button!.y + button!.height / 2).toBeCloseTo(attachment!.y + attachment!.height / 2);
+    for (const [index, row] of rows.entries()) {
+      expect(row.left).toBeCloseTo(rows[0].left);
+      if (index) expect(row.top - rows[index - 1].bottom).toBeCloseTo(8);
+    }
+  }
+  await field.getByRole('button', { name: 'Сбросить шаблон' }).click();
+  await expect(field.locator('.video-model-limits')).toBeVisible();
+});
+
+test('video model limits follow attachment changes without a template', async ({ page }) => {
+  await setup(page);
+  await page.goto('/video');
+  const limits = page.locator('.video-model-limits');
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(limits).toBeVisible();
+    await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
+    await pickSource(page);
+    await expect(limits).toHaveCount(0);
+    await page.getByRole('button', { name: 'Убрать Чашка.png', exact: true }).click();
+    await expect(limits).toBeVisible();
+  }
+});

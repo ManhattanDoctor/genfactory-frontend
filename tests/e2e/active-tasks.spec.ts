@@ -470,7 +470,7 @@ for (const status of ['LOADED', 'ERROR'] as const) {
   });
 }
 
-test('saved non-router tool settings are checked before sending', async ({ page }) => {
+test('incompatible saved video tool settings are checked before sending', async ({ page }) => {
   const { state } = await setup(page);
   state.conversations = [
     {
@@ -483,7 +483,7 @@ test('saved non-router tool settings are checked before sending', async ({ page 
         model: 'anthropic/claude-opus-5.5',
         tools: [
           {
-            uid: 'IMAGE',
+            uid: 'VIDEO',
             settings: {
               model: { provider: 'OPEN_AI_IMAGE_GPT', model: 'gpt-image-1' },
               isLockSelection: true,

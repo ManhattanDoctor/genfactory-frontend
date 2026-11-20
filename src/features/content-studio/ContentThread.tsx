@@ -1,4 +1,4 @@
-import { Check, Copy, Download, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { BriefcaseBusiness, Check, Copy, Download, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import type { ContentConversation } from './useContentConversation';
 import { openActiveJobs } from '../../components/ActiveJobs';
 import { CollapsibleMessage } from './CollapsibleMessage';
@@ -17,7 +17,6 @@ import { useConversationProgress } from '../studio/useConversationProgress';
 import { useConversationError } from '../studio/useConversationError';
 import { toolLabel } from '../studio/progress';
 import { modelTitle } from '../catalog/presentation';
-import { useAuth } from '../auth/AuthProvider';
 
 interface ITurn {
   ask?: IConversationMessage;
@@ -27,7 +26,8 @@ function PendingResult({ text }: { text: string }): ReactElement {
   return (
     <div className="studio-pending-result">
       <span role="status">{text}</span>
-      <button type="button" aria-haspopup="dialog" className="studio-thread-link" onClick={openActiveJobs}>
+      <button type="button" aria-haspopup="dialog" className="text-button" onClick={openActiveJobs}>
+        <BriefcaseBusiness size={16} aria-hidden />
         Работы
       </button>
     </div>
@@ -55,7 +55,6 @@ export function ContentThread({
   onAnswer: (question: StudioQuestion, messageId: number, answer: string) => Promise<boolean>;
   onUseParameters: (file: IGnosisFile) => void;
 }): ReactElement {
-  const { user } = useAuth();
   const end = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
   const [preview, setPreview] = useState<IGnosisFile>();
@@ -95,7 +94,6 @@ export function ContentThread({
     if (follow.current) scrollToEnd();
     else setJump(true);
   }, [messages.data, conversation.status]);
-  const you = user?.preferences?.email?.charAt(0).toUpperCase() || 'Я';
   return (
     <>
       {messages.isPending && <p role="status">Загружаем сообщения…</p>}
@@ -177,15 +175,9 @@ export function ContentThread({
                     </CollapsibleMessage>
                   )}
                 </div>
-                <span className="as-face as-face-you" aria-hidden="true">
-                  {you}
-                </span>
               </div>
             )}
             <div className="as-bot">
-              <span className="as-face as-face-bot" aria-hidden="true">
-                А
-              </span>
               <div className="as-bot-main">
                 <p className="as-role">Ассистент</p>
                 {waiting && (

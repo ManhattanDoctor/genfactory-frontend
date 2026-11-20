@@ -10,6 +10,7 @@ export function apiErrorMessage(data: unknown, status: number): string {
       ? (data as { code?: unknown; message?: unknown; details?: unknown })
       : {};
   const referenceErrors: Record<string, string> = {
+    GROUP_FORBIDDEN: 'Недостаточно прав для этой группы.',
     FILE_REFERENCES_REQUIRED: 'Обновите страницу: запрос использует устаревший формат вложений.',
     FILE_REFERENCES_INVALID: 'Некорректный список вложений.',
     FILE_REFERENCE_INVALID: 'Выберите файл или укажите ссылку на референс.',

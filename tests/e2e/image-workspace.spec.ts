@@ -370,22 +370,17 @@ test.describe('complete image template catalog', () => {
       test.setTimeout(120_000);
       const state = await setup(page);
       await page.goto('/image');
-      await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 2');
+      await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText(
+        'Riverflow V2.6 Pro',
+      );
       for (const item of images.slice(offset, offset + 20)) {
-        const before = await page.locator('#img-draft').inputValue();
-        await page.getByRole('button', { name: item.title, exact: true }).click();
+        await page.getByRole('button', { name: `Использовать шаблон: ${item.title}`, exact: true }).click();
+        const fields = page.getByRole('group', { name: 'Параметры шаблона' });
+        await expect(fields).toContainText(item.title);
+        for (const input of await fields.locator('input').all())
+          await input.fill((await input.getAttribute('type')) === 'number' ? '2' : 'Тестовые данные');
+        for (const select of await fields.locator('select').all()) await select.selectOption({ index: 1 });
         const dialog = page.getByRole('dialog');
-        await expect
-          .poll(
-            async () =>
-              (await dialog.isVisible()) || (await page.locator('#img-draft').inputValue()) !== before,
-          )
-          .toBe(true);
-        if (await dialog.isVisible()) {
-          for (const input of await dialog.locator('[data-template-variable]').all())
-            await input.fill('Тестовые данные');
-          await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-        }
         await expect(dialog).toHaveCount(0);
         await expect(page.locator('#img-draft')).not.toHaveValue('');
         expect(await page.locator('#img-draft').inputValue()).not.toMatch(/\{[A-Za-z][A-Za-z_0-9]*\}/);
@@ -405,10 +400,12 @@ test('canceling a parameterized template preserves the prompt and applying a pla
   await setup(page);
   await page.goto('/image');
   await page.locator('#img-draft').fill('Моя задача');
-  await page.getByRole('button', { name: 'Главное фото на белом фоне (маркетплейс)', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Посмотреть: Главное фото на белом фоне (маркетплейс)', exact: true })
+    .click();
   await page.getByRole('dialog').getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page.locator('#img-draft')).toHaveValue('Моя задача');
-  await page.getByRole('button', { name: 'Портрет в масштабе', exact: true }).click();
+  await page.getByRole('button', { name: 'Использовать шаблон: Портрет в масштабе', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#img-draft')).toHaveValue(/Ultra-photorealistic/);
   await expect(page.locator('.composer-template')).toHaveCount(0);
@@ -446,13 +443,27 @@ test('image wall paginates across folders and excludes uploads and foreign files
   expect(pages).toContain(1);
 });
 
+async function addTemplatePhoto(page: Page) {
+  await page.getByRole('button', { name: 'Добавить фото 1', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Библиотека' });
+  await picker
+    .getByRole('button', { name: /Закат.png/ })
+    .first()
+    .click();
+  await picker.getByRole('button', { name: 'Добавить (1)' }).click();
+}
 test('filled template text survives reload and is submitted as the visible prompt', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/image');
-  await page.getByRole('button', { name: 'Главное фото на белом фоне (маркетплейс)', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
-  await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: 'Использовать шаблон: Главное фото на белом фоне (маркетплейс)',
+      exact: true,
+    })
+    .click();
+  const fields = page.getByRole('group', { name: 'Параметры шаблона' });
+  await fields.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   const prompt = await page.locator('#img-draft').inputValue();
   expect(prompt).not.toContain('{PRODUCT}');
   await expect
@@ -460,6 +471,7 @@ test('filled template text survives reload and is submitted as the visible promp
     .toContain('Красная чашка');
   await page.reload();
   await expect(page.locator('#img-draft')).toHaveValue(prompt);
+  await addTemplatePhoto(page);
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
   expect(state.tasks[0].task.prompt).toBe(prompt);
@@ -700,7 +712,8 @@ test('redo restores the original idea and template of a new request and attaches
 }) => {
   const state = await setup(page);
   await page.goto('/image');
-  await page.getByRole('button', { name: 'Портрет в масштабе', exact: true }).click();
+  await page.getByRole('button', { name: 'Использовать шаблон: Портрет в масштабе', exact: true }).click();
+  await addTemplatePhoto(page);
   const prompt = await page.locator('#img-draft').inputValue();
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);

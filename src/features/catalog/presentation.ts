@@ -4,6 +4,14 @@ import { modelDescriptions } from './modelDescriptions';
 export const MODEL_SEARCH_MIN_COUNT = 6;
 export const modelKey = (model: Pick<IModelDescription, 'reference'>) =>
   `${model.reference.provider}:${model.reference.model}`;
+/** Existing drafts may contain only the model name. Prefer the saved provider for those drafts. */
+export function selectedModel(
+  key: string,
+  catalog: IModelDescription[],
+  saved?: IModelDescription,
+): IModelDescription | undefined {
+  return [saved, ...catalog].find((item) => item && (modelKey(item) === key || item.reference.model === key));
+}
 /** Favorites affect display order only, never the default used to execute a request. */
 export function favoritesFirst<T>(items: T[], favorites: string[], key: (item: T) => string): T[] {
   const selected = new Set(favorites);

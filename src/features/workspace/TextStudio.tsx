@@ -6,7 +6,7 @@ import { catalogQuery } from '../catalog/catalogQuery';
 import { scheduleRefresh } from '../realtime/queryRefresh';
 import type { ReactElement } from 'react';
 import { IMAGE_UPLOAD_ACCEPT, isImageUpload } from '../../lib/image-upload';
-import { modelTitle } from '../catalog/presentation';
+import { modelKey, modelTitle, selectedModel } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { AgentWorkspace, agentRequest } from './AgentWorkspace';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
@@ -135,12 +135,12 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
     models.data,
     auth.user?.id,
   );
-  const requestedModelKey = modernAgent
-    ? selected || conversation?.options.model
-    : conversation?.options.model || selected;
+  const savedKey =
+    conversation &&
+    modelKey({ reference: { provider: conversation.model, model: conversation.options.model } });
+  const requestedModelKey = modernAgent ? selected || savedKey : savedKey || selected;
   const model = requestedModelKey
-    ? models.data?.find((m) => m.reference.model === requestedModelKey) ||
-      (retained?.reference.model === requestedModelKey ? retained : undefined)
+    ? selectedModel(requestedModelKey, models.data || [], retained)
     : (modernAgent ? models.data?.find((m) => m.reference.model === 'gpt-5.4') : undefined) ||
       models.data?.[0];
   useEffect(() => {
@@ -409,12 +409,10 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
             throw Error(
               'В этой беседе подключены инструменты. Продолжите в расширенном режиме или начните новый диалог.',
             );
-          if (active.model !== model!.reference.provider)
-            throw Error('Для этой модели начните новый диалог.');
-          if (active.options.model !== model!.reference.model)
+          if (active.model !== model!.reference.provider || active.options.model !== model!.reference.model)
             active = await api.editConversation(
               active,
-              { options: { ...active.options, model: model!.reference.model } },
+              { model: model!.reference.provider, options: { model: model!.reference.model } },
               sid,
             );
           client.setQueryData(['conversation', userId, active.id], active);
@@ -535,7 +533,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
           }}
           onModel={(m) => {
             draft.changed();
-            setSelected(m.reference.model);
+            setSelected(modelKey(m));
           }}
           onLibrary={() => (auth.user ? setPicker(true) : void auth.signIn())}
           onSubmit={() => void submit()}
@@ -729,7 +727,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
                 models={models.data || []}
                 value={model ? model.reference.provider + ':' + model.reference.model : ''}
                 onSelect={(next) => {
-                  setSelected(next.reference.model);
+                  setSelected(modelKey(next));
                   setToolIds([]);
                 }}
                 onClose={() => setModelBrowser(false)}

@@ -100,7 +100,7 @@ export interface IUploadProgress {
 async function uploadFile(
   file: File,
   sid?: string,
-  context?: IFileOutputSettings,
+  context?: IFileOutputSettings & { groupId?: number },
   onProgress?: (progress: IUploadProgress) => void,
 ): Promise<IGnosisFile> {
   if (file.size > MAX_UPLOAD_BYTES) throw new Error('Максимальный размер загружаемого файла - 1 ГБ.');
@@ -116,6 +116,7 @@ async function uploadFile(
     }
     const data = new FormData();
     data.append('file', file);
+    if (context?.groupId !== undefined) data.append('groupId', String(context.groupId));
     if (context?.directory) data.append('directory', context.directory);
     if (context?.tags !== undefined) data.append('tags', JSON.stringify(context.tags));
     const access = session ? await sessionService.access(session) : null;
@@ -272,13 +273,13 @@ export const api = {
         Number(a.reference.model === DEFAULT_ASSISTANT.model),
     );
   },
-  modelDescription: (reference: IModelDescription['reference'], signal?: AbortSignal) =>
-    request<IModelDescription>(`/aimodels/details?${new URLSearchParams(reference)}`, { signal }),
+  modelDescription: (reference: IModelDescription['reference'], signal?: AbortSignal, sid?: string) =>
+    request<IModelDescription>(`/aimodels/details?${new URLSearchParams(reference)}`, { signal }, sid),
   details: (provider: string, signal?: AbortSignal) =>
     request<{ tools?: IToolDescription[] }>(`/aimodel/${encodeURIComponent(provider)}`, { signal }),
   editConversation: async (
     conversation: IConversation,
-    changes: { name?: string; options?: IConversation['options']; system?: string },
+    changes: { name?: string; model?: string; options?: IConversation['options']; system?: string },
     sid: string,
   ) => {
     const tools = await prepareAllowedTools(changes.options?.tools, (provider) =>
@@ -291,7 +292,7 @@ export const api = {
         body: JSON.stringify({
           ...changes,
           ...(tools ? { options: { ...changes.options, tools } } : {}),
-          model: conversation.model,
+          model: changes.model ?? conversation.model,
           files: (conversation.files || []).map((f) => f.id),
         }),
       },
@@ -335,7 +336,6 @@ export const api = {
   conversation: (id: number, signal?: AbortSignal, sid?: string) =>
     request<IConversation>(`/conversation/${id}`, { signal }, sid),
   createConversation: async (body: IConversationCreate, sid: string) => {
-    assertAllowedProvider(body.model);
     const tools = await prepareAllowedTools(body.options.tools, (provider) =>
       api.catalog(provider, undefined, sid),
     );
@@ -361,7 +361,6 @@ export const api = {
     ),
   sendMessage: async (id: number, body: IMessageCreate, sid: string) => {
     const conversation = await api.conversation(id, undefined, sid);
-    assertAllowedProvider(conversation.model);
     const tools = body.settings?.isToolsDisabled
       ? []
       : await prepareAllowedTools(
@@ -428,6 +427,7 @@ export const api = {
     tagMatch: 'all' | 'any' = 'all',
     signal?: AbortSignal,
     pageSize = 24,
+    foldersFirst = false,
   ) => {
     const conditions: Record<string, unknown> = {};
     if (!search && !tags.length)
@@ -460,7 +460,7 @@ export const api = {
       conditions.mime = { condition: 'CONTAINS', type: 'STRING', value: `${type.toLowerCase()}/%` };
 
     return request<IPagination<IGnosisFile>>(
-      `/file?${new URLSearchParams({ pageSize: String(pageSize), pageIndex: String(page), sort: JSON.stringify({ createdDate: false }), conditions: JSON.stringify(conditions) })}`,
+      `/file?${new URLSearchParams({ pageSize: String(pageSize), pageIndex: String(page), ...(foldersFirst && { foldersFirst: 'true' }), sort: JSON.stringify(foldersFirst ? { createdDate: false, id: false } : { createdDate: false }), conditions: JSON.stringify(conditions) })}`,
       { signal },
     );
   },

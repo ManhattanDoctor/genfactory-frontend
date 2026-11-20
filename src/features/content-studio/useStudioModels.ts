@@ -55,6 +55,7 @@ interface StudioModelOptions {
   mode: StudioMode;
   userId?: number;
   selectedModel: string;
+  resultReference?: IModelDescription['reference'];
   savedTools?: IConversation['options']['tools'];
   attachments: IAttachment[];
   ratio: string;
@@ -79,6 +80,7 @@ export function useStudioModels({
   userId,
   selectedModel,
   savedTools,
+  resultReference,
   attachments,
   ratio,
   imageQuality,
@@ -88,9 +90,17 @@ export function useStudioModels({
   const savedTool = savedTools?.find(
     (tool) =>
       typeof tool === 'object' &&
-      (mode === 'image' ? ['IMAGE', 'IMAGE_OPEN_ROUTER'] : ['VIDEO', 'VIDEO_OPEN_ROUTER']).includes(tool.uid),
+      (mode === 'image'
+        ? ['IMAGE', 'IMAGE_OPEN_ROUTER', 'IMAGE_OPEN_AI']
+        : ['VIDEO', 'VIDEO_OPEN_ROUTER']
+      ).includes(tool.uid),
   );
-  const savedReference = typeof savedTool === 'object' ? savedTool.settings?.model : undefined;
+  const savedReference =
+    resultReference && selectedModel === modelKey({ reference: resultReference })
+      ? resultReference
+      : typeof savedTool === 'object'
+        ? savedTool.settings?.model
+        : undefined;
   const retained = useRetainedModel(savedReference, catalog.data, userId);
   const model =
     catalog.data?.find((item) => modelKey(item) === selectedModel || item.name === selectedModel) ||

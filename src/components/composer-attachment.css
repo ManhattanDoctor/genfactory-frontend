@@ -1,19 +1,23 @@
 .composer-attachment {
   position: relative;
   display: flex;
-  flex: 0 1 152px;
   flex-direction: row;
   align-items: center;
-  box-sizing: border-box;
+  flex: 0 1 152px;
   width: 152px;
   max-width: 100%;
   min-width: 0;
-  height: 40px;
   padding: 0;
   gap: 0;
   border: 1px solid #303136;
   border-radius: 10px;
   background: #1a1b1e;
+}
+.composer-attachment,
+.image-workspace .img-files .composer-template-photos > .button {
+  box-sizing: border-box;
+  height: 40px;
+  min-height: 0;
 }
 .composer-attachment-preview {
   position: relative;
@@ -83,7 +87,8 @@
 }
 
 @media (max-width: 600px), (pointer: coarse) {
-  .composer-attachment {
+  .composer-attachment,
+  .image-workspace .img-files .composer-template-photos > .button {
     height: 48px;
   }
   .composer-attachment .composer-attachment-remove {

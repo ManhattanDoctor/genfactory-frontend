@@ -223,53 +223,71 @@ test('prompt restores draft inputs and permits return to Auto without sending', 
   expect(state.sends).toHaveLength(0);
 });
 
-test('prompt analyzes the original video with a locked tool and restores its source after reload', async ({
-  page,
-}) => {
-  const video = {
-    ...source,
-    name: 'Ролик.mp4',
-    type: 'VIDEO',
-    mime: 'video/mp4',
-    size: 1000,
-    preview: { image: { status: 'READY', url: '/media/gallery-1.jpg' } },
-  };
-  const state = await setup(page, undefined, video);
-  await page.goto('/prompt');
-  await page.getByRole('button', { name: 'Добавить изображение или видео', exact: true }).click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: /Ролик.mp4/ })
-    .first()
-    .click();
-  await page.getByRole('button', { name: 'Собрать промпт', exact: true }).click();
-  await expect(page.locator('.prompt-card h3')).toHaveText('Синяя чашка');
-  expect(state.sends[0].references).toEqual([{ type: 'FILE', id: 12 }]);
-  expect(state.sends[0].settings.tools).toEqual([
-    {
-      uid: 'VIDEO_RECOGNITION',
-      isRequired: true,
-      settings: {
-        model: { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' },
-        options: { maxTokens: 4096 },
-        isLockSelection: true,
+for (const existing of [false, true])
+  test(`prompt analyzes the original video and restores its source, saved OpenAI assistant: ${existing}`, async ({
+    page,
+  }) => {
+    const video = {
+      ...source,
+      name: 'Ролик.mp4',
+      type: 'VIDEO',
+      mime: 'video/mp4',
+      size: 1000,
+      preview: { image: { status: 'READY', url: '/media/gallery-1.jpg' } },
+    };
+    const state = await setup(page, undefined, video);
+    if (existing) {
+      const reference = { provider: 'OPEN_AI_CONVERSATION', model: 'gpt-4o-mini' };
+      state.conversation = {
+        id: 101,
+        userId: 7,
+        status: 'LOADED',
+        model: reference.provider,
+        options: { model: reference.model },
+        tags: ['genfactory', 'prompt'],
+      };
+      await page.route('**/api/aimodels/details?*', (route) =>
+        route.fulfill({ json: { ...agent, reference } }),
+      );
+    }
+    await page.goto(existing ? '/prompt?conversation=101' : '/prompt');
+    await page.getByRole('button', { name: 'Добавить изображение или видео', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /Ролик.mp4/ })
+      .first()
+      .click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Добавить (1)' }).click();
+    await page.getByRole('button', { name: 'Собрать промпт', exact: true }).click();
+    await expect(page.locator('.prompt-card h3')).toHaveText('Синяя чашка');
+    expect(state.sends[0].references).toEqual([{ type: 'FILE', id: 12 }]);
+    expect(state.sends[0].settings.tools).toEqual([
+      {
+        uid: 'VIDEO_RECOGNITION',
+        isRequired: true,
+        settings: {
+          model: { provider: 'OPEN_ROUTER_TEXT', model: 'google/gemini-2.5-pro' },
+          options: { maxTokens: 4096 },
+          isLockSelection: true,
+        },
       },
-    },
-  ]);
-  expect(state.creates[0].options.tools).toEqual(
-    state.sends[0].settings.tools.map(({ isRequired, ...tool }: { isRequired?: boolean }) => tool),
-  );
-  expect(state.creates[0].options.tools[0]).not.toHaveProperty('isRequired');
-  expect(state.sends[0].text).toContain('VIDEO_RECOGNITION');
-  expect(state.uploads).toBe(0);
-  await page.reload();
-  await expect(page.getByRole('button', { name: 'Убрать Ролик.mp4', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('Gemini');
-  await page.locator('.prompt-card').hover();
-  await page.getByRole('button', { name: 'В генератор', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Убрать Ролик.mp4', exact: true })).toHaveCount(0);
-  expect(state.sends).toHaveLength(1);
-});
+    ]);
+    expect(state.conversation.options.tools).toEqual(
+      state.sends[0].settings.tools.map(({ isRequired, ...tool }: { isRequired?: boolean }) => tool),
+    );
+    expect(state.conversation.options.tools[0]).not.toHaveProperty('isRequired');
+    expect(state.sends[0].text).toContain('VIDEO_RECOGNITION');
+    expect(state.creates).toHaveLength(existing ? 0 : 1);
+    expect(state.conversation.model).toBe(existing ? 'OPEN_AI_CONVERSATION' : agent.reference.provider);
+    expect(state.conversation.options.model).toBe(existing ? 'gpt-4o-mini' : agent.reference.model);
+    expect(state.uploads).toBe(0);
+    await page.reload();
+    await expect(page.locator('.prompt-card').getByRole('img', { name: 'Ролик.mp4' })).toBeVisible();
+    await page.locator('.prompt-card').hover();
+    await page.getByRole('button', { name: 'В генератор', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Убрать Ролик.mp4', exact: true })).toHaveCount(0);
+    expect(state.sends).toHaveLength(1);
+  });
 
 test('prompt rejects oversized videos before a paid request', async ({ page }) => {
   const state = await setup(page, undefined, {

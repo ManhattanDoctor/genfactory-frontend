@@ -3655,22 +3655,27 @@ a svg,
   line-height: 1.2;
   letter-spacing: 1px;
 }
+.file-move-dialog .file-placeholder,
 .reference .file-placeholder {
   min-height: 0;
   padding: 8px;
   gap: 0;
 }
+.file-move-dialog .file-placeholder-icon,
 .reference .file-placeholder-icon {
   width: 36px;
   height: 36px;
   border: 0;
   background: none;
 }
+.file-move-dialog .file-placeholder-icon svg,
 .reference .file-placeholder-icon svg {
   width: 26px;
   height: 26px;
 }
+.file-move-dialog .file-placeholder-label,
 .reference .file-placeholder-label,
+.file-move-dialog .file-placeholder-format,
 .reference .file-placeholder-format {
   display: none;
 }

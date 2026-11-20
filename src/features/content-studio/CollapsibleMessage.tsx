@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 export function CollapsibleMessage({ children }: { children: ReactNode }) {
@@ -34,12 +35,13 @@ export function CollapsibleMessage({ children }: { children: ReactNode }) {
       {overflows && (
         <button
           type="button"
-          className="studio-thread-link"
+          className="text-button"
           aria-controls={id}
           aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? 'Свернуть' : 'Показать ещё'}
+          {expanded ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
         </button>
       )}
     </div>

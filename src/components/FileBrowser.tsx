@@ -240,20 +240,25 @@ export function FileBrowser({
       query,
       page,
       foldersOnly,
+      !!onDestination,
       type,
       selectedTags,
       tagMatch,
     ],
     queryFn: ({ signal }) =>
-      api.browseFiles(page, directory, query, foldersOnly, type, selectedTags, tagMatch, signal),
+      api.browseFiles(
+        page,
+        directory,
+        query,
+        foldersOnly && !onDestination,
+        type,
+        selectedTags,
+        tagMatch,
+        signal,
+        24,
+        !!onDestination,
+      ),
     enabled: !!user,
-  });
-  const contents = useQuery({
-    queryKey: ['files', user?.id, 'directory-count', directory],
-    queryFn: ({ signal }) => api.browseFiles(0, directory, '', false, '', [], 'all', signal, 1),
-    select: (response) => response.total,
-    enabled: !!user && !!onDestination,
-    staleTime: 0,
   });
   useEffect(() => {
     onDestination?.(trail);
@@ -376,13 +381,9 @@ export function FileBrowser({
           ))}
         {(query || !!selectedTags.length) && <span> / Результаты поиска во всех папках</span>}
       </nav>
-      {onDestination && (
+      {onDestination && files.isPending && user && (
         <p className="muted small" role="status">
-          {contents.isError
-            ? 'Не удалось получить количество элементов в папке.'
-            : contents.data === undefined
-              ? 'Загружаем содержимое папки…'
-              : `Элементов в папке: ${contents.data}`}
+          Загружаем содержимое папки…
         </p>
       )}
       {movedFile &&
@@ -558,7 +559,9 @@ export function FileBrowser({
         </div>
       )}
       {notice && <p role="status">{notice}</p>}
-      {user && files.isPending && <SkeletonCards label="Загружаем файлы…" className="library-grid" />}
+      {user && !onDestination && files.isPending && (
+        <SkeletonCards label="Загружаем файлы…" className="library-grid" />
+      )}
       {files.error && (
         <p role="alert">
           {files.error.message}{' '}
@@ -711,15 +714,17 @@ export function FileBrowser({
         <p className="empty-state">
           {query || selectedTags.length
             ? 'По вашему запросу ничего не найдено.'
-            : foldersOnly
-              ? 'Нет вложенных папок. Можно выбрать текущую.'
-              : type === 'DOCUMENT'
-                ? 'Документов пока нет. Загрузите первый файл.'
-                : type === 'VIDEO'
-                  ? 'Видео пока нет.'
-                  : type === 'IMAGE'
-                    ? 'Изображений пока нет.'
-                    : 'В этой папке пока нет файлов.'}
+            : onDestination
+              ? 'Папка пуста. Можно выбрать текущую.'
+              : foldersOnly
+                ? 'Нет вложенных папок. Можно выбрать текущую.'
+                : type === 'DOCUMENT'
+                  ? 'Документов пока нет. Загрузите первый файл.'
+                  : type === 'VIDEO'
+                    ? 'Видео пока нет.'
+                    : type === 'IMAGE'
+                      ? 'Изображений пока нет.'
+                      : 'В этой папке пока нет файлов.'}
         </p>
       )}
       {files.data && files.data.pages > 1 && (

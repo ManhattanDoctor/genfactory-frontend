@@ -19,7 +19,6 @@ import type { IUploadProgress } from '../../lib/api';
 import { Skeleton } from '../../components/Skeleton';
 import { supportsVideoReferences } from '../catalog/videoInputs';
 import { downloadFile } from '../../lib/files';
-import { TemplateEditor } from '../content-studio/TemplateEditor';
 import { templateVariables, templateTimingError } from '../content-studio/templateRecipe';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
@@ -88,9 +87,9 @@ export function MediaWorkspace({
   options,
   prompt,
   templateId,
-  videoTemplate,
-  onVideoTemplate,
-  onResetVideoTemplate,
+  composerTemplate,
+  onComposerTemplate,
+  onResetComposerTemplate,
   templateText,
   onTemplateText,
   onTemplate,
@@ -127,9 +126,9 @@ export function MediaWorkspace({
   options: Record<string, unknown>;
   prompt: string;
   templateId: string;
-  videoTemplate?: VideoComposerTemplate;
-  onVideoTemplate: (value: VideoComposerTemplate) => void;
-  onResetVideoTemplate: () => void;
+  composerTemplate?: VideoComposerTemplate;
+  onComposerTemplate: (value: VideoComposerTemplate) => void;
+  onResetComposerTemplate: () => void;
   templateText: string;
   onTemplateText: (value: string) => void;
   onTemplate: (value: string) => void;
@@ -199,27 +198,18 @@ export function MediaWorkspace({
   const [mobileImageWall, setMobileImageWall] = useState(false);
   const [bottom, setBottom] = useState(234);
   const selected = imageTemplates.find((item) => item.id === templateId);
-  const videoCard = videoTemplate && imageTemplates.find((item) => item.id === videoTemplate.id);
+  const templateCard = composerTemplate && imageTemplates.find((item) => item.id === composerTemplate.id);
   const boundTemplate = useMemo(
-    () => videoTemplate && rebaseComposerTemplate(videoTemplate, prompt),
-    [videoTemplate, prompt],
+    () => composerTemplate && rebaseComposerTemplate(composerTemplate, prompt),
+    [composerTemplate, prompt],
   );
   const recipe = useMemo(
     () => new PromptTemplate(boundTemplate?.slots.map((slot) => slot.expression).join(' ') || ''),
     [boundTemplate],
   );
   const missingFields = recipe.variables.some((key) => !boundTemplate?.values[key]?.trim());
-  const [editingTemplate, setEditingTemplate] = useState<ITemplate>();
-  const [templateImageMinimum, setTemplateImageMinimum] = useState(0);
-  useEffect(() => {
-    setTemplateImageMinimum(0);
-  }, [kind, conversation?.id]);
-  useEffect(() => {
-    if (!prompt.trim()) setTemplateImageMinimum(0);
-  }, [prompt]);
-  const needsTemplateImages = video
-    ? missingPhotos > 0
-    : !!prompt.trim() && references.filter((file) => file.type === 'IMAGE').length < templateImageMinimum;
+  const [templatePreview, setTemplatePreview] = useState<ITemplateCard>();
+  const needsTemplateImages = missingPhotos > 0;
   const [notice, setNotice] = useState('');
   const conversationError = useConversationError(conversation);
   const [answerView, setAnswerView] = useState<string>();
@@ -374,7 +364,7 @@ export function MediaWorkspace({
   const frameLimit = fields.frameImages?.maxItems ?? 0;
   const photoCount = references.filter((file) => file.type === 'IMAGE').length;
   const limits =
-    video && model
+    video && model && !references.length && !templateReference && !templateCard && !selected
       ? [
           durations.length ? `До ${fields.duration?.maximum ?? Math.max(...durations)} с` : '',
           frameLimit && !missingPhotos && !referenceMinimum(model)
@@ -394,7 +384,7 @@ export function MediaWorkspace({
   const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
   const applyTemplateText = async (item: ITemplate, text: string): Promise<void> => {
-    const prepared = video ? prepareComposerTemplate(text, (item.references?.min ?? 0) > 0) : undefined;
+    const prepared = prepareComposerTemplate(text, (item.references?.min ?? 0) > 0);
     const target = item.model
       ? models.find((candidate) => modelKey(candidate) === modelKey({ reference: item.model! }))
       : model;
@@ -415,20 +405,18 @@ export function MediaWorkspace({
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
-    setTemplateImageMinimum(Math.max(1, (item.references?.min ?? 0) - (item.referenceVideoSrc ? 1 : 0)));
 
     onTemplate('');
     onTemplateText('');
-    if (prepared) onVideoTemplate({ ...prepared, id: item.id });
-    onPrompt(prepared?.text ?? text);
+    onComposerTemplate({ ...prepared, id: item.id });
+    onPrompt(prepared.text);
     setNotice('');
-    setEditingTemplate(undefined);
     requestAnimationFrame(() => promptInput.current?.focus());
   };
-  const applyTemplate = async (card: ITemplateCard): Promise<void> => {
+  const applyTemplate = async (card: ITemplateCard, savedText?: string): Promise<void> => {
     if (busy) return;
     try {
-      if (video && !user) {
+      if (!user) {
         await signIn();
         return;
       }
@@ -438,24 +426,13 @@ export function MediaWorkspace({
         ? models.find((candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }))
         : model;
       const item = fitTemplateDuration(loaded, options.duration, target);
-      if (video) {
-        await applyTemplateText(item, item.prompt);
-        return;
-      }
-      let needsEditor = true;
-      try {
-        needsEditor = templateVariables(item.prompt).length > 0;
-      } catch {
-        /* Editor reports invalid syntax. */
-      }
-      if (needsEditor) setEditingTemplate(item);
-      else await applyTemplateText(item, item.prompt);
+      await applyTemplateText(item, savedText || item.prompt);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Не удалось загрузить шаблон.');
     }
   };
   const submitTemplate = (): void => {
-    if (video && (missingPhotos || missingFields || unavailable)) return;
+    if (missingPhotos || missingFields || unavailable) return;
     let incomplete = !templateText.trim();
     try {
       incomplete ||= templateVariables(templateText).length > 0;
@@ -463,8 +440,7 @@ export function MediaWorkspace({
       incomplete = true;
     }
     if (selected && incomplete) {
-      if (!video && templateText) setEditingTemplate({ ...selected, prompt: templateText });
-      else void applyTemplate(selected);
+      void applyTemplate(selected, templateText);
       return;
     }
     onSubmit((): void => {
@@ -532,35 +508,23 @@ export function MediaWorkspace({
   );
   const templateCards = useMemo(
     () =>
-      (banana || seedance ? [] : imageTemplates).map((item, index) =>
-        video ? (
-          <article
-            key={item.id}
-            className="img-tile ds-template-card video-template-card"
-            aria-label={item.title}
-          >
+      (banana || seedance ? [] : imageTemplates).map((item, index) => (
+        <article
+          key={item.id}
+          className="img-tile ds-template-card media-template-card"
+          aria-label={item.title}
+        >
+          {video ? (
             <VideoTemplateMedia item={item} />
+          ) : (
             <button
               type="button"
-              className="button video-template-apply"
-              disabled={busy}
-              aria-label={`Использовать шаблон: ${item.title}`}
-              onClick={() => selectTemplate(item)}
+              className="img-card"
+              style={{ aspectRatio: item.ratio.replace(':', ' / ') }}
+              aria-label={`Посмотреть: ${item.title}`}
+              aria-haspopup="dialog"
+              onClick={() => setTemplatePreview(item)}
             >
-              Использовать шаблон
-            </button>
-          </article>
-        ) : (
-          <button
-            type="button"
-            key={item.id}
-            className={`img-tile ds-template-card ${selected?.id === item.id ? 'is-on' : ''}`}
-            aria-label={item.title}
-            aria-pressed={selected?.id === item.id}
-            disabled={busy}
-            onClick={() => selectTemplate(item)}
-          >
-            <span className="img-card" style={{ aspectRatio: item.ratio.replace(':', ' / ') }}>
               <img
                 className="img-face"
                 src={item.src}
@@ -572,11 +536,20 @@ export function MediaWorkspace({
                 <span>{item.genre}</span>
                 <strong>{item.title}</strong>
               </span>
-            </span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="button media-template-apply"
+            disabled={busy}
+            aria-label={`Использовать шаблон: ${item.title}`}
+            onClick={() => selectTemplate(item)}
+          >
+            Использовать шаблон
           </button>
-        ),
-      ),
-    [banana, seedance, imageTemplates, selected?.id, busy, video, columns, selectTemplate],
+        </article>
+      )),
+    [banana, seedance, imageTemplates, busy, video, columns, selectTemplate],
   );
   const statusCards: ReactElement[] = [
     ...Array.from(
@@ -800,7 +773,9 @@ export function MediaWorkspace({
                 ordered={group.key === 'results'}
                 scrollRoot={wall}
                 estimateHeight={(key, width) =>
-                  key === 'next-page' ? 40 : width * (cardRatios.get(key) ?? 0.75)
+                  key === 'next-page'
+                    ? 40
+                    : width * (cardRatios.get(key) ?? 0.75) + (key.startsWith(kind + ':') ? 44 : 0)
                 }
               >
                 {group.cards}
@@ -808,26 +783,14 @@ export function MediaWorkspace({
             ))}
         </div>
       </div>
-      {editingTemplate && !busy && (
-        <TemplateEditor
-          key={editingTemplate.id}
-          item={editingTemplate}
-          duration={typeof options.duration === 'number' ? options.duration : undefined}
-          launchSettings={[
-            `Модель: ${model ? modelTitle(model) : 'Не выбрана'}`,
-            referenceRatio ? 'Формат: по исходному кадру' : ratio ? `Формат: ${ratio}` : '',
-            qualityKey && options[qualityKey] ? `Качество: ${options[qualityKey]}` : '',
-            video && typeof options.duration === 'number' ? `Длительность: ${options.duration} с` : '',
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-          onClose={() => setEditingTemplate(undefined)}
-          onApply={(text) => {
-            void applyTemplateText(editingTemplate, text).catch((error) =>
-              setNotice(error instanceof Error ? error.message : 'Не удалось применить шаблон.'),
-            );
-          }}
-        />
+      {templatePreview && (
+        <Modal
+          title={templatePreview.title}
+          className="image-template-preview"
+          onClose={() => setTemplatePreview(undefined)}
+        >
+          <img src={templatePreview.src} alt={templatePreview.title} />
+        </Modal>
       )}
       <form
         className="img-dock"
@@ -838,7 +801,28 @@ export function MediaWorkspace({
         }}
       >
         <div className="cw-field">
-          {(selected || templateReference || references.length > 0) && (
+          {templateCard && composerTemplate && boundTemplate && (
+            <ComposerTemplatePanel
+              title={templateCard.title}
+              disabled={busy}
+              onReset={onResetComposerTemplate}
+            >
+              {recipe.variables.length > 0 && (
+                <ComposerTemplateFields
+                  key={templateCard.id}
+                  disabled={busy}
+                  recipe={recipe}
+                  values={boundTemplate.values}
+                  onChange={(key, value) => {
+                    const next = updateComposerField(boundTemplate, key, value);
+                    onComposerTemplate({ ...next, id: templateCard.id });
+                    onPrompt(next.text);
+                  }}
+                />
+              )}
+            </ComposerTemplatePanel>
+          )}
+          {(selected || templateReference || references.length > 0 || missingPhotos > 0) && (
             <div className="img-files">
               {templateReference && (
                 <ComposerAttachment
@@ -879,8 +863,7 @@ export function MediaWorkspace({
                       aria-label="Редактировать шаблон"
                       disabled={busy}
                       onClick={() => {
-                        if (!video && templateText) setEditingTemplate({ ...selected, prompt: templateText });
-                        else void applyTemplate(selected);
+                        void applyTemplate(selected, templateText);
                       }}
                     >
                       <Pencil size={13} />
@@ -888,34 +871,15 @@ export function MediaWorkspace({
                   }
                 </div>
               )}
+              <RequiredPhotoSlots
+                count={photoCount + missingPhotos}
+                filled={photoCount}
+                disabled={busy || !!unavailable}
+                onAdd={() => onLibrary(true)}
+              />
             </div>
           )}
-          {videoCard && videoTemplate && boundTemplate && (
-            <ComposerTemplatePanel title={videoCard.title} disabled={busy} onReset={onResetVideoTemplate}>
-              {recipe.variables.length > 0 && (
-                <ComposerTemplateFields
-                  key={videoCard.id}
-                  disabled={busy}
-                  recipe={recipe}
-                  values={boundTemplate.values}
-                  onChange={(key, value) => {
-                    const next = updateComposerField(boundTemplate, key, value);
-                    onVideoTemplate({ ...next, id: videoCard.id });
-                    onPrompt(next.text);
-                  }}
-                />
-              )}
-            </ComposerTemplatePanel>
-          )}
           {limits && <p className="video-model-limits">{limits}</p>}
-          {video && (
-            <RequiredPhotoSlots
-              count={photoCount + missingPhotos}
-              filled={photoCount}
-              disabled={busy || !!unavailable}
-              onAdd={() => onLibrary(true)}
-            />
-          )}
           <textarea
             ref={promptInput}
             id={seedance ? 'sd-draft' : banana ? 'nb-draft' : video ? 'vd-draft' : 'img-draft'}
@@ -925,8 +889,11 @@ export function MediaWorkspace({
             disabled={busy}
             onChange={(e) => {
               const text = e.target.value;
-              if (videoTemplate && boundTemplate)
-                onVideoTemplate({ ...rebaseComposerTemplate(boundTemplate, text), id: videoTemplate.id });
+              if (composerTemplate && boundTemplate)
+                onComposerTemplate({
+                  ...rebaseComposerTemplate(boundTemplate, text),
+                  id: composerTemplate.id,
+                });
               onPrompt(text);
             }}
             placeholder={
@@ -945,7 +912,7 @@ export function MediaWorkspace({
                 className={`cw-plus ${needsTemplateImages ? `needs-template-images${templateGlowActive ? ' template-glow-active' : ''}` : ''}`}
                 title={
                   needsTemplateImages
-                    ? `Добавьте свои ${video && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${video ? photoCount + missingPhotos : templateImageMinimum}`
+                    ? `Добавьте свои ${video && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${photoCount + missingPhotos}`
                     : video
                       ? undefined
                       : 'Добавить фото: JPG, PNG, WebP, HEIC/HEIF'
@@ -1061,7 +1028,8 @@ export function MediaWorkspace({
             disabled={
               busy ||
               unavailable ||
-              (video && (missingPhotos > 0 || missingFields)) ||
+              missingPhotos > 0 ||
+              missingFields ||
               (!prompt.trim() && !selected && !((video || banana) && references.length))
             }
           >

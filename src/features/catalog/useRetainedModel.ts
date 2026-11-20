@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { isAllowedProvider } from '../../lib/modelPolicy';
 import { api } from '../../lib/api';
 import type { IModelDescription } from '../../lib/types';
 
@@ -10,21 +9,24 @@ export function useRetainedModel(
   userId: number | undefined,
 ): IModelDescription | undefined {
   const active =
-    isAllowedProvider(reference?.provider) &&
     reference &&
     models?.find(
       (model) => model.reference.provider === reference.provider && model.reference.model === reference.model,
     );
   const saved = useQuery({
     queryKey: ['retained-model', userId, reference?.provider, reference?.model],
-    enabled:
-      !!userId && !!reference && isAllowedProvider(reference.provider) && models !== undefined && !active,
+    enabled: !!userId && !!reference && models !== undefined && !active,
     retry: false,
     queryFn: async ({ signal }) => {
       const value = await api.modelDescription(reference!, signal);
-      if (!value?.reference || !value.schema) throw new Error('Сохранённая модель недоступна.');
+      if (
+        value?.reference?.provider !== reference!.provider ||
+        value.reference.model !== reference!.model ||
+        !value.schema
+      )
+        throw new Error('Сохранённая модель недоступна.');
       return value;
     },
   });
-  return isAllowedProvider(reference?.provider) ? active || saved.data : undefined;
+  return reference ? active || saved.data : undefined;
 }

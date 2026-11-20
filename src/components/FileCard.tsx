@@ -7,7 +7,7 @@ import { GenerationSummary } from './FileGeneration';
 
 export type IFileCardData = Pick<
   IGnosisFile,
-  'id' | 'name' | 'type' | 'mime' | 'createdDate' | 'preview' | 'origin'
+  'id' | 'name' | 'type' | 'mime' | 'createdDate' | 'preview' | 'origin' | 'groupId'
 > &
   Partial<Pick<IGnosisFile, 'path'>>;
 
@@ -66,7 +66,14 @@ export function FileCard({
         )}
       </CardPreview>
       <div>
-        <b title={file.name}>{file.name}</b>
+        {file.groupId != null ? (
+          <div className="file-group-title">
+            <b title={file.name}>{file.name}</b>
+            <span className="compact-tag">Групповой</span>
+          </div>
+        ) : (
+          <b title={file.name}>{file.name}</b>
+        )}
         {source && <span className="history-source">{source}</span>}
         <GenerationSummary file={file} />
         {!file.origin?.generation && (

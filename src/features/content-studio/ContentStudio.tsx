@@ -1,3 +1,4 @@
+import { StudioQueuePanel } from './StudioQueuePanel';
 import { ComposerTemplatePanel } from './ComposerTemplatePanel';
 import { RequiredPhotoSlots } from '../../components/RequiredPhotoSlots';
 import { MediaModelPicker } from '../catalog/MediaModelPicker';
@@ -60,7 +61,6 @@ import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { defaultAssistant } from '../catalog/defaultAssistant';
-import { isAllowedProvider } from '../../lib/modelPolicy';
 import { modelKey, modelTitle } from '../catalog/presentation';
 import templates from './templates.json';
 import './prototype.css';
@@ -87,7 +87,7 @@ export function ContentStudio(): ReactElement {
   const [restoringResult, setRestoringResult] = useState(false);
   const [restoredGeneration, setRestoredGeneration] = useState<IFileGeneration>();
   const [uploadProgress, setUploadProgress] = useState<IUploadProgress>();
-  const submitting = useRef<object | undefined>(undefined);
+  const submitting = useRef<{ scope: object } | undefined>(undefined);
   const activeSubmissionScope = useRef(work.scope);
   activeSubmissionScope.current = work.scope;
   useEffect(() => {
@@ -322,6 +322,7 @@ export function ContentStudio(): ReactElement {
     userId: user?.id,
     selectedModel,
     savedTools: work.conversation?.options.tools,
+    resultReference: restoredGeneration?.model,
     attachments,
     ratio,
     imageQuality,
@@ -678,10 +679,10 @@ export function ContentStudio(): ReactElement {
     const tool = conversation.options.tools?.find(
       (item) =>
         typeof item !== 'string' &&
-        ['IMAGE', 'IMAGE_OPEN_ROUTER', 'VIDEO', 'VIDEO_OPEN_ROUTER'].includes(item.uid),
+        ['IMAGE', 'IMAGE_OPEN_AI', 'IMAGE_OPEN_ROUTER', 'VIDEO', 'VIDEO_OPEN_ROUTER'].includes(item.uid),
     );
     if (tool && typeof tool !== 'string') {
-      const target = ['IMAGE', 'IMAGE_OPEN_ROUTER'].includes(tool.uid) ? 'image' : 'video';
+      const target = ['IMAGE', 'IMAGE_OPEN_AI', 'IMAGE_OPEN_ROUTER'].includes(tool.uid) ? 'image' : 'video';
       if (mode !== target) {
         setMode(target);
         return;
@@ -712,7 +713,7 @@ export function ContentStudio(): ReactElement {
     restored.current = conversation.id;
   }, [work.conversation, catalog.data, retained, mode, readyScope, draftScope]);
   const agent = defaultAssistant(work.agents);
-  const attachmentBusy = work.busy || uploading || preparingFrame || restoringResult;
+  const attachmentBusy = awaitingAcceptance === work.scope || uploading || preparingFrame || restoringResult;
   const busy = attachmentBusy || restoringReferences?.scope === draftScope;
   useEffect(() => {
     if (!busy && focusRestoredDraft.current) {
@@ -806,19 +807,17 @@ export function ContentStudio(): ReactElement {
         );
       const target = file.type === 'IMAGE' ? 'image' : file.type === 'VIDEO' ? 'video' : undefined;
       if (!target) throw new Error('Восстановление этого типа результата пока не поддерживается.');
-      if (!isAllowedProvider(generation.model.provider)) {
-        const title = modelTitle({ reference: generation.model, name: generation.model.model });
-        throw new Error(
-          `Для результата использовалась модель ${title}. В Студии доступны модели OpenRouter. Чтобы перенести текст, нажмите «Повторить запрос».`,
-        );
-      }
-      const available = await api.catalog(generation.model.provider);
-      const selected = available.find(
-        (item) =>
-          item.reference.provider === generation.model.provider &&
-          item.reference.model === generation.model.model,
+      const reference = generation.model;
+      const listed = (await api.catalog(reference.provider, undefined, sid)).find(
+        (item) => modelKey(item) === modelKey({ reference }),
       );
-      if (!selected) throw new Error('Модель этой генерации больше недоступна.');
+      const selected = listed || (await api.modelDescription(reference, undefined, sid));
+      if (!current()) return;
+      if (!selected?.reference || modelKey(selected) !== modelKey({ reference }) || !selected.schema)
+        throw new Error('Модель этой генерации больше недоступна.');
+      if (selected.status === 'DISABLED') throw new Error('Модель отключена администратором.');
+      if (!listed)
+        queryClient.setQueryData(['retained-model', user.id, reference.provider, reference.model], selected);
       const publicInput = restoredPublicReference(generation.references);
       const publicFile = resolvePublicReference(publicInput);
       const sources = await Promise.all((file.origin?.sourceFileIds || []).map((id) => api.file(id, sid)));
@@ -954,14 +953,15 @@ export function ContentStudio(): ReactElement {
       work.setError('Модель отключена администратором. Выберите другую модель.');
       return;
     }
-    if (busy || submitting.current === work.scope) return;
+    if (busy || submitting.current?.scope === work.scope) return;
     if (missingFields || needsTemplateImages) {
       work.setError(missingFields ? 'Заполните параметры шаблона.' : 'Добавьте недостающие фото.');
       return;
     }
     if (!draft.trim() && !picked.length && !attachments.length) return;
     const submissionScope = work.scope;
-    submitting.current = submissionScope;
+    const submission = { scope: submissionScope };
+    submitting.current = submission;
     setAwaitingAcceptance(submissionScope);
     work.setError('');
     const sid = session;
@@ -1085,6 +1085,7 @@ export function ContentStudio(): ReactElement {
           ...cached.flatMap(([, page]) => page?.items.map((message) => message.id) || []),
         ),
         clear: () => {
+          submitting.current = undefined;
           setAwaitingAcceptance(undefined);
           setTemplateStartsFresh(false);
           setTemplateVideoReference(undefined);
@@ -1103,6 +1104,12 @@ export function ContentStudio(): ReactElement {
           setRestoredGeneration(undefined);
         },
       };
+      const queue = work.queue;
+      if (queue && (work.busy || queue.occupied)) {
+        queue.add(sourceDraft || picked[0]?.title || 'Запрос студии', body, tools);
+        pending.clear();
+        return;
+      }
       submittedDraft.current = pending;
       const success = await work.submit(
         body,
@@ -1121,17 +1128,23 @@ export function ContentStudio(): ReactElement {
     } catch (e) {
       if (current()) work.setError(e instanceof Error ? e.message : 'Не удалось отправить задачу.');
     } finally {
-      if (submitting.current === submissionScope) {
+      if (submitting.current === submission) {
         submitting.current = undefined;
         setAwaitingAcceptance(undefined);
       }
-      if (current()) {
+      if (current() && !submitting.current) {
         setUploading(false);
         setUploadProgress(undefined);
       }
     }
   }
-  const answerQuestion = useStudioQuestion({ work, busy, session, agent, alive });
+  const answerQuestion = useStudioQuestion({
+    work,
+    busy: busy || work.busy || !!work.queue?.occupied,
+    session,
+    agent,
+    alive,
+  });
 
   const generationControls = (
     <>
@@ -1368,7 +1381,7 @@ export function ContentStudio(): ReactElement {
                     thread={work.thread}
                     key={work.conversation.id}
                     conversation={work.conversation}
-                    busy={busy}
+                    busy={busy || work.busy || !!work.queue?.occupied}
                     onAnswer={answerQuestion}
                     onRequest={(ask) => {
                       const pending = submittedDraft.current;
@@ -1497,11 +1510,11 @@ export function ContentStudio(): ReactElement {
                     attachments={attachments}
                     attachmentBusy={attachmentBusy}
                     onRemoveTemplate={(id) => {
-                      if (attachmentBusy || submitting.current === work.scope) return;
+                      if (attachmentBusy || submitting.current?.scope === work.scope) return;
                       setPicked((previous) => previous.filter((item) => item.id !== id));
                     }}
                     onRemoveAttachment={(file) => {
-                      if (attachmentBusy || submitting.current === work.scope) return;
+                      if (attachmentBusy || submitting.current?.scope === work.scope) return;
                       setAttachments((previous) =>
                         previous.filter((item) => item.id !== file.id || item.slot !== file.slot),
                       );
@@ -1618,7 +1631,7 @@ export function ContentStudio(): ReactElement {
                     className="cw-send"
                     type="submit"
                     aria-label="Отправить запрос"
-                    aria-busy={busy}
+                    aria-busy={busy || (work.busy && !draft.trim() && !picked.length && !attachments.length)}
                     disabled={
                       busy ||
                       missingFields ||
@@ -1626,14 +1639,14 @@ export function ContentStudio(): ReactElement {
                       (!draft.trim() && !picked.length && !attachments.length)
                     }
                   >
-                    {busy ? <span className="spinner" aria-hidden="true" /> : <ArrowUp size={24} />}
+                    {busy || (work.busy && !draft.trim() && !picked.length && !attachments.length) ? (
+                      <span className="spinner" aria-hidden="true" />
+                    ) : (
+                      <ArrowUp size={24} />
+                    )}
                   </button>
                 </div>
-                {work.busy && awaitingAcceptance !== work.scope && (
-                  <p className="content-feedback" role="status">
-                    Можно набрать следующий запрос. Отправка станет доступна после завершения текущего.
-                  </p>
-                )}
+                {work.queue && <StudioQueuePanel queue={work.queue} />}
                 {work.error && !(work.isExecutionError && work.conversation?.status === 'ERROR') && (
                   <p className="content-feedback error" role="alert">
                     {work.error}

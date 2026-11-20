@@ -212,7 +212,7 @@
     padding: 0 10px;
   }
 }
-.library-page .file-breadcrumbs:empty {
+.file-browser .file-breadcrumbs:empty {
   display: none;
 }
 
@@ -326,4 +326,74 @@
   padding: 12px;
   border: 1px solid var(--ds-line-soft);
   border-radius: 12px;
+}
+
+.modal.file-move-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  height: min(640px, calc(100dvh - 32px));
+}
+.file-move-dialog > .file-form {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.file-move-dialog .file-browser {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.file-move-dialog .file-folder-list {
+  max-height: none;
+  overflow: visible;
+}
+
+.file-move-dialog .file-folder-list .library-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.file-move-dialog .file-folder-list .library-card > div:last-child {
+  padding: 0;
+  min-width: 0;
+}
+.file-move-dialog .file-folder-list .library-media {
+  border-radius: 8px;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+}
+.file-move-dialog
+  .library-media
+  :is(.file-folder-icon, .media-loading-frame, .media-video-preview, .file-placeholder) {
+  height: 100%;
+  min-height: 0;
+}
+
+.file-move-dialog .library-media .media-video-poster {
+  height: 100%;
+  object-fit: cover;
+}
+.file-move-dialog .file-folder-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.file-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.file-browser .library-card .file-group-title > .compact-tag {
+  display: inline-flex;
+  margin: 0;
+  color: #f4f4f5;
+  font-size: 11px;
 }
