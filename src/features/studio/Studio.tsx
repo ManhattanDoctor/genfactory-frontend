@@ -695,7 +695,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     const message = value instanceof Error ? value.message : 'Ответ не получен.';
     if (message.includes('ConversationForbiddenError') && conversation?.status === 'ERROR')
       return failedConversationMessage;
-    return `${message.replace(/[.\s]+$/u, '')}. Проверьте результат перед повторной отправкой.`;
+    return message;
   };
   const imageBlockedReason =
     !legacy && auth.balances.RUB !== undefined && Number(auth.balances.RUB) <= 0
@@ -1067,11 +1067,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       }
     } catch (e) {
       if (mounted.current && !messageSent && scopeRef.current === activeScope)
-        setError(
-          !legacy
-            ? imageSendError(e)
-            : `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть выполнен.`,
-        );
+        setError(!legacy ? imageSendError(e) : e instanceof Error ? e.message : 'Ответ не получен.');
     } finally {
       submitting.current = false;
       if (mounted.current) setCreating(false);
@@ -1775,8 +1771,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             )}
             {send.error && send.variables?.id === conversationId && send.variables.sid === auth.session && (
               <p className="error form-error" role="alert">
-                {send.error.message} Проверьте сообщения беседы перед повторной отправкой: запрос мог быть
-                выполнен.
+                {send.error.message}
               </p>
             )}
             {error && (

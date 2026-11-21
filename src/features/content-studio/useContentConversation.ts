@@ -23,7 +23,6 @@ import type {
   IToolConnection,
 } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
-import { videoModerationError } from '../../lib/errorMessages';
 
 export interface ContentConversation {
   thread: {
@@ -113,13 +112,7 @@ export function useContentConversation(): ContentConversation {
       if (getSession() !== variables.sid) return;
       if (failure && auth.user)
         conversationQueue(client, auth.user.id, variables.id, variables.sid).pauseAfterFailure();
-      if (failure && scope.current.token === variables.scopeToken)
-        setError(
-          failure.message === videoModerationError
-            ? failure.message
-            : `${failure.message} Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен.`,
-          true,
-        );
+      if (failure && scope.current.token === variables.scopeToken) setError(failure.message, true);
       if (!auth.user) return;
       scheduleRefresh(
         client,
@@ -201,10 +194,7 @@ export function useContentConversation(): ContentConversation {
     } catch (e) {
       if (current()) {
         const message = e instanceof Error ? e.message : 'Запрос не выполнен.';
-        setError(
-          `${message}${sent && message !== videoModerationError ? ' Проверьте сообщения перед повторной отправкой: запрос мог быть выполнен.' : ''}`,
-          sent,
-        );
+        setError(message, sent);
       }
       return false;
     } finally {

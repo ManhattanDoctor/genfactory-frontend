@@ -465,10 +465,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
         setFiles([]);
       }
     } catch (e) {
-      if (isCurrent(sid))
-        setError(
-          `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте историю перед повторной отправкой.`,
-        );
+      if (isCurrent(sid)) setError(e instanceof Error ? e.message : 'Ответ не получен.');
     } finally {
       if (mounted.current) setCreating(false);
       submitting.current = false;
@@ -503,9 +500,8 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
             detail.error?.message ||
             models.error?.message ||
             (rawId && !id ? 'Некорректный адрес беседы.' : '') ||
-            (send.error?.message || sendError.data
-              ? `${send.error?.message || sendError.data} Проверьте историю перед повторной отправкой.`
-              : '') ||
+            send.error?.message ||
+            sendError.data ||
             (conversation?.status === 'ERROR'
               ? 'Предыдущий запрос завершился с ошибкой. Проверьте сообщения.'
               : '')
@@ -768,8 +764,7 @@ function TextEditor({ mode }: { mode: TextMode }): ReactElement {
             )}
             {(error || send.error || sendError.data) && (
               <p role="alert" className="error">
-                {error ||
-                  `${send.error?.message || sendError.data} Проверьте историю перед повторной отправкой.`}
+                {error || send.error?.message || sendError.data}
               </p>
             )}
             {notice && (

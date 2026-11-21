@@ -374,9 +374,7 @@ function PromptEditor(): ReactElement {
         setFiles((previous) => previous.filter((item) => !actual.some((source) => source.id === item.id)));
       }
     } catch (e) {
-      setError(
-        `${e instanceof Error ? e.message : 'Ответ не получен.'} Проверьте результат перед повторной отправкой.`,
-      );
+      setError(e instanceof Error ? e.message : 'Ответ не получен.');
     } finally {
       sending.current = false;
       setCreating(false);
@@ -426,9 +424,7 @@ function PromptEditor(): ReactElement {
     (hasVideo ? videoCatalog.error?.message : undefined) ||
     sendError.data ||
     (rawId && !id ? 'Некорректный адрес беседы.' : '') ||
-    (conversation?.status === 'ERROR'
-      ? 'Запрос завершился с ошибкой. Проверьте результат перед повторной отправкой.'
-      : '');
+    (conversation?.status === 'ERROR' ? 'Запрос завершился с ошибкой.' : '');
   return (
     <div className="image-workspace prompt-workspace" aria-label="Generate Prompt">
       {!cards.length && !busy && (

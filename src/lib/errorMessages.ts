@@ -206,7 +206,7 @@ export function apiErrorMessage(data: unknown, status: number): string {
     else if (status === 429) explanation = 'Провайдер ограничил частоту запросов или достиг лимита нагрузки.';
     else if (status === 401 || status === 403) explanation = 'Провайдер отказал сервису в доступе к модели.';
     else if (status === 408 || status === 504)
-      explanation = 'Истекло время ожидания ответа провайдера. Результат запроса не подтверждён.';
+      explanation = 'Истекло время ожидания ответа провайдера. Проверьте результат перед повторным запуском.';
     else if (status >= 500) explanation = 'Ошибка на стороне провайдера генерации.';
     const details =
       reason && !/^(AiVendorError|AI_VENDOR_ERROR)$/.test(reason)

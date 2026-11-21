@@ -288,7 +288,7 @@ function AudioEditor(): ReactElement {
         setFiles((previous) => previous.filter((item) => !files.some((source) => source.id === item.id)));
       }
     } catch (e) {
-      if (current(sid)) setError(`${(e as Error).message} Проверьте историю перед повторным запуском.`);
+      if (current(sid)) setError((e as Error).message);
     } finally {
       submitting.current = false;
       if (current(sid)) setPreparing(false);
@@ -529,7 +529,7 @@ function AudioEditor(): ReactElement {
           )}
           {(error || sendError.data) && (
             <p role="alert" className="error">
-              {error || `${sendError.data} Проверьте историю перед повторным запуском.`}
+              {error || sendError.data}
             </p>
           )}
           <button

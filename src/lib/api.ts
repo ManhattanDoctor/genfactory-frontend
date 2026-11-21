@@ -8,7 +8,7 @@ import {
   effectiveTools,
   prepareAllowedTools,
 } from './modelPolicy';
-import { apiErrorMessage } from './errorMessages';
+import { apiErrorMessage, serviceError } from './errorMessages';
 import { isHeicUpload, prepareImageUpload } from './image-upload';
 import type {
   IGnosisFile,
@@ -59,7 +59,7 @@ function notifyWrites(): void {
 }
 export async function request<T>(
   path: string,
-  init: RequestInit = {},
+  { outcomeHint, ...init }: RequestInit & { outcomeHint?: string } = {},
   sid: string | null = getSession(),
   responseType: 'json' | 'blob' = 'json',
 ): Promise<T> {
@@ -68,22 +68,36 @@ export async function request<T>(
     pendingWrites++;
     notifyWrites();
   }
+  let dispatched = false;
   try {
     const headers = new Headers(init.headers);
     if (sid) headers.set('Authorization', `Bearer ${await sessionService.access(sid)}`);
     if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+    dispatched = true;
     const res = await fetch(`${base}${path}`, { ...init, headers });
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => null)) || {};
       if (res.status === 401 && sid === getSession())
         window.dispatchEvent(new Event('genfactory:unauthorized'));
       const message = apiErrorMessage(data, res.status);
-      throw new ApiError(message, res.status, data.details);
+      const unknownOutcome =
+        (res.status === 408 || res.status >= 500) &&
+        data.code !== 'AI_VENDOR_ERROR' &&
+        (message === serviceError || res.status === 408);
+      throw new ApiError(
+        outcomeHint && unknownOutcome ? `${message} ${outcomeHint}` : message,
+        res.status,
+        data.details,
+      );
     }
     if (res.status === 204) return undefined as T;
     if (responseType === 'blob') return (await res.blob()) as T;
     const text = await res.text();
     return text ? (JSON.parse(text) as T) : (undefined as T);
+  } catch (error) {
+    if (dispatched && outcomeHint && !(error instanceof ApiError))
+      throw new Error(`${error instanceof Error ? error.message : 'Ответ не получен.'} ${outcomeHint}`);
+    throw error;
   } finally {
     if (writing) {
       pendingWrites--;
@@ -189,6 +203,7 @@ export const api = {
       '/task',
       {
         method: 'POST',
+        outcomeHint: 'Проверьте результат перед повторной отправкой.',
         body: JSON.stringify({ ...body, options: { ...body.options, ...(tools ? { tools } : {}) } }),
       },
       sid,
@@ -369,7 +384,11 @@ export const api = {
         );
     return request<IConversationMessage>(
       `/conversation/${id}/message`,
-      { method: 'POST', body: JSON.stringify({ ...body, settings: { ...body.settings, tools } }) },
+      {
+        method: 'POST',
+        outcomeHint: 'Проверьте историю перед повторной отправкой.',
+        body: JSON.stringify({ ...body, settings: { ...body.settings, tools } }),
+      },
       sid,
     );
   },

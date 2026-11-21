@@ -908,7 +908,7 @@ test('structured error has matching copy in HTTP, socket and history', async ({ 
   await page.goto('/image');
   await expect(page.locator('#img-draft')).toBeEnabled();
   await submit(page, 'Проверка ответа от модели');
-  await expect(page.getByRole('alert')).toContainText(text);
+  await expect(page.getByRole('alert')).toHaveText(text);
   expect(submissions).toBe(1);
 
   const conversation: IConversation = { ...savedConversation(), status: 'LOADING' };
@@ -927,7 +927,7 @@ test('structured error has matching copy in HTTP, socket and history', async ({ 
         },
       ]),
   );
-  await expect(page.getByRole('alert')).toContainText(text);
+  await expect(page.getByRole('alert')).toHaveText(text, { timeout: 15_000 });
   conversation.error = failure;
   await page.reload();
   await expect(page.getByRole('alert')).toContainText(text);
@@ -8553,15 +8553,7 @@ for (const modelId of ['bytedance/seedance-2.5', 'alibaba/wan-3.0']) {
         await page.getByRole('button', { name: /^Модель:/ }).click();
         await page.getByRole('option', { name: modelTitle(chosen), exact: true }).click();
       }
-      const title = 'Послание в объектив';
-      if (path === '/video') await page.getByRole('button', { name: title, exact: true }).click();
-      else {
-        const card = page
-          .locator('.cw-card')
-          .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
-        await card.hover();
-        await card.locator('.cw-template-open').click();
-      }
+      await applyVideoTemplate(page, path, 'Послание в объектив');
       await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page.locator(path === '/video' ? '#vd-draft' : '#cw-draft')).toHaveValue(
         /Герой - тот, кто на загруженном фото/,
@@ -8935,8 +8927,11 @@ async function templateVideoSetup(page: Page) {
 }
 
 async function applyVideoTemplate(page: Page, path: string, title: string) {
-  if (path === '/video') await page.getByRole('button', { name: title, exact: true }).click();
-  else {
+  if (path === '/video') {
+    const card = page.getByRole('article', { name: title, exact: true });
+    await card.hover();
+    await card.getByRole('button', { name: `Использовать шаблон: ${title}`, exact: true }).click();
+  } else {
     const card = page
       .locator('.cw-card')
       .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
@@ -9401,7 +9396,7 @@ test('public template request failure restores its reference and the user photo'
   const { state } = await templateVideoSetup(page);
   await page.route('**/api/task', (route) =>
     route.request().method() === 'POST'
-      ? route.fulfill({ status: 503, json: { message: 'Unavailable' } })
+      ? route.fulfill({ status: 503, json: { code: 'BAD_GATEWAY', message: 'Unavailable' } })
       : route.fallback(),
   );
   await page.goto('/video');
