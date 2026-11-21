@@ -191,6 +191,7 @@ test('video template fields update the prompt inline and survive reload', async 
   const fields = page.getByRole('group', { name: 'Параметры шаблона' });
   const prompt = page.locator('#vd-draft');
   await expect(fields).toBeVisible();
+  await expect(prompt).not.toBeFocused();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Добавить фото 1', exact: true }).click();
   await pickSource(page);
@@ -652,7 +653,21 @@ test('video template composer aligns attachments, photo slots and prompt', async
     }
   }
   await field.getByRole('button', { name: 'Сбросить шаблон' }).click();
+  await expect(field.locator('.composer-attachment')).toHaveCount(0);
   await expect(field.locator('.video-model-limits')).toBeVisible();
+});
+
+test('resetting a video template clears the attached photo from the draft', async ({ page }) => {
+  await setup(page);
+  await page.goto('/video');
+  await applyVideoTemplate(page, 0);
+  const field = page.locator('.img-dock .cw-field');
+  await expect(field.getByRole('button', { name: 'Убрать Чашка.png' })).toBeVisible();
+  await field.getByRole('button', { name: 'Сбросить шаблон' }).click();
+  await expect(field.locator('.composer-attachment')).toHaveCount(0);
+  await page.reload();
+  await expect(field.locator('.video-model-limits')).toBeVisible();
+  await expect(field.locator('.composer-attachment')).toHaveCount(0);
 });
 
 test('video model limits follow attachment changes without a template', async ({ page }) => {
@@ -662,6 +677,8 @@ test('video model limits follow attachment changes without a template', async ({
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(limits).toBeVisible();
+    await expect(limits).toHaveCSS('white-space', 'nowrap');
+    await expect(limits).toHaveCSS('text-overflow', 'ellipsis');
     await page.getByRole('button', { name: 'Добавить кадр', exact: true }).click();
     await pickSource(page);
     await expect(limits).toHaveCount(0);

@@ -184,10 +184,8 @@ export function ContentStudio(): ReactElement {
   const templateGlowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(templateGlowTimer.current), []);
   function resetComposerTemplate(): void {
-    const referenceId = templateVideoReference?.fileId;
-    if (referenceId) {
-      setAttachments((files) => files.filter((file) => (file.saved?.id ?? file.restoreId) !== referenceId));
-    }
+    setAttachments([]);
+    setFrameSlot(undefined);
     clearTemplateFields();
     setTemplateVideoReference(undefined);
     setTemplateStartsFresh(false);
@@ -244,7 +242,6 @@ export function ContentStudio(): ReactElement {
     setRestoredGeneration(undefined);
     setFrameSlot(undefined);
     work.setError('');
-    requestAnimationFrame(() => textarea.current?.focus());
   };
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 720px)').matches);
   const sheet = useRef<HTMLDialogElement>(null);
@@ -1512,6 +1509,11 @@ export function ContentStudio(): ReactElement {
                     onRemoveTemplate={(id) => {
                       if (attachmentBusy || submitting.current?.scope === work.scope) return;
                       setPicked((previous) => previous.filter((item) => item.id !== id));
+                      setAttachments([]);
+                      setTemplateVideoReference(undefined);
+                      setRestoringReferences(undefined);
+                      setFrameSlot(undefined);
+                      studioDraft.changed();
                     }}
                     onRemoveAttachment={(file) => {
                       if (attachmentBusy || submitting.current?.scope === work.scope) return;

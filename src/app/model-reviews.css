@@ -61,7 +61,7 @@
   aspect-ratio: 4 / 3;
   object-fit: cover;
 }
-.digest-more {
+.model-digests > .digest-more {
   display: flex;
   width: fit-content;
   margin: 16px auto 0;
@@ -85,7 +85,7 @@
     display: flex;
     scroll-snap-align: start;
   }
-  .digest-more {
+  .model-digests > .digest-more {
     display: none;
   }
   .digest-pages {

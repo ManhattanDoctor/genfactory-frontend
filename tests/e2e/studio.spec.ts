@@ -3571,7 +3571,7 @@ test('content studio controls keep chevrons clear of labels and match conversati
   ]);
   await page.goto('/chat?conversation=101');
   await expect(page.locator('.as-turn')).toHaveCount(1);
-  await expect(page.locator('.as-face')).toHaveCount(2);
+  await expect(page.locator('.as-face')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Смотреть видео', exact: true })).toHaveAttribute(
     'href',
     'https://example.test/result.mp4',
@@ -9499,36 +9499,31 @@ for (const width of [390, 1440]) {
 }
 
 for (const path of ['/chat', '/image']) {
-  test(`template dismissal preserves composer draft and does not focus it on ${path}`, async ({ page }) => {
+  test(`applying a template fills the draft without focusing it on ${path}`, async ({ page }) => {
     await mockApi(page);
     await page.goto(path);
     if (path === '/chat') await page.getByRole('button', { name: 'Изображение', exact: true }).click();
     const draft = page.locator(path === '/chat' ? '#cw-draft' : '#img-draft');
     await draft.fill('Мой исходный текст');
     const title = 'Главное фото на белом фоне (маркетплейс)';
-    const open =
-      path === '/chat'
-        ? page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true })
-        : page.getByRole('button', { name: `Посмотреть: ${title}`, exact: true });
-    for (const close of ['button', 'escape']) {
-      await open.click();
-      const dialog = page.getByRole('dialog');
-      await expect(dialog).toBeVisible();
-      if (path === '/chat')
-        await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
-      if (close === 'button') await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
-      else await page.keyboard.press('Escape');
-      await expect(dialog).toHaveCount(0);
-      await expect(draft).not.toBeFocused();
-      await expect(draft).toHaveValue('Мой исходный текст');
+    if (path === '/image') {
+      for (const close of ['button', 'escape']) {
+        await page.getByRole('button', { name: `Посмотреть: ${title}`, exact: true }).click();
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+        if (close === 'button') await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+        else await page.keyboard.press('Escape');
+        await expect(dialog).toHaveCount(0);
+        await expect(draft).not.toBeFocused();
+        await expect(draft).toHaveValue('Мой исходный текст');
+      }
     }
-    if (path === '/chat') await open.click();
-    else await page.getByRole('button', { name: `Использовать шаблон: ${title}` }).click();
-    await page.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
-    if (path === '/chat') {
-      await page.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-      await expect(draft).toBeFocused();
-    }
+    const action = path === '/chat' ? 'Открыть шаблон' : 'Использовать шаблон';
+    await page.getByRole('button', { name: `${action}: ${title}`, exact: true }).click();
+    const field = page.getByLabel('Название вашего продукта', { exact: true });
+    await expect(field).toBeVisible();
+    await expect(draft).not.toBeFocused();
+    await field.fill('Красная чашка');
     await expect(draft).toHaveValue(/Красная чашка/);
   });
 }

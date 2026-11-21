@@ -408,6 +408,7 @@ test('canceling a parameterized template preserves the prompt and applying a pla
   await page.getByRole('button', { name: 'Использовать шаблон: Портрет в масштабе', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#img-draft')).toHaveValue(/Ultra-photorealistic/);
+  await expect(page.locator('#img-draft')).not.toBeFocused();
   await expect(page.locator('.composer-template')).toHaveCount(0);
 });
 

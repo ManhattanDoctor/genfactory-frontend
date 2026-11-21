@@ -411,7 +411,6 @@ export function MediaWorkspace({
     onComposerTemplate({ ...prepared, id: item.id });
     onPrompt(prepared.text);
     setNotice('');
-    requestAnimationFrame(() => promptInput.current?.focus());
   };
   const applyTemplate = async (card: ITemplateCard, savedText?: string): Promise<void> => {
     if (busy) return;
@@ -853,6 +852,8 @@ export function MediaWorkspace({
                     onRemove={() => {
                       onTemplate('');
                       onTemplateText('');
+                      onReferences([]);
+                      onRemoveTemplateReference?.();
                       promptInput.current?.focus();
                     }}
                   />

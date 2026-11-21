@@ -1114,8 +1114,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         }}
         onResetComposerTemplate={() => {
           draft.changed();
-          const referenceId = templateVideoReference?.fileId;
-          if (referenceId) setReferences((files) => files.filter((file) => file.id !== referenceId));
+          setReferences([]);
           setTemplateVideoReference(undefined);
           setVideoTemplate(undefined);
           setVideoTemplateMinimum(0);
