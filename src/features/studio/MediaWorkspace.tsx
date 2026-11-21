@@ -702,6 +702,8 @@ export function MediaWorkspace({
         { key: 'gallery', cards: galleryCards, columns },
       ]
     : [{ key: 'wall', cards: [...statusCards, ...fileCards, ...galleryCards], columns }];
+  const retryHistory = !error && !notice && !prefs.error && !retryCatalog && history.isLoadingError;
+  const retry = retryCatalog || (retryHistory ? () => void history.refetch() : undefined);
   return (
     <section
       className={`image-workspace ${video ? 'video-workspace' : ''} ${banana ? 'banana-workspace' : seedance ? 'seedance-workspace' : ''}`}
@@ -1043,8 +1045,13 @@ export function MediaWorkspace({
               notice ||
               prefs.error ||
               (history.error ? `Не удалось загрузить историю ${video ? 'видео' : 'изображений'}.` : '')}
-            {retryCatalog && (
-              <button type="button" onClick={retryCatalog}>
+            {retry && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={retry}
+                disabled={retryHistory && history.isFetching}
+              >
                 Загрузить снова
               </button>
             )}

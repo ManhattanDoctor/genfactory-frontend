@@ -163,3 +163,8 @@
   font-size: 13px;
   overflow-wrap: anywhere;
 }
+.job-popup > .text-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}

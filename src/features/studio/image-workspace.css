@@ -478,6 +478,17 @@
   line-height: 1.4;
   color: #f4f4f5;
 }
+.image-workspace .img-guard > .text-button {
+  margin-inline-start: 8px;
+  padding: 0;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+@media (pointer: coarse) {
+  .image-workspace .img-guard > .text-button {
+    min-height: 44px;
+  }
+}
 .image-workspace .image-result-open {
   display: block;
   width: 100%;

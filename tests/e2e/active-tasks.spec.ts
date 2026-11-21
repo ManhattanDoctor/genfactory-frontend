@@ -630,10 +630,14 @@ test('image workspace keeps task identities across navigation and only announces
   await expect(cards).toHaveCount(1);
   await expect(cards).toContainText(first.id);
   await expect(page.locator('.job-popup')).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
   state.active = [];
   emit('TaskFinishedEvent', { id: first.id, item: first, result: 'COMPLETED' });
   await expect(page.locator('.job-popup')).toHaveCount(1);
   await expect(page.locator('.job-popup')).toContainText(first.id);
+  const popupAction = page.locator('.job-popup').getByRole('button', { name: 'Работы', exact: true });
+  await expect(popupAction).toHaveCSS('white-space', 'nowrap');
+  await expect(popupAction).toHaveCSS('flex-shrink', '0');
   await expect((await openJobs(page, 0)).locator('.completed-job')).toHaveCount(2);
   expect(state.writes).toEqual([]);
 });

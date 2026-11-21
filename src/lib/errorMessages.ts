@@ -3,6 +3,104 @@ export const serviceError = 'Не удалось выполнить запрос
 export const videoModerationError =
   'Видео отклонено модерацией провайдера. Точная причина отказа не указана.';
 
+const vendorErrorMessages = new Map<string, string>([
+  [
+    'IMAGE_RESULT_EMPTY',
+    'Модель не вернула изображение. Попробуйте изменить запрос или выбрать другую модель.',
+  ],
+  [
+    'IMAGE_SETTINGS_UNSUPPORTED',
+    'Эта модель не поддерживает выбранные настройки. Проверьте размер, формат кадра и референсы.',
+  ],
+  [
+    'INPUT_IMAGE_TOO_SMALL',
+    'Референс слишком маленький для этой модели. Загрузите изображение большего размера.',
+  ],
+  ['PROMPT_TOO_LONG', 'Описание слишком длинное для этой модели. Сократите текст и попробуйте снова.'],
+  ['CONTENT_MODERATION', 'Провайдер отклонил запрос по правилам модерации. Попробуйте изменить запрос.'],
+  ['VIDEO_CONTENT_MODERATION', videoModerationError],
+  [
+    'ADULT_CONTENT_RESTRICTED',
+    'Провайдер остановил генерацию по правилам для сексуально откровенного контента. Измените запрос или референс.',
+  ],
+  [
+    'CONTENT_SIMILARITY',
+    'Модель остановила генерацию из-за возможного совпадения с существующим контентом. Опишите оригинальный результат своими словами.',
+  ],
+  [
+    'PROVIDER_QUOTA_EXCEEDED',
+    'На стороне провайдера исчерпан лимит генерации. Попробуйте выбрать другую модель.',
+  ],
+  ['PROVIDER_RATE_LIMITED', 'Провайдер ограничил частоту запросов. Попробуйте через несколько минут.'],
+  ['PROVIDER_TIMEOUT', 'Провайдер не ответил вовремя. Проверьте результат перед повторным запуском.'],
+  ['PROVIDER_ACCESS_DENIED', 'Сервису временно недоступна эта модель. Попробуйте выбрать другую.'],
+  ['PROVIDER_UNAVAILABLE', 'Провайдер временно недоступен. Попробуйте позже или выберите другую модель.'],
+  ['PROVIDER_ERROR', 'Провайдер не выполнил запрос. Попробуйте изменить запрос или выбрать другую модель.'],
+]);
+
+const limitFormatter = new Intl.NumberFormat('ru-RU');
+const validationFieldNames = new Map<string, string>([
+  ['options.format', 'формат файла'],
+  ['options.output_format', 'формат файла'],
+  ['options.size', 'размер'],
+  ['options.resolution', 'разрешение'],
+  ['options.aspectRatio', 'пропорции кадра'],
+  ['options.aspect_ratio', 'пропорции кадра'],
+  ['options.quality', 'качество'],
+  ['options.duration', 'длительность'],
+  ['options.compression', 'сжатие'],
+  ['options.output_compression', 'сжатие'],
+  ['options.background', 'фон'],
+  ['options.seed', 'seed'],
+  ['options.stream', 'потоковую генерацию'],
+  ['options.provider', 'провайдера'],
+  ['task.prompt', 'описание'],
+  ['task.message', 'сообщение'],
+  ['task.references', 'количество референсов'],
+  ['task.fileIds', 'количество референсов'],
+]);
+
+function modelValidationMessage(details: unknown): string {
+  const issues = details && typeof details === 'object' && 'issues' in details ? details.issues : undefined;
+  if (!Array.isArray(issues)) return 'Проверьте настройки выбранной модели.';
+  const messages = issues.slice(0, 3).flatMap((issue: unknown) => {
+    if (!issue || typeof issue !== 'object') return [];
+    const { field, allowedValues, minimum, maximum } = issue as {
+      field?: unknown;
+      allowedValues?: unknown;
+      minimum?: unknown;
+      maximum?: unknown;
+    };
+    const name = typeof field === 'string' ? validationFieldNames.get(field) : undefined;
+    if (!name) return [];
+    const values: string[] = Array.isArray(allowedValues)
+      ? allowedValues.filter(
+          (item): item is string => typeof item === 'string' && /^[a-z0-9][a-z0-9._:/-]{0,31}$/i.test(item),
+        )
+      : [];
+    if (values.length) {
+      const choices =
+        values.length <= 12
+          ? `Допустимые значения: ${values.join(', ')}`
+          : `Например: ${values.slice(0, 5).join(', ')}`;
+      return [`Проверьте ${name}. ${choices}.`];
+    }
+    if (
+      typeof minimum === 'number' &&
+      typeof maximum === 'number' &&
+      Number.isFinite(minimum) &&
+      Number.isFinite(maximum)
+    )
+      return [`Проверьте ${name}. Допустимо от ${minimum} до ${maximum}.`];
+    if (typeof maximum === 'number' && Number.isFinite(maximum))
+      return [`Проверьте ${name}. Допустимо не больше ${maximum}.`];
+    if (typeof minimum === 'number' && Number.isFinite(minimum))
+      return [`Проверьте ${name}. Допустимо не меньше ${minimum}.`];
+    return [`Проверьте ${name} для выбранной модели.`];
+  });
+  return [...new Set(messages)].join('\n') || 'Проверьте настройки выбранной модели.';
+}
+
 /** Only the application's explicit error code confirms a user balance problem. */
 export function apiErrorMessage(data: unknown, status: number): string {
   const value =
@@ -36,10 +134,34 @@ export function apiErrorMessage(data: unknown, status: number): string {
     return 'Достигнут лимит количества файлов в библиотеке. Удалите ненужные файлы или обратитесь к администратору.';
   if (value.code === 'AI_TASK_ABORTED' || value.code === 'TASK_CANCELLED') return 'Запрос отменён.';
   if (value.code === 'AI_MODEL_NOT_SUPPORT_FILE') return 'Выбранная модель не поддерживает этот файл.';
+  if (value.code === 'AI_MODEL_PARAMETERS_INVALID') return modelValidationMessage(value.details);
+  if (value.code === 'FILE_NOT_FOUND') return 'Файл недоступен или удалён. Выберите его заново.';
   if (value.code === 'FILE_MIME_INVALID') return 'Формат файла не поддерживается.';
   if (value.code === 'FILE_SIZE_INVALID') return 'Размер файла не поддерживается.';
   if (value.code === 'REQUEST_INVALID' && value.message === 'REQUEST_INVALID') return serviceError;
   if (value.code === 'AI_VENDOR_ERROR') {
+    if (value.details && typeof value.details === 'object') {
+      const { code, maxPromptCharacters, minReferenceSidePixels } = value.details as {
+        code?: unknown;
+        maxPromptCharacters?: unknown;
+        minReferenceSidePixels?: unknown;
+      };
+      if (
+        code === 'PROMPT_TOO_LONG' &&
+        typeof maxPromptCharacters === 'number' &&
+        Number.isSafeInteger(maxPromptCharacters) &&
+        maxPromptCharacters > 0
+      )
+        return `Сократите описание. Эта модель принимает до ${limitFormatter.format(maxPromptCharacters)} символов.`;
+      if (
+        code === 'INPUT_IMAGE_TOO_SMALL' &&
+        typeof minReferenceSidePixels === 'number' &&
+        Number.isSafeInteger(minReferenceSidePixels) &&
+        minReferenceSidePixels > 0
+      )
+        return `Референс слишком маленький. Загрузите изображение со сторонами не меньше ${limitFormatter.format(minReferenceSidePixels)} пикселей.`;
+      if (typeof code === 'string') return vendorErrorMessages.get(code) || serviceError;
+    }
     let reason =
       typeof value.details === 'string'
         ? value.details

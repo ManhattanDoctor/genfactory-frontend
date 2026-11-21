@@ -867,6 +867,73 @@ test('content studio explains moderation from the socket and clears it on the ne
   expect(state.sends).toHaveLength(0);
 });
 
+test('image history reloads after a failure without submitting the draft', async ({ page }) => {
+  const state = await mockApi(page);
+  let recovered = false;
+  await page.route('**/api/file?*', (route) => {
+    const conditions = new URL(route.request().url()).searchParams.get('conditions');
+    if (!conditions || JSON.parse(conditions).type !== 'IMAGE') return route.fallback();
+    return recovered
+      ? route.fulfill({ json: pagination([file]) })
+      : route.fulfill({ status: 503, json: { message: 'Temporary history failure' } });
+  });
+  await page.goto('/image');
+  const draft = page.locator('#img-draft');
+  const alert = page.getByRole('alert').filter({ hasText: 'Не удалось загрузить историю изображений' });
+  await expect(alert).toBeVisible({ timeout: 15_000 });
+  await draft.fill('Сохранённый черновик');
+  recovered = true;
+  const retry = alert.getByRole('button', { name: 'Загрузить снова' });
+  await expect(retry).toHaveClass('text-button');
+  await retry.click();
+  await expect(alert).toHaveCount(0);
+  await expect(draft).toHaveValue('Сохранённый черновик');
+  expect(state.tasks).toHaveLength(0);
+});
+
+test('structured error has matching copy in HTTP, socket and history', async ({ page }) => {
+  const state = await mockApi(page);
+  const failure = {
+    code: 'AI_VENDOR_ERROR',
+    message: 'HTTP 400: private provider diagnostics',
+    details: { code: 'INPUT_IMAGE_TOO_SMALL', status: 400, minReferenceSidePixels: 14 },
+  };
+  const text = 'Референс слишком маленький. Загрузите изображение со сторонами не меньше 14 пикселей.';
+  let submissions = 0;
+  await page.route('**/api/task', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    submissions++;
+    return route.fulfill({ status: 400, json: failure });
+  });
+  await page.goto('/image');
+  await expect(page.locator('#img-draft')).toBeEnabled();
+  await submit(page, 'Проверка ответа от модели');
+  await expect(page.getByRole('alert')).toContainText(text);
+  expect(submissions).toBe(1);
+
+  const conversation: IConversation = { ...savedConversation(), status: 'LOADING' };
+  state.conversations.push(conversation);
+  await page.goto('/chat?conversation=101');
+  await expect.poll(() => state.joinedRooms.includes('conversation101')).toBe(true);
+  conversation.status = 'ERROR';
+  state.socket!.send(
+    '42/gnosisai,' +
+      JSON.stringify([
+        'transportSocketEvent',
+        {
+          uid: crypto.randomUUID(),
+          name: 'ConversationErroredEvent',
+          data: { id: 101, error: failure },
+        },
+      ]),
+  );
+  await expect(page.getByRole('alert')).toContainText(text);
+  conversation.error = failure;
+  await page.reload();
+  await expect(page.getByRole('alert')).toContainText(text);
+  expect(submissions).toBe(1);
+});
+
 test('advanced editor: select arrows stay inside controls at desktop and mobile widths with long model names', async ({
   page,
 }) => {

@@ -130,7 +130,28 @@ export interface ITaskFinished {
   item: ITaskExecution;
   result: 'COMPLETED' | 'FAILED' | 'CANCELLED';
   fileIds?: number[];
-  error?: { code: string; message: string };
+  error?: IPublicError;
+}
+interface IPublicError {
+  code: string;
+  message: string;
+  details?:
+    | string
+    | { issues: Array<{ field: string; allowedValues?: string[]; minimum?: number; maximum?: number }> }
+    | {
+        code: string;
+        message?: string;
+        status?: number;
+        requestId?: string;
+        generationId?: string;
+        provider?: string;
+        providerCode?: string | number;
+        finishReason?: string;
+        blockReason?: string;
+        blockedCategories?: string[];
+        maxPromptCharacters?: number;
+        minReferenceSidePixels?: number;
+      };
 }
 export interface ITaskRequest {
   model: string;
@@ -185,7 +206,7 @@ export interface IConversation {
   userId: number;
   name: string;
   status: 'LOADED' | 'LOADING' | 'ERROR';
-  error?: { code: string; message: string };
+  error?: IPublicError;
   model: string;
   options: { model: string; tools?: (IToolConnection | string)[]; [key: string]: unknown };
   tags?: string[];
