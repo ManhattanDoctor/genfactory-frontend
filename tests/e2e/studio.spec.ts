@@ -752,18 +752,18 @@ test('leaving during conversation creation never starts a paid message in the ba
 test('login persists in a new tab and logout clears both tabs immediately', async ({ page, context }) => {
   await mockApi(page);
   await page.goto('/account');
-  await expect(page.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Выйти из аккаунта', exact: true })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBe('test-session');
   const second = await context.newPage();
   await mockApi(second, false);
   await second.goto('/account');
-  await expect(second.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
-  await second.getByRole('button', { name: 'Выйти из студии' }).click();
+  await expect(second.getByRole('button', { name: 'Выйти из аккаунта', exact: true })).toBeVisible();
+  await second.getByRole('button', { name: 'Выйти из аккаунта', exact: true }).click();
   await second
     .getByRole('dialog', { name: 'Выйти из аккаунта?' })
     .getByRole('button', { name: 'Выйти', exact: true })
     .click();
-  await expect(page.getByRole('button', { name: 'Выйти из студии' })).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'Выйти из аккаунта', exact: true })).not.toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('genfactory.session'))).toBeNull();
   // The test context owns both tabs and closes them during fixture teardown.
 });
@@ -1266,7 +1266,7 @@ test('account balance refresh uses minor units and logout succeeds locally when 
   await page.route('**/api/openId/logoutByRefreshToken', (route) =>
     route.fulfill({ status: 503, json: { message: 'Unavailable' } }),
   );
-  await page.getByRole('button', { name: 'Выйти из студии' }).click();
+  await page.getByRole('button', { name: 'Выйти из аккаунта', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Выйти из аккаунта?' })
     .getByRole('button', { name: 'Выйти', exact: true })
@@ -1306,7 +1306,7 @@ test(
     });
     await page.goto('/auth/callback?state=valid-state&code=test-code');
     await expect(page).toHaveURL(/\/image(?:\?studio=advanced)?$/);
-    await expect(page.getByRole('link', { name: 'Открыть аккаунт' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Мой аккаунт', exact: true })).toBeVisible();
     expect(exchanges).toBe(1);
     expect(
       await page.evaluate(() => JSON.parse(localStorage.getItem('genfactory.keycloak.tokens')!).token.access),
@@ -2327,7 +2327,7 @@ test(
       if (new URL(request.url()).pathname === '/api/openId/logoutByRefreshToken') requests++;
     });
     await page.goto('/account');
-    const trigger = page.getByRole('button', { name: 'Выйти из студии' });
+    const trigger = page.getByRole('button', { name: 'Выйти из аккаунта', exact: true });
     const dialog = page.getByRole('dialog', { name: 'Выйти из аккаунта?' });
     await trigger.click();
     await expect(dialog).toBeVisible();
@@ -2362,7 +2362,7 @@ for (const withIdToken of [true, false]) {
       const logout = page.waitForRequest(
         (r) => new URL(r.url()).pathname === '/api/openId/logoutByRefreshToken',
       );
-      await page.getByRole('button', { name: 'Выйти из студии' }).click();
+      await page.getByRole('button', { name: 'Выйти из аккаунта', exact: true }).click();
       await page
         .getByRole('dialog', { name: 'Выйти из аккаунта?' })
         .getByRole('button', { name: 'Выйти', exact: true })
@@ -3287,7 +3287,7 @@ test(
       sessionStorage.setItem('genfactory.oauth', JSON.stringify({ state: 'stale' })),
     );
     await page.goto('/account');
-    const sidebar = page.getByRole('button', { name: 'Войти в аккаунт', exact: true });
+    const sidebar = page.getByRole('button', { name: 'Войти, чтобы посмотреть работы', exact: true });
     const account = page.getByRole('main').getByRole('button', { name: 'Войти', exact: true });
     await sidebar.click();
     await expect.poll(() => requests).toBe(1);
@@ -3505,6 +3505,7 @@ test(
     const state = await mockApi(page);
     await page.goto('/chat');
     await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+    await page.getByRole('button', { name: 'Развернуть панель', exact: true }).click();
     await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
 
     await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
@@ -10119,9 +10120,9 @@ test('expired JWT refreshes once and preserves the session across reload', async
   const initialized = page.waitForRequest('**/api/init');
   await page.goto('/account');
   expect((await initialized).headers().authorization).toBe(`Bearer ${renewed.access}`);
-  await expect(page.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Выйти из аккаунта', exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Выйти из студии' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Выйти из аккаунта', exact: true })).toBeVisible();
   expect(refreshes).toBe(1);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('genfactory.keycloak.tokens')!))).toEqual({
     id: 'test-session',

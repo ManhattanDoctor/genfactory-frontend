@@ -106,7 +106,12 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
                 )}
               />
             ) : (
-              <button className="gf-nav-item" onClick={() => void auth.signIn()}>
+              <button
+                className="gf-nav-item"
+                aria-label="Войти, чтобы посмотреть работы"
+                disabled={auth.signingIn}
+                onClick={() => void auth.signIn()}
+              >
                 <span className="gf-nav-icon">{icons.jobs}</span>
                 <span className="gf-nav-label">Работы</span>
                 <span className="gf-nav-badge">0</span>

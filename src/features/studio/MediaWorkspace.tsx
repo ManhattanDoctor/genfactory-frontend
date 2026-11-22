@@ -198,7 +198,15 @@ export function MediaWorkspace({
       viewport.removeEventListener('scroll', fit);
     };
   }, []);
-  const [feedTab, setFeedTab] = useState<FeedTab>(conversation ? 'generations' : 'templates');
+  const tabKey = `genfactory.feed-tab.${user?.id ?? 'guest'}.${kind}`;
+  const [feedTab, setFeedTab] = useState<FeedTab>(() => {
+    const saved = sessionStorage.getItem(tabKey);
+    if (conversation || saved === 'generations') return 'generations';
+    return saved === 'shuffle' ? 'shuffle' : 'templates';
+  });
+  useEffect(() => {
+    sessionStorage.setItem(tabKey, feedTab);
+  }, [tabKey, feedTab]);
   useEffect(() => {
     if (conversation?.id) setFeedTab('generations');
   }, [conversation?.id]);
