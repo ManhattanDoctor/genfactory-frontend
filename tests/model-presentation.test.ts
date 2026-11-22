@@ -10,7 +10,7 @@ const model = (id: string, name: string): IModelDescription => ({
 describe('user-facing model labels', () => {
   it.each([
     ['openai/gpt-image-2', 'OpenAI: GPT Image 2', 'GPT Image 2'],
-    ['google/gemini-3-pro-image', 'Google: Gemini 3 Pro Image', 'Gemini 3 Pro Image'],
+    ['google/gemini-3-pro-image', 'Google: Gemini 3 Pro Image', 'Nano Banana Pro'],
     ['krea/krea-2-large', 'Krea: Krea 2 Large', 'Krea 2 Large'],
     ['gpt-image-2', 'gpt-image-2', 'GPT Image 2'],
   ])('normalizes %s without changing its identity', (id, name, title) => {
