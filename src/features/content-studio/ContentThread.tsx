@@ -22,20 +22,30 @@ interface ITurn {
   ask?: IConversationMessage;
   reply?: IConversationMessage;
 }
-function pendingText(message?: IConversationMessage): string {
-  if (message?.settings?.isToolsDisabled) return 'Готовим ответ…';
-  return message?.settings?.tools?.some((tool) => tool.uid.includes('VIDEO'))
-    ? 'Ролик готовится'
-    : 'Кадр готовится';
-}
-function PendingResult({ text }: { text: string }): ReactElement {
+function PendingResult({
+  tools,
+}: {
+  tools: ReturnType<typeof useConversationProgress>['tools'];
+}): ReactElement {
+  const generation = tools.find(
+    (tool) =>
+      (!tool.status || tool.status === 'STARTED') && /^(IMAGE|VIDEO)(_OPEN_(AI|ROUTER))?$/.test(tool.uid),
+  );
   return (
     <div className="studio-pending-result">
       <div className="studio-pending-copy">
-        <strong role="status">{text}</strong>
-        <button type="button" aria-haspopup="dialog" className="text-button" onClick={openActiveJobs}>
-          Открыть в работах
-        </button>
+        <strong role="status">
+          {generation
+            ? generation.uid.startsWith('VIDEO')
+              ? 'Ролик готовится'
+              : 'Кадр готовится'
+            : 'Готовим ответ…'}
+        </strong>
+        {generation && (
+          <button type="button" aria-haspopup="dialog" className="text-button" onClick={openActiveJobs}>
+            Открыть в работах
+          </button>
+        )}
       </div>
     </div>
   );
@@ -192,7 +202,7 @@ export function ContentThread({
             )}
             <div className="as-bot">
               <div className="as-bot-main">
-                {waiting && <PendingResult text={pendingText(ask)} />}
+                {waiting && <PendingResult tools={progress.tools} />}
                 {waiting &&
                   progress.tools.map((tool, i) => (
                     <p className="as-status" key={i}>
@@ -380,7 +390,7 @@ export function ContentThread({
       })}
       {conversation.status === 'LOADING' && !turns.some((turn) => !turn.reply) && (
         <div className="as-turn cw-turn">
-          <PendingResult text={pendingText(latestTurn?.ask)} />
+          <PendingResult tools={progress.tools} />
         </div>
       )}
       {copyError && <p role="status">Не удалось скопировать текст.</p>}

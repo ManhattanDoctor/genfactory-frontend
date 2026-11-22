@@ -8769,7 +8769,7 @@ test('conversation skeletons stay inside image and video frames', async ({ page 
       expect(g.contained).toBe(true);
       expect(g.withinThread).toBe(true);
       expect(g.width).toBeGreaterThan(0);
-      expect(g.height).toBeGreaterThan(0);
+      expect(g.height).toBeCloseTo(Math.min(360, g.width * 0.75), -1);
       expect(g.overflow).toBe('hidden');
     }
     await page.screenshot({ path: testInfo.outputPath(`conversation-skeleton-${width}.png`) });
@@ -9495,6 +9495,7 @@ test('conversation previews are rounded, URL references use placeholders and ful
 for (const width of [390, 768, 1440]) {
   test(`artifacts loading cards keep their geometry after the first response ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await mockApi(page);
     let release!: () => void;
     const pending = new Promise<void>((resolve) => {
@@ -9540,6 +9541,7 @@ for (const width of [390, 768, 1440]) {
     await expect(placeholders).toHaveCount(0);
     await expect(grid.locator(':scope > .file-entry, :scope > .history-card')).toHaveCount(8);
     const after = await bounds(':scope > .file-entry, :scope > .history-card');
+
     for (let index = 0; index < before.length; index++) {
       for (const key of ['x', 'y', 'width', 'height'] as const) {
         expect(Math.abs(before[index][key] - after[index][key]), `card ${index} ${key}`).toBeLessThanOrEqual(
@@ -10276,6 +10278,8 @@ for (const width of [390, 1440]) {
       },
     ]);
     await page.goto('/chat?conversation=101');
+    await expect(page.getByText('Готовим ответ…', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Открыть в работах' })).toHaveCount(0);
     for (const label of ['Показать ещё', 'Свернуть']) {
       const toggle = page.getByRole('button', { name: label, exact: true });
       await expect(toggle).toBeVisible();
@@ -10297,3 +10301,110 @@ for (const width of [390, 1440]) {
     }
   });
 }
+
+test('chat links to jobs when the video tool is running', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(), status: 'LOADING' });
+  state.progress = { data: { tools: [{ uid: 'VIDEO', status: 'STARTED' }] } };
+  await page.goto('/chat?conversation=101');
+  await expect(page.getByText('Ролик готовится', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Открыть в работах' })).toBeVisible();
+});
+
+for (const width of [390, 1440]) {
+  for (const kind of ['image', 'video'] as const) {
+    test(`designer template composer matches ${kind} and studio at ${width}px`, async ({ page }) => {
+      const state = await mockApi(page);
+      await page.route(/\.mp4(?:\?|$)/, (route) => route.abort());
+      await page.setViewportSize({ width, height: 900 });
+      const video = kind === 'video';
+      const title = video ? 'Уличная культура' : 'Nano Banana 2.1';
+      if (!video) {
+        const sample = structuredClone(
+          catalog.find((item) => item.reference.provider === 'OPEN_ROUTER_IMAGE')!,
+        );
+        sample.reference.model = 'google/gemini-nano-banana-2.1';
+        await page.route(
+          (url) => url.pathname === '/api/aimodels' && catalogProvider(url) === 'OPEN_ROUTER_IMAGE',
+          (route) => route.fulfill({ json: catalogPage([sample]) }),
+        );
+      }
+      let expectedPrompt: string | undefined;
+      for (const studio of [false, true]) {
+        await page.goto(studio ? '/chat' : '/' + kind, { waitUntil: 'domcontentloaded' });
+        if (studio) {
+          await page
+            .locator('#cw-mode')
+            .getByRole('button', { name: video ? 'Видео' : 'Изображение', exact: true })
+            .click();
+          if (width >= 780) await page.getByRole('button', { name: 'Развернуть панель' }).click();
+          if (width < 780)
+            await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
+        }
+        await page
+          .getByRole('button', {
+            name: (studio ? 'Открыть шаблон: ' : 'Использовать шаблон ') + title,
+            exact: true,
+          })
+          .first()
+          .click();
+        const field = page.locator('.feed-template-fields');
+        await expect(field.locator('.feed-template-chips')).toContainText(title);
+        const input = field.locator('textarea');
+        if (studio) await expect(input).toHaveValue(expectedPrompt!);
+        else expectedPrompt = await input.inputValue();
+        if (video && width === 1440) {
+          await page.getByRole('button', { name: 'Короче', exact: true }).click();
+          await expect(input).toHaveValue(/Собери 10 с/);
+        }
+        const add = field.getByRole('button', { name: 'Добавить фото 1', exact: true });
+        await expect(add).toBeInViewport();
+        await expect(add).toHaveCSS('width', width < 780 ? '64px' : '56px');
+        await expect(field.locator('.video-template-hint')).toHaveCount(video ? 1 : 0);
+        await field.getByRole('button', { name: 'Скрыть метку фото' }).click();
+        await expect(add).toBeVisible();
+        await page.locator(studio ? '#cw-compose .cw-send' : '.img-dock .cw-send').click();
+        await expect(add).toBeFocused();
+        await add.click();
+        await selectLibraryFile(page, 'Test result');
+        await expect(field.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
+        await expect(add).toHaveCount(0);
+        await field.getByRole('button', { name: 'Сбросить шаблон' }).click();
+        await expect(page.locator('.feed-template-chips')).toHaveCount(0);
+      }
+      expect(state.sends).toHaveLength(0);
+      expect(state.tasks).toHaveLength(0);
+    });
+  }
+}
+
+test('library loading cards reserve the file grid before the list arrives', async ({ page }) => {
+  await mockApi(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/file?*', async (route) => {
+      await pending;
+      await route.fallback();
+    });
+    await page.goto('/library', { waitUntil: 'domcontentloaded' });
+    const loading = page.getByRole('status', { name: 'Загружаем файлы…' }).locator('.file-entry').first();
+    let before;
+    try {
+      await expect(loading).toBeVisible();
+      before = await loading.boundingBox();
+    } finally {
+      release();
+    }
+    const loaded = page.locator('.asset-feed .file-entry').filter({ hasText: 'Test result' }).first();
+    await expect(loaded).toBeVisible();
+    const after = await loaded.boundingBox();
+    expect(before).toBeTruthy();
+    for (const k of ['x', 'y', 'width', 'height'] as const)
+      expect(Math.abs(before![k] - after![k]), k).toBeLessThanOrEqual(1);
+  }
+});

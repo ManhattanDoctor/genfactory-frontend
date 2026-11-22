@@ -60,7 +60,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { IConversation, IGnosisFile, IModelDescription, MediaKind } from '../../lib/types';
-import { favoritesFirst, modelKey, modelTitle } from '../catalog/presentation';
+import { favoritesFirst, findTemplateModel, modelKey, modelTitle } from '../catalog/presentation';
 import { useConversationError } from './useConversationError';
 import { choices, ratioSizes, sizeRatio, suggestedRatios } from '../content-studio/controls';
 import templates from '../content-studio/templates.json';
@@ -78,7 +78,7 @@ import { useConversationRoom } from '../realtime/RealtimeProvider';
 import { useConversationProgress } from './useConversationProgress';
 import { toolLabel } from './progress';
 import './image-workspace.css';
-import './feed-template.css';
+import { AppliedTemplate } from '../../components/AppliedTemplate';
 
 export function MediaWorkspace({
   kind,
@@ -421,11 +421,7 @@ export function MediaWorkspace({
       ? models.find((candidate) => modelKey(candidate) === modelKey({ reference: item.model! }))
       : model;
     const fromFeed = item.id.startsWith(kind + '-feed-');
-    const duration = resolveTemplateDuration(
-      item,
-      fromFeed ? item.recommendedDuration || options.duration : options.duration,
-      target,
-    );
+    const duration = resolveTemplateDuration(item, options.duration, target);
     const supportedRatio =
       fromFeed &&
       target &&
@@ -510,11 +506,7 @@ export function MediaWorkspace({
   const downloadResult = useEventCallback(download);
   async function applyFeedCard(card: FeedCard) {
     if (busy) return;
-    const target = models.find(
-      (item) =>
-        item.reference.model === card.modelId ||
-        modelTitle(item).toLowerCase() === card.modelTitle.toLowerCase(),
-    );
+    const target = findTemplateModel(models, card.modelId, card.modelTitle);
     if (!user) {
       await signIn();
       return;
@@ -759,6 +751,59 @@ export function MediaWorkspace({
   const generationCards = [...statusCards, ...visibleFiles, ...galleryCards];
   const retryHistory = !error && !notice && !prefs.error && !retryCatalog && history.isLoadingError;
   const retry = retryCatalog || (retryHistory ? () => void history.refetch() : undefined);
+  const templateAttachments = (selected || templateReference || references.length > 0) && (
+    <>
+      {templateReference && (
+        <ComposerAttachment
+          file={templateReference}
+          disabled={busy}
+          onRemove={() => onRemoveTemplateReference?.()}
+        />
+      )}
+      {references.map((file) => (
+        <ComposerAttachment
+          key={file.id}
+          file={file}
+          disabled={busy}
+          onRemove={() => onReferences(references.filter((f) => f.id !== file.id))}
+        />
+      ))}
+      {selected && (
+        <div className="composer-template">
+          <ComposerAttachment
+            file={{
+              name: selected.title,
+              path: selected.src,
+              type: video ? 'VIDEO' : 'IMAGE',
+              mime: video ? 'video/mp4' : 'image/jpeg',
+            }}
+            caption={`Шаблон: ${selected.title}`}
+            disabled={busy}
+            onRemove={() => {
+              onTemplate('');
+              onTemplateText('');
+              onReferences([]);
+              onRemoveTemplateReference?.();
+              promptInput.current?.focus();
+            }}
+          />
+          {
+            <button
+              type="button"
+              className="img-file-edit"
+              aria-label="Редактировать шаблон"
+              disabled={busy}
+              onClick={() => {
+                void applyTemplate(selected, templateText);
+              }}
+            >
+              <Pencil size={13} />
+            </button>
+          }
+        </div>
+      )}
+    </>
+  );
   return (
     <section
       className={`image-workspace ${video ? 'video-workspace' : ''} ${banana ? 'banana-workspace' : seedance ? 'seedance-workspace' : ''}`}
@@ -874,33 +919,6 @@ export function MediaWorkspace({
           </div>
         )}
         <div className={activeFeedCard ? 'cw-field feed-template-fields' : 'cw-field'}>
-          {activeFeedCard && (
-            <div className="feed-template-chips">
-              <span>
-                {activeFeedCard.title}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={onResetComposerTemplate}
-                  aria-label="Сбросить шаблон"
-                >
-                  ×
-                </button>
-              </span>
-              {needsTemplateImages && !photoHintDismissed && (
-                <span>
-                  + Фото
-                  <button
-                    type="button"
-                    onClick={() => setPhotoHintDismissed(true)}
-                    aria-label="Скрыть метку фото"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-            </div>
-          )}
           {!activeFeedCard && (templateCard || feedTemplate) && composerTemplate && boundTemplate && (
             <ComposerTemplatePanel
               title={(templateCard || feedTemplate)!.title}
@@ -922,70 +940,34 @@ export function MediaWorkspace({
               )}
             </ComposerTemplatePanel>
           )}
-          {(selected || templateReference || references.length > 0 || missingPhotos > 0) && (
-            <div className="img-files">
-              {templateReference && (
-                <ComposerAttachment
-                  file={templateReference}
-                  disabled={busy}
-                  onRemove={() => onRemoveTemplateReference?.()}
+          {activeFeedCard ? (
+            <AppliedTemplate
+              title={activeFeedCard.title}
+              disabled={busy}
+              photoDisabled={busy || !!unavailable}
+              photoHintDismissed={photoHintDismissed}
+              photoCount={photoCount}
+              missingPhotos={missingPhotos}
+              video={video}
+              onReset={onResetComposerTemplate}
+              onDismissPhotoHint={() => setPhotoHintDismissed(true)}
+              onAdd={() => onLibrary(true)}
+            >
+              {templateAttachments}
+            </AppliedTemplate>
+          ) : (
+            (templateAttachments || missingPhotos > 0) && (
+              <div className="img-files">
+                {templateAttachments}
+                <RequiredPhotoSlots
+                  count={photoCount + missingPhotos}
+                  filled={photoCount}
+                  disabled={busy || !!unavailable}
+                  onAdd={() => onLibrary(true)}
                 />
-              )}
-              {references.map((file) => (
-                <ComposerAttachment
-                  key={file.id}
-                  file={file}
-                  disabled={busy}
-                  onRemove={() => onReferences(references.filter((f) => f.id !== file.id))}
-                />
-              ))}
-              {selected && (
-                <div className="composer-template">
-                  <ComposerAttachment
-                    file={{
-                      name: selected.title,
-                      path: selected.src,
-                      type: video ? 'VIDEO' : 'IMAGE',
-                      mime: video ? 'video/mp4' : 'image/jpeg',
-                    }}
-                    caption={`Шаблон: ${selected.title}`}
-                    disabled={busy}
-                    onRemove={() => {
-                      onTemplate('');
-                      onTemplateText('');
-                      onReferences([]);
-                      onRemoveTemplateReference?.();
-                      promptInput.current?.focus();
-                    }}
-                  />
-                  {
-                    <button
-                      type="button"
-                      className="img-file-edit"
-                      aria-label="Редактировать шаблон"
-                      disabled={busy}
-                      onClick={() => {
-                        void applyTemplate(selected, templateText);
-                      }}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  }
-                </div>
-              )}
-              <RequiredPhotoSlots
-                tiles={!!activeFeedCard}
-                count={photoCount + missingPhotos}
-                filled={photoCount}
-                disabled={busy || !!unavailable}
-                onAdd={() => onLibrary(true)}
-              />
-            </div>
+              </div>
+            )
           )}
-          {video && activeFeedCard && needsTemplateImages && (
-            <p className="video-template-hint">Для шаблона приложите своё фото</p>
-          )}
-          {limits && !mediaComposer && <p className="video-model-limits">{limits}</p>}
           <textarea
             ref={promptInput}
             id={seedance ? 'sd-draft' : banana ? 'nb-draft' : video ? 'vd-draft' : 'img-draft'}

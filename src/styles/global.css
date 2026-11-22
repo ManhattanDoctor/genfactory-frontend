@@ -1467,6 +1467,9 @@ a svg {
 .nav-scrim {
   display: none;
 }
+.gf-main-scroll,
+.gf-section-main > :not([role='alert'], [role='status']),
+.studio-shell .route-view > *,
 .page-enter {
   animation: enter 0.35s ease-out;
 }

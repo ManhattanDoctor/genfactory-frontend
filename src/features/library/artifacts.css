@@ -9,19 +9,9 @@
 .artifacts-page .library-media {
   position: relative;
 }
-.artifacts-page {
-  --history-info-height: 120px;
-}
-.artifacts-page .history-card-loading {
-  overflow: hidden;
-}
-.artifacts-page .history-info-loading {
-  height: var(--history-info-height);
-  border-radius: 0;
-}
 .artifacts-page .history-day-loading > .skeleton {
   width: 90px;
-  height: 18px;
+  height: 1lh;
 }
 
 @media (max-width: 720px) {
@@ -103,4 +93,8 @@
   .gf-section-main .artifacts-page .history-list:not(.history-view-list) {
     --history-gap: 10px;
   }
+}
+
+.gf-section-main .artifacts-page .asset-feed .artifact-meta {
+  min-height: calc(var(--badge-size, 12px) * 1.3 + 6px);
 }

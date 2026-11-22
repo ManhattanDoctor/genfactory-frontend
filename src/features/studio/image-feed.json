@@ -10,7 +10,9 @@
       "modelId": "google/gemini-nano-banana-2.1",
       "photos": 1,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1024,
+      "previewHeight": 1024
     },
     {
       "id": "image-feed-tpl_04_Nano_Banana_Pro",
@@ -22,7 +24,9 @@
       "modelId": "google/gemini-3-pro-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1024,
+      "previewHeight": 1024
     },
     {
       "id": "image-feed-tpl_06_Seedream_5_Pro",
@@ -34,7 +38,9 @@
       "modelId": "bytedance-seed/seedream-5-0-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-tpl_08_FLUX_3",
@@ -46,7 +52,9 @@
       "modelId": "black-forest-labs/flux-3-image",
       "photos": 1,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1024,
+      "previewHeight": 1024
     },
     {
       "id": "image-feed-tpl_12_Nano_Banana_Pro_Preview",
@@ -58,7 +66,9 @@
       "modelId": "google/gemini-3-pro-image-preview",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1024,
+      "previewHeight": 1024
     },
     {
       "id": "image-feed-tpl_15_Seedream_4.5",
@@ -70,7 +80,9 @@
       "modelId": "bytedance-seed/seedream-4.5",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-tpl_30_Seedream_5_Lite",
@@ -82,7 +94,9 @@
       "modelId": "bytedance-seed/seedream-5-0-lite",
       "photos": 1,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-tpl_40_Recraft_V4.1_Utility_Pro",
@@ -94,7 +108,9 @@
       "modelId": "recraft/recraft-v4.1-utility-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-tpl_41_Seedream_5_Flash",
@@ -106,7 +122,9 @@
       "modelId": "bytedance-seed/seedream-5-0-flash",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-tpl_46_FLUX_3_Klein",
@@ -118,7 +136,9 @@
       "modelId": "black-forest-labs/flux-3-image-klein",
       "photos": 1,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1024,
+      "previewHeight": 1024
     },
     {
       "id": "image-feed-tpl_49_Recraft_V4.1_Utility",
@@ -130,7 +150,9 @@
       "modelId": "recraft/recraft-v4.1-utility",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1024,
+      "previewHeight": 1024
     },
     {
       "id": "image-feed-tpl_01_Nano_Banana_2",
@@ -142,7 +164,9 @@
       "modelId": "google/gemini-3.1-flash-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1024,
+      "previewHeight": 1024
     }
   ],
   "generations": [
@@ -156,7 +180,9 @@
       "modelId": "google/gemini-nano-banana-2.1",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 848,
+      "previewHeight": 1264
     },
     {
       "id": "image-feed-gen_02_Nano_Banana_2.1_1",
@@ -168,7 +194,9 @@
       "modelId": "google/gemini-nano-banana-2.1",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2528,
+      "previewHeight": 1696
     },
     {
       "id": "image-feed-gen_02_Nano_Banana_2.1_2",
@@ -180,7 +208,9 @@
       "modelId": "google/gemini-nano-banana-2.1",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 3584,
+      "previewHeight": 4800
     },
     {
       "id": "image-feed-gen_02_Nano_Banana_2.1_3",
@@ -192,7 +222,9 @@
       "modelId": "google/gemini-nano-banana-2.1",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2400,
+      "previewHeight": 1792
     },
     {
       "id": "image-feed-gen_04_Nano_Banana_Pro_0",
@@ -204,7 +236,9 @@
       "modelId": "google/gemini-3-pro-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 848,
+      "previewHeight": 1264
     },
     {
       "id": "image-feed-gen_04_Nano_Banana_Pro_1",
@@ -216,7 +250,9 @@
       "modelId": "google/gemini-3-pro-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1264,
+      "previewHeight": 848
     },
     {
       "id": "image-feed-gen_04_Nano_Banana_Pro_2",
@@ -228,7 +264,9 @@
       "modelId": "google/gemini-3-pro-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 896,
+      "previewHeight": 1200
     },
     {
       "id": "image-feed-gen_04_Nano_Banana_Pro_3",
@@ -240,7 +278,9 @@
       "modelId": "google/gemini-3-pro-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1200,
+      "previewHeight": 896
     },
     {
       "id": "image-feed-gen_06_Seedream_5_Pro_0",
@@ -252,7 +292,9 @@
       "modelId": "bytedance-seed/seedream-5-0-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1152,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-gen_06_Seedream_5_Pro_1",
@@ -264,7 +306,9 @@
       "modelId": "bytedance-seed/seedream-5-0-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 1152
     },
     {
       "id": "image-feed-gen_06_Seedream_5_Pro_2",
@@ -276,7 +320,9 @@
       "modelId": "bytedance-seed/seedream-5-0-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1640,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-gen_06_Seedream_5_Pro_3",
@@ -288,7 +334,9 @@
       "modelId": "bytedance-seed/seedream-5-0-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 1366
     },
     {
       "id": "image-feed-gen_08_FLUX_3_0",
@@ -300,7 +348,9 @@
       "modelId": "black-forest-labs/flux-3-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 768,
+      "previewHeight": 1360
     },
     {
       "id": "image-feed-gen_08_FLUX_3_1",
@@ -312,7 +362,9 @@
       "modelId": "black-forest-labs/flux-3-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1360,
+      "previewHeight": 768
     },
     {
       "id": "image-feed-gen_08_FLUX_3_2",
@@ -324,7 +376,9 @@
       "modelId": "black-forest-labs/flux-3-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 912,
+      "previewHeight": 1152
     },
     {
       "id": "image-feed-gen_08_FLUX_3_3",
@@ -336,7 +390,9 @@
       "modelId": "black-forest-labs/flux-3-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1248,
+      "previewHeight": 832
     },
     {
       "id": "image-feed-gen_12_Nano_Banana_Pro_Preview_0",
@@ -348,7 +404,9 @@
       "modelId": "google/gemini-3-pro-image-preview",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1696,
+      "previewHeight": 2528
     },
     {
       "id": "image-feed-gen_12_Nano_Banana_Pro_Preview_1",
@@ -360,7 +418,9 @@
       "modelId": "google/gemini-3-pro-image-preview",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 5056,
+      "previewHeight": 3392
     },
     {
       "id": "image-feed-gen_12_Nano_Banana_Pro_Preview_2",
@@ -372,7 +432,9 @@
       "modelId": "google/gemini-3-pro-image-preview",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 896,
+      "previewHeight": 1200
     },
     {
       "id": "image-feed-gen_12_Nano_Banana_Pro_Preview_3",
@@ -384,7 +446,9 @@
       "modelId": "google/gemini-3-pro-image-preview",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2400,
+      "previewHeight": 1792
     },
     {
       "id": "image-feed-gen_15_Seedream_4.5_0",
@@ -396,7 +460,9 @@
       "modelId": "bytedance-seed/seedream-4.5",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 3642
     },
     {
       "id": "image-feed-gen_15_Seedream_4.5_1",
@@ -408,7 +474,9 @@
       "modelId": "bytedance-seed/seedream-4.5",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 3642,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-gen_15_Seedream_4.5_2",
@@ -420,7 +488,9 @@
       "modelId": "bytedance-seed/seedream-4.5",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 2560
     },
     {
       "id": "image-feed-gen_15_Seedream_4.5_3",
@@ -432,7 +502,9 @@
       "modelId": "bytedance-seed/seedream-4.5",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 3072,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-gen_30_Seedream_5_Lite_0",
@@ -444,7 +516,9 @@
       "modelId": "bytedance-seed/seedream-5-0-lite",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 3642
     },
     {
       "id": "image-feed-gen_30_Seedream_5_Lite_1",
@@ -456,7 +530,9 @@
       "modelId": "bytedance-seed/seedream-5-0-lite",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 3642,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-gen_30_Seedream_5_Lite_2",
@@ -468,7 +544,9 @@
       "modelId": "bytedance-seed/seedream-5-0-lite",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 2560
     },
     {
       "id": "image-feed-gen_30_Seedream_5_Lite_3",
@@ -480,7 +558,9 @@
       "modelId": "bytedance-seed/seedream-5-0-lite",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 3072,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-gen_40_Recraft_V4.1_Utility_Pro_0",
@@ -492,7 +572,9 @@
       "modelId": "recraft/recraft-v4.1-utility-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2432,
+      "previewHeight": 1792
     },
     {
       "id": "image-feed-gen_40_Recraft_V4.1_Utility_Pro_1",
@@ -504,7 +586,9 @@
       "modelId": "recraft/recraft-v4.1-utility-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1792,
+      "previewHeight": 2432
     },
     {
       "id": "image-feed-gen_40_Recraft_V4.1_Utility_Pro_2",
@@ -516,7 +600,9 @@
       "modelId": "recraft/recraft-v4.1-utility-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2688,
+      "previewHeight": 1536
     },
     {
       "id": "image-feed-gen_40_Recraft_V4.1_Utility_Pro_3",
@@ -528,7 +614,9 @@
       "modelId": "recraft/recraft-v4.1-utility-pro",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1536,
+      "previewHeight": 2688
     },
     {
       "id": "image-feed-gen_41_Seedream_5_Flash_0",
@@ -540,7 +628,9 @@
       "modelId": "bytedance-seed/seedream-5-0-flash",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1152,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-gen_41_Seedream_5_Flash_1",
@@ -552,7 +642,9 @@
       "modelId": "bytedance-seed/seedream-5-0-flash",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 1152
     },
     {
       "id": "image-feed-gen_41_Seedream_5_Flash_2",
@@ -564,7 +656,9 @@
       "modelId": "bytedance-seed/seedream-5-0-flash",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1640,
+      "previewHeight": 2048
     },
     {
       "id": "image-feed-gen_41_Seedream_5_Flash_3",
@@ -576,7 +670,9 @@
       "modelId": "bytedance-seed/seedream-5-0-flash",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2048,
+      "previewHeight": 1366
     },
     {
       "id": "image-feed-gen_46_FLUX_3_Klein_0",
@@ -588,7 +684,9 @@
       "modelId": "black-forest-labs/flux-3-image-klein",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 768,
+      "previewHeight": 1360
     },
     {
       "id": "image-feed-gen_46_FLUX_3_Klein_1",
@@ -600,7 +698,9 @@
       "modelId": "black-forest-labs/flux-3-image-klein",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1360,
+      "previewHeight": 768
     },
     {
       "id": "image-feed-gen_46_FLUX_3_Klein_2",
@@ -612,7 +712,9 @@
       "modelId": "black-forest-labs/flux-3-image-klein",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 912,
+      "previewHeight": 1152
     },
     {
       "id": "image-feed-gen_46_FLUX_3_Klein_3",
@@ -624,7 +726,9 @@
       "modelId": "black-forest-labs/flux-3-image-klein",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1248,
+      "previewHeight": 832
     },
     {
       "id": "image-feed-gen_49_Recraft_V4.1_Utility_0",
@@ -636,7 +740,9 @@
       "modelId": "recraft/recraft-v4.1-utility",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1216,
+      "previewHeight": 896
     },
     {
       "id": "image-feed-gen_49_Recraft_V4.1_Utility_1",
@@ -648,7 +754,9 @@
       "modelId": "recraft/recraft-v4.1-utility",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 896,
+      "previewHeight": 1216
     },
     {
       "id": "image-feed-gen_49_Recraft_V4.1_Utility_2",
@@ -660,7 +768,9 @@
       "modelId": "recraft/recraft-v4.1-utility",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 1344,
+      "previewHeight": 768
     },
     {
       "id": "image-feed-gen_49_Recraft_V4.1_Utility_3",
@@ -672,7 +782,9 @@
       "modelId": "recraft/recraft-v4.1-utility",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 768,
+      "previewHeight": 1344
     },
     {
       "id": "image-feed-gen_01_Nano_Banana_2_0",
@@ -684,7 +796,9 @@
       "modelId": "google/gemini-3.1-flash-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 848,
+      "previewHeight": 1264
     },
     {
       "id": "image-feed-gen_01_Nano_Banana_2_1",
@@ -696,7 +810,9 @@
       "modelId": "google/gemini-3.1-flash-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2528,
+      "previewHeight": 1696
     },
     {
       "id": "image-feed-gen_01_Nano_Banana_2_2",
@@ -708,7 +824,9 @@
       "modelId": "google/gemini-3.1-flash-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 3584,
+      "previewHeight": 4800
     },
     {
       "id": "image-feed-gen_01_Nano_Banana_2_3",
@@ -720,7 +838,9 @@
       "modelId": "google/gemini-3.1-flash-image",
       "photos": 0,
       "duration": 0,
-      "ratio": ""
+      "ratio": "",
+      "previewWidth": 2400,
+      "previewHeight": 1792
     }
   ]
 }

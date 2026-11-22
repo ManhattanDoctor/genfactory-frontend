@@ -81,3 +81,14 @@ export function modelSummary(model: IModelDescription): string {
   if (model.capabilities?.includes('VIDEO_OUTPUT')) return 'Создание видео по сценарию и материалам проекта.';
   return 'Тексты, ответы на вопросы и подготовка материалов для вашего проекта.';
 }
+
+export function findTemplateModel(
+  models: IModelDescription[],
+  id: string,
+  title: string,
+): IModelDescription | undefined {
+  return (
+    models.find((item) => item.reference.model === id) ??
+    models.find((item) => modelTitle(item).toLowerCase() === title.toLowerCase())
+  );
+}

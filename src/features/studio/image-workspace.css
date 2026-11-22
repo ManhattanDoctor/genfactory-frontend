@@ -622,10 +622,6 @@
     right: 0;
     height: calc(var(--media-viewport-height, 100dvh) - var(--header));
     min-height: 0;
-    animation: none;
-  }
-  .studio-shell .route-view > .image-workspace {
-    animation: none;
   }
   .image-workspace::after {
     z-index: 0;

@@ -9,7 +9,8 @@ export interface ITemplate {
   addedAt?: string;
   prompt: string;
   model?: IModelDescription['reference'];
-  /** Suggested output length; never overrides an existing form selection. */
+  modelTitle?: string;
+  /** Duration from the designer card, or a suggestion for an adaptable recipe. */
   recommendedDuration?: number;
   src: string;
   previewSrc?: string;

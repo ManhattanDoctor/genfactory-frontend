@@ -709,11 +709,10 @@
 .content-studio .cw-shot-frame {
   --media-loading-width: min(100%, 420px);
   --media-loading-height: auto;
-  --media-loading-ratio: auto;
 }
 .content-studio .cw-shot-frame[aria-busy='true'],
 .content-studio .cw-shot-frame:has(.media-loading-error) {
-  --media-loading-height: 72px;
+  max-height: 360px;
 }
 .content-studio .cw-shot-frame .as-pic {
   height: auto;

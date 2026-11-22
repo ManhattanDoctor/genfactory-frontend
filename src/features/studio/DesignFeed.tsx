@@ -122,7 +122,13 @@ export function DesignFeed({
                   onClick={() => onApply(card)}
                 >
                   {kind === 'image' ? (
-                    <img src={card.src} alt="" loading="lazy" />
+                    <img
+                      src={card.src}
+                      alt=""
+                      loading="lazy"
+                      width={card.previewWidth}
+                      height={card.previewHeight}
+                    />
                   ) : (
                     <video
                       muted

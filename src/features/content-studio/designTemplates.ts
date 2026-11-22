@@ -18,6 +18,7 @@ export const studioTemplates: ITemplate[] = [...images.templates, ...videos.temp
       prompt: card.prompt,
       references: { min: card.photos },
       recommendedDuration: card.duration || undefined,
+      modelTitle: card.modelTitle,
       model: { provider: video ? 'OPEN_ROUTER_VIDEO' : 'OPEN_ROUTER_IMAGE', model: card.modelId },
     };
   });

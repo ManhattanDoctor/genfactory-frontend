@@ -571,9 +571,6 @@ export function FileBrowser({
         </div>
       )}
       {notice && <p role="status">{notice}</p>}
-      {user && !onDestination && files.isPending && (
-        <SkeletonCards label="Загружаем файлы…" className="library-grid" />
-      )}
       {files.error && (
         <p role="alert">
           {files.error.message}{' '}
@@ -582,15 +579,25 @@ export function FileBrowser({
           </button>
         </p>
       )}
-      {layout && files.data && (sectionTitle || files.data.total > 0) && (
-        <header className="library-section-heading">
-          {sectionTitle && <h2>{sectionTitle}</h2>}
-          {files.data.total > 0 && (
-            <span>
-              {files.data.total} {fileCountLabel(files.data.total)}
-            </span>
-          )}
-        </header>
+      {layout &&
+        (files.data || (user && !onDestination && files.isPending)) &&
+        (sectionTitle || files.isPending || !!files.data?.total) && (
+          <header className="library-section-heading">
+            {sectionTitle && <h2>{sectionTitle}</h2>}
+            {files.isPending && !sectionTitle && <span aria-hidden="true">&nbsp;</span>}
+            {!!files.data?.total && (
+              <span>
+                {files.data.total} {fileCountLabel(files.data.total)}
+              </span>
+            )}
+          </header>
+        )}
+      {user && !onDestination && files.isPending && (
+        <SkeletonCards
+          label="Загружаем файлы…"
+          className={layout ? 'library-grid asset-feed' : 'library-grid'}
+          assets={!!layout}
+        />
       )}
       <div className={foldersOnly ? 'file-folder-list' : layout ? 'library-grid asset-feed' : 'library-grid'}>
         {!!trail.length && !query && !selectedTags.length && (

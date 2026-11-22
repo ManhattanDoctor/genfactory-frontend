@@ -3,7 +3,7 @@ import { isSchemaValue } from '../catalog/schema';
 import type { ITemplate } from './materials';
 import { adaptTemplateDuration, templateTimingError } from './templateRecipe';
 
-/** Explicit form value wins; only an unset value uses the template recommendation. */
+/** Designer feed cards set the duration shown on the card. Other recipes adapt to the form. */
 export function resolveTemplateDuration(
   item: ITemplate,
   selected: unknown,
@@ -13,7 +13,8 @@ export function resolveTemplateDuration(
   if (!model) throw new Error('Модель шаблона недоступна. Обновите каталог моделей.');
   const field = model.schema.properties?.options?.properties?.duration;
   if (!field) throw new Error('Модель шаблона не поддерживает выбор длительности видео.');
-  const duration = selected ?? item.recommendedDuration ?? field.default ?? field.const;
+  const preferred = item.id.startsWith('video-feed-') ? item.recommendedDuration : undefined;
+  const duration = preferred ?? selected ?? item.recommendedDuration ?? field.default ?? field.const;
   if (
     typeof duration !== 'number' ||
     !Number.isFinite(duration) ||

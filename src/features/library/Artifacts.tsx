@@ -1,6 +1,6 @@
 import { LibrarySearch } from '../../components/LibrarySearch';
 import { previewCardStyle } from '../../components/previewCardStyle';
-import { Skeleton } from '../../components/Skeleton';
+import { AssetCardSkeleton, Skeleton } from '../../components/Skeleton';
 import { downloadFile } from '../../lib/files';
 import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -149,7 +149,7 @@ export function Artifacts(): ReactElement {
     }
   }
   return (
-    <div className="page-content work-history library-page artifacts-page">
+    <div className="page-content page-enter work-history library-page artifacts-page">
       <h1 className="sr-only">История</h1>
       {!user ? (
         <div className="empty-state">
@@ -226,10 +226,7 @@ export function Artifacts(): ReactElement {
                   <Skeleton />
                 </div>
                 {Array.from({ length: 8 }, (_, index) => (
-                  <div className="history-card history-card-loading" key={index} aria-hidden="true">
-                    <Skeleton className="history-cover" />
-                    <Skeleton className="history-info-loading" />
-                  </div>
+                  <AssetCardSkeleton history key={index} />
                 ))}
               </>
             )}

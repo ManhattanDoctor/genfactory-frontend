@@ -13,11 +13,7 @@
   scale: 0.97;
 }
 .studio-shell .route-view {
-  animation: route-arrive 0.2s ease-out;
   min-width: 0;
-}
-.studio-shell .route-view .page-enter {
-  animation: none;
 }
 @keyframes route-arrive {
   from {
@@ -726,13 +722,6 @@
 }
 .home-tools-fold .home-tools {
   margin-top: 12px;
-}
-.studio-shell .route-view {
-  animation: none;
-}
-.studio-shell .route-view > *,
-.studio-shell .route-view .page-enter {
-  animation: route-arrive 0.2s ease-out;
 }
 .studio-shell .shell-nav-item:active,
 .studio-shell .shell-account-link:active {

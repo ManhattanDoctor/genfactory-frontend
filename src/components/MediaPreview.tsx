@@ -71,6 +71,8 @@ export function Media(props: MediaProps): ReactElement {
       props.file.type === 'VIDEO' ||
       props.file.preview?.image?.status === 'READY');
   const { file } = props;
+  const preview =
+    file.preview?.image?.width && file.preview.image.height ? file.preview.image : file.preview?.video;
   const needsOriginal =
     !file.isExternal &&
     !file.path &&
@@ -119,8 +121,8 @@ export function Media(props: MediaProps): ReactElement {
       aria-busy={loading && failedFor !== identity}
       style={{
         aspectRatio: `var(--media-loading-ratio, ${
-          props.file.preview?.image?.width && props.file.preview.image.height
-            ? `${props.file.preview.image.width} / ${props.file.preview.image.height}`
+          preview?.width && preview.height
+            ? `${preview.width} / ${preview.height}`
             : loading
               ? '4 / 3'
               : 'auto'

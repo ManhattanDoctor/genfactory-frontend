@@ -1,10 +1,11 @@
 import type { TemplatePublicReference } from './templatePublicReference';
-import type { ReactElement } from 'react';
+import { Fragment, type ReactElement } from 'react';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import type { ITemplateCard } from './materials';
 import type { IAttachment } from './studioTypes';
 
 interface Props {
+  inline?: boolean;
   publicReference?: TemplatePublicReference;
   onRemovePublicReference?: () => void;
   picked: ITemplateCard[];
@@ -14,6 +15,7 @@ interface Props {
   onRemoveAttachment: (file: IAttachment) => void;
 }
 export function StudioAttachments({
+  inline = false,
   publicReference,
   onRemovePublicReference,
   picked,
@@ -22,9 +24,10 @@ export function StudioAttachments({
   onRemoveTemplate,
   onRemoveAttachment,
 }: Props): ReactElement | false {
+  const Container = inline ? Fragment : 'div';
   return (
     (picked.length > 0 || attachments.length > 0 || !!publicReference) && (
-      <div className="cw-files">
+      <Container {...(inline ? {} : { className: 'cw-files' })}>
         {picked.map((item) => (
           <ComposerAttachment
             key={item.id}
@@ -67,7 +70,7 @@ export function StudioAttachments({
             onRemove={() => onRemoveAttachment(file)}
           />
         ))}
-      </div>
+      </Container>
     )
   );
 }

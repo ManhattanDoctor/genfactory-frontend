@@ -3,6 +3,7 @@ import { Modal } from '../../components/Modal';
 import { ImageAspectGrid } from '../studio/ImageAspectGrid';
 import { StudioQueuePanel } from './StudioQueuePanel';
 import { ComposerTemplatePanel } from './ComposerTemplatePanel';
+import { AppliedTemplate } from '../../components/AppliedTemplate';
 import { RequiredPhotoSlots } from '../../components/RequiredPhotoSlots';
 import { MediaModelPicker } from '../catalog/MediaModelPicker';
 import { fitTemplateDuration, resolveTemplateDuration } from './templateDuration';
@@ -40,7 +41,7 @@ import {
   updateComposerField,
   type ComposerTemplate,
 } from './templateComposer';
-import { templateTimingError, syncTemplateDuration } from './templateRecipe';
+import { templateTimingError, syncTemplateDuration, updateFeedDuration } from './templateRecipe';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEventCallback } from '../../lib/useEventCallback';
 import { useLocation } from 'react-router-dom';
@@ -48,7 +49,7 @@ import { api, getSession, type IUploadProgress } from '../../lib/api';
 import type { IGnosisFile, IFileGeneration, IConversationMessage, IPagination } from '../../lib/types';
 import { useContentConversation } from './useContentConversation';
 import { ContentThread } from './ContentThread';
-import { sizeRatio } from './controls';
+import { choices, sizeRatio, suggestedRatios } from './controls';
 import { referenceLimit, supportsReferences, isSchemaValue } from '../catalog/schema';
 import { templateFrame, type ITemplate, type ITemplateCard, type ITemplateVideoReference } from './materials';
 import {
@@ -66,7 +67,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { defaultAssistant } from '../catalog/defaultAssistant';
-import { modelKey, modelTitle } from '../catalog/presentation';
+import { findTemplateModel, modelKey, modelTitle } from '../catalog/presentation';
 import archiveTemplates from './templates.json';
 import { studioTemplates } from './designTemplates';
 const templates = [...studioTemplates, ...archiveTemplates];
@@ -180,6 +181,8 @@ export function ContentStudio(): ReactElement {
     () => (templates as ITemplateCard[]).find((item) => item.id === templateId && item.kind === mode),
     [mode, templateId],
   );
+  const isFeedTemplate = !!currentTemplate?.id.startsWith(mode + '-feed-');
+  const [photoHintDismissed, setPhotoHintDismissed] = useState(false);
   const templateRecipe = useMemo(
     () => new PromptTemplate(composerTemplate?.slots.map((slot) => slot.expression).join(' ') || ''),
     [composerTemplate?.slots],
@@ -205,7 +208,7 @@ export function ContentStudio(): ReactElement {
     studioDraft.changed();
     textarea.current?.focus();
   }
-  const applyTemplateText = (item: ITemplate): void => {
+  const applyTemplateText = (item: ITemplate, target: typeof model): void => {
     const prepared = prepareComposerTemplate(item.prompt, (item.references?.min ?? 0) > 0);
     const prompt = prepared.text;
     if (busy) return;
@@ -219,12 +222,17 @@ export function ContentStudio(): ReactElement {
     work.setError('');
     let chosenDuration: number | undefined;
     try {
-      const target = item.model
-        ? catalog.data?.find((candidate) => modelKey(candidate) === modelKey({ reference: item.model! }))
-        : model;
       chosenDuration = resolveTemplateDuration(item, duration, target);
       const timingError = item.kind === 'video' ? templateTimingError(prompt, chosenDuration) : undefined;
       if (timingError) throw new Error(timingError);
+      if (item.id.startsWith(mode + '-feed-')) {
+        if (
+          choices(target?.schema.properties?.options?.properties?.aspectRatio, suggestedRatios).includes(
+            item.ratio,
+          )
+        )
+          setRatio(item.ratio);
+      }
       setAttachments((current) =>
         current.filter(
           (attachment) => !previousId || (attachment.saved?.id ?? attachment.restoreId) !== previousId,
@@ -242,11 +250,13 @@ export function ContentStudio(): ReactElement {
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
+    setPhotoHintDismissed(false);
     setAppliedTemplate(item.title);
     setTemplateId(item.id);
     setComposerTemplate(prepared.slots.length ? prepared : undefined);
     setTemplateStartsFresh(true);
     setDraft(prompt);
+    textarea.current?.focus();
     setPicked([]);
     setWriter(false);
     setRestoredGeneration(undefined);
@@ -400,11 +410,18 @@ export function ContentStudio(): ReactElement {
       try {
         const loaded = await prepareTemplate(item);
         if (!loaded) return;
-        const target = loaded.model
-          ? catalog.data?.find((candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }))
-          : model;
+        const target =
+          loaded.model && loaded.modelTitle
+            ? findTemplateModel(catalog.data || [], loaded.model.model, loaded.modelTitle)
+            : loaded.model
+              ? catalog.data?.find(
+                  (candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }),
+                )
+              : model;
+        if (loaded.modelTitle && !target)
+          throw new Error('Модель «' + loaded.modelTitle + '» сейчас недоступна.');
         const full = fitTemplateDuration(loaded, duration, target);
-        applyTemplateText(full);
+        applyTemplateText(loaded.model && target ? { ...full, model: target.reference } : full, target);
       } catch (error) {
         work.setError(error instanceof Error ? error.message : 'Не удалось загрузить шаблон.');
         return;
@@ -967,6 +984,11 @@ export function ContentStudio(): ReactElement {
       return;
     }
     if (busy || submitting.current?.scope === work.scope) return;
+    if (isFeedTemplate && needsTemplateImages) {
+      setPhotoHintDismissed(false);
+      studio.current?.querySelector<HTMLButtonElement>('.feed-photo-tile > button')?.focus();
+      return;
+    }
     if (missingFields || needsTemplateImages) {
       work.setError(missingFields ? 'Заполните параметры шаблона.' : 'Добавьте недостающие фото.');
       return;
@@ -1170,7 +1192,18 @@ export function ContentStudio(): ReactElement {
               disabled={busy || work.busy}
               mobile={mobile}
               label="Длительность видео"
-              onChange={setDuration}
+              onChange={(value) => {
+                if (
+                  isFeedTemplate &&
+                  currentTemplate &&
+                  'prompt' in currentTemplate &&
+                  typeof currentTemplate.prompt === 'string'
+                ) {
+                  const original = currentTemplate.prompt;
+                  setDraft((text) => updateFeedDuration(text, original, duration, value));
+                }
+                setDuration(value);
+              }}
             />
           )}
           {soundOptions.length > 0 && (
@@ -1465,6 +1498,41 @@ export function ContentStudio(): ReactElement {
     </aside>
   );
 
+  const studioAttachments = (!!publicReference || picked.length > 0 || attachments.length > 0) && (
+    <StudioAttachments
+      inline={isFeedTemplate}
+      publicReference={publicReference}
+      onRemovePublicReference={() => {
+        setTemplateVideoReference(undefined);
+        studioDraft.changed();
+      }}
+      picked={picked}
+      attachments={attachments}
+      attachmentBusy={attachmentBusy}
+      onRemoveTemplate={(id) => {
+        if (attachmentBusy || submitting.current?.scope === work.scope) return;
+        setPicked((previous) => previous.filter((item) => item.id !== id));
+        setAttachments([]);
+        setTemplateVideoReference(undefined);
+        setRestoringReferences(undefined);
+        setFrameSlot(undefined);
+        studioDraft.changed();
+      }}
+      onRemoveAttachment={(file) => {
+        if (attachmentBusy || submitting.current?.scope === work.scope) return;
+        setAttachments((previous) =>
+          previous.filter((item) => item.id !== file.id || item.slot !== file.slot),
+        );
+        if (
+          templateVideoReference?.fileId &&
+          templateVideoReference.fileId === (file.saved?.id ?? file.restoreId)
+        )
+          setTemplateVideoReference(undefined);
+        if (attachments.length === 1) setRestoringReferences(undefined);
+        studioDraft.changed();
+      }}
+    />
+  );
   return (
     <div ref={studio} className={`content-studio ${mobileGallery ? 'mobile-gallery-open' : ''}`}>
       <div id="creatives" className="panel">
@@ -1590,8 +1658,8 @@ export function ContentStudio(): ReactElement {
                     </button>
                   ))}
                 </div>
-                <div className="cw-field">
-                  {currentTemplate && (
+                <div className={isFeedTemplate ? 'cw-field feed-template-fields' : 'cw-field'}>
+                  {!isFeedTemplate && currentTemplate && (
                     <ComposerTemplatePanel
                       title={currentTemplate.title}
                       disabled={busy}
@@ -1626,38 +1694,27 @@ export function ContentStudio(): ReactElement {
                       />
                     </ComposerTemplatePanel>
                   )}
-                  <StudioAttachments
-                    publicReference={publicReference}
-                    onRemovePublicReference={() => {
-                      setTemplateVideoReference(undefined);
-                      studioDraft.changed();
-                    }}
-                    picked={picked}
-                    attachments={attachments}
-                    attachmentBusy={attachmentBusy}
-                    onRemoveTemplate={(id) => {
-                      if (attachmentBusy || submitting.current?.scope === work.scope) return;
-                      setPicked((previous) => previous.filter((item) => item.id !== id));
-                      setAttachments([]);
-                      setTemplateVideoReference(undefined);
-                      setRestoringReferences(undefined);
-                      setFrameSlot(undefined);
-                      studioDraft.changed();
-                    }}
-                    onRemoveAttachment={(file) => {
-                      if (attachmentBusy || submitting.current?.scope === work.scope) return;
-                      setAttachments((previous) =>
-                        previous.filter((item) => item.id !== file.id || item.slot !== file.slot),
-                      );
-                      if (
-                        templateVideoReference?.fileId &&
-                        templateVideoReference.fileId === (file.saved?.id ?? file.restoreId)
-                      )
-                        setTemplateVideoReference(undefined);
-                      if (attachments.length === 1) setRestoringReferences(undefined);
-                      studioDraft.changed();
-                    }}
-                  />
+                  {isFeedTemplate && currentTemplate ? (
+                    <AppliedTemplate
+                      title={currentTemplate.title}
+                      disabled={busy}
+                      photoDisabled={busy || attachments.some((file) => !!file.slot)}
+                      photoHintDismissed={photoHintDismissed}
+                      photoCount={photoCount}
+                      missingPhotos={Math.max(0, requiredPhotos - photoCount)}
+                      video={mode === 'video'}
+                      onReset={resetComposerTemplate}
+                      onDismissPhotoHint={() => setPhotoHintDismissed(true)}
+                      onAdd={() => {
+                        setFrameSlot(undefined);
+                        setLibrary({ scope: draftScope });
+                      }}
+                    >
+                      {studioAttachments}
+                    </AppliedTemplate>
+                  ) : (
+                    studioAttachments
+                  )}
                   <div className="cw-draft-row">
                     <label className="sr-only" htmlFor="cw-draft">
                       Запрос
@@ -1763,7 +1820,7 @@ export function ContentStudio(): ReactElement {
                     disabled={
                       busy ||
                       missingFields ||
-                      needsTemplateImages ||
+                      (needsTemplateImages && !isFeedTemplate) ||
                       (!draft.trim() && !picked.length && !attachments.length)
                     }
                   >

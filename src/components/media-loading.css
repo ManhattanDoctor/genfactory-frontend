@@ -100,3 +100,15 @@
 .media-video-poster.is-playing {
   visibility: hidden;
 }
+
+.skeleton-cards.asset-feed {
+  padding: 0;
+}
+.asset-feed [aria-hidden='true'] > .artifact-body > * {
+  width: 72%;
+  border-radius: 4px;
+  background: var(--gf-surface-2, #232527);
+}
+.asset-feed [aria-hidden='true'] > .artifact-body > :last-child {
+  width: 45%;
+}
