@@ -1,4 +1,5 @@
-import type { ReactElement } from 'react';
+import { useActionMenuPosition } from '../../components/useActionMenuPosition';
+import { useRef, useState, type ReactElement } from 'react';
 import {
   Download,
   Pencil,
@@ -27,8 +28,13 @@ export function ConversationActions({
   onRename: () => void;
   onArchive: () => void;
 }): ReactElement {
+  const menu = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+  useActionMenuPosition(menu, open, 200);
   return (
     <details
+      ref={menu}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
       className="history-actions"
       name="history-card-actions"
       onKeyDown={(event) => {
@@ -38,10 +44,11 @@ export function ConversationActions({
         }
       }}
     >
-      <summary aria-label={`Действия работы ${c.name}`} title="Действия работы">
+      <summary aria-label={`Действия работы ${c.name}`} data-tooltip="Действия работы">
         <MoreHorizontal size={18} />
       </summary>
       <div
+        data-action-panel
         className="history-menu"
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('button, a'))
@@ -52,7 +59,7 @@ export function ConversationActions({
           <Link
             className="button"
             aria-label="Аудиостудия"
-            title="Продолжить работу с аудио"
+            data-tooltip="Продолжить работу с аудио"
             to={`/audio?mode=${c.tags?.includes('stt') ? 'stt' : 'tts'}&conversation=${c.id}`}
           >
             <AudioLines size={16} aria-hidden="true" />
@@ -78,7 +85,7 @@ export function ConversationActions({
         <button
           className="history-icon-button"
           aria-label="Переименовать"
-          title="Переименовать"
+          data-tooltip="Переименовать"
           disabled={busy || c.status === 'LOADING'}
           onClick={onRename}
         >
@@ -88,7 +95,7 @@ export function ConversationActions({
         <button
           className="history-icon-button"
           aria-label={!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
-          title={!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
+          data-tooltip={!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
           disabled={busy}
           onClick={onArchive}
         >

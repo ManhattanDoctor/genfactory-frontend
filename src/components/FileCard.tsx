@@ -1,3 +1,4 @@
+import { HistoryCardBody } from './HistoryCardBody';
 import type { ReactElement } from 'react';
 import { Check, Folder, Link as LinkIcon } from 'lucide-react';
 import type { IGnosisFile } from '../lib/types';
@@ -17,12 +18,14 @@ const typeLabels: Record<string, string> = {
   AUDIO: 'Аудио',
   DOCUMENT: 'Документ',
   DIRECTORY: 'Папка',
+  LINK: 'Ссылка на файл',
 };
 
 /** Existing library card; shared with the artifact feed. */
 export function FileCard({
   file,
   source,
+  compact = false,
   onOpen,
   disabled = false,
   incompatible = false,
@@ -32,6 +35,7 @@ export function FileCard({
 }: {
   file: IFileCardData;
   source?: string;
+  compact?: boolean;
   onOpen: () => void;
   disabled?: boolean;
   incompatible?: boolean;
@@ -65,33 +69,50 @@ export function FileCard({
           <Media file={file} isPlaybackDisabled={incompatible} />
         )}
       </CardPreview>
-      <div>
-        {file.groupId != null ? (
-          <div className="file-group-title">
-            <b title={file.name}>{file.name}</b>
-            <span className="compact-tag">Групповой</span>
-          </div>
-        ) : (
-          <b title={file.name}>{file.name}</b>
-        )}
-        {source && <span className="history-source">{source}</span>}
-        <GenerationSummary file={file} />
-        {!file.origin?.generation && (
+      {compact ? (
+        <HistoryCardBody
+          title={file.name}
+          source={source}
+          metadata={
+            <>
+              {already && 'Уже добавлен · '}
+              {file.groupId != null && 'Групповой · '}
+              {file.origin?.generation ? <GenerationSummary file={file} /> : typeLabels[file.type] || 'Файл'}
+            </>
+          }
+          date={
+            <time dateTime={file.createdDate}>{new Date(file.createdDate).toLocaleDateString('ru-RU')}</time>
+          }
+        />
+      ) : (
+        <div>
+          {file.groupId != null ? (
+            <div className="file-group-title">
+              <b data-tooltip={file.name}>{file.name}</b>
+              <span className="compact-tag">Групповой</span>
+            </div>
+          ) : (
+            <b data-tooltip={file.name}>{file.name}</b>
+          )}
+          {source && <span className="history-source">{source}</span>}
+          <GenerationSummary file={file} />
+          {!file.origin?.generation && (
+            <span>
+              {file.type === 'LINK' ? (
+                <>
+                  <LinkIcon size={14} /> Ссылка на файл
+                </>
+              ) : (
+                typeLabels[file.type] || 'Файл'
+              )}
+            </span>
+          )}
+          {already && <span>Уже добавлен</span>}
           <span>
-            {file.type === 'LINK' ? (
-              <>
-                <LinkIcon size={14} /> Ссылка на файл
-              </>
-            ) : (
-              typeLabels[file.type] || 'Файл'
-            )}
+            <time dateTime={file.createdDate}>{new Date(file.createdDate).toLocaleDateString('ru-RU')}</time>
           </span>
-        )}
-        {already && <span>Уже добавлен</span>}
-        <span>
-          <time dateTime={file.createdDate}>{new Date(file.createdDate).toLocaleDateString('ru-RU')}</time>
-        </span>
-      </div>
+        </div>
+      )}
     </button>
   );
 }

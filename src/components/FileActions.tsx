@@ -1,3 +1,4 @@
+import { useActionMenuPosition } from './useActionMenuPosition';
 import { FileShareButton } from './FileShareButton';
 import { GenerationDetails } from './FileGeneration';
 import { MediaPreview, type PreviewFile } from './MediaPreview';
@@ -5,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { scheduleRefresh } from '../features/realtime/queryRefresh';
 import { useAuth } from '../features/auth/AuthProvider';
-import { useEffect, useLayoutEffect, useId, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useId, useRef, useState, type ReactElement } from 'react';
 import { ChevronDown, ExternalLink, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
@@ -69,45 +70,7 @@ export function FileActions({
       document.removeEventListener('keydown', escape, true);
     };
   }, [open]);
-  useLayoutEffect(() => {
-    if (!open) return;
-    const panel = menu.current?.querySelector<HTMLElement>('.preview-menu-panel');
-    const trigger = menu.current?.querySelector('summary');
-    if (!panel || !trigger) return;
-    const fit = (): void => {
-      const anchor = trigger.getBoundingClientRect();
-      const width = Math.min(260, innerWidth - 32);
-      const below = innerHeight - anchor.bottom - 22;
-      const above = anchor.top - 22;
-      const down = below >= Math.min(panel.scrollHeight, 300) || below >= above;
-      const height = Math.max(0, Math.min(420, down ? below : above));
-      Object.assign(panel.style, {
-        position: 'fixed',
-        margin: '0',
-        right: 'auto',
-        bottom: 'auto',
-        width: `${width}px`,
-        maxHeight: `${height}px`,
-        left: `${Math.max(16, Math.min(anchor.right - width, innerWidth - width - 16))}px`,
-        top: `${down ? anchor.bottom + 6 : Math.max(16, anchor.top - Math.min(panel.scrollHeight, height) - 6)}px`,
-      });
-    };
-    panel.setAttribute('popover', 'manual');
-    panel.showPopover();
-    fit();
-    const observer = new ResizeObserver(fit);
-    observer.observe(panel);
-    window.addEventListener('resize', fit);
-    window.addEventListener('scroll', fit, true);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', fit);
-      window.removeEventListener('scroll', fit, true);
-      if (panel.matches(':popover-open')) panel.hidePopover();
-      panel.removeAttribute('popover');
-      panel.removeAttribute('style');
-    };
-  }, [open]);
+  useActionMenuPosition(menu, open, 260);
   const { user } = useAuth();
   const alive = useRef(true);
   useEffect(() => {
@@ -273,7 +236,7 @@ export function FileActions({
           type="button"
           className="icon-button"
           aria-label={`Удалить ${file.name}`}
-          title="Удалить"
+          data-tooltip="Удалить"
           disabled={busy || !manageable}
           onClick={remove}
         >
@@ -300,7 +263,7 @@ export function FileActions({
           >
             <MoreHorizontal size={18} />
           </summary>
-          <div className="preview-menu-panel" aria-label="Действия с текущим файлом">
+          <div data-action-panel className="preview-menu-panel" aria-label="Действия с текущим файлом">
             {!folder && (
               <button
                 type="button"

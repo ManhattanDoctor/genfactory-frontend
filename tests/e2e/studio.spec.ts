@@ -884,7 +884,9 @@ test('image history reloads after a failure without submitting the draft', async
   await draft.fill('Сохранённый черновик');
   recovered = true;
   const retry = alert.getByRole('button', { name: 'Загрузить снова' });
-  await expect(retry).toHaveClass('text-button');
+  await expect(retry).toHaveCSS('color', 'rgb(221, 249, 74)');
+  await expect(retry).toHaveCSS('font-weight', '600');
+  await expect(retry.locator('svg')).toHaveCount(0);
   await retry.click();
   await expect(alert).toHaveCount(0);
   await expect(draft).toHaveValue('Сохранённый черновик');
@@ -2291,7 +2293,7 @@ test('balance history rejects foreign or non-personal transactions and recovers 
   await expect(page.locator('.transaction-row')).toHaveCount(0);
   foreign = false;
   await page.getByRole('button', { name: 'Повторить загрузку истории' }).click();
-  await expect(page.getByText('Операций по выбранным условиям пока нет.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Нет операций' })).toBeVisible();
 });
 
 test('history cards keep readable spacing and fit mobile during rename', async ({ page }) => {
@@ -2595,7 +2597,10 @@ test('file browser navigates folders, edits metadata, moves to root and confirms
   let items: any[] = [folder, { ...file, directory: folder.uid }];
   const writes: any[] = [];
   await page.route('**/api/file?*', (route) => {
-    const conditions = JSON.parse(new URL(route.request().url()).searchParams.get('conditions')!);
+    const params = new URL(route.request().url()).searchParams;
+    expect(params.get('foldersFirst')).toBe('true');
+    expect(JSON.parse(params.get('sort')!)).toEqual({ createdDate: false, id: false });
+    const conditions = JSON.parse(params.get('conditions')!);
     const directory = typeof conditions.directory === 'string' ? conditions.directory : null;
     return route.fulfill({ json: pagination(items.filter((f) => (f.directory || null) === directory)) });
   });
@@ -3545,6 +3550,7 @@ test('content studio blocks an end frame without a start frame before uploading'
   await page.goto('/chat');
   await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
   await page.getByRole('button', { name: 'Конечный кадр Не задан', exact: true }).click();
+  await page.getByRole('button', { name: 'Выбрать конечный кадр', exact: true }).click();
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Загрузить', exact: true }).click();
   await (await chooser).setFiles({ name: 'cup.png', mimeType: 'image/png', buffer: Buffer.from('fake') });
@@ -3671,6 +3677,7 @@ test('content studio gallery creates explicit first and last image frames and se
   for (const label of ['Начальный', 'Конечный']) {
     await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
     await page.getByRole('button', { name: `${label} кадр Не задан`, exact: true }).click();
+    await page.getByRole('button', { name: `Выбрать ${label.toLowerCase()} кадр`, exact: true }).click();
     await page.getByRole('button', { name: 'Выбрать шаблон', exact: true }).click();
     await page.locator('.cw-template-open').first().click();
     await expect(page.locator('.composer-attachment').filter({ hasText: `${label} кадр` })).toBeVisible({
@@ -4203,15 +4210,23 @@ test('content studio library selects and replaces frame slots on mobile', async 
   await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
   await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
   await page.getByRole('button', { name: /Начальный кадр/ }).click();
+  await page.getByRole('button', { name: 'Выбрать начальный кадр', exact: true }).click();
   await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Библиотека' })).toBeVisible();
   await page.screenshot({ path: '/tmp/content-library-mobile.png' });
-  await page.getByRole('dialog').getByText('Test result', { exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Библиотека' })
+    .getByRole('heading', { name: 'Test result', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: /Начальный кадр Test result/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Добавить файл', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: /Начальный кадр Test result/ }).click();
+  await page.getByRole('button', { name: 'Выбрать начальный кадр', exact: true }).click();
   await page.getByRole('button', { name: 'Из библиотеки', exact: true }).click();
-  await page.getByRole('dialog').getByText('Test result', { exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Библиотека' })
+    .getByRole('heading', { name: 'Test result', exact: true })
+    .click();
   await expect(page.locator('.cw-files .composer-attachment')).toHaveCount(1);
   expect(state.uploads).toBe(0);
   expect(state.sends).toHaveLength(0);
@@ -4701,7 +4716,7 @@ for (const pickerMode of [false, true]) {
     }
     await surface
       .locator('.library-card')
-      .filter({ has: page.locator('b', { hasText: folderName }) })
+      .filter({ has: page.getByRole('heading', { name: folderName, exact: true }) })
       .click();
     await expect(surface.locator('.file-entry')).toHaveCount(13);
     await page.setViewportSize({ width: 320, height: 430 });
@@ -4774,12 +4789,13 @@ test('library incompatible document is visibly marked and cannot be attached', a
   const card = page.locator('.file-entry').filter({ hasText: 'Document.pdf' });
   await expect(card).toHaveClass(/is-incompatible/);
   await expect(card.locator('.library-card')).toBeDisabled();
-  await expect(card.getByRole('tooltip')).toBeHidden();
+  await expect(page.getByRole('tooltip', { name: 'Не подходит для этой задачи' })).toBeHidden();
   await expect(card.locator('.file-incompatible')).toHaveCSS('color', 'rgb(255, 208, 138)');
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
+    await page.keyboard.press('Tab');
     await card.getByRole('button', { name: 'Почему файл не подходит' }).focus();
-    await expect(card.getByRole('tooltip')).toBeVisible();
+    await expect(page.getByRole('tooltip', { name: 'Не подходит для этой задачи' })).toBeVisible();
     const movie = page.locator('.file-entry').filter({ hasText: 'Movie.mp4' });
     await movie.hover();
     await expect(movie.locator('video')).toHaveCount(0);
@@ -6041,11 +6057,13 @@ for (const width of [1440, 390])
     await page.reload();
     const card = page.getByRole('group', { name: question.question });
     await expect(card).toBeVisible();
-    await expect(card.getByRole('button', { name: 'Выбери сам', exact: true })).toBeVisible();
+    await expect(card.getByRole('radio', { name: 'Выбери сам', exact: true })).toBeVisible();
     await expect(page.locator('.cw-thread')).not.toContainText('[Genfactory:studio-question');
     await expect(card).toContainText('Seedance 2.5');
     await page.screenshot({ path: testInfo.outputPath(`studio-question-${width}.png`) });
-    await card.getByRole('button', { name: 'На товаре', exact: true }).evaluate((button) => {
+    await card.getByRole('radio', { name: 'На товаре', exact: true }).check();
+    expect(state.sends).toHaveLength(0);
+    await card.getByRole('button', { name: 'Выбрать этот вариант' }).evaluate((button) => {
       (button as HTMLButtonElement).click();
       (button as HTMLButtonElement).click();
     });
@@ -6054,7 +6072,7 @@ for (const width of [1440, 390])
     expect(state.sends[0].settings.tools[0]).toEqual({ uid: context.uid, settings: context.settings });
     expect(state.sends[0].text).not.toContain('[Genfactory:studio-context');
     expect(state.sends[0].references).toEqual([12].map((id) => ({ type: 'FILE', id })));
-    await expect(card.getByRole('button', { name: 'На товаре', exact: true })).toBeDisabled();
+    await expect(card.getByRole('radio', { name: 'На товаре', exact: true })).toBeDisabled();
     expect(state.sends).toHaveLength(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
@@ -6094,9 +6112,10 @@ test('studio agent factual question allows a custom answer but no automatic deci
   await page.goto('/chat?conversation=101');
   const card = page.getByRole('group', { name: question.question });
   await expect(card).toBeVisible();
-  await expect(card.getByRole('button', { name: 'Выбери сам' })).toHaveCount(0);
+  await expect(card.getByRole('radio', { name: 'Выбери сам' })).toHaveCount(0);
+  await card.getByRole('radio', { name: 'Свой вариант' }).check();
   await card.getByRole('textbox', { name: 'Свой ответ' }).fill('Цена 1500 рублей');
-  await card.getByRole('button', { name: 'Ответить', exact: true }).click();
+  await card.getByRole('button', { name: 'Выбрать этот вариант', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   expect(state.sends[0].text).toContain('Цена 1500 рублей');
   expect(state.sends[0].settings).not.toHaveProperty('studioAnswerTo');
@@ -6132,8 +6151,8 @@ test('studio agent historical question cannot trigger another generation', async
   ]);
   await page.goto('/chat?conversation=101');
   const card = page.getByRole('group', { name: question.question });
-  await expect(card.getByRole('button', { name: 'Светлый', exact: true })).toBeDisabled();
-  await expect(card.getByRole('textbox', { name: 'Свой ответ' })).toHaveCount(0);
+  await expect(card.getByRole('radio', { name: 'Светлый', exact: true })).toBeDisabled();
+  await expect(card.getByRole('textbox', { name: 'Свой ответ' })).toBeDisabled();
   expect(state.sends).toHaveLength(0);
 });
 
@@ -6505,8 +6524,9 @@ test('answering a legacy question recovers the older photo without changing the 
   await page.goto('/chat?conversation=101');
   await page
     .getByRole('group', { name: question.question })
-    .getByRole('button', { name: 'Без надписей', exact: true })
-    .click();
+    .getByRole('radio', { name: 'Без надписей', exact: true })
+    .check();
+  await page.getByRole('button', { name: 'Выбрать этот вариант' }).click();
   await expect.poll(() => state.sends.length).toBe(1);
   const sent = state.sends[0];
   expect(sent.references).toEqual([].map((id) => ({ type: 'FILE', id })));
@@ -6569,11 +6589,11 @@ test('a socket event refreshes its conversation without refetching the other ope
 test('home mode cards link to the three editors', async ({ page }) => {
   await mockApi(page, false);
   await page.goto('/');
-  const modes = page.getByRole('region', { name: 'Начать создание' });
+  const modes = page.getByRole('region', { name: 'Режимы работы' });
   await expect(modes.getByRole('link')).toHaveCount(3);
-  await expect(modes.getByRole('link', { name: 'Открыть студию' })).toHaveAttribute('href', '/chat');
-  await expect(modes.getByRole('link', { name: 'Собрать изображение' })).toHaveAttribute('href', '/image');
-  await expect(modes.getByRole('link', { name: 'Собрать видео' })).toHaveAttribute('href', '/video');
+  await expect(modes.getByRole('link', { name: 'Создать в студии' })).toHaveAttribute('href', '/chat');
+  await expect(modes.getByRole('link', { name: 'Создать изображение' })).toHaveAttribute('href', '/image');
+  await expect(modes.getByRole('link', { name: 'Создать видео' })).toHaveAttribute('href', '/video');
 });
 
 test('late studio request failure does not appear in another conversation', async ({ page }) => {
@@ -6814,7 +6834,7 @@ for (const width of [1440, 390]) {
     const card = page.locator('.history-card').filter({ hasText: 'Проект студии' });
     await expect(card.locator('.history-source')).toHaveText('Студия контента');
     await expect(card.locator('.history-status')).toContainText('В работе');
-    await expect(card.locator('.history-card-link')).toHaveAttribute('title', /Модель генерации:/);
+    await expect(card.locator('.history-card-link')).toHaveAttribute('data-tooltip', /Модель генерации:/);
     await expect(
       page.locator('.history-card').filter({ hasText: 'Обычная беседа' }).locator('.history-source'),
     ).toHaveCount(0);
@@ -7280,8 +7300,8 @@ test('artifacts expose shared file and conversation actions and refresh after ed
     return route.fulfill({ json: conversation });
   });
   await page.goto('/artifacts');
-  await expect(page.locator('.artifacts-page .history-source')).toHaveCount(2);
-  await expect(page.locator('.artifacts-page .history-source svg')).toHaveCount(0);
+  await expect(page.locator('.artifacts-page .artifact-source')).toHaveCount(2);
+  await expect(page.locator('.artifacts-page .artifact-source svg')).toHaveCount(0);
   await page.getByLabel('Действия с «Artifact image»', { exact: true }).click();
   await openFileMenuGroup(page);
   for (const label of ['Скачать файл', 'Название и теги', 'Переместить', 'Удалить'])
@@ -7292,7 +7312,7 @@ test('artifacts expose shared file and conversation actions and refresh after ed
   await page.getByRole('button', { name: 'Название и теги', exact: true }).click();
   await page.getByLabel('Название', { exact: true }).fill('Renamed image');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(page.locator('.library-card b')).toHaveText('Renamed image');
+  await expect(page.locator('.library-card .artifact-title')).toHaveText('Renamed image');
   expect(material.tags).toEqual(['original']);
   await page.getByLabel('Действия работы Artifact discussion', { exact: true }).click();
   await page.getByRole('button', { name: 'Переименовать', exact: true }).click();
@@ -10271,7 +10291,7 @@ for (const width of [390, 1440]) {
           below: bubble.getBoundingClientRect().bottom - button.bottom,
         };
       });
-      expect(spacing).toEqual({ status: '12px 16px', bubble: '12px 16px', indent: 0, above: 12, below: 12 });
+      expect(spacing).toEqual({ status: '0px 16px', bubble: '10px 12px', indent: 0, above: 12, below: 10 });
       await toggle.click();
     }
   });

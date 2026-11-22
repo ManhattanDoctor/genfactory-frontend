@@ -28,7 +28,7 @@ export function ComposerTemplateFields({
         return (
           <div key={key}>
             <label>
-              <span title={label}>{label}</span>
+              <span data-tooltip={label}>{label}</span>
               {options ? (
                 <select
                   aria-label={label}
@@ -62,7 +62,7 @@ export function ComposerTemplateFields({
             </label>
             {other && (
               <label>
-                <span title="Свой фон">Свой фон</span>
+                <span data-tooltip="Свой фон">Свой фон</span>
                 <input
                   disabled={disabled}
                   value={value}

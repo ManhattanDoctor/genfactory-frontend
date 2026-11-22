@@ -19,16 +19,16 @@ test('startup timeout offers support and reload recovers', async ({ page }) => {
   await expect(error).toHaveCount(0);
 });
 
-test('a pending navigation icon cannot replace an interactive home page', async ({ page }) => {
+test('a pending video poster cannot replace an interactive home page', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   let started!: () => void;
   const pending = new Promise<void>((resolve) => (started = resolve));
-  await page.route('**/media/prototype/nav/home.webp', () => started());
+  await page.route('**/media/home/studio-poster.jpg', () => started());
   await page.clock.install();
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await pending;
   await expect(page.locator('#home-title')).toBeVisible();
   await page.clock.fastForward(9000);
   await expect(page.locator('#startup-error')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Открыть студию', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Создать в студии', exact: true })).toBeVisible();
 });

@@ -46,7 +46,12 @@ export function TemplateMedia({ item }: { item: ITemplateCard }): ReactElement {
   }, [active]);
   return item.kind === 'video' ? (
     <>
-      <img className="cw-still" src={item.src.replace(/\.mp4$/, '.jpg')} alt="" loading="lazy" />
+      <img
+        className="cw-still"
+        src={item.poster || item.src.replace(/\.mp4$/, '.jpg')}
+        alt=""
+        loading="lazy"
+      />
       <video
         ref={ref}
         src={active ? item.previewSrc || item.src : undefined}

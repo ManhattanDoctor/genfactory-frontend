@@ -429,6 +429,8 @@ test('broken short video preview falls back to the poster without loading the or
     }),
   );
   await page.goto('/video');
+  await page.getByRole('tab', { name: 'Генерации' }).click();
+  await page.locator('.video-result .image-result-open').hover();
   await expect(page.locator('.video-result .image-result-open img')).toHaveAttribute(
     'src',
     /\/media\/gallery-1\.jpg$/,
@@ -685,4 +687,29 @@ test('video model limits follow attachment changes without a template', async ({
     await page.getByRole('button', { name: 'Убрать Чашка.png', exact: true }).click();
     await expect(limits).toBeVisible();
   }
+});
+
+test('designer video template matches its composer settings through submission', async ({ page }) => {
+  const state = await setup(page);
+  await page.goto('/video');
+  await page.getByRole('button', { name: 'Использовать шаблон Прыжок в парке', exact: true }).click();
+  const prompt = page.getByLabel('Идея ролика', { exact: true });
+  await expect(prompt).toHaveValue(/Собери экшен 8 с:/);
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Добавить фото 1' })).toBeFocused();
+  expect(state.tasks).toHaveLength(0);
+  await page.getByRole('button', { name: 'Короче', exact: true }).click();
+  await expect(prompt).toHaveValue(/Собери экшен 6 с:/);
+  await prompt.fill((await prompt.inputValue()) + ' Вечерний свет.');
+  await page.getByRole('button', { name: 'Добавить фото 1', exact: true }).click();
+  await pickSource(page);
+  await expect(page.locator('.video-template-hint')).toHaveCount(0);
+  const visible = await prompt.inputValue();
+  await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  expect(state.tasks[0].task.prompt).toBe(visible);
+  expect(state.tasks[0].options.duration).toBe(6);
+  expect(state.tasks[0].task.references[0].id).toBe(source.id);
+  await page.getByRole('button', { name: 'Открыть Чашка.mp4', exact: true }).click();
+  await expect(page.getByRole('dialog').locator('video[controls]')).toBeVisible();
 });

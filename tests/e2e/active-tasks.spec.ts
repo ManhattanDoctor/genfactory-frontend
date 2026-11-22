@@ -301,6 +301,7 @@ test('task cards keep their typed placeholders and fit desktop and mobile', asyn
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/image');
+    if (width === 390) await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
     const jobs = await openJobs(page, 4);
     await expect(jobs.locator('.job-card')).toHaveCount(4);
     await expect(jobs.locator('.job-card-preview .file-placeholder')).toHaveCount(4);

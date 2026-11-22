@@ -2,6 +2,10 @@ import type { IModelDescription } from '../../lib/types';
 import { modelDescriptions } from './modelDescriptions';
 // №37: в коротких каталогах (до пяти моделей включительно) выбор доступен без поля поиска.
 export const MODEL_SEARCH_MIN_COUNT = 6;
+export const defaultMediaModels = {
+  image: 'google/gemini-3-pro-image',
+  video: 'bytedance/seedance-2.5',
+} as const;
 export const modelKey = (model: Pick<IModelDescription, 'reference'>) =>
   `${model.reference.provider}:${model.reference.model}`;
 /** Existing drafts may contain only the model name. Prefer the saved provider for those drafts. */
@@ -18,6 +22,7 @@ export function favoritesFirst<T>(items: T[], favorites: string[], key: (item: T
   return [...items].sort((a, b) => Number(selected.has(key(b))) - Number(selected.has(key(a))));
 }
 export function modelTitle(model: Pick<IModelDescription, 'reference' | 'name'>): string {
+  if (model.reference.model === defaultMediaModels.image) return 'Nano Banana Pro';
   const words: Record<string, string> = {
     gpt: 'GPT',
     ai: 'AI',

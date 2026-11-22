@@ -19,10 +19,10 @@ export function Library() {
       <h1 className="sr-only">Библиотека</h1>
       {auth.user ? (
         <FileBrowser
+          layout="page"
           key={`${auth.user.id}:${location.key}`}
           initialTrail={move?.destination}
           movedFile={move?.movedFile}
-          onCreate={() => navigate('/image')}
           onOpen={(file, files) => {
             setPreview(file);
             setGallery(files);

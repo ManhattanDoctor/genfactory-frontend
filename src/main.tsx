@@ -4,6 +4,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AppTooltip } from './components/AppTooltip';
 import { App } from './app/App';
 import { RealtimeProvider } from './features/realtime/RealtimeProvider';
 import { AuthProvider } from './features/auth/AuthProvider';
@@ -25,6 +26,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <RealtimeProvider>
             <App />
+            <AppTooltip />
           </RealtimeProvider>
         </AuthProvider>
       </BrowserRouter>

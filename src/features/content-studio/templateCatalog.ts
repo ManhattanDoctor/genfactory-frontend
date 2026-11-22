@@ -8,6 +8,8 @@ const loaders: Record<string, () => Promise<{ default: Record<string, string> }>
 
 /** Native module caching shares one request per kind; cards never import prompt bodies. */
 export async function loadTemplate(card: ITemplateCard): Promise<ITemplate> {
+  if ('prompt' in card && typeof card.prompt === 'string' && card.prompt.trim())
+    return { ...card, prompt: card.prompt };
   const loader = loaders[card.kind];
   if (!loader) throw new Error('Неизвестный тип шаблона.');
   const prompts = (await loader()).default;

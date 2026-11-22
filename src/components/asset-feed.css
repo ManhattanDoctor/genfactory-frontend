@@ -1,0 +1,231 @@
+/* File and conversation cards use the same three rows as the designer's history feed. */
+.gf-section-main .library-page .asset-feed .artifact-body,
+.gf-section-main .library-page .asset-feed .library-card > .artifact-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  padding: 12px 12px 14px;
+  text-align: left;
+}
+.gf-section-main .library-page .asset-feed .artifact-body > * {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.gf-section-main .library-page .asset-feed .artifact-body .artifact-title {
+  margin: 0;
+  font-size: var(--title-size);
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--gf-text);
+}
+.gf-section-main .library-page .asset-feed .artifact-body > .artifact-source {
+  display: block;
+  align-self: start;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(221, 249, 74, 0.16);
+  color: #eef9a8;
+  font-size: var(--badge-size, 12px);
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.gf-section-main .library-page .asset-feed .artifact-body :is(.artifact-meta, .artifact-date),
+.gf-section-main
+  .library-page
+  .asset-feed
+  .artifact-body
+  :is(.artifact-meta, .artifact-date)
+  :is(span, time) {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--gf-text-3);
+  margin: 0;
+}
+.gf-section-main
+  .library-page
+  .asset-feed
+  .artifact-body
+  :is(.artifact-meta, .artifact-date)
+  :is(span, time) {
+  display: inline;
+}
+.gf-section-main .library-page .asset-feed .artifact-body .artifact-date {
+  margin-top: 6px;
+}
+.gf-section-main .library-page .asset-feed :is(.history-card, .file-entry) {
+  border-radius: 18px;
+  background: var(--gf-surface);
+  border: 1px solid transparent;
+}
+.gf-section-main .library-page .asset-feed .file-entry .library-card {
+  border: 0;
+}
+.gf-section-main .artifacts-page .history-view-list .history-card .artifact-preview-header {
+  display: block;
+}
+.gf-section-main .artifacts-page .history-view-list .artifact-body {
+  flex: 1;
+  min-width: 0;
+  align-self: center;
+}
+@media (max-width: 780px) {
+  .gf-section-main .library-page .asset-feed {
+    --badge-size: 11px;
+  }
+  .gf-section-main .library-page .asset-feed .artifact-body,
+  .gf-section-main .library-page .asset-feed .library-card > .artifact-body {
+    padding: 10px;
+  }
+}
+.gf-section-main .artifacts-page .history-view-list .artifact-body,
+.gf-section-main .artifacts-page .history-view-list .library-card > .artifact-body {
+  padding: 12px 14px;
+}
+
+.gf-section-main .library-page .asset-feed :is(.history-card, .file-entry) {
+  transition: border-color 0.2s var(--gf-ease);
+}
+.gf-section-main .library-page .asset-feed :is(.history-card, .file-entry):hover {
+  border-color: rgba(244, 244, 240, 0.12);
+}
+.gf-section-main .library-page .asset-feed :is(.history-actions, .file-actions) > summary {
+  width: var(--more-size, 36px);
+  height: var(--more-size, 36px);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  color: var(--gf-text);
+  background: rgba(7, 7, 8, 0.55);
+  backdrop-filter: blur(8px);
+  opacity: var(--more-visible, 0);
+  transition: opacity 0.15s var(--gf-ease);
+}
+.gf-section-main .library-page .asset-feed :is(.history-actions, .file-actions) > summary svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+  filter: none;
+}
+.library-page .asset-feed :is(.file-entry, .history-card):is(:hover, :focus-within),
+.library-page .asset-feed details[open],
+.artifacts-page .history-view-list {
+  --more-visible: 1;
+}
+@media (max-width: 780px), (hover: none) {
+  .library-page .asset-feed {
+    --more-visible: 1;
+  }
+}
+@media (max-width: 780px) {
+  .library-page .asset-feed {
+    --more-size: 40px;
+  }
+}
+.library-page .asset-feed [data-action-panel] {
+  --action-menu-gutter: 8px;
+  --action-menu-inset: 10px;
+}
+.library-page .asset-feed [data-action-panel]:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  max-width: var(--card-menu-width, 200px);
+  border: 1px solid rgba(244, 244, 240, 0.12);
+  border-radius: 14px;
+  background: #17171b;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  overflow: auto;
+}
+.library-page .asset-feed [data-action-panel] :is(button, a, .preview-menu-item) {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 40px;
+  height: auto;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--gf-text);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 400;
+  text-align: left;
+}
+.library-page .asset-feed [data-action-panel] :is(button, a, .preview-menu-item):hover:not(:disabled) {
+  background: rgba(244, 244, 240, 0.08);
+}
+.library-page .asset-feed .history-menu > :is(button, a) svg {
+  display: none;
+}
+.library-page .asset-feed [data-action-panel] .danger {
+  color: #ff8f8f;
+}
+.library-page .asset-feed :is(.history-actions, .file-actions) > summary circle {
+  r: 1.4px;
+}
+.library-page .asset-feed :is(.history-actions, .file-actions) > summary circle[cx='5'] {
+  cx: 6px;
+}
+.library-page .asset-feed :is(.history-actions, .file-actions) > summary circle[cx='19'] {
+  cx: 18px;
+}
+
+.library-page .library-grid.asset-feed {
+  --card-menu-width: 220px;
+  --media-ratio: 1;
+  --title-size: 14px;
+}
+.gf-section-main .library-page .library-grid.asset-feed .file-entry {
+  min-width: 0;
+  overflow: hidden;
+}
+.gf-section-main .library-page .library-grid.asset-feed .library-card {
+  display: block;
+  width: 100%;
+  padding: 0;
+}
+.gf-section-main .library-page .library-grid.asset-feed .library-media {
+  height: var(--media-h);
+  aspect-ratio: auto;
+}
+.library-page .asset-feed .file-folder-icon {
+  background: linear-gradient(165deg, #141418, #0c0c0f);
+  color: #e8c547;
+}
+.library-page .asset-feed .file-folder-icon svg:not(.lucide-folder-up) {
+  width: 56px;
+  height: 56px;
+  fill: currentColor;
+  stroke-width: 0;
+}
+@media (min-width: 901px) and (max-width: 1200px) {
+  .gf-section-main .library-page .library-grid.asset-feed {
+    --media-h: 180px;
+  }
+}
+@media (max-width: 780px) {
+  .library-page .library-grid.asset-feed {
+    --title-size: 13px;
+  }
+}

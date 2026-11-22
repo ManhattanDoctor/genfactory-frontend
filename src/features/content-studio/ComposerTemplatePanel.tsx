@@ -16,14 +16,14 @@ export function ComposerTemplatePanel({
   return (
     <div className="composer-template-options" aria-label="Параметры шаблона" role="group">
       <div className="composer-template-heading">
-        <span title={title}>{title}</span>
+        <span data-tooltip={title}>{title}</span>
         <button
           type="button"
           className="icon-button"
           disabled={disabled}
           onClick={onReset}
           aria-label="Сбросить шаблон"
-          title="Убрать шаблон и очистить текст запроса"
+          data-tooltip="Убрать шаблон и очистить текст запроса"
         >
           <X size={18} aria-hidden="true" />
         </button>

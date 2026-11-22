@@ -39,7 +39,7 @@ export function ComposerAttachment({
             {unavailable ? <FilePlaceholder file={file} /> : <Media file={file} isPlaybackDisabled />}
           </span>
           {label && (
-            <span className="composer-attachment-caption" title={label}>
+            <span className="composer-attachment-caption" data-tooltip={label}>
               {label}
             </span>
           )}

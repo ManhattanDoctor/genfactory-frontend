@@ -35,7 +35,7 @@ export function CollapsibleMessage({ children }: { children: ReactNode }) {
       {overflows && (
         <button
           type="button"
-          className="text-button"
+          className="text-button message-action"
           aria-controls={id}
           aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}

@@ -1,0 +1,262 @@
+[
+  {
+    "id": "format",
+    "label": "Формат",
+    "modes": ["image", "video"],
+    "hint": "Общий стиль картинки или ролика",
+    "options": [
+      {
+        "label": "Не задано",
+        "src": "/media/studio-settings/format-0.png"
+      },
+      {
+        "label": "UGC, съёмка на телефон",
+        "src": "/media/studio-settings/format-1.png"
+      },
+      {
+        "label": "Премиум, студийный свет",
+        "src": "/media/studio-settings/format-2.png"
+      },
+      {
+        "label": "Минимализм, чистый фон",
+        "src": "/media/studio-settings/format-3.png"
+      },
+      {
+        "label": "Динамичный, быстрый ритм",
+        "src": "/media/studio-settings/format-4.png"
+      }
+    ]
+  },
+  {
+    "id": "idea",
+    "label": "Идея",
+    "modes": ["image", "video"],
+    "hint": "Как открыть кадр для зрителя",
+    "options": [
+      {
+        "label": "Не задано",
+        "src": "/media/studio-settings/idea-0.png"
+      },
+      {
+        "label": "Начать с проблемы",
+        "src": "/media/studio-settings/idea-1.png"
+      },
+      {
+        "label": "Начать с вопроса",
+        "src": "/media/studio-settings/idea-2.png"
+      },
+      {
+        "label": "Сразу показать товар",
+        "src": "/media/studio-settings/idea-3.png"
+      },
+      {
+        "label": "Резкий старт",
+        "src": "/media/studio-settings/idea-4.png"
+      }
+    ]
+  },
+  {
+    "id": "place",
+    "label": "Обстановка",
+    "modes": ["image", "video"],
+    "hint": "Место действия в кадре",
+    "options": [
+      {
+        "label": "Не задано",
+        "src": "/media/studio-settings/setting-0.png"
+      },
+      {
+        "label": "Дома",
+        "src": "/media/studio-settings/setting-1.png"
+      },
+      {
+        "label": "На улице",
+        "src": "/media/studio-settings/setting-2.png"
+      },
+      {
+        "label": "В студии",
+        "src": "/media/studio-settings/setting-3.png"
+      },
+      {
+        "label": "В кафе",
+        "src": "/media/studio-settings/setting-4.png"
+      },
+      {
+        "label": "На природе",
+        "src": "/media/studio-settings/setting-5.png"
+      }
+    ]
+  },
+  {
+    "id": "camera_body",
+    "label": "Тип камеры",
+    "modes": ["video"],
+    "hint": "Характер картинки: телефон, плёнка или кино",
+    "options": [
+      {
+        "label": "Не задано",
+        "src": "/media/studio-settings/camera_body-0.png"
+      },
+      {
+        "label": "Телефон",
+        "src": "/media/studio-settings/camera_body-1.png"
+      },
+      {
+        "label": "Super 8",
+        "src": "/media/studio-settings/camera_body-2.png"
+      },
+      {
+        "label": "Super 16",
+        "src": "/media/studio-settings/camera_body-3.png"
+      },
+      {
+        "label": "Полный кадр",
+        "src": "/media/studio-settings/camera_body-4.png"
+      },
+      {
+        "label": "Кинокамера",
+        "src": "/media/studio-settings/camera_body-5.png"
+      }
+    ]
+  },
+  {
+    "id": "camera",
+    "label": "Камера",
+    "modes": ["video"],
+    "hint": "Как держим камеру и какой ракурс",
+    "options": [
+      {
+        "label": "Авто",
+        "src": "/media/studio-settings/camera-0.png"
+      },
+      {
+        "label": "Статичная",
+        "src": "/media/studio-settings/camera-1.png"
+      },
+      {
+        "label": "С телефона",
+        "src": "/media/studio-settings/camera-2.png"
+      },
+      {
+        "label": "С рук",
+        "src": "/media/studio-settings/camera-3.png"
+      },
+      {
+        "label": "Низкий угол",
+        "src": "/media/studio-settings/camera-4.png"
+      },
+      {
+        "label": "Сверху",
+        "src": "/media/studio-settings/camera-5.png"
+      }
+    ]
+  },
+  {
+    "id": "move",
+    "label": "Движение",
+    "modes": ["video"],
+    "hint": "Как двигается камера",
+    "options": [
+      {
+        "label": "Нет",
+        "src": "/media/studio-settings/motion-0.png"
+      },
+      {
+        "label": "Наезд",
+        "src": "/media/studio-settings/motion-1.png"
+      },
+      {
+        "label": "Отъезд",
+        "src": "/media/studio-settings/motion-2.png"
+      },
+      {
+        "label": "Объезд",
+        "src": "/media/studio-settings/motion-3.png"
+      },
+      {
+        "label": "Слежение",
+        "src": "/media/studio-settings/motion-4.png"
+      }
+    ]
+  },
+  {
+    "id": "lens",
+    "label": "Линза",
+    "modes": ["video"],
+    "hint": "Крупность и характер кадра",
+    "options": [
+      {
+        "label": "Авто",
+        "src": "/media/studio-settings/lens-0.png"
+      },
+      {
+        "label": "24 мм",
+        "src": "/media/studio-settings/lens-1.png"
+      },
+      {
+        "label": "35 мм",
+        "src": "/media/studio-settings/lens-2.png"
+      },
+      {
+        "label": "50 мм",
+        "src": "/media/studio-settings/lens-3.png"
+      },
+      {
+        "label": "85 мм",
+        "src": "/media/studio-settings/lens-4.png"
+      },
+      {
+        "label": "Макро",
+        "src": "/media/studio-settings/lens-5.png"
+      }
+    ]
+  },
+  {
+    "id": "light",
+    "label": "Свет",
+    "modes": ["video"],
+    "hint": "День, студия, закат или ночь",
+    "options": [
+      {
+        "label": "Авто",
+        "src": "/media/studio-settings/light-0.png"
+      },
+      {
+        "label": "Дневной",
+        "src": "/media/studio-settings/light-1.png"
+      },
+      {
+        "label": "Студия",
+        "src": "/media/studio-settings/light-2.png"
+      },
+      {
+        "label": "Золотой час",
+        "src": "/media/studio-settings/light-3.png"
+      },
+      {
+        "label": "Ночь",
+        "src": "/media/studio-settings/light-4.png"
+      }
+    ]
+  },
+  {
+    "id": "quality",
+    "label": "Качество",
+    "modes": ["video"],
+    "hint": "Обычной чёткости хватает для соцсетей",
+    "options": [
+      {
+        "label": "480p",
+        "src": "/media/studio-settings/quality-0.png"
+      },
+      {
+        "label": "720p",
+        "src": "/media/studio-settings/quality-1.png"
+      },
+      {
+        "label": "1080p",
+        "src": "/media/studio-settings/quality-2.png"
+      }
+    ]
+  }
+]

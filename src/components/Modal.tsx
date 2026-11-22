@@ -50,7 +50,7 @@ export function Modal({
         </button>
       ) : (
         <div className="modal-head">
-          <h2 id={titleId} title={title}>
+          <h2 id={titleId} data-tooltip={title}>
             {title}
           </h2>
           <div className="modal-head-actions">

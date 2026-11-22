@@ -1,3 +1,6 @@
+import { VideoDuration } from '../../components/VideoDuration';
+import { Modal } from '../../components/Modal';
+import { ImageAspectGrid } from '../studio/ImageAspectGrid';
 import { StudioQueuePanel } from './StudioQueuePanel';
 import { ComposerTemplatePanel } from './ComposerTemplatePanel';
 import { RequiredPhotoSlots } from '../../components/RequiredPhotoSlots';
@@ -15,6 +18,7 @@ import { StudioTemplateGallery } from './StudioTemplateGallery';
 import { useStudioCatalog, useStudioModels } from './useStudioModels';
 import { useStudioQuestion } from './useStudioQuestion';
 import { buildStudioMessage } from './buildStudioMessage';
+import designSettings from './designSettings.json';
 import { fields, modes, SCRIPT_WRITER_ENABLED } from './studioConfig';
 import type { StudioMode, IAttachment, IReferenceDraft } from './studioTypes';
 import { StudioAttachments } from './StudioAttachments';
@@ -55,14 +59,17 @@ import {
 } from '../catalog/videoInputs';
 import { mediaOptions } from './request';
 import { UploadButtonContent } from '../../components/UploadButtonContent';
-import { ArrowUp, Plus, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowUp, Plus, X, Menu, LayoutGrid, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LibraryPicker } from '../../components/LibraryPicker';
 import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
 import { toggleItem, usePreferences } from '../workspace/preferences';
 import { defaultAssistant } from '../catalog/defaultAssistant';
 import { modelKey, modelTitle } from '../catalog/presentation';
-import templates from './templates.json';
+import archiveTemplates from './templates.json';
+import { studioTemplates } from './designTemplates';
+const templates = [...studioTemplates, ...archiveTemplates];
 import './prototype.css';
 import './content-studio.css';
 
@@ -121,10 +128,13 @@ export function ContentStudio(): ReactElement {
     }
   });
   const [mode, setMode] = useState<StudioMode>('image');
+  const [expandedSetting, setExpandedSetting] = useState<string>();
   const [panel, setPanel] = useState('templates');
   const [selectedModel, setSelectedModel] = useState('Auto');
   const catalog = useStudioCatalog(mode, user?.id);
-  const [galleryHidden, setGalleryHidden] = useState(false);
+  const [galleryHidden, setGalleryHidden] = useState(
+    () => localStorage.getItem('genfactory.rail-open') !== '1',
+  );
   const [width, setWidth] = useState(() => {
     const saved = localStorage.getItem('genfactory.content-gallery-width');
     return ['s', 'm', 'l'].includes(saved || '') ? saved! : 'm';
@@ -243,7 +253,7 @@ export function ContentStudio(): ReactElement {
     setFrameSlot(undefined);
     work.setError('');
   };
-  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 720px)').matches);
+  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 780px)').matches);
   const sheet = useRef<HTMLDialogElement>(null);
   const studio = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -268,12 +278,16 @@ export function ContentStudio(): ReactElement {
       element.style.removeProperty('--studio-visible-height');
     };
   }, [mobile]);
+  const [mobileSettings, setMobileSettings] = useState(false);
   const [mobileGallery, setMobileGallery] = useState(false);
   useEffect(() => {
-    const query = window.matchMedia('(max-width: 720px)');
+    const query = window.matchMedia('(max-width: 780px)');
     const change = () => {
       setMobile(query.matches);
-      if (!query.matches) setMobileGallery(false);
+      if (!query.matches) {
+        setMobileGallery(false);
+        setMobileSettings(false);
+      }
     };
     query.addEventListener('change', change);
     return () => query.removeEventListener('change', change);
@@ -293,20 +307,22 @@ export function ContentStudio(): ReactElement {
     },
     [],
   );
-  useEffect(() => {
-    if (textarea.current) {
-      textarea.current.style.height = '72px';
-    }
-  }, [draft]);
-  const current = useMemo(() => (templates as ITemplateCard[]).filter((t) => t.kind === mode), [mode]);
+  const current = useMemo(
+    () => (mode === 'presentation' ? archiveTemplates : studioTemplates).filter((t) => t.kind === mode),
+    [mode],
+  );
   const genres = useMemo(
-    () => [...new Set(current.map((t) => t.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru')),
+    () => [...new Set(current.flatMap((t: ITemplateCard) => t.tags || [t.genre]).filter(Boolean))],
     [current],
   );
   const visible = useMemo(() => {
     const favoriteIds = new Set(favorites);
     return current
-      .filter((t) => (!genre || t.genre === genre) && (!favoritesOnly || favoriteIds.has(t.id)))
+      .filter(
+        (t) =>
+          (!genre || ((t as ITemplateCard).tags || [t.genre]).includes(genre)) &&
+          (!favoritesOnly || favoriteIds.has(t.id)),
+      )
       .sort(
         (a, b) =>
           (b.addedAt || '').localeCompare(a.addedAt || '') ||
@@ -398,7 +414,7 @@ export function ContentStudio(): ReactElement {
   const visibleFields = fields.filter(
     (field) =>
       mode !== 'presentation' &&
-      (mode === 'video' || !['camera', 'move'].includes(field.id)) &&
+      field.modes.includes(mode) &&
       (field.id !== 'quality' || qualityOptions.length > 0),
   );
   const settingsChanged =
@@ -1148,33 +1164,14 @@ export function ContentStudio(): ReactElement {
       {mode === 'video' && (
         <>
           {(!model || modelProperties.duration) && (
-            <div className="cw-stepper" role="group" aria-label="Длительность видео" aria-disabled={busy}>
-              <button
-                type="button"
-                aria-label="Короче"
-                disabled={busy || !durations.some((value) => value < duration)}
-                onClick={() =>
-                  setDuration(
-                    [...durations].sort((a, b) => b - a).find((value) => value < duration) ?? duration,
-                  )
-                }
-              >
-                -
-              </button>
-              <span>{duration} с</span>
-              <button
-                type="button"
-                aria-label="Длиннее"
-                disabled={busy || !durations.some((value) => value > duration)}
-                onClick={() =>
-                  setDuration(
-                    [...durations].sort((a, b) => a - b).find((value) => value > duration) ?? duration,
-                  )
-                }
-              >
-                +
-              </button>
-            </div>
+            <VideoDuration
+              values={durations}
+              value={duration}
+              disabled={busy || work.busy}
+              mobile={mobile}
+              label="Длительность видео"
+              onChange={setDuration}
+            />
           )}
           {soundOptions.length > 0 && (
             <StudioMenu disabled={busy} label={effectiveSound} options={soundOptions} onSelect={setSound} />
@@ -1187,7 +1184,7 @@ export function ContentStudio(): ReactElement {
           />
         </>
       )}
-      {mode !== 'presentation' && ratioOptions.length > 0 && (
+      {!mobile && mode !== 'presentation' && ratioOptions.length > 0 && (
         <StudioMenu
           disabled={busy || referenceRatio}
           label={referenceRatio ? 'По исходному кадру' : effectiveRatio}
@@ -1209,67 +1206,75 @@ export function ContentStudio(): ReactElement {
         >
           <X size={20} aria-hidden="true" />
         </button>
-        <div className="cw-gallery-tabs ds-tabs" role="tablist" aria-label="Шаблоны или настройки">
+        <div className="cw-gallery-tabs" role="tablist" aria-label="Шаблоны или настройки">
           {['templates', 'settings'].map((key, index) => (
             <button
               key={key}
               type="button"
               role="tab"
               aria-selected={panel === key}
-              aria-label={key === 'settings' && settingsChanged ? 'Настройки, есть изменения' : undefined}
-              title={key === 'settings' && settingsChanged ? 'Есть изменения' : undefined}
+              aria-label={index ? (settingsChanged ? 'Настройки, есть изменения' : 'Настройки') : 'Шаблоны'}
+              data-tooltip={key === 'settings' && settingsChanged ? 'Есть изменения' : undefined}
               onClick={() => setPanel(key)}
             >
-              {index ? 'Настройки' : 'Шаблоны'}
+              {index ? <Sun size={18} aria-hidden /> : <LayoutGrid size={18} aria-hidden />}
+              <span className="studio-tab-label">{index ? 'Настройки' : 'Шаблоны'}</span>
               {key === 'settings' && settingsChanged && (
                 <span className="settings-change-dot" aria-hidden="true" />
               )}
             </button>
           ))}
-          <i
-            className="cw-tab-rail"
-            aria-hidden="true"
-            style={{ width: '50%', transform: `translateX(${panel === 'settings' ? '100%' : '0'})` }}
-          />
         </div>
-        <button
-          type="button"
-          className="cw-width"
-          data-size={width}
-          aria-label={`Ширина галереи: ${{ s: 'узкая', m: 'средняя', l: 'широкая' }[width]}`}
-          onClick={() => {
-            const next = ['s', 'm', 'l'][(['s', 'm', 'l'].indexOf(width) + 1) % 3];
-            setWidth(next);
-            localStorage.setItem('genfactory.content-gallery-width', next);
-          }}
-        >
-          <i />
-          <i />
-          <i />
-        </button>
+        {!mobile && (
+          <div className="studio-width">
+            {[1, -1].map((direction) => {
+              const sizes = ['s', 'm', 'l'];
+              const next = sizes[sizes.indexOf(width) + direction];
+              return (
+                <button
+                  type="button"
+                  key={direction}
+                  disabled={!next}
+                  aria-label={direction > 0 ? 'Сделать панель шире' : 'Сделать панель уже'}
+                  onClick={() => {
+                    setWidth(next);
+                    localStorage.setItem('genfactory.content-gallery-width', next);
+                  }}
+                >
+                  {direction > 0 ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
+      {!mobile && panel === 'templates' && (
+        <p className="rail-hint">Клик по шаблону подставит текст в поле</p>
+      )}
       <div className="cw-gallery-body">
         {panel === 'templates' ? (
-          <StudioTemplateGallery
-            genre={genre}
-            setGenre={setGenre}
-            favoritesOnly={favoritesOnly}
-            setFavoritesOnly={setFavoritesOnly}
-            favorites={favorites}
-            toggleFavorite={toggleFavorite}
-            genres={genres}
-            visible={visible}
-            busy={busy}
-            pick={pick}
-          />
+          <>
+            <StudioTemplateGallery
+              genre={genre}
+              setGenre={setGenre}
+              favoritesOnly={favoritesOnly}
+              setFavoritesOnly={setFavoritesOnly}
+              favorites={favorites}
+              toggleFavorite={toggleFavorite}
+              genres={genres}
+              visible={visible}
+              busy={busy}
+              pick={pick}
+            />
+          </>
         ) : (
           <div className="cw-settings-pane">
-            {mobile && <div className="mobile-generation-controls">{generationControls}</div>}
-            {settingsChanged && (
-              <button className="button" type="button" disabled={busy} onClick={resetSettings}>
-                Сбросить к умолчанию
-              </button>
-            )}
+            <p className="settings-intro">
+              {mode === 'video'
+                ? 'Подсказки для ролика - можно ничего не менять'
+                : 'Подсказки для картинки - можно ничего не менять'}
+            </p>
+
             {SCRIPT_WRITER_ENABLED && (
               <div className="cw-extra-toggles">
                 <Toggle
@@ -1283,83 +1288,177 @@ export function ContentStudio(): ReactElement {
             {mode === 'presentation' ? (
               <p className="cw-settings-empty">Для презентации дополнительных настроек съёмки нет.</p>
             ) : (
-              <div className="cw-shoot">
+              <div className="studio-setting-list">
                 {mode === 'video' &&
-                  (['start', 'end'] as const).map((slot) => (
-                    <div className="cw-shoot-line" key={slot}>
+                  (['start', 'end'] as const).map((slot) => {
+                    const frame = attachments.find((item) => item.slot === slot);
+                    return (
+                      <div className={'settings-row' + (frameMenu === slot ? ' is-open' : '')} key={slot}>
+                        <button
+                          className="settings-row-head"
+                          aria-expanded={frameMenu === slot}
+                          data-tooltip={
+                            attachments.some((file) => !file.slot)
+                              ? 'Уберите обычные референсы перед выбором опорных кадров.'
+                              : undefined
+                          }
+                          disabled={
+                            busy ||
+                            attachments.some((file) => !file.slot) ||
+                            (!writer && !!model && referenceLimit(model) < (slot === 'end' ? 2 : 1))
+                          }
+                          type="button"
+                          onClick={() => {
+                            setExpandedSetting(undefined);
+                            setFrameMenu(frameMenu === slot ? undefined : slot);
+                          }}
+                        >
+                          <span className="settings-row-title">
+                            {slot === 'start' ? 'Начальный кадр' : 'Конечный кадр'}
+                          </span>
+                          <span className="settings-row-value">
+                            {frame?.url && <img className="settings-row-thumb" src={frame.url} alt="" />}
+                            <span>{frame?.name || 'Не задан'}</span>
+                          </span>
+                        </button>
+                        {frameMenu === slot && (
+                          <div className="settings-row-body studio-frame-body">
+                            <p className="settings-hint">
+                              {slot === 'start'
+                                ? 'Своё фото - с него начнётся ролик'
+                                : 'Куда ролик должен прийти в финале'}
+                            </p>
+                            <div className="studio-frame-wrap">
+                              <button
+                                type="button"
+                                className="studio-frame-slot"
+                                aria-label={
+                                  slot === 'start' ? 'Выбрать начальный кадр' : 'Выбрать конечный кадр'
+                                }
+                                popoverTarget={'frame-sources-' + slot}
+                              >
+                                {frame?.url ? <img src={frame.url} alt="" /> : <Plus size={18} />}
+                              </button>
+                              {frame && (
+                                <button
+                                  type="button"
+                                  className="studio-frame-remove"
+                                  aria-label="Убрать кадр"
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setAttachments((previous) =>
+                                      previous.filter((item) => item.slot !== slot),
+                                    );
+                                    studioDraft.changed();
+                                  }}
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                            <div id={'frame-sources-' + slot} className="content-frame-menu" popover="auto">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFrameSlot(slot);
+                                  setFrameMenu(undefined);
+                                  input.current?.click();
+                                }}
+                              >
+                                Загрузить
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFrameSlot(slot);
+                                  setFrameMenu(undefined);
+                                  setPanel('templates');
+                                }}
+                              >
+                                Выбрать шаблон
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFrameMenu(undefined);
+                                  setFrameSlot(undefined);
+                                  if (!user) void signIn();
+                                  else setLibrary({ scope: draftScope, slot });
+                                }}
+                              >
+                                Из библиотеки
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                {visibleFields.map((f) => {
+                  const value = f.id === 'quality' ? effectiveQuality : settings[f.id] || f.options[0];
+                  const thumbs = designSettings.find((g) => g.id === f.id)!.options;
+                  const preview = thumbs.find((o) => o.label === value)?.src;
+                  const open = expandedSetting === f.id;
+                  return (
+                    <div className={'settings-row' + (open ? ' is-open' : '')} key={f.id}>
                       <button
-                        className="cw-shoot-row"
-                        title={
-                          attachments.some((file) => !file.slot)
-                            ? 'Уберите обычные референсы перед выбором опорных кадров.'
-                            : undefined
-                        }
-                        disabled={
-                          busy ||
-                          attachments.some((file) => !file.slot) ||
-                          (!writer && !!model && referenceLimit(model) < (slot === 'end' ? 2 : 1))
-                        }
                         type="button"
-                        onClick={() => setFrameMenu(frameMenu === slot ? undefined : slot)}
+                        className="settings-row-head"
+                        disabled={busy}
+                        aria-expanded={open}
+                        onClick={() => {
+                          setFrameMenu(undefined);
+                          setExpandedSetting(open ? undefined : f.id);
+                        }}
                       >
-                        <span>{slot === 'start' ? 'Начальный кадр' : 'Конечный кадр'}</span>
-                        <b>{attachments.find((f) => f.slot === slot)?.name || 'Не задан'}</b>
+                        <span className="settings-row-title">{f.label}</span>
+                        <span className="settings-row-value">
+                          {preview && <img className="settings-row-thumb" alt="" src={preview} />}
+                          <span>{value}</span>
+                        </span>
                       </button>
-                      {frameMenu === slot && (
-                        <div className="content-frame-menu">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFrameSlot(slot);
-                              setFrameMenu(undefined);
-                              input.current?.click();
-                            }}
-                          >
-                            Загрузить
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFrameSlot(slot);
-                              setFrameMenu(undefined);
-                              setPanel('templates');
-                            }}
-                          >
-                            Выбрать шаблон
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFrameMenu(undefined);
-                              setFrameSlot(undefined);
-                              if (!user) void signIn();
-                              else setLibrary({ scope: draftScope, slot });
-                            }}
-                          >
-                            Из библиотеки
-                          </button>
+                      {open && (
+                        <div className="settings-row-body">
+                          <p className="settings-hint">{f.hint}</p>
+                          <div className="settings-pick-grid">
+                            {(f.id === 'quality' ? qualityOptions : f.options).map((label) => {
+                              const src = thumbs.find((o) => o.label === label)?.src;
+                              return (
+                                <button
+                                  type="button"
+                                  key={label}
+                                  className={
+                                    'settings-card' +
+                                    (value === label
+                                      ? ['Не задано', 'Авто', 'Нет'].includes(label)
+                                        ? ' is-selected is-quiet'
+                                        : ' is-selected'
+                                      : '')
+                                  }
+                                  disabled={busy}
+                                  aria-pressed={value === label}
+                                  onClick={() => {
+                                    setSettings((current) => ({ ...current, [f.id]: label }));
+                                  }}
+                                >
+                                  <span className="settings-card-preview">
+                                    {src && <img src={src} loading="lazy" alt="" />}
+                                  </span>
+                                  <span className="settings-card-label">{label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>
-                  ))}
-                {visibleFields.map((f) => (
-                  <StudioMenu
-                    disabled={busy}
-                    key={f.id}
-                    fieldId={f.id}
-                    showPreviews={mode === 'video'}
-                    label={f.label}
-                    value={f.id === 'quality' ? effectiveQuality : settings[f.id]}
-                    className="cw-shoot-row"
-                    options={f.id === 'quality' ? qualityOptions : f.options}
-                    onSelect={(value) => {
-                      if (f.id === 'quality' && mode === 'image') setImageQuality(value);
-                      else setSettings((s) => ({ ...s, [f.id]: value }));
-                    }}
-                  />
-                ))}
+                  );
+                })}
               </div>
             )}
+            <button className="button" type="button" disabled={busy} onClick={resetSettings}>
+              Сбросить к обычному
+            </button>
           </div>
         )}
       </div>
@@ -1368,11 +1467,41 @@ export function ContentStudio(): ReactElement {
 
   return (
     <div ref={studio} className={`content-studio ${mobileGallery ? 'mobile-gallery-open' : ''}`}>
-      <div id="creatives" className="panel ms-dots">
+      <div id="creatives" className="panel">
         <div className="cw" id="creative-workspace" data-gallery={width} data-gallery-hidden={galleryHidden}>
           <section className="cw-chat" aria-label="Чат проекта">
             <div className="cw-stage">
               <div className="cw-thread">
+                {!work.id && !work.conversation && (
+                  <div className="studio-intro">
+                    <h2>Генерация в диалоге</h2>
+                    <p>Опишите кадр или правку - следующее сообщение продолжит работу с результатом.</p>
+                    <div className="starter-list">
+                      {[
+                        ['image', 'Сделай обложку для поста: товар на чистом фоне, мягкий свет'],
+                        ['image', 'Перерисуй приложенное фото в более тёплый свет и квадратный кадр'],
+                        ['video', 'Короткий ролик 8 с: камера медленно объезжает предмет'],
+                      ].map(([kind, text]) => (
+                        <button
+                          type="button"
+                          key={text}
+                          disabled={busy}
+                          className="starter-btn"
+                          onClick={() => {
+                            clearTemplateFields();
+                            setMode(kind === 'video' ? 'video' : 'image');
+                            setSelectedModel('Auto');
+                            studioDraft.changed();
+                            setDraft(text);
+                            textarea.current?.focus();
+                          }}
+                        >
+                          {text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {work.conversation && (
                   <ContentThread
                     thread={work.thread}
@@ -1543,12 +1672,12 @@ export function ContentStudio(): ReactElement {
                       }
                       id="cw-draft"
                       className="ds-field"
-                      rows={3}
+                      rows={2}
                       value={draft}
                       placeholder={
-                        mode === 'video' && supportsVideoReferences(model)
-                          ? 'Опишите сюжет и движение. Можно добавить свои фото и видео - укажите, что использовать как образец, что изменить и что сохранить.'
-                          : 'Опишите идею и желаемый результат. Можно добавить свои изображения - объясните, как их использовать и какие детали сохранить.'
+                        mode === 'video'
+                          ? 'Что происходит в ролике? Кто в кадре, куда едет камера.'
+                          : 'Опишите задачу или правку. Можно приложить фото.'
                       }
                       onChange={(e) => {
                         const text = e.target.value;
@@ -1573,7 +1702,7 @@ export function ContentStudio(): ReactElement {
                     type="button"
                     aria-label="Добавить файл"
                     disabled={busy || attachments.some((file) => file.slot)}
-                    title={
+                    data-tooltip={
                       attachments.some((file) => file.slot)
                         ? 'Меняйте опорные кадры в настройках или уберите их перед добавлением обычных референсов.'
                         : needsTemplateImages
@@ -1594,8 +1723,9 @@ export function ContentStudio(): ReactElement {
                     key={mode}
                     kind={mode}
                     models={catalog.data || []}
-                    mobile={mobile}
+                    mobile={false}
                     studio
+                    composer
                     disabled={busy}
                     label={model ? modelTitle(model) : 'Выбрать модель'}
                     selected={model ? modelKey(model) : selectedModel}
@@ -1618,12 +1748,8 @@ export function ContentStudio(): ReactElement {
                       type="button"
                       className="mobile-gallery-toggle"
                       aria-haspopup="dialog"
-                      aria-controls="studio-gallery"
-                      aria-expanded={mobileGallery}
-                      onClick={() => {
-                        setPanel('settings');
-                        setMobileGallery(true);
-                      }}
+                      aria-expanded={mobileSettings}
+                      onClick={() => setMobileSettings(true)}
                     >
                       Ещё
                     </button>
@@ -1662,22 +1788,81 @@ export function ContentStudio(): ReactElement {
               </form>
             </div>
           </section>
-          <button
-            type="button"
-            className="icon-button shell-collapse gallery-collapse"
-            aria-label={galleryHidden ? 'Показать галерею' : 'Скрыть галерею'}
-            title={galleryHidden ? 'Показать галерею' : 'Скрыть галерею'}
-            aria-expanded={!galleryHidden}
-            aria-controls="studio-gallery"
-            onClick={() => setGalleryHidden((hidden) => !hidden)}
-          >
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-          </button>
+          {!mobile && (
+            <div className={galleryHidden ? 'studio-strip' : 'studio-fold'}>
+              <button
+                aria-label={galleryHidden ? 'Развернуть панель' : 'Свернуть панель'}
+                aria-expanded={!galleryHidden}
+                onClick={() => {
+                  setGalleryHidden(!galleryHidden);
+                  localStorage.setItem('genfactory.rail-open', galleryHidden ? '1' : '0');
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  aria-hidden="true"
+                >
+                  <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+                  <path d="M15 7.5v9" strokeLinecap="round" />
+                </svg>
+              </button>
+              {galleryHidden &&
+                ['templates', 'settings'].map((key) => (
+                  <button
+                    key={key}
+                    aria-label={key === 'templates' ? 'Шаблоны' : 'Настройки'}
+                    onClick={() => {
+                      setPanel(key);
+                      setGalleryHidden(false);
+                      localStorage.setItem('genfactory.rail-open', '1');
+                    }}
+                  >
+                    {key === 'templates' ? <LayoutGrid size={20} /> : <Sun size={20} />}
+                  </button>
+                ))}
+            </div>
+          )}
+          {mobile &&
+            document.getElementById('studio-mobile-actions') &&
+            createPortal(
+              <button
+                className="gf-sidebar-toggle"
+                aria-label="Шаблоны и настройки"
+                aria-expanded={mobileGallery}
+                onClick={() => setMobileGallery(true)}
+              >
+                <Menu size={18} />
+              </button>,
+              document.getElementById('studio-mobile-actions')!,
+            )}
+          {mobile && mobileSettings && (
+            <Modal
+              title="Кадр и длина"
+              className="design-image-settings"
+              onClose={() => setMobileSettings(false)}
+            >
+              <p className="aspect-title">Размер кадра</p>
+              <ImageAspectGrid
+                values={ratioOptions}
+                selected={effectiveRatio}
+                disabled={busy || referenceRatio}
+                onSelect={(value) => {
+                  setRatio(value);
+                  setMobileSettings(false);
+                }}
+              />
+              {mode === 'video' && <div className="mobile-generation-controls">{generationControls}</div>}
+            </Modal>
+          )}
           {mobile ? (
             <dialog
               ref={sheet}
-              className="studio-mobile-sheet"
+              className="studio-mobile-sheet studio-gallery-sheet"
               aria-label="Шаблоны и настройки"
               onClose={() => setMobileGallery(false)}
               onClick={(event) => {

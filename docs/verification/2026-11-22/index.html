@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><title>
+    Сравнение экранов GenFactory</title
+  ><style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      color: #f4f4f0;
+      background: #111114;
+      font:
+        15px system-ui,
+        sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    select {
+      padding: 8px;
+      border-radius: 8px;
+      background: #202025;
+      color: inherit;
+      font: inherit;
+    }
+    figure {
+      margin: 16px 0;
+    }
+    figcaption {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    figure.phone {
+      max-width: 788px;
+      margin-inline: auto;
+    }
+  </style>
+  <header>
+    <label
+      >Экран
+      <select id="screen"></select></label
+    ><label
+      >Ширина окна
+      <select id="size">
+        <option value="1440">1440 px</option>
+        <option value="390">390 px</option>
+      </select></label
+    ><a style="color: #ddf94a" id="full">Открыть в исходном размере</a>
+  </header>
+  <figure>
+    <figcaption><span>Дизайнер</span><span>Рабочий аккаунт</span></figcaption>
+    <img alt="Сравнение выбранного состояния" />
+  </figure>
+  <script>
+    const screenSelect = document.getElementById('screen');
+    const size = document.getElementById('size');
+    for (const [title, file] of [
+      ['Изображения', 'image'],
+      ['Изображения · Выбор модели', 'model'],
+      ['Изображения · Пропорции кадра', 'aspect'],
+      ['Видео', 'video'],
+      ['Видео · Параметры видео', 'video-settings'],
+      ['Студия контента', 'chat'],
+      ['Студия контента · Панель настроек', 'settings'],
+      ['Главная', 'home'],
+      ['Главная · Дайджест модели', 'digest'],
+      ['История', 'artifacts'],
+      ['История · Меню карточки', 'history-menu'],
+      ['Библиотека', 'library'],
+      ['Библиотека · Новая папка', 'new-folder'],
+      ['Мой аккаунт', 'account'],
+      ['Мой аккаунт · Пополнение', 'topup'],
+    ])
+      screenSelect.add(new Option(title, file));
+    function update() {
+      const file = screenSelect.value + '-' + size.value + '.webp';
+      document.querySelector('img').src = file;
+      document.getElementById('full').href = file;
+      document.querySelector('figure').classList.toggle('phone', size.value === '390');
+    }
+    screenSelect.onchange = size.onchange = update;
+    update();
+  </script>
+</html>

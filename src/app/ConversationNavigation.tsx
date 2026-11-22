@@ -73,7 +73,7 @@ export function ConversationNavigation({
               }
               to={`${path}?conversation=${c.id}`}
               onClick={onNavigate}
-              title={c.name}
+              data-tooltip={c.name}
             >
               <span>{c.name || 'Диалог'}</span>
             </Link>

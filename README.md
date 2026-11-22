@@ -7,6 +7,7 @@
 Node.js 20.19+ или 22.12+.
 
 ```sh
+git submodule update --init
 npm ci
 cp .env.example .env
 npm run dev

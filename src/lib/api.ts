@@ -1,3 +1,4 @@
+import { AI_MODEL_TIMEOUT } from '../../vendor/gnosis-common/ai/requestTimeout.json';
 import { sessionService, SESSION_KEY } from './SessionService';
 export { SESSION_KEY };
 export { sessionService } from './SessionService';
@@ -203,6 +204,7 @@ export const api = {
       '/task',
       {
         method: 'POST',
+        signal: AbortSignal.timeout(AI_MODEL_TIMEOUT),
         outcomeHint: 'Проверьте результат перед повторной отправкой.',
         body: JSON.stringify({ ...body, options: { ...body.options, ...(tools ? { tools } : {}) } }),
       },
@@ -386,6 +388,7 @@ export const api = {
       `/conversation/${id}/message`,
       {
         method: 'POST',
+        signal: AbortSignal.timeout(AI_MODEL_TIMEOUT),
         outcomeHint: 'Проверьте историю перед повторной отправкой.',
         body: JSON.stringify({ ...body, settings: { ...body.settings, tools } }),
       },
@@ -446,7 +449,6 @@ export const api = {
     tagMatch: 'all' | 'any' = 'all',
     signal?: AbortSignal,
     pageSize = 24,
-    foldersFirst = false,
   ) => {
     const conditions: Record<string, unknown> = {};
     if (!search && !tags.length)
@@ -479,7 +481,7 @@ export const api = {
       conditions.mime = { condition: 'CONTAINS', type: 'STRING', value: `${type.toLowerCase()}/%` };
 
     return request<IPagination<IGnosisFile>>(
-      `/file?${new URLSearchParams({ pageSize: String(pageSize), pageIndex: String(page), ...(foldersFirst && { foldersFirst: 'true' }), sort: JSON.stringify(foldersFirst ? { createdDate: false, id: false } : { createdDate: false }), conditions: JSON.stringify(conditions) })}`,
+      `/file?${new URLSearchParams({ pageSize: String(pageSize), pageIndex: String(page), foldersFirst: 'true', sort: JSON.stringify({ createdDate: false, id: false }), conditions: JSON.stringify(conditions) })}`,
       { signal },
     );
   },

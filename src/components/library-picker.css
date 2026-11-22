@@ -17,131 +17,34 @@
   padding: 4px 4px var(--pagination-space);
   margin: -4px -4px 0;
 }
-.library-picker .file-breadcrumbs {
-  min-height: 28px;
-  margin-bottom: 6px;
-}
-.library-picker .file-breadcrumbs:empty {
-  display: none;
-}
-.library-picker .file-toolbar {
-  flex-wrap: nowrap;
-  gap: 6px;
-}
-.library-picker .file-toolbar > input:not([hidden]) {
-  flex: 1 1 0;
-  min-height: 36px;
-  padding: 8px 10px;
-  font-size: 13px;
-  border-radius: 9px;
-}
-.library-picker .file-toolbar .button {
-  flex: 0 0 auto;
-  width: 36px;
-  min-width: 36px;
-  max-width: 36px;
-  flex-basis: 36px;
-  min-height: 36px;
-  padding: 0;
-  border-radius: 9px;
-}
-.library-picker .file-toolbar .file-action-label {
-  display: none;
-}
-.library-picker .file-toolbar .button[aria-busy='true'] {
-  width: auto;
-  max-width: none;
-  flex-basis: auto;
-  padding: 0 8px;
-}
-.library-picker .file-filters {
-  display: flex;
-  flex-wrap: wrap;
+dialog.modal.library-picker > .library-selection-bar {
+  background: inherit;
+  border-color: rgba(244, 244, 240, 0.08);
   align-items: center;
-  justify-content: space-between;
-  gap: 6px 12px;
-  margin: 8px 0 12px;
+  gap: 8px;
+  padding-block: 12px max(12px, env(safe-area-inset-bottom));
 }
-.library-picker .file-filters > .chips {
-  margin: 0;
-  gap: 4px;
-}
-.modal.library-picker .file-browser .chips[aria-label='Тип файлов'] .chip {
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
-  padding: 0;
-}
-.library-picker .file-tag-filter {
-  margin: 0;
-  gap: 6px;
-}
-.library-picker .file-tag-filter .workspace-details {
-  margin: 0;
-}
-.library-picker .file-tag-filter summary {
-  padding: 6px 0;
-  font-size: 12px;
-}
-.library-picker .file-tag-filter:has(details[open]),
-.library-picker .file-tag-filter:has([aria-label='Выбранные теги']) {
-  flex-basis: 100%;
-}
-.library-picker .library-grid {
-  gap: 10px;
-}
-.library-selection-bar span {
-  font-size: 12px;
-}
-.library-selection-bar .button {
-  min-height: 36px;
-  padding: 0 14px;
+.library-selection-bar > [role='status'] {
+  color: var(--gf-text-2);
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+/* Keep the shared library toolbar and cards inside the scrollable dialog body. */
+.modal.library-picker {
+  background: var(--gf-bg);
+}
+.library-picker > .file-browser {
+  grid-template-columns: minmax(0, 1fr);
 }
 @media (max-width: 600px) {
-  .library-picker .file-toolbar > input:not([hidden]) {
-    font-size: 16px;
-    line-height: 1.25;
-  }
-  .library-picker .file-toolbar:has(.button[aria-busy='true']) {
-    flex-wrap: wrap;
-  }
-  .library-picker .file-toolbar .button[aria-busy='true'] {
-    flex-basis: 100%;
+  dialog.modal.library-picker {
+    --modal-gutter: 12px;
     width: 100%;
-  }
-  .modal.library-picker {
-    width: calc(100vw - 16px);
-    max-width: calc(100vw - 16px);
-    height: calc(100dvh - 24px);
-    max-height: calc(100dvh - 24px);
-  }
-  .library-picker .file-filters {
-    gap: 6px;
-  }
-}
-
-@media (min-width: 800px) {
-  .library-picker .file-controls {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-  .library-picker .file-controls .file-toolbar {
-    padding-right: 0;
-    min-width: 0;
-  }
-  .library-picker .file-controls .file-filters {
-    margin: 0;
-    order: -1;
-  }
-}
-
-@media (max-width: 799px) {
-  .library-picker .file-filters {
-    justify-content: center;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
   }
 }
 

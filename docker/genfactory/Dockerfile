@@ -1,5 +1,6 @@
 FROM nginx:stable-alpine
 COPY dist/ /usr/share/nginx/html/
+RUN mv /usr/share/nginx/html/generation-timeout.conf /etc/nginx/generation-timeout.conf
 COPY docker/genfactory/default.conf.template /etc/nginx/templates/default.conf.template
 COPY docker/genfactory/15-check-api.sh /docker-entrypoint.d/15-check-api.sh
 RUN chmod +x /docker-entrypoint.d/15-check-api.sh

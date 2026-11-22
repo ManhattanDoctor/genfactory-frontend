@@ -5,7 +5,7 @@ import type { IConversation, IModelDescription, ISchema } from '../../lib/types'
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { followsReferenceRatio } from '../catalog/schema';
 import { defaultAssistant } from '../catalog/defaultAssistant';
-import { modelKey } from '../catalog/presentation';
+import { defaultMediaModels, modelKey } from '../catalog/presentation';
 import { choices, ratioSizes, sizeRatio, suggestedRatios } from './controls';
 import { fields } from './studioConfig';
 import type { IAttachment, StudioMode } from './studioTypes';
@@ -111,7 +111,8 @@ export function useStudioModels({
     (selectedModel === 'Auto' && !savedReference
       ? mode === 'presentation'
         ? defaultAssistant(catalog.data || [])
-        : catalog.data?.[0]
+        : (catalog.data?.find((item) => item.reference.model === defaultMediaModels[mode]) ??
+          catalog.data?.[0])
       : undefined);
   const modelProperties = model?.schema.properties?.options?.properties || {};
   const sizes = ratioSizes(model);

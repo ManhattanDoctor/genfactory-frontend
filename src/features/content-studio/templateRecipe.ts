@@ -32,6 +32,22 @@ export function adaptTemplateDuration(text: string, duration: number): string {
     .replace(/\b\d+(?:\.\d+)?-second\b/g, `${duration}-second`);
 }
 
+/** Update the total in a designer caption while preserving edits to the brief. */
+export function updateFeedDuration(
+  text: string,
+  original: string,
+  previous: number | undefined,
+  duration: number,
+): string {
+  const timing = /\d+ с(?=[\s:.,]|$)/.exec(original);
+  if (!timing) return text;
+  const prefix = original.slice(0, timing.index);
+  const before = prefix + (previous === undefined ? timing[0] : previous + ' с');
+  return text.startsWith(before) && /^[\s:.,]|^$/.test(text.slice(before.length))
+    ? prefix + duration + ' с' + text.slice(before.length)
+    : text;
+}
+
 /** Only catalogue-owned timing headers opt into automatic synchronization. */
 export function syncTemplateDuration(text: string, duration: unknown): string {
   if (!/^Duration: \d+(?:\.\d+)?-second video\./.test(text) || typeof duration !== 'number') return text;

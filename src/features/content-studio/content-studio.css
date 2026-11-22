@@ -371,12 +371,38 @@
   overflow-wrap: anywhere;
   cursor: default;
 }
-.content-studio .content-result-actions .button svg {
-  flex-shrink: 0;
+.content-studio .as-actions .button {
+  border: 1px solid var(--gf-border);
+  border-radius: var(--gf-radius-sm);
+  background: rgb(244 244 240 / 4%);
+  color: var(--gf-text-2);
 }
-.content-studio .content-result-actions .button:active:not(:disabled) {
-  background: var(--ds-line-soft);
-  transform: translateY(1px);
+.content-studio .as-actions .button:hover:not(:disabled) {
+  background: rgb(244 244 240 / 9%);
+  color: var(--gf-text);
+}
+.content-studio .content-result-actions {
+  gap: 6px;
+}
+.content-studio .content-result-actions .button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+.content-studio .content-result-actions svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+@media (max-width: 780px) {
+  .content-studio .content-result-actions .button {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .content-studio #creatives .cw-thread {
@@ -695,22 +721,46 @@
 }
 
 .content-studio .studio-pending-result {
+  width: fit-content;
+  max-width: 100%;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  border-radius: 12px;
-  background: var(--surface);
+  gap: 12px;
+  min-height: 88px;
+  padding: 0 16px;
+  border: 1px dashed rgb(244 244 240 / 16%);
+  border-radius: var(--gf-radius);
+  background: rgb(244 244 240 / 3%);
+  color: var(--gf-text);
+  font-size: 13px;
+}
+.content-studio .studio-pending-result::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gf-accent);
+}
+.studio-pending-copy {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+.content-studio .studio-pending-copy .text-button {
+  padding: 0;
+  color: var(--gf-text-3);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.content-studio .studio-pending-copy .text-button:hover {
+  color: var(--gf-text);
 }
 @media (pointer: coarse) {
   .content-studio .studio-message-text .text-button,
-  .content-studio .studio-pending-result .text-button {
+  .content-studio .studio-pending-copy .text-button {
     min-height: 44px;
   }
-}
-.content-studio .studio-message-text > .text-button,
-.content-studio .studio-pending-result > .text-button {
-  padding: 0;
 }
 .content-studio .studio-message-text > .text-button {
   align-self: flex-start;
@@ -817,30 +867,6 @@
   .content-studio #creative-workspace[data-gallery-hidden='true'] > .cw-gallery {
     display: none;
   }
-
-  .content-studio #creative-workspace[data-gallery='s'][data-gallery-hidden='false'] {
-    grid-template-columns: minmax(0, 1fr) max-content;
-  }
-  .content-studio .cw[data-gallery='s'] .cw-gallery-tabs {
-    min-width: max-content;
-  }
-  .content-studio .cw[data-gallery='s'] .cw-gallery-body {
-    contain: inline-size;
-  }
-  /* Reserve the indicator's space so changing a setting doesn't resize the panel. */
-  .content-studio .cw[data-gallery='s'] .cw-gallery-tabs button:nth-child(2) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-  }
-  .content-studio
-    .cw[data-gallery='s']
-    .cw-gallery-tabs
-    button:nth-child(2):not(:has(.settings-change-dot))::after {
-    content: '';
-    width: 8px;
-  }
 }
 
 .content-studio .studio-mode-selector {
@@ -896,4 +922,90 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
   overflow-wrap: anywhere;
+}
+
+.gf-section-main .content-studio #creatives .cw-thread .cw-turn {
+  width: 100%;
+  gap: 18px;
+  margin: 0;
+}
+.gf-section-main .content-studio .as-user {
+  max-width: min(92%, 560px);
+}
+.gf-section-main .content-studio .as-bot {
+  width: min(92%, 420px);
+}
+.gf-section-main .content-studio .as-bot:has(.studio-question) {
+  width: min(94%, 520px);
+}
+.gf-section-main .content-studio .as-bot-main {
+  width: 100%;
+  gap: 6px;
+}
+.gf-section-main .content-studio .as-bubble {
+  padding: 10px 12px;
+  background: rgb(244 244 240 / 9%);
+}
+.gf-section-main .content-studio .as-ask {
+  color: var(--gf-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.gf-section-main .content-studio .as-reply {
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  padding: 4px 2px 0;
+}
+.gf-section-main .content-studio .as-reply:has(.studio-question) {
+  width: 100%;
+  padding: 0;
+}
+.gf-section-main .content-studio .as-body {
+  color: var(--gf-text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.gf-section-main .content-studio .content-result-preview,
+.gf-section-main .content-studio .as-bot-main > .cw-shot-frame {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--gf-border);
+  border-radius: 14px;
+}
+.gf-section-main .content-studio .cw-shot-frame .cw-shot {
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+}
+.gf-section-main .content-studio .content-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.content-result-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgb(244 244 240 / 5%);
+  color: var(--gf-text-3);
+  font-size: 11px;
+  font-weight: 550;
+}
+@media (hover: hover) {
+  .content-studio .content-result-actions {
+    opacity: 0.55;
+  }
+  .content-studio .as-bot:is(:hover, :focus-within) .content-result-actions {
+    opacity: 1;
+  }
+}
+@media (max-width: 780px) {
+  .gf-section-main .content-studio .as-bot,
+  .gf-section-main .content-studio .as-user {
+    width: min(94%, 560px);
+    max-width: 100%;
+  }
 }

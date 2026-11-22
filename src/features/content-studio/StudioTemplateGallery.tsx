@@ -41,19 +41,25 @@ export const StudioTemplateGallery = memo(function StudioTemplateGallery({
         </button>
         <button
           type="button"
-          className={`cw-genre cw-genre-fav ${favoritesOnly ? 'is-on' : ''}`}
+          className={`cw-genre ${favoritesOnly ? 'is-on' : ''}`}
           aria-label="Избранные шаблоны"
           aria-pressed={favoritesOnly}
-          onClick={() => setFavoritesOnly(!favoritesOnly)}
+          onClick={() => {
+            setGenre('');
+            setFavoritesOnly(true);
+          }}
         >
-          <Heart size={16} />
+          Избранное
         </button>
         {genres.map((g) => (
           <button
             key={g}
             type="button"
             className={`cw-genre ${genre === g ? 'is-on' : ''}`}
-            onClick={() => setGenre(genre === g ? '' : g)}
+            onClick={() => {
+              setFavoritesOnly(false);
+              setGenre(g);
+            }}
           >
             {g}
           </button>
@@ -66,8 +72,14 @@ export const StudioTemplateGallery = memo(function StudioTemplateGallery({
             data-kind={item.kind === 'presentation' ? 'slides' : item.kind}
             key={item.id}
           >
-            <div className="cw-card-media ds-template-media">
+            <div
+              className="cw-card-media ds-template-media"
+              style={{ aspectRatio: item.previewRatio || item.ratio.replace(':', ' / ') }}
+            >
               <TemplateMedia item={item} />
+              <span className="studio-template-badge">
+                {item.references?.min ? 'Нужно фото' : item.kind === 'video' ? 'Видео' : 'Изображение'}
+              </span>
               <button
                 type="button"
                 className="cw-template-open"
@@ -90,11 +102,10 @@ export const StudioTemplateGallery = memo(function StudioTemplateGallery({
               >
                 <Heart size={18} fill={favorites.includes(item.id) ? 'currentColor' : 'none'} />
               </button>
-              <span className="cw-card-label">
-                <span>{item.genre}</span>
-                <strong>{item.title}</strong>
-              </span>
             </div>
+            <button disabled={busy} className="studio-template-caption" onClick={() => void pick(item)}>
+              {item.title}
+            </button>
           </article>
         ))}
         {!visible.length && (

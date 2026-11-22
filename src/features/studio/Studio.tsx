@@ -25,7 +25,7 @@ import {
   isVideoUpload,
   isImageUpload,
 } from '../../lib/image-upload';
-import { modelTitle } from '../catalog/presentation';
+import { defaultMediaModels, modelTitle } from '../catalog/presentation';
 import { useRetainedModel } from '../catalog/useRetainedModel';
 import { followsReferenceRatio } from '../catalog/schema';
 import { bananaDefaults, bananaTitle } from './bananaSettings';
@@ -242,6 +242,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         model.capabilities?.includes(kind === 'image' ? 'IMAGE_OUTPUT' : 'VIDEO_OUTPUT'),
       ),
   });
+  const standardImage = kind === 'image' && !specialized;
   const models = (catalog.data || [])
     .filter((m) =>
       specialized === 'banana'
@@ -267,7 +268,9 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       (retained && modelKey(retained) === requestedKey ? retained : undefined)
     : (specialized === 'banana'
         ? models.find((m) => /gemini-3\.1-flash-image$/.test(m.reference.model))
-        : undefined) || models[0];
+        : !specialized
+          ? models.find((m) => m.reference.model === defaultMediaModels[kind])
+          : undefined) || models[0];
   const currentKey = model ? modelKey(model) : '';
   uploadScope.current = `${auth.session}:${kind}:${currentKey}:${location.key}:${uploadEpoch.current}`;
   useEffect(() => {
@@ -275,17 +278,18 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
     setUploadProgress(undefined);
     if (input.current) input.current.value = '';
   }, [auth.session, kind, currentKey, location.key]);
+  function modelDefaults(chosen?: IModelDescription): Record<string, unknown> {
+    if (specialized === 'banana' || (standardImage && chosen?.reference.model === defaultMediaModels.image))
+      return bananaDefaults(chosen);
+    return kind === 'video' && !legacy ? videoDefaults(chosen) : defaults(chosen?.schema.properties?.options);
+  }
   const initializedModel = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (initializedModel.current === currentKey) return;
     initializedModel.current = currentKey;
     setOptions(
       repeatRequest.current?.options || {
-        ...(specialized === 'banana'
-          ? bananaDefaults(model)
-          : kind === 'video' && !legacy
-            ? videoDefaults(model)
-            : defaults(model?.schema.properties?.options)),
+        ...modelDefaults(model),
         ...(model ? { model: model.reference.model } : {}),
       },
     );
@@ -704,6 +708,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
   useEffect(() => {
     if (kind === 'video') setPrompt((value) => syncTemplateDuration(value, options.duration));
   }, [kind, options.duration]);
+  const videoShape = shot.shape || (videoTemplate?.id.startsWith('video-feed-') ? 'template' : 'single');
   const submit = async (onStarted?: () => void): Promise<void> => {
     if (!auth.user || !auth.session) {
       void auth.signIn();
@@ -768,7 +773,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         ? [imageTemplateText.trim(), prompt.trim()].filter(Boolean).join('\n\n')
         : prompt;
     const preparedPrompt = !legacy
-      ? directMediaPrompt(kind, prompt, imageTemplateId ? imageTemplateText : '', shot.shape || 'single')
+      ? directMediaPrompt(kind, prompt, imageTemplateId ? imageTemplateText : '', videoShape)
       : creativePrompt(combinedPrompt, useBrand ? prefs.value.brand : '', shot);
     const body: ITaskRequest = {
       model: model.reference.provider,
@@ -1080,13 +1085,14 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         kind={kind}
         pendingCount={legacy ? 0 : directTask.pendingCount}
         pendingTasks={legacy ? [] : directTask.pendingTasks}
-        shape={shot.shape || 'single'}
+        shape={videoShape}
         onShape={(shape) => {
           draft.changed();
           setShot((value) => ({ ...value, shape }));
         }}
         key={`${auth.user?.id}:${kind}:${specialized || 'all'}`}
         models={models}
+        catalogLoading={catalog.isLoading}
         model={model}
         options={options}
         prompt={prompt}
@@ -1157,7 +1163,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             const chosen = models.find((item) => modelKey(item) === key);
             initializedModel.current = key;
             setOptions({
-              ...(currentKey === key ? options : videoDefaults(chosen)),
+              ...(currentKey === key ? options : modelDefaults(chosen)),
               ...templateOptions,
               model: value.reference.model,
             });
@@ -1596,8 +1602,12 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             )}
             {catalog.error && (
               <div className="inline-error">
-                <p>{catalog.error.message}</p>
-                <button className="text-button" onClick={() => void catalog.refetch()}>
+                <span>{catalog.error.message}</span>{' '}
+                <button
+                  type="button"
+                  className="text-button message-action"
+                  onClick={() => void catalog.refetch()}
+                >
                   Загрузить снова
                 </button>
               </div>

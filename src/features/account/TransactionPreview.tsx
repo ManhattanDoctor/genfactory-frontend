@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
-import { Play } from 'lucide-react';
+import { MessageSquare, Play, Plus } from 'lucide-react';
 import type { IPaymentTransaction } from '../../lib/types';
+import { direction } from './transactions';
 import { Media, MediaPreview } from '../../components/MediaPreview';
 
 export function TransactionPreview({
@@ -12,7 +13,14 @@ export function TransactionPreview({
   const [opened, setOpened] = useState(false);
   const files = (transaction.results || []).filter((file) => file.userId === transaction.userId);
   const file = files[0];
-  if (!file) return null;
+  if (!file) {
+    const Icon = direction(transaction) === 'income' ? Plus : MessageSquare;
+    return (
+      <span className="transaction-icon" aria-hidden="true">
+        <Icon size={20} strokeWidth={1.7} />
+      </span>
+    );
+  }
   return (
     <>
       <button

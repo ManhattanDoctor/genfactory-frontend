@@ -1,3 +1,6 @@
+import { LibrarySearch } from './LibrarySearch';
+import { HistoryCardBody } from './HistoryCardBody';
+import { previewCardStyle } from './previewCardStyle';
 import { scheduleRefresh } from '../features/realtime/queryRefresh';
 import { SkeletonCards } from './Skeleton';
 import type { ReactElement } from 'react';
@@ -29,9 +32,20 @@ import { directoryPath, folderTrail, mediaType, resolveFile } from '../lib/files
 import type { IGnosisFile } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { Modal, ModalFooter } from './Modal';
+function fileCountLabel(count: number): string {
+  switch (new Intl.PluralRules('ru').select(count)) {
+    case 'one':
+      return 'файл';
+    case 'few':
+      return 'файла';
+    default:
+      return 'файлов';
+  }
+}
 const FILE_TAG_FILTER_ENABLED = false;
 
 interface IFileBrowserProps {
+  layout?: 'page' | 'picker';
   allowBatchRemove?: boolean;
   onOpen?: (file: IGnosisFile, files: IGnosisFile[]) => void;
   selected?: number[];
@@ -39,7 +53,6 @@ interface IFileBrowserProps {
   multiple?: boolean;
   acceptedTypes?: string[];
   foldersOnly?: boolean;
-  onCreate?: () => void;
   onDirectory?: (directory: string | null) => void;
   onDestination?: (trail: IGnosisFile[]) => void;
   initialTrail?: IGnosisFile[];
@@ -53,11 +66,11 @@ export function FileBrowser({
   multiple = false,
   acceptedTypes,
   foldersOnly = false,
+  layout,
   onDirectory,
   onDestination,
   initialTrail = [],
   movedFile,
-  onCreate,
 }: IFileBrowserProps): ReactElement {
   const { user } = useAuth();
   const cache = useQueryClient();
@@ -255,8 +268,6 @@ export function FileBrowser({
         selectedTags,
         tagMatch,
         signal,
-        24,
-        !!onDestination,
       ),
     enabled: !!user,
   });
@@ -337,6 +348,7 @@ export function FileBrowser({
       ]);
     });
   }
+  const sectionTitle = trail.at(-1)?.name || (layout === 'page' ? 'Готово' : undefined);
   return (
     <section className="file-browser" aria-label={foldersOnly ? 'Выбор папки' : 'Файлы'}>
       <nav className="file-breadcrumbs" aria-label="Путь к папке">
@@ -356,7 +368,7 @@ export function FileBrowser({
             type="button"
             className="icon-button file-back"
             aria-label="Корень библиотеки"
-            title="Корень библиотеки"
+            data-tooltip="Корень библиотеки"
             disabled={busy}
             onClick={() => navigate([])}
           >
@@ -432,7 +444,7 @@ export function FileBrowser({
                 {selecting ? 'Отменить выбор' : 'Выбрать для удаления'}
               </button>
             )}
-            <input
+            <LibrarySearch
               aria-label="Поиск по всем файлам"
               placeholder="Поиск по всем файлам"
               value={search}
@@ -443,7 +455,7 @@ export function FileBrowser({
               className="button"
               disabled={busy || !!query || !!selectedTags.length}
               aria-label="Новая папка"
-              title="Новая папка"
+              data-tooltip="Новая папка"
               onClick={() => {
                 setName('');
                 setAction({ kind: 'create' });
@@ -458,7 +470,7 @@ export function FileBrowser({
               className="button"
               disabled={busy || !!query || !!selectedTags.length}
               aria-label="Загрузить файл"
-              title={
+              data-tooltip={
                 acceptedTypes?.length === 1 && acceptedTypes[0] === 'IMAGE'
                   ? 'Загрузить фото: JPG, PNG, WebP, HEIC/HEIF'
                   : 'Загрузить файл'
@@ -504,7 +516,7 @@ export function FileBrowser({
                   className={`chip ${type === value ? 'active' : ''}`}
                   aria-pressed={type === value}
                   aria-label={label}
-                  title={label}
+                  data-tooltip={label}
                   onClick={() => {
                     setType(value);
                     setPage(0);
@@ -570,14 +582,24 @@ export function FileBrowser({
           </button>
         </p>
       )}
-      <div className={foldersOnly ? 'file-folder-list' : 'library-grid'}>
+      {layout && files.data && (sectionTitle || files.data.total > 0) && (
+        <header className="library-section-heading">
+          {sectionTitle && <h2>{sectionTitle}</h2>}
+          {files.data.total > 0 && (
+            <span>
+              {files.data.total} {fileCountLabel(files.data.total)}
+            </span>
+          )}
+        </header>
+      )}
+      <div className={foldersOnly ? 'file-folder-list' : layout ? 'library-grid asset-feed' : 'library-grid'}>
         {!!trail.length && !query && !selectedTags.length && (
           <article className="file-entry file-parent">
             <button
               type="button"
               className="library-card"
               aria-label="На уровень выше"
-              title="На уровень выше"
+              data-tooltip="На уровень выше"
               disabled={busy}
               onClick={() => navigate(trail.slice(0, -1))}
             >
@@ -586,13 +608,17 @@ export function FileBrowser({
                   <FolderUp size={44} />
                 </div>
               </div>
-              <div>
-                <b>...</b>
-                <span>Папка</span>
-                <span className="file-generation-summary" title={trail.at(-2)?.name || 'Библиотека'}>
-                  {trail.at(-2)?.name || 'Библиотека'}
-                </span>
-              </div>
+              {layout ? (
+                <HistoryCardBody title="Наверх" metadata="Папка" date={trail.at(-2)?.name || 'Библиотека'} />
+              ) : (
+                <div>
+                  <b>Наверх</b>
+                  <span>Папка</span>
+                  <span className="file-generation-summary" data-tooltip={trail.at(-2)?.name || 'Библиотека'}>
+                    {trail.at(-2)?.name || 'Библиотека'}
+                  </span>
+                </div>
+              )}
             </button>
           </article>
         )}
@@ -602,8 +628,13 @@ export function FileBrowser({
           const already = selected.includes(file.linkTo ?? file.id);
           const checked = markedIds.includes(selecting ? file.id : (file.linkTo ?? file.id));
           return (
-            <article className={`file-entry${incompatible ? ' is-incompatible' : ''}`} key={file.id}>
+            <article
+              style={previewCardStyle(file.preview)}
+              className={`file-entry${incompatible ? ' is-incompatible' : ''}`}
+              key={file.id}
+            >
               <FileCard
+                compact={!!layout}
                 file={file}
                 onOpen={() => void open(file)}
                 disabled={busy}
@@ -617,12 +648,9 @@ export function FileBrowser({
                   type="button"
                   className="file-incompatible"
                   aria-label="Почему файл не подходит"
-                  aria-describedby={`file-incompatible-${file.id}`}
+                  data-tooltip="Не подходит для этой задачи"
                 >
                   <CircleAlert size={18} aria-hidden="true" />
-                  <span role="tooltip" id={`file-incompatible-${file.id}`}>
-                    Не подходит для этой задачи
-                  </span>
                 </button>
               )}
               {!foldersOnly && FILE_TAG_FILTER_ENABLED && !!file.tags?.length && (
@@ -635,7 +663,7 @@ export function FileBrowser({
                       disabled={!FILE_TAG_FILTER_ENABLED}
                       onClick={() => setTagFilter([tag.trim().toLocaleLowerCase('ru')])}
                       aria-label={`Файлы с тегом ${tag}`}
-                      title={tag}
+                      data-tooltip={tag}
                     >
                       {tag}
                     </button>
@@ -696,20 +724,6 @@ export function FileBrowser({
           </ModalFooter>
         </Modal>
       )}
-      {files.data &&
-        !files.data.items.length &&
-        !directory &&
-        !query &&
-        !type &&
-        !selectedTags.length &&
-        onCreate && (
-          <div className="empty-state">
-            <h2>Здесь начинается ваша коллекция</h2>
-            <button type="button" className="button primary" onClick={onCreate}>
-              Создать изображение
-            </button>
-          </div>
-        )}
       {files.data && !files.data.items.length && (
         <p className="empty-state">
           {query || selectedTags.length
@@ -724,7 +738,7 @@ export function FileBrowser({
                     ? 'Видео пока нет.'
                     : type === 'IMAGE'
                       ? 'Изображений пока нет.'
-                      : 'В этой папке пока нет файлов.'}
+                      : 'В этой папке пока пусто. Загрузите файлы или создайте папку, чтобы держать материалы под рукой.'}
         </p>
       )}
       {files.data && files.data.pages > 1 && (
@@ -733,7 +747,7 @@ export function FileBrowser({
             type="button"
             className="button"
             aria-label="Предыдущая страница"
-            title="Предыдущая страница"
+            data-tooltip="Предыдущая страница"
             disabled={!page || busy}
             onClick={() => setPage((p) => p - 1)}
           >
@@ -746,7 +760,7 @@ export function FileBrowser({
             type="button"
             className="button"
             aria-label="Следующая страница"
-            title="Следующая страница"
+            data-tooltip="Следующая страница"
             disabled={page + 1 >= files.data.pages || busy}
             onClick={() => setPage((p) => p + 1)}
           >
@@ -757,6 +771,7 @@ export function FileBrowser({
       {action && (
         <Modal
           title="Новая папка"
+          className="folder-create-dialog"
           onClose={() => {
             if (!busy) setAction(undefined);
           }}
@@ -774,9 +789,12 @@ export function FileBrowser({
             <label>
               Название
               <input
-                autoFocus
+                ref={(input) => {
+                  if (input) input.autofocus = true;
+                }}
                 required
                 minLength={3}
+                placeholder="Например, Референсы"
                 maxLength={124}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -789,7 +807,7 @@ export function FileBrowser({
                 Отмена
               </button>
               <button type="submit" className="button primary" disabled={busy || name.trim().length < 3}>
-                {busy ? 'Сохраняем…' : 'Сохранить'}
+                {busy ? 'Сохраняем…' : 'Сохранить папку'}
               </button>
             </ModalFooter>
           </form>

@@ -1,3 +1,6 @@
+import { VideoDuration } from '../../components/VideoDuration';
+import { AspectShape, ImageAspectGrid } from './ImageAspectGrid';
+import { DesignFeed, feeds, type FeedCard, type FeedTab } from './DesignFeed';
 import { ComposerTemplatePanel } from '../content-studio/ComposerTemplatePanel';
 import {
   prepareComposerTemplate,
@@ -19,7 +22,7 @@ import type { IUploadProgress } from '../../lib/api';
 import { Skeleton } from '../../components/Skeleton';
 import { supportsVideoReferences } from '../catalog/videoInputs';
 import { downloadFile } from '../../lib/files';
-import { templateVariables, templateTimingError } from '../content-studio/templateRecipe';
+import { templateVariables, templateTimingError, updateFeedDuration } from '../content-studio/templateRecipe';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
 import { ModelPickerList } from '../catalog/ModelPickerList';
@@ -29,8 +32,7 @@ import { followsReferenceRatio, optionFields, referenceMinimum, referenceLimit }
 import { bananaRatios } from './bananaSettings';
 import './banana-workspace.css';
 import './seedance-workspace.css';
-import { videoRatios, videoLengths, videoSound, videoShapes } from './videoMenus';
-import { VideoTemplateMedia } from './VideoMedia';
+import { videoRatios, videoShapes } from './videoMenus';
 import '../catalog/model-favorites.css';
 import { readFileRecipe, readRecipes, variantGroups, type IGenerationRecipe } from './variants';
 import {
@@ -76,6 +78,7 @@ import { useConversationRoom } from '../realtime/RealtimeProvider';
 import { useConversationProgress } from './useConversationProgress';
 import { toolLabel } from './progress';
 import './image-workspace.css';
+import './feed-template.css';
 
 export function MediaWorkspace({
   kind,
@@ -83,6 +86,7 @@ export function MediaWorkspace({
   shape = 'single',
   onShape,
   models,
+  catalogLoading,
   model,
   options,
   prompt,
@@ -122,6 +126,7 @@ export function MediaWorkspace({
   shape?: string;
   onShape?: (value: string) => void;
   models: IModelDescription[];
+  catalogLoading: boolean;
   model?: IModelDescription;
   options: Record<string, unknown>;
   prompt: string;
@@ -193,6 +198,11 @@ export function MediaWorkspace({
       viewport.removeEventListener('scroll', fit);
     };
   }, []);
+  const [feedTab, setFeedTab] = useState<FeedTab>(conversation ? 'generations' : 'templates');
+  useEffect(() => {
+    if (conversation?.id) setFeedTab('generations');
+  }, [conversation?.id]);
+  const showHistory = banana || seedance || feedTab === 'generations';
   const [columns, setColumns] = useState(4);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileImageWall, setMobileImageWall] = useState(false);
@@ -208,9 +218,21 @@ export function MediaWorkspace({
     [boundTemplate],
   );
   const missingFields = recipe.variables.some((key) => !boundTemplate?.values[key]?.trim());
-  const [templatePreview, setTemplatePreview] = useState<ITemplateCard>();
+  const feed = feeds[video ? 'video' : 'image'];
+  const feedTemplate =
+    composerTemplate &&
+    [...feed.templates, ...feed.generations].find((item) => item.id === composerTemplate.id);
+  const mediaComposer = !seedance && !banana;
+  const activeFeedCard = mediaComposer ? feedTemplate : undefined;
+  const [photoHintDismissed, setPhotoHintDismissed] = useState(false);
   const needsTemplateImages = missingPhotos > 0;
   const [notice, setNotice] = useState('');
+  const [emptyPromptTime, setEmptyPromptTime] = useState(0);
+  useEffect(() => {
+    if (!emptyPromptTime) return;
+    const timer = window.setTimeout(() => setEmptyPromptTime(0), 2800);
+    return () => window.clearTimeout(timer);
+  }, [emptyPromptTime]);
   const conversationError = useConversationError(conversation);
   const [answerView, setAnswerView] = useState<string>();
   useEffect(() => setAnswerView(undefined), [conversation?.id]);
@@ -310,7 +332,14 @@ export function MediaWorkspace({
     );
     observer.observe(marker);
     return () => observer.disconnect();
-  }, [history.hasNextPage, history.isFetchingNextPage, history.error, files.length, mobileImageWall]);
+  }, [
+    history.hasNextPage,
+    history.isFetchingNextPage,
+    history.error,
+    files.length,
+    mobileImageWall,
+    showHistory,
+  ]);
 
   const latestAnswer = latestMessage?.role === 'ASSISTANT' ? latestMessage : undefined;
   const text =
@@ -320,8 +349,9 @@ export function MediaWorkspace({
   useEffect(() => {
     const measure = () => {
       const width = root.current?.clientWidth || innerWidth;
-      setMobileImageWall(width <= 720);
-      if (width > 720) setSettingsOpen(false);
+      const compact = window.matchMedia('(max-width: 780px)').matches;
+      setMobileImageWall(compact);
+      if (!compact) setSettingsOpen(false);
       setColumns(width < 900 ? 2 : width < 1280 ? 4 : 5);
       const dockOffset = dock.current ? Number.parseFloat(getComputedStyle(dock.current).bottom) : 72;
       setBottom((dock.current?.offsetHeight || 146) + dockOffset + 16);
@@ -332,12 +362,6 @@ export function MediaWorkspace({
     measure();
     return () => observer.disconnect();
   }, []);
-  useEffect(() => {
-    const input = promptInput.current;
-    if (input) {
-      input.style.height = '72px';
-    }
-  }, [prompt, promptInput]);
   const fields = model?.schema.properties?.options?.properties || {};
   const sizes = ratioSizes(model);
   const ratios = fields.aspectRatio ? choices(fields.aspectRatio, suggestedRatios) : [...sizes.keys()];
@@ -388,7 +412,18 @@ export function MediaWorkspace({
     const target = item.model
       ? models.find((candidate) => modelKey(candidate) === modelKey({ reference: item.model! }))
       : model;
-    const duration = resolveTemplateDuration(item, options.duration, target);
+    const fromFeed = item.id.startsWith(kind + '-feed-');
+    const duration = resolveTemplateDuration(
+      item,
+      fromFeed ? item.recommendedDuration || options.duration : options.duration,
+      target,
+    );
+    const supportedRatio =
+      fromFeed &&
+      target &&
+      choices(target.schema.properties?.options?.properties?.aspectRatio, suggestedRatios).includes(
+        item.ratio,
+      );
     const timingError = item.kind === 'video' ? templateTimingError(text, duration) : undefined;
     if (timingError) {
       setNotice(timingError);
@@ -400,8 +435,10 @@ export function MediaWorkspace({
         { reference: item.model },
         {
           ...(duration !== undefined ? { duration } : {}),
+          ...(supportedRatio ? { aspectRatio: item.ratio } : {}),
         },
       );
+    setPhotoHintDismissed(false);
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
@@ -443,6 +480,7 @@ export function MediaWorkspace({
       return;
     }
     onSubmit((): void => {
+      setFeedTab('generations');
       wall.current?.scrollTo({ top: 0, behavior: 'instant' });
     });
   };
@@ -462,7 +500,44 @@ export function MediaWorkspace({
   };
   const repeatFile = useEventCallback((file: IGnosisFile) => onRepeat(file, repeatInput(file)));
   const downloadResult = useEventCallback(download);
-  const selectTemplate = useEventCallback(applyTemplate);
+  async function applyFeedCard(card: FeedCard) {
+    if (busy) return;
+    const target = models.find(
+      (item) =>
+        item.reference.model === card.modelId ||
+        modelTitle(item).toLowerCase() === card.modelTitle.toLowerCase(),
+    );
+    if (!user) {
+      await signIn();
+      return;
+    }
+    if (!target) {
+      setNotice('Модель «' + card.modelTitle + '» сейчас недоступна.');
+      return;
+    }
+    try {
+      await applyTemplateText(
+        {
+          id: card.id,
+          kind,
+          title: card.title,
+          genre: '',
+          prompt: card.prompt,
+          src: card.src,
+          ratio: card.ratio,
+          model: target.reference,
+          references: { min: card.photos },
+          recommendedDuration: card.duration || undefined,
+        },
+        video && card.duration
+          ? updateFeedDuration(card.prompt, card.prompt, undefined, card.duration)
+          : card.prompt,
+      );
+      promptInput.current?.focus();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Не удалось применить шаблон.');
+    }
+  }
   const fileCards = useMemo(
     () =>
       files.map((file) => (
@@ -485,7 +560,7 @@ export function MediaWorkspace({
               aria-label={`Скачать ${file.name}`}
               disabled={downloadIds.includes(file.id)}
               aria-busy={downloadIds.includes(file.id)}
-              title="Скачать"
+              data-tooltip="Скачать"
               onClick={() => void downloadResult(file)}
             >
               <Download size={18} />
@@ -493,7 +568,7 @@ export function MediaWorkspace({
             <button
               type="button"
               aria-label={`Переделать ${file.name}`}
-              title="Переделать"
+              data-tooltip="Переделать"
               disabled={busy}
               onClick={() => repeatFile(file)}
             >
@@ -504,51 +579,6 @@ export function MediaWorkspace({
         </article>
       )),
     [files, video, downloadIds, busy, downloadResult, repeatFile],
-  );
-  const templateCards = useMemo(
-    () =>
-      (banana || seedance ? [] : imageTemplates).map((item, index) => (
-        <article
-          key={item.id}
-          className="img-tile ds-template-card media-template-card"
-          aria-label={item.title}
-        >
-          {video ? (
-            <VideoTemplateMedia item={item} />
-          ) : (
-            <button
-              type="button"
-              className="img-card"
-              style={{ aspectRatio: item.ratio.replace(':', ' / ') }}
-              aria-label={`Посмотреть: ${item.title}`}
-              aria-haspopup="dialog"
-              onClick={() => setTemplatePreview(item)}
-            >
-              <img
-                className="img-face"
-                src={item.src}
-                alt=""
-                loading={index < columns * 2 ? 'eager' : 'lazy'}
-                draggable={false}
-              />
-              <span className="img-cap">
-                <span>{item.genre}</span>
-                <strong>{item.title}</strong>
-              </span>
-            </button>
-          )}
-          <button
-            type="button"
-            className="button media-template-apply"
-            disabled={busy}
-            aria-label={`Использовать шаблон: ${item.title}`}
-            onClick={() => selectTemplate(item)}
-          >
-            Использовать шаблон
-          </button>
-        </article>
-      )),
-    [banana, seedance, imageTemplates, busy, video, columns, selectTemplate],
   );
   const statusCards: ReactElement[] = [
     ...Array.from(
@@ -561,11 +591,6 @@ export function MediaWorkspace({
           style={{ aspectRatio: (ratio || '1:1').replace(':', ' / ') }}
         >
           <span className="img-spin" aria-hidden="true" />
-          {kind === 'image' && pendingTasks[index] && (
-            <small className="image-pending-id">
-              {pendingTasks[index].localRequest ? 'Запрос' : 'Задача'} {pendingTasks[index].id}
-            </small>
-          )}
           {conversation && !pendingTasks[index] ? (
             <ImageProgress conversation={conversation} kind={kind} startedAt={startedAt} />
           ) : (
@@ -577,7 +602,7 @@ export function MediaWorkspace({
         </div>
       ),
     ),
-    ...(user && history.isPending
+    ...(showHistory && user && history.isPending
       ? Array.from({ length: 8 }, (_, index) => (
           <Skeleton key={`loading:${index}`} className="img-tile media-card-skeleton" />
         ))
@@ -611,7 +636,7 @@ export function MediaWorkspace({
       : []),
   ];
   const galleryCards: ReactElement[] = [
-    ...(history.hasNextPage
+    ...(showHistory && history.hasNextPage
       ? [
           <div key="next-page" ref={nextPage} className="image-history-loader" role="status">
             {history.error ? (
@@ -626,82 +651,104 @@ export function MediaWorkspace({
           </div>,
         ]
       : []),
-    ...templateCards,
   ];
   const grouped = mobileImageWall && !video && !banana;
   const compactTools = mobileImageWall && !banana;
+  const resolutionSetting = video && choices(fields.resolution, []).length > 0 && (
+    <ImageMenu
+      asField={compactTools || mediaComposer}
+      label={String(options.resolution || 'Не задаётся')}
+      name="Разрешение"
+      note="Размер видео. Влияет на детализацию и стоимость."
+      values={choices(fields.resolution, []).map(String)}
+      selection={String(options.resolution || '')}
+      disabled={busy || !choices(fields.resolution, []).length}
+      onSelect={(value) => onOptions({ ...options, resolution: value })}
+    />
+  );
+  const shapeSetting = video && (
+    <ImageMenu
+      asField={compactTools || mediaComposer}
+      label={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
+      name="Структура ролика"
+      note="Как собрать ролик внутри выбранной длины. На выходе всегда один файл."
+      descriptions={videoShapes}
+      values={['Один кадр', 'Набор сцен']}
+      selection={shape === 'template' ? undefined : shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
+      disabled={busy}
+      onSelect={(value) => onShape?.(value === 'Набор сцен' ? 'sequence' : 'single')}
+    />
+  );
   const videoSettings = video && (
     <>
-      {choices(fields.resolution, []).length > 0 && (
-        <ImageMenu
-          asField={compactTools}
-          label={String(options.resolution || 'Не задаётся')}
-          name="Разрешение"
-          note="Размер видео. Влияет на детализацию и стоимость."
-          values={choices(fields.resolution, []).map(String)}
-          selection={String(options.resolution || '')}
-          disabled={busy || !choices(fields.resolution, []).length}
-          onSelect={(value) => onOptions({ ...options, resolution: value })}
-        />
-      )}
-      {durations.length > 0 && (
-        <ImageMenu
-          asField={compactTools}
-          label={options.duration ? `${options.duration} с` : 'Не задаётся'}
-          name="Длительность"
-          note="Длина ролика. От неё зависит, сколько секунд соберёт модель."
-          descriptions={{
-            ...videoLengths,
-            ...(Math.max(...choices(fields.duration, [4, 6, 8, 10, 15]).map(Number)) <= 15
-              ? { '15 с': 'Самый длинный ролик в этом окне.' }
-              : {}),
-          }}
-          values={durations.map((v) => `${v} с`)}
-          selection={`${options.duration} с`}
-          disabled={busy || !fields.duration}
-          onSelect={(value) => onOptions({ ...options, duration: Number(value.split(' ')[0]) })}
-        />
-      )}
-      {soundOptions.length > 1 && (
-        <ImageMenu
-          asField={compactTools}
-          label={options.generateAudio ? 'Со звуком' : 'Без звука'}
-          name="Звук"
-          note="Звук ролика."
-          descriptions={videoSound}
-          values={soundOptions.map((value) => (value ? 'Со звуком' : 'Без звука'))}
-          selection={options.generateAudio ? 'Со звуком' : 'Без звука'}
-          disabled={busy}
-          onSelect={(value) => onOptions({ ...options, generateAudio: value === 'Со звуком' })}
-        />
-      )}
-      <ImageMenu
-        asField={compactTools}
-        label={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
-        name="Структура ролика"
-        note="Как собрать ролик внутри выбранной длины. На выходе всегда один файл."
-        descriptions={videoShapes}
-        values={['Один кадр', 'Набор сцен']}
-        selection={shape === 'sequence' ? 'Набор сцен' : 'Один кадр'}
+      <VideoDuration
+        values={durations}
+        value={Number(options.duration || 0)}
         disabled={busy}
-        onSelect={(value) => onShape?.(value === 'Набор сцен' ? 'sequence' : 'single')}
+        mobile={compactTools}
+        label="Длина ролика"
+        onChange={(duration) => {
+          if (feedTemplate && boundTemplate && composerTemplate) {
+            const text = updateFeedDuration(prompt, feedTemplate.prompt, Number(options.duration), duration);
+            if (text !== prompt) {
+              onPrompt(text);
+              onComposerTemplate({ ...rebaseComposerTemplate(boundTemplate, text), id: composerTemplate.id });
+            }
+          }
+          onOptions({ ...options, duration });
+        }}
       />
+      {soundOptions.length > 0 && (
+        <button
+          className="cw-chip"
+          type="button"
+          aria-label="Звук"
+          aria-pressed={!!options.generateAudio}
+          disabled={busy || soundOptions.length < 2}
+          onClick={() => onOptions({ ...options, generateAudio: !options.generateAudio })}
+        >
+          {options.generateAudio ? (mediaComposer ? 'Звук' : 'Со звуком') : 'Без звука'}
+        </button>
+      )}
+      {(!mediaComposer || compactTools) && resolutionSetting}
+      {(!mediaComposer || compactTools) && shapeSetting}
     </>
+  );
+  const qualityField = !video && quality.length > 0 && (
+    <label className="setting-field">
+      <span>Качество</span>
+      <SelectControl
+        disabled={busy}
+        value={String(options[qualityKey] || quality[0])}
+        onChange={(event) => onOptions({ ...options, [qualityKey]: event.target.value })}
+      >
+        {quality.map((value) => (
+          <option key={value} value={value}>
+            {value}
+          </option>
+        ))}
+      </SelectControl>
+    </label>
+  );
+  const aspectGrid = (
+    <ImageAspectGrid
+      values={ratios}
+      selected={ratio}
+      disabled={!!busy || !!referenceRatio}
+      onSelect={(value) => {
+        chooseRatio(value);
+        setSettingsOpen(false);
+        dock.current?.querySelector<HTMLElement>('.image-aspect-popup:popover-open')?.hidePopover();
+      }}
+    />
   );
   const extraSettings =
     grouped && model
       ? optionFields(model).filter(([key]) => !['size', 'aspectRatio', qualityKey].includes(key))
       : [];
-  const groups = grouped
-    ? [
-        {
-          key: 'results',
-          cards: [...statusCards, ...fileCards],
-          columns: Math.min(2, statusCards.length + fileCards.length),
-        },
-        { key: 'gallery', cards: galleryCards, columns },
-      ]
-    : [{ key: 'wall', cards: [...statusCards, ...fileCards, ...galleryCards], columns }];
+  const visibleFiles = showHistory ? fileCards : [];
+  const imageFeed = mediaComposer && !video;
+  const generationCards = [...statusCards, ...visibleFiles, ...galleryCards];
   const retryHistory = !error && !notice && !prefs.error && !retryCatalog && history.isLoadingError;
   const retry = retryCatalog || (retryHistory ? () => void history.refetch() : undefined);
   return (
@@ -742,7 +789,7 @@ export function MediaWorkspace({
               <nav aria-label="Страницы результатов">
                 <button
                   aria-label="Предыдущая страница"
-                  title="Предыдущая страница"
+                  data-tooltip="Предыдущая страница"
                   disabled={!page}
                   onClick={() => setPage(page - 1)}
                 >
@@ -751,7 +798,7 @@ export function MediaWorkspace({
                 <span>{page + 1}</span>
                 <button
                   aria-label="Следующая страница"
-                  title="Следующая страница"
+                  data-tooltip="Следующая страница"
                   disabled={page + 1 >= messages.data!.pages}
                   onClick={() => setPage(page + 1)}
                 >
@@ -761,17 +808,12 @@ export function MediaWorkspace({
             )}
           </div>
         )}
-        <div
-          className={`img-masonry${grouped ? ' image-mobile-wall' : ''}`}
-          style={{ paddingBottom: bottom }}
-        >
-          {groups
-            .filter((group) => group.cards.length > 0)
-            .map((group) => (
+        {!imageFeed && (
+          <div className="img-masonry" style={{ paddingBottom: banana || seedance ? bottom : 0 }}>
+            {generationCards.length > 0 && (
               <Masonry
-                key={group.key}
-                columns={group.columns}
-                ordered={group.key === 'results'}
+                columns={columns}
+                gap={mobileImageWall && mediaComposer ? 8 : 12}
                 scrollRoot={wall}
                 estimateHeight={(key, width) =>
                   key === 'next-page'
@@ -779,44 +821,93 @@ export function MediaWorkspace({
                     : width * (cardRatios.get(key) ?? 0.75) + (key.startsWith(kind + ':') ? 44 : 0)
                 }
               >
-                {group.cards}
+                {generationCards}
               </Masonry>
-            ))}
-        </div>
+            )}
+          </div>
+        )}
+        {!banana && !seedance && (
+          <DesignFeed
+            key={kind}
+            tab={feedTab}
+            onTab={(tab) => {
+              setFeedTab(tab);
+              wall.current?.scrollTo({ top: 0, behavior: 'instant' });
+            }}
+            kind={video ? 'video' : 'image'}
+            busy={busy || (!!user && catalogLoading)}
+            onApply={(card) => void applyFeedCard(card)}
+          >
+            {imageFeed && generationCards}
+          </DesignFeed>
+        )}
       </div>
-      {templatePreview && (
-        <Modal
-          title={templatePreview.title}
-          className="image-template-preview"
-          onClose={() => setTemplatePreview(undefined)}
-        >
-          <img src={templatePreview.src} alt={templatePreview.title} />
-        </Modal>
-      )}
       <form
-        className="img-dock"
+        className={mediaComposer ? 'img-dock design-media-composer' : 'img-dock'}
         ref={dock}
         onSubmit={(e) => {
           e.preventDefault();
+          if (mediaComposer && !prompt.trim() && !selected && !(video && references.length)) {
+            setEmptyPromptTime(Date.now());
+            promptInput.current?.focus();
+            return;
+          }
+          if (activeFeedCard && missingPhotos) {
+            setPhotoHintDismissed(false);
+            dock.current?.querySelector<HTMLButtonElement>('.feed-photo-tile > button')?.focus();
+            return;
+          }
           submitTemplate();
         }}
       >
-        <div className="cw-field">
-          {templateCard && composerTemplate && boundTemplate && (
+        {!!emptyPromptTime && (
+          <div className="image-composer-toast" role="status">
+            {video ? 'Опишите сцену ролика' : 'Напишите, что нарисовать'}
+          </div>
+        )}
+        <div className={activeFeedCard ? 'cw-field feed-template-fields' : 'cw-field'}>
+          {activeFeedCard && (
+            <div className="feed-template-chips">
+              <span>
+                {activeFeedCard.title}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onResetComposerTemplate}
+                  aria-label="Сбросить шаблон"
+                >
+                  ×
+                </button>
+              </span>
+              {needsTemplateImages && !photoHintDismissed && (
+                <span>
+                  + Фото
+                  <button
+                    type="button"
+                    onClick={() => setPhotoHintDismissed(true)}
+                    aria-label="Скрыть метку фото"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+          {!activeFeedCard && (templateCard || feedTemplate) && composerTemplate && boundTemplate && (
             <ComposerTemplatePanel
-              title={templateCard.title}
+              title={(templateCard || feedTemplate)!.title}
               disabled={busy}
               onReset={onResetComposerTemplate}
             >
               {recipe.variables.length > 0 && (
                 <ComposerTemplateFields
-                  key={templateCard.id}
+                  key={composerTemplate.id}
                   disabled={busy}
                   recipe={recipe}
                   values={boundTemplate.values}
                   onChange={(key, value) => {
                     const next = updateComposerField(boundTemplate, key, value);
-                    onComposerTemplate({ ...next, id: templateCard.id });
+                    onComposerTemplate({ ...next, id: composerTemplate.id });
                     onPrompt(next.text);
                   }}
                 />
@@ -875,6 +966,7 @@ export function MediaWorkspace({
                 </div>
               )}
               <RequiredPhotoSlots
+                tiles={!!activeFeedCard}
                 count={photoCount + missingPhotos}
                 filled={photoCount}
                 disabled={busy || !!unavailable}
@@ -882,12 +974,16 @@ export function MediaWorkspace({
               />
             </div>
           )}
-          {limits && <p className="video-model-limits">{limits}</p>}
+          {video && activeFeedCard && needsTemplateImages && (
+            <p className="video-template-hint">Для шаблона приложите своё фото</p>
+          )}
+          {limits && !mediaComposer && <p className="video-model-limits">{limits}</p>}
           <textarea
             ref={promptInput}
             id={seedance ? 'sd-draft' : banana ? 'nb-draft' : video ? 'vd-draft' : 'img-draft'}
             aria-label={video ? 'Идея ролика' : 'Идея'}
-            rows={3}
+            rows={mediaComposer ? 2 : 3}
+            style={mediaComposer ? undefined : { height: 72 }}
             value={prompt}
             disabled={busy}
             onChange={(e) => {
@@ -897,14 +993,13 @@ export function MediaWorkspace({
                   ...rebaseComposerTemplate(boundTemplate, text),
                   id: composerTemplate.id,
                 });
+              if (emptyPromptTime) setEmptyPromptTime(0);
               onPrompt(text);
             }}
             placeholder={
               video
-                ? supportsVideoReferences(model)
-                  ? 'Опишите сюжет, движение и атмосферу ролика. Можно добавить свои фото и видео - укажите, что изменить и что сохранить.'
-                  : 'Опишите сюжет, движение и атмосферу ролика. Можно добавить свои изображения как исходные кадры - укажите, что оживить и что сохранить.'
-                : 'Опишите, какое изображение хотите получить. Можно добавить свои фото - укажите, что изменить, а что сохранить.'
+                ? 'Что происходит в ролике? Кто в кадре, куда едет камера.'
+                : 'Опишите, что нарисовать. Если нужно своё фото - приложите его ниже.'
             }
           />
         </div>
@@ -913,7 +1008,7 @@ export function MediaWorkspace({
             {(!video || !model || referenceLimit(model) > 0) && (
               <button
                 className={`cw-plus ${needsTemplateImages ? `needs-template-images${templateGlowActive ? ' template-glow-active' : ''}` : ''}`}
-                title={
+                data-tooltip={
                   needsTemplateImages
                     ? `Добавьте свои ${video && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${photoCount + missingPhotos}`
                     : video
@@ -937,7 +1032,18 @@ export function MediaWorkspace({
                   busy={templateUploadProgress !== undefined}
                   progress={templateUploadProgress || undefined}
                 >
-                  <Plus size={20} />
+                  {mediaComposer ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M12 5v14M5 12h14"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  ) : (
+                    <Plus size={20} />
+                  )}
                 </UploadButtonContent>
               </button>
             )}
@@ -955,7 +1061,8 @@ export function MediaWorkspace({
               disabled={busy}
               models={models}
               kind={kind}
-              mobile={mobileImageWall}
+              mobile={mobileImageWall && !mediaComposer}
+              composer={mediaComposer}
               selected={model && modelKey(model)}
               favorites={prefs.value.favoriteModels}
               onFavorite={
@@ -987,7 +1094,36 @@ export function MediaWorkspace({
                   Ещё
                 </button>
               )}
-            {!compactTools && (!!ratios.length || banana) && (
+            {!compactTools && mediaComposer && (video || ratios.length > 0 || quality.length > 0) && (
+              <>
+                <button
+                  type="button"
+                  className="cw-chip image-aspect-trigger"
+                  aria-label="Стороны"
+                  aria-haspopup="dialog"
+                  popoverTarget="image-aspect-popup"
+                  disabled={busy}
+                >
+                  <AspectShape value={ratio} />
+                  {referenceRatio ? 'По исходному кадру' : ratio || 'Стороны'}
+                </button>
+                <div
+                  id="image-aspect-popup"
+                  className="image-aspect-popup"
+                  popover="auto"
+                  role="dialog"
+                  aria-label="Стороны"
+                >
+                  <div className="aspect-title">Какой кадр нужен</div>
+                  {aspectGrid}
+                  {qualityField}
+                  {video && resolutionSetting}
+                  {video && shapeSetting}
+                  {limits && <p className="video-model-limits">{limits}</p>}
+                </div>
+              </>
+            )}
+            {!mediaComposer && !compactTools && (!!ratios.length || banana) && (
               <ImageMenu
                 label={
                   referenceRatio
@@ -1011,7 +1147,7 @@ export function MediaWorkspace({
                 onSelect={chooseRatio}
               />
             )}
-            {!grouped && !video && (!!quality.length || banana) && (
+            {banana && (
               <ImageMenu
                 label={String(options[qualityKey] || quality[0] || (user ? 'Не задаётся' : '1K'))}
                 name={banana ? 'Размер' : 'Качество'}
@@ -1031,12 +1167,24 @@ export function MediaWorkspace({
             disabled={
               busy ||
               unavailable ||
-              missingPhotos > 0 ||
+              (missingPhotos > 0 && !activeFeedCard) ||
               missingFields ||
-              (!prompt.trim() && !selected && !((video || banana) && references.length))
+              (!mediaComposer &&
+                !prompt.trim() &&
+                !selected &&
+                !(video && references.length) &&
+                !((video || banana) && references.length))
             }
           >
-            {busy ? <span className="spinner" /> : <ArrowUp size={20} />}
+            {busy ? (
+              <span className="spinner" />
+            ) : mediaComposer ? (
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            ) : (
+              <ArrowUp size={20} />
+            )}
           </button>
         </div>
         {(error || notice || prefs.error || history.error) && (
@@ -1048,7 +1196,7 @@ export function MediaWorkspace({
             {retry && (
               <button
                 type="button"
-                className="text-button"
+                className="text-button message-action"
                 onClick={retry}
                 disabled={retryHistory && history.isFetching}
               >
@@ -1060,11 +1208,13 @@ export function MediaWorkspace({
       </form>
       {compactTools && settingsOpen && (
         <Modal
-          title={video ? 'Настройки видео' : 'Настройки изображения'}
-          className="studio-mobile-sheet image-settings-sheet"
+          title={video ? 'Кадр, длина и звук' : 'Ещё настройки'}
+          className={`studio-mobile-sheet image-settings-sheet ${mediaComposer ? 'design-image-settings' : ''}`}
           onClose={() => setSettingsOpen(false)}
         >
-          {ratios.length > 0 && (
+          {video && <p className="aspect-title">Размер кадра</p>}
+          {mediaComposer && aspectGrid}
+          {!mediaComposer && ratios.length > 0 && (
             <label className="setting-field">
               <span>Соотношение сторон</span>
               <SelectControl
@@ -1086,22 +1236,7 @@ export function MediaWorkspace({
             </label>
           )}
           {videoSettings}
-          {!video && quality.length > 0 && (
-            <label className="setting-field">
-              <span>Качество</span>
-              <SelectControl
-                disabled={busy}
-                value={String(options[qualityKey] || quality[0])}
-                onChange={(event) => onOptions({ ...options, [qualityKey]: event.target.value })}
-              >
-                {quality.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </SelectControl>
-            </label>
-          )}
+          {qualityField}
           {extraSettings.map(([key, schema]) => (
             <ModelField
               key={key}
@@ -1265,7 +1400,7 @@ export function ImageMenu({
         }}
       >
         {models ? (
-          <span className="gf-model-trigger-name" title={label}>
+          <span className="gf-model-trigger-name" data-tooltip={label}>
             {label}
           </span>
         ) : (

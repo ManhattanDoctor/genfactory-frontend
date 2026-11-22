@@ -44,7 +44,8 @@ function History({ userId }: { userId: number }): ReactElement {
   return (
     <section id="balance-history" className="balance-history account-card">
       <div className="transaction-filters">
-        <label className="setting-field">
+        <h2>Все операции</h2>
+        <div className="transaction-filter-controls">
           <SelectControl
             aria-label="Операции"
             value={kind}
@@ -57,8 +58,7 @@ function History({ userId }: { userId: number }): ReactElement {
             <option value="expense">Списания</option>
             <option value="income">Зачисления</option>
           </SelectControl>
-        </label>
-        <label className="setting-field">
+
           <SelectControl
             aria-label="Период"
             value={period}
@@ -76,7 +76,7 @@ function History({ userId }: { userId: number }): ReactElement {
             <option value="7">Последние 7 дней</option>
             <option value="30">Последние 30 дней</option>
           </SelectControl>
-        </label>
+        </div>
       </div>
       {query.isPending ? (
         <p role="status">Загружаем операции…</p>
@@ -88,7 +88,22 @@ function History({ userId }: { userId: number }): ReactElement {
           </button>
         </div>
       ) : !query.data?.items.length ? (
-        <p className="transaction-empty">Операций по выбранным условиям пока нет.</p>
+        <div className="transaction-empty">
+          <h3>Нет операций</h3>
+          <p>Под выбранными фильтрами записей нет. Смените тип или период.</p>
+          <button
+            type="button"
+            className="button"
+            onClick={() => {
+              setKind('all');
+              setPeriod('all');
+              setSince('');
+              setPage(0);
+            }}
+          >
+            Сбросить фильтры
+          </button>
+        </div>
       ) : (
         <>
           <ol className="transaction-list">
@@ -106,6 +121,25 @@ function History({ userId }: { userId: number }): ReactElement {
                         <time>{new Date(t.createdDate).toLocaleString('ru-RU')}</time> · №{t.id}
                       </p>
                       {t.groupId && <p className="small muted">Группа №{t.groupId}</p>}
+                      <div className="transaction-actions">
+                        {link && (
+                          <Link className="transaction-conversation" to={link}>
+                            Беседа №{t.details!.source!.id}
+                          </Link>
+                        )}
+                        <button
+                          className="transaction-conversation transaction-toggle"
+                          aria-expanded={expanded.includes(t.id)}
+                          aria-controls={`transaction-detail-${t.id}`}
+                          onClick={() =>
+                            setExpanded((v) =>
+                              v.includes(t.id) ? v.filter((id) => id !== t.id) : [...v, t.id],
+                            )
+                          }
+                        >
+                          Детали операции <ChevronDown size={14} />
+                        </button>
+                      </div>
                     </div>
                     <div className={`transaction-amount ${expense ? 'expense' : 'income'}`}>
                       <strong>
@@ -116,23 +150,6 @@ function History({ userId }: { userId: number }): ReactElement {
                         {t.activatedDate ? (expense ? 'Списано' : 'Зачислено') : 'Ожидает проведения'}
                       </span>
                     </div>
-                  </div>
-                  <div className="transaction-actions">
-                    {link && (
-                      <Link className="transaction-conversation" to={link}>
-                        Беседа №{t.details!.source!.id}
-                      </Link>
-                    )}
-                    <button
-                      className="transaction-conversation transaction-toggle"
-                      aria-expanded={expanded.includes(t.id)}
-                      aria-controls={`transaction-detail-${t.id}`}
-                      onClick={() =>
-                        setExpanded((v) => (v.includes(t.id) ? v.filter((id) => id !== t.id) : [...v, t.id]))
-                      }
-                    >
-                      Детали операции <ChevronDown size={14} />
-                    </button>
                   </div>
                   <div
                     id={`transaction-detail-${t.id}`}
@@ -224,7 +241,7 @@ function History({ userId }: { userId: number }): ReactElement {
                 type="button"
                 className="button"
                 aria-label="Предыдущая страница"
-                title="Предыдущая страница"
+                data-tooltip="Предыдущая страница"
                 disabled={page === 0}
                 onClick={() => setPage((p) => p - 1)}
               >
@@ -237,7 +254,7 @@ function History({ userId }: { userId: number }): ReactElement {
                 type="button"
                 className="button"
                 aria-label="Следующая страница"
-                title="Следующая страница"
+                data-tooltip="Следующая страница"
                 disabled={page + 1 >= query.data.pages}
                 onClick={() => setPage((p) => p + 1)}
               >

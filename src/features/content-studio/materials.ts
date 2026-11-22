@@ -13,6 +13,9 @@ export interface ITemplate {
   recommendedDuration?: number;
   src: string;
   previewSrc?: string;
+  previewRatio?: string;
+  poster?: string;
+  tags?: string[];
   referenceVideoSrc?: string;
   referenceVideoSize?: number;
   ratio: string;

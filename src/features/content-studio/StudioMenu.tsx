@@ -78,7 +78,7 @@ export function StudioMenu({
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
-        title={value || label}
+        data-tooltip={value || label}
         onClick={() => {
           setOpen(!open);
         }}

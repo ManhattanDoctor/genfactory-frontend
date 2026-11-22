@@ -371,3 +371,130 @@
 .account-page .transaction-preview .file-placeholder-format {
   display: none;
 }
+
+.account-page .profile-row > div:last-child {
+  min-width: 0;
+}
+.account-page .wallet-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(221, 249, 74, 0.12);
+  color: var(--gf-accent);
+}
+.account-page .wallet-ico svg {
+  width: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+.account-page .transaction-list .transaction-row {
+  padding: 14px 4px;
+  border-color: rgba(244, 244, 240, 0.06);
+}
+.account-page .transaction-row:first-child {
+  border-top: 0;
+}
+.account-page .transaction-main h3 {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.account-page .transaction-main .transaction-actions {
+  gap: 6px;
+  margin: 6px 0 0;
+}
+.account-page .transaction-actions .transaction-conversation {
+  min-height: 32px;
+  padding: 0 10px;
+  font-weight: 550;
+  border-color: rgba(244, 244, 240, 0.1);
+  background: rgba(244, 244, 240, 0.04);
+  color: var(--gf-text-2);
+}
+.account-page .transaction-actions .transaction-conversation:hover {
+  background: rgba(244, 244, 240, 0.08);
+  color: var(--gf-text);
+}
+.account-page .transaction-amount strong {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.account-page .expense strong {
+  color: #f0c0c0;
+}
+.account-page .income strong {
+  color: #8fd98a;
+}
+.account-page .transaction-details {
+  padding: 14px;
+  border: 1px solid rgba(244, 244, 240, 0.06);
+  background: rgba(244, 244, 240, 0.03);
+}
+.account-page .transaction-empty h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.account-page .transaction-empty p {
+  margin: 0;
+  max-width: 36ch;
+  font-size: 14px;
+  color: var(--gf-text-3);
+}
+@media (max-width: 780px) {
+  .account-page .transaction-actions .transaction-conversation {
+    min-height: 44px;
+    padding: 0 12px;
+  }
+}
+
+.account-page .transaction-row .transaction-main {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  column-gap: 12px;
+}
+.account-page .transaction-row :is(.transaction-preview, .transaction-icon) {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(244, 244, 240, 0.06);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--gf-raised);
+  color: var(--gf-text-3);
+}
+.account-page .transaction-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.account-page .transaction-filter-controls .select-control {
+  width: auto;
+}
+.account-page .transaction-filters h2 {
+  line-height: 1.45;
+}
+.account-page .transaction-filters .select-control > select {
+  field-sizing: content;
+  width: auto;
+  height: 40px;
+  padding: 0 36px 0 14px;
+  border: 1px solid rgba(244, 244, 240, 0.1);
+  background: rgba(17, 17, 20, 0.85);
+  color: var(--gf-text);
+  font-weight: 550;
+  font-size: 13px;
+}
+@media (max-width: 780px) {
+  .gf-section-main .account-page .transaction-row .transaction-main {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .account-page .transaction-filters .select-control > select {
+    width: 100%;
+    min-height: 44px;
+  }
+}

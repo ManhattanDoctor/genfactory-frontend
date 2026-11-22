@@ -75,8 +75,9 @@ export function LibraryPicker({
     onClose();
   }
   return (
-    <Modal title="Библиотека" className="library-picker" onClose={onClose} wide>
+    <Modal title="Библиотека" className="library-picker library-page" onClose={onClose} wide>
       <FileBrowser
+        layout="picker"
         key={user?.id}
         selected={selected}
         marked={files.map((file) => file.id)}

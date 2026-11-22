@@ -1,0 +1,1734 @@
+{
+  "digests": [
+    {
+      "title": "Nano Banana 2.1",
+      "verdict": "Подходит для простых предметных кадров и коротких надписей. На очень узких и очень широких форматах картинка часто ломается на повтор одного и того же кадра.",
+      "take": [
+        "Нужен обычный кадр предмета: еда, техника, одежда, обувь.",
+        "Важны короткие слова на русском на этикетке или вывеске.",
+        "Формат близок к квадрату или привычным горизонтали и вертикали.",
+        "Достаточно попасть в тему, даже если кадр не идеален."
+      ],
+      "avoid": [
+        "Нужен очень узкий или очень широкий кадр - часто получается полоса из одинаковых кусков.",
+        "Текст должен отсутствовать: модель может сама дорисовать лишнюю надпись.",
+        "Важны точные логотипы, чертежи, лица по образцу или рабочий QR-код."
+      ],
+      "gallery": [
+        "/media/home/02_Nano_Banana_2.1/good_01_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_04_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_05_не брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_06_править.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_08_править.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_09_править.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_10_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_12_не брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_13_править.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_14_править.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_15_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_18_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_19_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_20_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_22_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_23_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_24_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_26_править.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_27_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_28_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_29_править.jpg",
+        "/media/home/02_Nano_Banana_2.1/weak_01_не брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/weak_04_не брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/weak_05_не брать.jpg"
+      ],
+      "covers": [
+        "/media/home/02_Nano_Banana_2.1/good_01_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_04_брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_05_не брать.jpg",
+        "/media/home/02_Nano_Banana_2.1/good_06_править.jpg"
+      ],
+      "model": "google/gemini-nano-banana-2.1"
+    },
+    {
+      "title": "Nano Banana Pro",
+      "verdict": "Хорошо подходит для реалистичных бытовых кадров: свет и фактура похожи на фото. Заказанную надпись иногда теряет или пишет с ошибкой.",
+      "take": [
+        "Нужен цельный предметный кадр без склеек и полос.",
+        "Короткие слова на этикетке обычно читаются.",
+        "Важны живой свет и фактура поверхностей.",
+        "Нужно удержать заданные пропорции кадра."
+      ],
+      "avoid": [
+        "Критично, чтобы каждое заказанное слово появилось точно как в задании.",
+        "Длинный текст на упаковке или сложный набор лиц по образцам.",
+        "Сцена должна строго совпасть с местом: модель иногда переносит предмет в другую обстановку."
+      ],
+      "gallery": [
+        "/media/home/04_Nano_Banana_Pro/good_01_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_02_править.png",
+        "/media/home/04_Nano_Banana_Pro/good_03_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_04_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_05_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_06_править.png",
+        "/media/home/04_Nano_Banana_Pro/good_07_править.png",
+        "/media/home/04_Nano_Banana_Pro/good_08_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_09_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_10_править.png",
+        "/media/home/04_Nano_Banana_Pro/good_11_не брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_12_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_13_не брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_14_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_15_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_16_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_17_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_18_не брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_19_править.png",
+        "/media/home/04_Nano_Banana_Pro/good_20_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_21_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_22_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_23_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_24_брать.png"
+      ],
+      "covers": [
+        "/media/home/04_Nano_Banana_Pro/good_01_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_02_править.png",
+        "/media/home/04_Nano_Banana_Pro/good_03_брать.png",
+        "/media/home/04_Nano_Banana_Pro/good_04_брать.png"
+      ],
+      "model": "google/gemini-3-pro-image"
+    },
+    {
+      "title": "Seedream 5 Pro",
+      "verdict": "Даёт кинематографичный свет и живые сцены. Короткий текст на предметах часто читается, но в пустой кадр модель нередко добавляет людей.",
+      "take": [
+        "Нужен выразительный свет и живой предметный кадр.",
+        "Короткие надписи на вещах обычно держатся.",
+        "Сцена с людьми уместна или не мешает результату.",
+        "Подойдут простые схемы и чистые знаки на ровном фоне."
+      ],
+      "avoid": [
+        "В кадре не должно быть людей - модель часто всё равно их ставит.",
+        "Нужна безупречная орфография длинных или редких слов.",
+        "Сложный текст: абзац на упаковке, инфографика, комикс с многими панелями."
+      ],
+      "gallery": [
+        "/media/home/06_Seedream_5_Pro/good_01_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_02_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_03_брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_04_брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_05_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_06_брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_07_не брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_08_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_09_брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_10_брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_11_брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_12_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_13_не брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_14_не брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_15_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_16_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_17_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_18_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_19_не брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_20_не брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_21_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_22_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_23_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_24_править.jpg"
+      ],
+      "covers": [
+        "/media/home/06_Seedream_5_Pro/good_01_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_02_править.jpg",
+        "/media/home/06_Seedream_5_Pro/good_03_брать.jpg",
+        "/media/home/06_Seedream_5_Pro/good_04_брать.jpg"
+      ],
+      "model": "bytedance-seed/seedream-5-0-pro"
+    },
+    {
+      "title": "FLUX 3",
+      "verdict": "Хорошо собирает сцены и короткие надписи. Длинный текст и чужие лица по заданию часто ломаются.",
+      "take": [
+        "Нужны короткие читаемые слова на русском или латинице.",
+        "Важен цельный кадр без полос и склеек.",
+        "Подходят простые интерфейсы и короткие подписи на экране.",
+        "Нужны несколько людей с читаемыми короткими подписями рядом."
+      ],
+      "avoid": [
+        "Предмет должен стоять строго в заданном месте - модель иногда выносит его на улицу.",
+        "Нужно точное отражение в зеркале, а не прямой портрет.",
+        "Длинный абзац акции или договорный текст целиком."
+      ],
+      "gallery": [
+        "/media/home/08_FLUX_3/good_01_править.png",
+        "/media/home/08_FLUX_3/good_02_править.png",
+        "/media/home/08_FLUX_3/good_03_править.png",
+        "/media/home/08_FLUX_3/good_04_брать.png",
+        "/media/home/08_FLUX_3/good_05_править.png",
+        "/media/home/08_FLUX_3/good_06_не брать.png",
+        "/media/home/08_FLUX_3/good_07_править.png",
+        "/media/home/08_FLUX_3/good_08_брать.png",
+        "/media/home/08_FLUX_3/good_09_брать.png",
+        "/media/home/08_FLUX_3/good_10_брать.png",
+        "/media/home/08_FLUX_3/good_11_брать.png",
+        "/media/home/08_FLUX_3/good_12_не брать.png",
+        "/media/home/08_FLUX_3/good_13_не брать.png",
+        "/media/home/08_FLUX_3/good_14_править.png",
+        "/media/home/08_FLUX_3/good_15_брать.png",
+        "/media/home/08_FLUX_3/good_16_править.png",
+        "/media/home/08_FLUX_3/good_17_править.png",
+        "/media/home/08_FLUX_3/good_18_брать.png",
+        "/media/home/08_FLUX_3/good_19_брать.png",
+        "/media/home/08_FLUX_3/good_20_править.png",
+        "/media/home/08_FLUX_3/good_21_брать.png",
+        "/media/home/08_FLUX_3/good_22_брать.png",
+        "/media/home/08_FLUX_3/good_23_не брать.png",
+        "/media/home/08_FLUX_3/good_24_брать.png"
+      ],
+      "covers": [
+        "/media/home/08_FLUX_3/good_01_править.png",
+        "/media/home/08_FLUX_3/good_02_править.png",
+        "/media/home/08_FLUX_3/good_03_править.png",
+        "/media/home/08_FLUX_3/good_04_брать.png"
+      ],
+      "model": "black-forest-labs/flux-3-image"
+    },
+    {
+      "title": "Nano Banana Pro Preview",
+      "verdict": "Хорошо даёт реализм и короткие слова, но в кадр часто попадают чужие служебные надписи и неверные бирки.",
+      "take": [
+        "Нужен реалистичный кадр с чистыми краями предметов.",
+        "Короткие слова на предметах обычно на месте.",
+        "Важны отражения и сложная фактура.",
+        "Подойдёт связный короткий текст на мятой упаковке."
+      ],
+      "avoid": [
+        "Нельзя допускать посторонние водяные знаки и чужие брендовые подписи.",
+        "Критична точная бирка или логотип на фурнитуре.",
+        "Сложные чертежи, смесь лиц и строгая нумерация склада."
+      ],
+      "gallery": [
+        "/media/home/12_Nano_Banana_Pro_Preview/good_01_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_02_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_03_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_04_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_05_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_06_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_07_не брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_08_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_09_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_10_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_11_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_12_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_13_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_14_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_15_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_16_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_17_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_18_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_19_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_20_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_21_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_22_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_23_не брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_24_брать.jpg"
+      ],
+      "covers": [
+        "/media/home/12_Nano_Banana_Pro_Preview/good_01_брать.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_02_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_03_править.jpg",
+        "/media/home/12_Nano_Banana_Pro_Preview/good_04_брать.jpg"
+      ],
+      "model": "google/gemini-3-pro-image-preview"
+    },
+    {
+      "title": "Seedream 4.5",
+      "verdict": "Свет и фактура живые, короткое слово часто на месте. Слабые места - лишние люди в кадре и ошибки в отражениях и вывесках.",
+      "take": [
+        "Нужен живой свет и аккуратный предмет без лишнего текста.",
+        "Короткие надписи обычно читаются.",
+        "Простые схемы и иконки по короткому заданию часто сходятся.",
+        "Важно удержать заданные пропорции кадра."
+      ],
+      "avoid": [
+        "В кадре не должно быть людей - часто появляются ноги, лица или толпа.",
+        "Отражение вывески должно точно совпасть с оригиналом.",
+        "Надпись должна сидеть строго на нужной детали, а не рядом."
+      ],
+      "gallery": [
+        "/media/home/15_Seedream_4.5/good_01_править.jpg",
+        "/media/home/15_Seedream_4.5/good_02_править.jpg",
+        "/media/home/15_Seedream_4.5/good_03_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_04_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_05_править.jpg",
+        "/media/home/15_Seedream_4.5/good_06_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_07_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_08_править.jpg",
+        "/media/home/15_Seedream_4.5/good_09_править.jpg",
+        "/media/home/15_Seedream_4.5/good_10_править.jpg",
+        "/media/home/15_Seedream_4.5/good_11_править.jpg",
+        "/media/home/15_Seedream_4.5/good_12_править.jpg",
+        "/media/home/15_Seedream_4.5/good_13_не брать.jpg",
+        "/media/home/15_Seedream_4.5/good_14_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_15_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_16_править.jpg",
+        "/media/home/15_Seedream_4.5/good_17_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_18_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_19_править.jpg",
+        "/media/home/15_Seedream_4.5/good_20_править.jpg",
+        "/media/home/15_Seedream_4.5/good_21_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_22_править.jpg",
+        "/media/home/15_Seedream_4.5/good_23_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_24_править.jpg"
+      ],
+      "covers": [
+        "/media/home/15_Seedream_4.5/good_01_править.jpg",
+        "/media/home/15_Seedream_4.5/good_02_править.jpg",
+        "/media/home/15_Seedream_4.5/good_03_брать.jpg",
+        "/media/home/15_Seedream_4.5/good_04_брать.jpg"
+      ],
+      "model": "bytedance-seed/seedream-4.5"
+    },
+    {
+      "title": "Seedream 5 Lite",
+      "verdict": "Простые живые сцены и короткие надписи почти всегда целые. Схемы, фирменный стиль и инфографика часто уходят в выдуманный текст.",
+      "take": [
+        "Нужен один предмет, мягкий свет и короткая кириллица.",
+        "Витрина, улица, шоурум и простая предметная сцена по заданию.",
+        "Отражение короткой вывески обычно совпадает.",
+        "Простой набор иконок или ровная сетка без сложного текста."
+      ],
+      "avoid": [
+        "Место действия должно быть точным - модель иногда подменяет локацию.",
+        "Нужно верное отражение лица в зеркале.",
+        "Инфографика, фирменный стиль и длинные подписи с проверяемыми словами."
+      ],
+      "gallery": [
+        "/media/home/30_Seedream_5_Lite/good_01_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_02_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_03_не брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_04_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_05_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_06_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_07_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_08_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_09_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_10_править.jpg",
+        "/media/home/30_Seedream_5_Lite/good_11_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_12_править.jpg",
+        "/media/home/30_Seedream_5_Lite/good_13_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_14_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_15_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_16_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_17_не брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_18_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_19_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_20_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_21_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_22_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_23_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_24_не брать.jpg"
+      ],
+      "covers": [
+        "/media/home/30_Seedream_5_Lite/good_01_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_02_брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_03_не брать.jpg",
+        "/media/home/30_Seedream_5_Lite/good_04_брать.jpg"
+      ],
+      "model": "bytedance-seed/seedream-5-0-lite"
+    },
+    {
+      "title": "Recraft V4.1 Utility Pro",
+      "verdict": "Хорошо подходит для плоских плакатов с нужным текстом на месте. Срывы точечные: вместо иконки получается баннер, вместо макета - фото, сложный жест руки ломается.",
+      "take": [
+        "Нужен плоский плакат или лист с крупным шрифтом.",
+        "Короткие заказные слова обычно читаются.",
+        "Важен один фон без полосы из кадров.",
+        "Подойдут и простые живые фото еды, кожи, дождя."
+      ],
+      "avoid": [
+        "Нужна маленькая чистая иконка без превращения в рекламный баннер.",
+        "Плакат должен остаться плоским листом, а не фото стены.",
+        "Сложные жесты рук и спортивная физика с точными позами."
+      ],
+      "gallery": [
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_01_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_02_править.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_03_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_04_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_05_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_06_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_07_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_08_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_09_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_10_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_11_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_12_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_13_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_14_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_15_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_16_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_17_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_18_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_19_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_20_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_21_править.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_22_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_23_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_24_брать.webp"
+      ],
+      "covers": [
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_01_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_02_править.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_03_брать.webp",
+        "/media/home/40_Recraft_V4.1_Utility_Pro/good_04_брать.webp"
+      ],
+      "model": "recraft/recraft-v4.1-utility-pro"
+    },
+    {
+      "title": "Seedream 5 Flash",
+      "verdict": "Предметные кадры живые, короткая надпись обычно на месте. Мелкий текст, линейки, логотипы и комиксы часто разваливаются.",
+      "take": [
+        "Нужен живой предметный кадр с короткой надписью.",
+        "Важны свет и фактура: ткань, пар, мокрый асфальт, стекло.",
+        "Кадр должен быть цельным, без склеек.",
+        "Простой набор иконок приложения."
+      ],
+      "avoid": [
+        "Мелкий абзац, юридический текст или комикс с многими панелями.",
+        "Логотип из нескольких знаков должен быть идеально чистым.",
+        "Точные размеры по линейке и подписям в кадре."
+      ],
+      "gallery": [
+        "/media/home/41_Seedream_5_Flash/good_01_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_02_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_03_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_04_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_05_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_06_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_07_править.jpg",
+        "/media/home/41_Seedream_5_Flash/good_08_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_09_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_10_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_11_править.jpg",
+        "/media/home/41_Seedream_5_Flash/good_12_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_13_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_14_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_15_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_16_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_17_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_18_править.jpg",
+        "/media/home/41_Seedream_5_Flash/good_19_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_20_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_21_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_22_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_23_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_24_брать.jpg"
+      ],
+      "covers": [
+        "/media/home/41_Seedream_5_Flash/good_01_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_02_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_03_брать.jpg",
+        "/media/home/41_Seedream_5_Flash/good_04_брать.jpg"
+      ],
+      "model": "bytedance-seed/seedream-5-0-flash"
+    },
+    {
+      "title": "FLUX 3 Klein",
+      "verdict": "Сильные предметные кадры почти всегда целые и с верной короткой надписью. Длинный текст, интерфейсы, логотипы и QR-код обычно не держат.",
+      "take": [
+        "Нужна короткая предметная сцена без склеек.",
+        "Короткие слова на вещах обычно на месте.",
+        "Важны спокойная крупная фактура ткани, стекла, бумаги.",
+        "Нужно удержать заданные пропорции кадра."
+      ],
+      "avoid": [
+        "Мелкий логотип на фурнитуре должен читаться без ошибок.",
+        "Сложное отражение в зеркале лифта.",
+        "Длинный текст, банковский экран, логотип или рабочий QR-код."
+      ],
+      "gallery": [
+        "/media/home/46_FLUX_3_Klein/good_01_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_02_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_03_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_04_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_05_править.jpg",
+        "/media/home/46_FLUX_3_Klein/good_06_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_07_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_08_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_09_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_10_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_11_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_12_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_13_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_14_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_15_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_16_не брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_17_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_18_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_19_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_20_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_21_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_22_не брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_23_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_24_брать.jpg"
+      ],
+      "covers": [
+        "/media/home/46_FLUX_3_Klein/good_01_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_02_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_03_брать.jpg",
+        "/media/home/46_FLUX_3_Klein/good_04_брать.jpg"
+      ],
+      "model": "black-forest-labs/flux-3-image-klein"
+    },
+    {
+      "title": "Recraft V4.1 Utility",
+      "verdict": "Плакаты почти всегда плоские и с верным коротким словом. Срывы редкие: лишнее поле, размер букв и кусок фото там, где просили пустоту.",
+      "take": [
+        "Нужен плакат, сетка, пиктограммы и плоский цвет - не фотореализм.",
+        "Короткие слова на листе обычно на месте.",
+        "Меню и ценник без лишних фото еды.",
+        "Простые фото-запросы тоже часто выходят живыми."
+      ],
+      "avoid": [
+        "Рядом с текстом должно остаться строго пустое поле.",
+        "Одна буква должна быть заметно крупнее остальных.",
+        "Низ кадра нельзя забивать случайным фото."
+      ],
+      "gallery": [
+        "/media/home/49_Recraft_V4.1_Utility/good_01_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_02_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_03_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_04_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_05_править.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_06_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_07_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_08_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_09_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_10_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_11_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_12_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_13_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_14_править.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_15_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_16_править.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_17_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_18_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_19_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_20_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_21_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_22_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_23_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_24_брать.webp"
+      ],
+      "covers": [
+        "/media/home/49_Recraft_V4.1_Utility/good_01_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_02_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_03_брать.webp",
+        "/media/home/49_Recraft_V4.1_Utility/good_04_брать.webp"
+      ],
+      "model": "recraft/recraft-v4.1-utility"
+    },
+    {
+      "title": "Nano Banana 2",
+      "verdict": "Базовая модель линейки: справляется с простыми предметными кадрами и короткими надписями, но на сложных форматах и точном тексте слабее старших версий.",
+      "take": [
+        "Нужен простой предметный кадр без сложных требований.",
+        "Достаточно короткой надписи на русском.",
+        "Формат обычный - квадрат или привычные пропорции.",
+        "Подходит для быстрых черновиков, а не финальной сдачи."
+      ],
+      "avoid": [
+        "Нужна стабильность на очень узких и широких форматах.",
+        "Критична точность каждого слова и отсутствие лишних надписей.",
+        "Важны сложные схемы, лица по образцу и проверяемые детали."
+      ],
+      "gallery": [
+        "/media/home/01_Nano_Banana_2/good_01.jpg",
+        "/media/home/01_Nano_Banana_2/good_04.jpg",
+        "/media/home/01_Nano_Banana_2/good_05.jpg",
+        "/media/home/01_Nano_Banana_2/good_06.jpg",
+        "/media/home/01_Nano_Banana_2/good_08.jpg",
+        "/media/home/01_Nano_Banana_2/good_09.jpg",
+        "/media/home/01_Nano_Banana_2/good_10.jpg",
+        "/media/home/01_Nano_Banana_2/good_12.jpg",
+        "/media/home/01_Nano_Banana_2/good_13.jpg",
+        "/media/home/01_Nano_Banana_2/good_14.jpg",
+        "/media/home/01_Nano_Banana_2/good_15.jpg",
+        "/media/home/01_Nano_Banana_2/good_18.jpg",
+        "/media/home/01_Nano_Banana_2/good_19.jpg",
+        "/media/home/01_Nano_Banana_2/good_20.jpg",
+        "/media/home/01_Nano_Banana_2/good_22.jpg",
+        "/media/home/01_Nano_Banana_2/good_23.jpg",
+        "/media/home/01_Nano_Banana_2/good_24.jpg",
+        "/media/home/01_Nano_Banana_2/good_26.jpg",
+        "/media/home/01_Nano_Banana_2/good_27.jpg",
+        "/media/home/01_Nano_Banana_2/good_28.jpg",
+        "/media/home/01_Nano_Banana_2/good_29.jpg",
+        "/media/home/01_Nano_Banana_2/weak_01.jpg",
+        "/media/home/01_Nano_Banana_2/weak_04.jpg",
+        "/media/home/01_Nano_Banana_2/weak_06.jpg"
+      ],
+      "covers": [
+        "/media/home/01_Nano_Banana_2/good_01.jpg",
+        "/media/home/01_Nano_Banana_2/good_04.jpg",
+        "/media/home/01_Nano_Banana_2/good_05.jpg",
+        "/media/home/01_Nano_Banana_2/good_06.jpg"
+      ],
+      "model": "google/gemini-3.1-flash-image"
+    },
+    {
+      "title": "Nano Banana 2 Lite",
+      "verdict": "Простые предметные кадры часто целые и с верным словом. Узкие форматы срываются в полосу, а надпись иногда садится не туда.",
+      "take": [
+        "Нужна короткая цельная сцена: еда, набор, свеча, ноутбук.",
+        "Короткие слова обычно читаются.",
+        "Широкий формат с простой сценой часто остаётся одним кадром.",
+        "Подойдёт для быстрых проверок простых заданий."
+      ],
+      "avoid": [
+        "Очень узкий или вытянутый формат - риск полосы из кадров.",
+        "Точная дата, зеркало и строгая композиция.",
+        "Слово должно сидеть строго на нужной детали предмета."
+      ],
+      "gallery": [
+        "/media/home/50_Nano_Banana_2_Lite/good_01_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_04_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_05_править.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_06_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_08_не брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_09_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_10_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_12_править.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_13_не брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_14_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_15_править.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_18_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_19_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_20_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_22_править.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_23_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_24_править.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_26_править.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_27_править.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_28_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_29_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/weak_01_не брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/weak_04_не брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/weak_05_не брать.jpg"
+      ],
+      "covers": [
+        "/media/home/50_Nano_Banana_2_Lite/good_01_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_04_брать.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_05_править.jpg",
+        "/media/home/50_Nano_Banana_2_Lite/good_06_брать.jpg"
+      ],
+      "model": "google/gemini-3.1-flash-lite-image"
+    },
+    {
+      "title": "Nano Banana 2 Preview",
+      "verdict": "На обычных пропорциях часто держит сцену и слово. Узкие форматы распадаются в полосу, а на вещи иногда лезет чужое имя модели.",
+      "take": [
+        "Нужен обычный формат: квадрат или привычные горизонталь и вертикаль.",
+        "Короткие слова на предметах обычно на месте.",
+        "Простая предметная сцена без экстремальных пропорций.",
+        "Подойдёт черновик с коротким текстом на вещи."
+      ],
+      "avoid": [
+        "Очень узкий или очень широкий кадр.",
+        "Нельзя допускать посторонние служебные надписи на этикетках.",
+        "Отражение вывески и отсутствие лишних людей в кадре критичны."
+      ],
+      "gallery": [
+        "/media/home/18_Nano_Banana_2_Preview/good_01_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_04_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_05_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_06_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_08_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_09_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_10_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_12_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_13_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_14_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_15_не брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_18_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_19_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_20_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_22_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_23_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_24_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_26_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_27_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_28_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_29_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/weak_01_не брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/weak_04_не брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/weak_05_не брать.jpg"
+      ],
+      "covers": [
+        "/media/home/18_Nano_Banana_2_Preview/good_01_брать.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_04_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_05_править.jpg",
+        "/media/home/18_Nano_Banana_2_Preview/good_06_править.jpg"
+      ],
+      "model": "google/gemini-3.1-flash-image-preview"
+    },
+    {
+      "title": "Qwen Image 3 Pro",
+      "verdict": "Крупные вывески чаще верные и читаемые. Отражения в луже и часть дат срываются.",
+      "take": [
+        "Нужна крупная читаемая вывеска или доска с короткими строками.",
+        "Короткие русские слова на фасаде и предметах.",
+        "Сцены без текста: портрет, фактура, ночь без знаков.",
+        "Важен цельный кадр без случайных полос."
+      ],
+      "avoid": [
+        "Отражение в воде должно буква в букву совпасть с вывеской.",
+        "Нужна точная длинная фраза или дата мелким размером букв.",
+        "Длинный абзац на шуме или сложный сюрреалистичный склейка."
+      ],
+      "gallery": [
+        "/media/home/09_Qwen_Image_3_Pro/good_01_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_02_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_03_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_04_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_05_не брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_06_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_07_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_08_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_10_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_11_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_12_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_13_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_14_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_15_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_16_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_17_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_18_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_20_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_21_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_22_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_23_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_24_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_25_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_26_брать.png"
+      ],
+      "covers": [
+        "/media/home/09_Qwen_Image_3_Pro/good_01_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_02_брать.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_03_править.png",
+        "/media/home/09_Qwen_Image_3_Pro/good_04_брать.png"
+      ],
+      "model": "qwen/qwen-image-3-pro"
+    },
+    {
+      "title": "Qwen Image 3",
+      "verdict": "Короткие русские слова на вывесках и вещах часто читаются. Нужная фраза то мельчает, то подменяется, а отражение в луже иногда ломает букву.",
+      "take": [
+        "Нужны короткие слова на вывеске, этикетке или указателе.",
+        "Меню из нескольких коротких строк с ценами.",
+        "Простая витрина или фудтрак с крупной кириллицей.",
+        "Сцены без текста по короткому заданию."
+      ],
+      "avoid": [
+        "Фраза должна быть без подмены похожим словом.",
+        "Главное слово должно быть самым крупным в кадре.",
+        "Отражение неона в луже и мелкий абзац на шуме."
+      ],
+      "gallery": [
+        "/media/home/13_Qwen_Image_3/good_01_брать.png",
+        "/media/home/13_Qwen_Image_3/good_02_править.png",
+        "/media/home/13_Qwen_Image_3/good_03_править.png",
+        "/media/home/13_Qwen_Image_3/good_04_не брать.png",
+        "/media/home/13_Qwen_Image_3/good_05_брать.png",
+        "/media/home/13_Qwen_Image_3/good_06_брать.png",
+        "/media/home/13_Qwen_Image_3/good_07_брать.png",
+        "/media/home/13_Qwen_Image_3/good_08_править.png",
+        "/media/home/13_Qwen_Image_3/good_10_брать.png",
+        "/media/home/13_Qwen_Image_3/good_11_брать.png",
+        "/media/home/13_Qwen_Image_3/good_12_не брать.png",
+        "/media/home/13_Qwen_Image_3/good_13_брать.png",
+        "/media/home/13_Qwen_Image_3/good_14_брать.png",
+        "/media/home/13_Qwen_Image_3/good_15_брать.png",
+        "/media/home/13_Qwen_Image_3/good_16_брать.png",
+        "/media/home/13_Qwen_Image_3/good_17_брать.png",
+        "/media/home/13_Qwen_Image_3/good_18_брать.png",
+        "/media/home/13_Qwen_Image_3/good_20_брать.png",
+        "/media/home/13_Qwen_Image_3/good_21_брать.png",
+        "/media/home/13_Qwen_Image_3/good_22_брать.png",
+        "/media/home/13_Qwen_Image_3/good_23_брать.png",
+        "/media/home/13_Qwen_Image_3/good_24_брать.png",
+        "/media/home/13_Qwen_Image_3/good_25_править.png",
+        "/media/home/13_Qwen_Image_3/good_26_брать.png"
+      ],
+      "covers": [
+        "/media/home/13_Qwen_Image_3/good_01_брать.png",
+        "/media/home/13_Qwen_Image_3/good_02_править.png",
+        "/media/home/13_Qwen_Image_3/good_03_править.png",
+        "/media/home/13_Qwen_Image_3/good_04_не брать.png"
+      ],
+      "model": "qwen/qwen-image-3"
+    },
+    {
+      "title": "Qwen Image 2.1 Pro",
+      "verdict": "Вывески и этикетки с крупной кириллицей держатся лучше всего. Зеркало в луже и мелкий абзац ломаются.",
+      "take": [
+        "Нужны крупные ровные слова на вывеске или этикетке.",
+        "Короткая наклейка на предмете техники.",
+        "Ценник и короткое название блюда на полке.",
+        "Кадры без букв: портрет, ткань, подборка образов."
+      ],
+      "avoid": [
+        "Отражение в луже должно быть без ошибок в буквах.",
+        "Предмет должен стоять строго в заданном помещении.",
+        "Мелкий абзац и сложная склейка из многих фото."
+      ],
+      "gallery": [
+        "/media/home/22_Qwen_Image_2.1_Pro/good_01_не брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_02_править.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_03_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_04_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_05_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_06_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_07_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_08_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_10_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_11_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_12_править.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_13_править.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_14_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_15_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_16_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_17_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_18_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_20_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_21_править.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_22_править.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_23_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_24_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_25_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_26_брать.png"
+      ],
+      "covers": [
+        "/media/home/22_Qwen_Image_2.1_Pro/good_01_не брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_02_править.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_03_брать.png",
+        "/media/home/22_Qwen_Image_2.1_Pro/good_04_брать.png"
+      ],
+      "model": "qwen/qwen-image-2.1-pro"
+    },
+    {
+      "title": "Hy Image 3.5",
+      "verdict": "Живые люди получаются чаще, чем аккуратный натюрморт. Кириллица часто уезжает в латиницу, отдельные сцены приходят полосой.",
+      "take": [
+        "Нужен живой кадр с человеком и простой композицией.",
+        "Короткая вывеска крупным размером букв иногда читается.",
+        "Простая схема или чертёж примерно допустимы.",
+        "Фактура еды и предметов важнее точного текста."
+      ],
+      "avoid": [
+        "Нужен чистый натюрморт без людей.",
+        "Текст должен остаться на русском, а не уйти в латиницу.",
+        "Пара предметов, QR-код и сложная группа людей по заданию."
+      ],
+      "gallery": [
+        "/media/home/32_Hy_Image_3.5/good_01_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_02_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_03_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_04_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_05_брать.png",
+        "/media/home/32_Hy_Image_3.5/good_06_брать.png",
+        "/media/home/32_Hy_Image_3.5/good_07_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_08_править.png",
+        "/media/home/32_Hy_Image_3.5/good_10_править.png",
+        "/media/home/32_Hy_Image_3.5/good_11_править.png",
+        "/media/home/32_Hy_Image_3.5/good_12_править.png",
+        "/media/home/32_Hy_Image_3.5/good_13_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_14_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_15_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_16_брать.png",
+        "/media/home/32_Hy_Image_3.5/good_17_править.png",
+        "/media/home/32_Hy_Image_3.5/good_18_править.png",
+        "/media/home/32_Hy_Image_3.5/good_20_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_21_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_22_править.png",
+        "/media/home/32_Hy_Image_3.5/good_23_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_24_править.png",
+        "/media/home/32_Hy_Image_3.5/good_25_править.png",
+        "/media/home/32_Hy_Image_3.5/good_26_не брать.png"
+      ],
+      "covers": [
+        "/media/home/32_Hy_Image_3.5/good_01_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_02_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_03_не брать.png",
+        "/media/home/32_Hy_Image_3.5/good_04_не брать.png"
+      ],
+      "model": "tencent/hy-image-v3.5-preview"
+    },
+    {
+      "title": "Qwen Image 2.1 Turbo",
+      "verdict": "Вывески и этикетки чаще всего читаются. Сбои дают отражение, склейка и подмена короткого слова похожим.",
+      "take": [
+        "Нужна крупная вывеска или этикетка с коротким словом.",
+        "Доска меню из нескольких коротких строк.",
+        "Указатель со стрелкой и простой неон.",
+        "Важно удержать заданные пропорции кадра."
+      ],
+      "avoid": [
+        "Слово нельзя подменять близким по смыслу.",
+        "Отражение неона в луже должно быть точным.",
+        "Текст задания не должен попадать на соседнюю вывеску."
+      ],
+      "gallery": [
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_01_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_02_править.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_03_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_04_не брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_05_править.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_06_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_07_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_08_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_10_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_11_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_12_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_13_править.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_14_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_15_править.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_16_не брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_17_не брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_18_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_20_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_21_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_22_не брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_23_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_24_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_25_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_26_брать.png"
+      ],
+      "covers": [
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_01_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_02_править.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_03_брать.png",
+        "/media/home/35_Qwen_Image_2.1_Turbo/good_04_не брать.png"
+      ],
+      "model": "qwen/qwen-image-2.1-turbo"
+    },
+    {
+      "title": "FLUX.2 Max",
+      "verdict": "Короткие слова и фактура держатся. Длинный текст, иконки и чужие лица по заданию рассыпаются.",
+      "take": [
+        "Нужны короткие слова на предметах и вывесках.",
+        "Важен цельный кадр без полос и склеек.",
+        "Крупная фактура бумаги, стекла, шерсти, кожи.",
+        "Простой декоративный узор или ковёр по короткому заданию."
+      ],
+      "avoid": [
+        "Предмет должен стоять строго в заданном месте.",
+        "В кадре не должно быть лишних рук, чеков и случайных слов.",
+        "Длинный абзац, чистая иконка, договорный текст и точные таблички сотрудников."
+      ],
+      "gallery": [
+        "/media/home/07_FLUX.2_Max/good_01_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_02_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_03_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_05_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_06_править.jpg",
+        "/media/home/07_FLUX.2_Max/good_07_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_08_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_09_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_11_править.jpg",
+        "/media/home/07_FLUX.2_Max/good_12_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_13_править.jpg",
+        "/media/home/07_FLUX.2_Max/good_15_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_16_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_17_править.jpg",
+        "/media/home/07_FLUX.2_Max/good_18_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_19_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_20_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_21_править.jpg",
+        "/media/home/07_FLUX.2_Max/good_22_править.jpg",
+        "/media/home/07_FLUX.2_Max/good_24_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_25_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_26_править.jpg",
+        "/media/home/07_FLUX.2_Max/good_27_не брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_28_править.jpg"
+      ],
+      "covers": [
+        "/media/home/07_FLUX.2_Max/good_01_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_02_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_03_брать.jpg",
+        "/media/home/07_FLUX.2_Max/good_05_брать.jpg"
+      ],
+      "model": "black-forest-labs/flux.2-max"
+    },
+    {
+      "title": "Flux 2 Pro",
+      "verdict": "Фактура и короткое слово на вещи часто точные. Слабые места - неверная локация, отражение с ошибкой в букве и сложные документы.",
+      "take": [
+        "Нужен цельный предметный кадр с короткой надписью.",
+        "Важны фактура и спокойный свет на вещи.",
+        "Простой плакат акции или иконка по короткому заданию.",
+        "Нужно удержать заданные пропорции кадра."
+      ],
+      "avoid": [
+        "Сцена должна точно совпасть с местом: лифт, зал, улица.",
+        "Отражение надписи на стекле должно быть без ошибок.",
+        "Гайд с кодами цвета, договор на стекле и точная копия известного лица."
+      ],
+      "gallery": [
+        "/media/home/16_Flux_2_Pro/good_01_не брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_02_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_03_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_05_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_06_править.jpg",
+        "/media/home/16_Flux_2_Pro/good_07_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_08_править.jpg",
+        "/media/home/16_Flux_2_Pro/good_09_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_11_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_12_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_13_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_15_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_16_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_17_не брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_18_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_19_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_20_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_21_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_22_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_24_править.jpg",
+        "/media/home/16_Flux_2_Pro/good_25_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_26_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_27_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_28_брать.jpg"
+      ],
+      "covers": [
+        "/media/home/16_Flux_2_Pro/good_01_не брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_02_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_03_брать.jpg",
+        "/media/home/16_Flux_2_Pro/good_05_брать.jpg"
+      ],
+      "model": "black-forest-labs/flux.2-pro"
+    }
+  ],
+  "wall": [
+    {
+      "model": 0,
+      "src": "/media/home/02_Nano_Banana_2.1/good_01_брать.jpg",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 0,
+      "src": "/media/home/02_Nano_Banana_2.1/good_04_брать.jpg",
+      "width": 848,
+      "height": 1264
+    },
+    {
+      "model": 0,
+      "src": "/media/home/02_Nano_Banana_2.1/good_05_не брать.jpg",
+      "width": 2528,
+      "height": 1696
+    },
+    {
+      "model": 0,
+      "src": "/media/home/02_Nano_Banana_2.1/good_06_править.jpg",
+      "width": 3584,
+      "height": 4800
+    },
+    {
+      "model": 0,
+      "src": "/media/home/02_Nano_Banana_2.1/good_08_править.jpg",
+      "width": 2400,
+      "height": 1792
+    },
+    {
+      "model": 0,
+      "src": "/media/home/02_Nano_Banana_2.1/good_09_править.jpg",
+      "width": 3712,
+      "height": 4608
+    },
+    {
+      "model": 1,
+      "src": "/media/home/04_Nano_Banana_Pro/good_01_брать.png",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 1,
+      "src": "/media/home/04_Nano_Banana_Pro/good_02_править.png",
+      "width": 848,
+      "height": 1264
+    },
+    {
+      "model": 1,
+      "src": "/media/home/04_Nano_Banana_Pro/good_03_брать.png",
+      "width": 1264,
+      "height": 848
+    },
+    {
+      "model": 1,
+      "src": "/media/home/04_Nano_Banana_Pro/good_04_брать.png",
+      "width": 896,
+      "height": 1200
+    },
+    {
+      "model": 1,
+      "src": "/media/home/04_Nano_Banana_Pro/good_05_брать.png",
+      "width": 1200,
+      "height": 896
+    },
+    {
+      "model": 1,
+      "src": "/media/home/04_Nano_Banana_Pro/good_06_править.png",
+      "width": 928,
+      "height": 1152
+    },
+    {
+      "model": 2,
+      "src": "/media/home/06_Seedream_5_Pro/good_01_править.jpg",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "model": 2,
+      "src": "/media/home/06_Seedream_5_Pro/good_02_править.jpg",
+      "width": 1152,
+      "height": 2048
+    },
+    {
+      "model": 2,
+      "src": "/media/home/06_Seedream_5_Pro/good_03_брать.jpg",
+      "width": 2048,
+      "height": 1152
+    },
+    {
+      "model": 2,
+      "src": "/media/home/06_Seedream_5_Pro/good_04_брать.jpg",
+      "width": 1640,
+      "height": 2048
+    },
+    {
+      "model": 2,
+      "src": "/media/home/06_Seedream_5_Pro/good_05_править.jpg",
+      "width": 2048,
+      "height": 1366
+    },
+    {
+      "model": 2,
+      "src": "/media/home/06_Seedream_5_Pro/good_06_брать.jpg",
+      "width": 1366,
+      "height": 2048
+    },
+    {
+      "model": 3,
+      "src": "/media/home/08_FLUX_3/good_01_править.png",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 3,
+      "src": "/media/home/08_FLUX_3/good_02_править.png",
+      "width": 768,
+      "height": 1360
+    },
+    {
+      "model": 3,
+      "src": "/media/home/08_FLUX_3/good_03_править.png",
+      "width": 1360,
+      "height": 768
+    },
+    {
+      "model": 3,
+      "src": "/media/home/08_FLUX_3/good_04_брать.png",
+      "width": 912,
+      "height": 1152
+    },
+    {
+      "model": 3,
+      "src": "/media/home/08_FLUX_3/good_05_править.png",
+      "width": 1248,
+      "height": 832
+    },
+    {
+      "model": 3,
+      "src": "/media/home/08_FLUX_3/good_06_не брать.png",
+      "width": 832,
+      "height": 1248
+    },
+    {
+      "model": 4,
+      "src": "/media/home/12_Nano_Banana_Pro_Preview/good_01_брать.jpg",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 4,
+      "src": "/media/home/12_Nano_Banana_Pro_Preview/good_02_править.jpg",
+      "width": 1696,
+      "height": 2528
+    },
+    {
+      "model": 4,
+      "src": "/media/home/12_Nano_Banana_Pro_Preview/good_03_править.jpg",
+      "width": 5056,
+      "height": 3392
+    },
+    {
+      "model": 4,
+      "src": "/media/home/12_Nano_Banana_Pro_Preview/good_04_брать.jpg",
+      "width": 896,
+      "height": 1200
+    },
+    {
+      "model": 4,
+      "src": "/media/home/12_Nano_Banana_Pro_Preview/good_05_брать.jpg",
+      "width": 2400,
+      "height": 1792
+    },
+    {
+      "model": 4,
+      "src": "/media/home/12_Nano_Banana_Pro_Preview/good_06_править.jpg",
+      "width": 3712,
+      "height": 4608
+    },
+    {
+      "model": 5,
+      "src": "/media/home/15_Seedream_4.5/good_01_править.jpg",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "model": 5,
+      "src": "/media/home/15_Seedream_4.5/good_02_править.jpg",
+      "width": 2048,
+      "height": 3642
+    },
+    {
+      "model": 5,
+      "src": "/media/home/15_Seedream_4.5/good_03_брать.jpg",
+      "width": 3642,
+      "height": 2048
+    },
+    {
+      "model": 5,
+      "src": "/media/home/15_Seedream_4.5/good_04_брать.jpg",
+      "width": 2048,
+      "height": 2560
+    },
+    {
+      "model": 5,
+      "src": "/media/home/15_Seedream_4.5/good_05_править.jpg",
+      "width": 3072,
+      "height": 2048
+    },
+    {
+      "model": 5,
+      "src": "/media/home/15_Seedream_4.5/good_06_брать.jpg",
+      "width": 2048,
+      "height": 3072
+    },
+    {
+      "model": 6,
+      "src": "/media/home/30_Seedream_5_Lite/good_01_брать.jpg",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "model": 6,
+      "src": "/media/home/30_Seedream_5_Lite/good_02_брать.jpg",
+      "width": 2048,
+      "height": 3642
+    },
+    {
+      "model": 6,
+      "src": "/media/home/30_Seedream_5_Lite/good_03_не брать.jpg",
+      "width": 3642,
+      "height": 2048
+    },
+    {
+      "model": 6,
+      "src": "/media/home/30_Seedream_5_Lite/good_04_брать.jpg",
+      "width": 2048,
+      "height": 2560
+    },
+    {
+      "model": 6,
+      "src": "/media/home/30_Seedream_5_Lite/good_05_брать.jpg",
+      "width": 3072,
+      "height": 2048
+    },
+    {
+      "model": 6,
+      "src": "/media/home/30_Seedream_5_Lite/good_06_брать.jpg",
+      "width": 2048,
+      "height": 3072
+    },
+    {
+      "model": 7,
+      "src": "/media/home/40_Recraft_V4.1_Utility_Pro/good_01_брать.webp",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "model": 7,
+      "src": "/media/home/40_Recraft_V4.1_Utility_Pro/good_02_править.webp",
+      "width": 2432,
+      "height": 1792
+    },
+    {
+      "model": 7,
+      "src": "/media/home/40_Recraft_V4.1_Utility_Pro/good_03_брать.webp",
+      "width": 1792,
+      "height": 2432
+    },
+    {
+      "model": 7,
+      "src": "/media/home/40_Recraft_V4.1_Utility_Pro/good_04_брать.webp",
+      "width": 2688,
+      "height": 1536
+    },
+    {
+      "model": 7,
+      "src": "/media/home/40_Recraft_V4.1_Utility_Pro/good_05_брать.webp",
+      "width": 1536,
+      "height": 2688
+    },
+    {
+      "model": 7,
+      "src": "/media/home/40_Recraft_V4.1_Utility_Pro/good_06_брать.webp",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "model": 8,
+      "src": "/media/home/41_Seedream_5_Flash/good_01_брать.jpg",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "model": 8,
+      "src": "/media/home/41_Seedream_5_Flash/good_02_брать.jpg",
+      "width": 1152,
+      "height": 2048
+    },
+    {
+      "model": 8,
+      "src": "/media/home/41_Seedream_5_Flash/good_03_брать.jpg",
+      "width": 2048,
+      "height": 1152
+    },
+    {
+      "model": 8,
+      "src": "/media/home/41_Seedream_5_Flash/good_04_брать.jpg",
+      "width": 1640,
+      "height": 2048
+    },
+    {
+      "model": 8,
+      "src": "/media/home/41_Seedream_5_Flash/good_05_брать.jpg",
+      "width": 2048,
+      "height": 1366
+    },
+    {
+      "model": 8,
+      "src": "/media/home/41_Seedream_5_Flash/good_06_брать.jpg",
+      "width": 1366,
+      "height": 2048
+    },
+    {
+      "model": 9,
+      "src": "/media/home/46_FLUX_3_Klein/good_01_брать.jpg",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 9,
+      "src": "/media/home/46_FLUX_3_Klein/good_02_брать.jpg",
+      "width": 768,
+      "height": 1360
+    },
+    {
+      "model": 9,
+      "src": "/media/home/46_FLUX_3_Klein/good_03_брать.jpg",
+      "width": 1360,
+      "height": 768
+    },
+    {
+      "model": 9,
+      "src": "/media/home/46_FLUX_3_Klein/good_04_брать.jpg",
+      "width": 912,
+      "height": 1152
+    },
+    {
+      "model": 9,
+      "src": "/media/home/46_FLUX_3_Klein/good_05_править.jpg",
+      "width": 1248,
+      "height": 832
+    },
+    {
+      "model": 9,
+      "src": "/media/home/46_FLUX_3_Klein/good_06_брать.jpg",
+      "width": 832,
+      "height": 1248
+    },
+    {
+      "model": 10,
+      "src": "/media/home/49_Recraft_V4.1_Utility/good_01_брать.webp",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 10,
+      "src": "/media/home/49_Recraft_V4.1_Utility/good_02_брать.webp",
+      "width": 1216,
+      "height": 896
+    },
+    {
+      "model": 10,
+      "src": "/media/home/49_Recraft_V4.1_Utility/good_03_брать.webp",
+      "width": 896,
+      "height": 1216
+    },
+    {
+      "model": 10,
+      "src": "/media/home/49_Recraft_V4.1_Utility/good_04_брать.webp",
+      "width": 1344,
+      "height": 768
+    },
+    {
+      "model": 10,
+      "src": "/media/home/49_Recraft_V4.1_Utility/good_05_править.webp",
+      "width": 768,
+      "height": 1344
+    },
+    {
+      "model": 10,
+      "src": "/media/home/49_Recraft_V4.1_Utility/good_06_брать.webp",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 11,
+      "src": "/media/home/01_Nano_Banana_2/good_01.jpg",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 11,
+      "src": "/media/home/01_Nano_Banana_2/good_04.jpg",
+      "width": 848,
+      "height": 1264
+    },
+    {
+      "model": 11,
+      "src": "/media/home/01_Nano_Banana_2/good_05.jpg",
+      "width": 2528,
+      "height": 1696
+    },
+    {
+      "model": 11,
+      "src": "/media/home/01_Nano_Banana_2/good_06.jpg",
+      "width": 3584,
+      "height": 4800
+    },
+    {
+      "model": 11,
+      "src": "/media/home/01_Nano_Banana_2/good_08.jpg",
+      "width": 2400,
+      "height": 1792
+    },
+    {
+      "model": 11,
+      "src": "/media/home/01_Nano_Banana_2/good_09.jpg",
+      "width": 3712,
+      "height": 4608
+    },
+    {
+      "model": 12,
+      "src": "/media/home/50_Nano_Banana_2_Lite/good_01_брать.jpg",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 12,
+      "src": "/media/home/50_Nano_Banana_2_Lite/good_04_брать.jpg",
+      "width": 848,
+      "height": 1264
+    },
+    {
+      "model": 12,
+      "src": "/media/home/50_Nano_Banana_2_Lite/good_05_править.jpg",
+      "width": 1264,
+      "height": 848
+    },
+    {
+      "model": 12,
+      "src": "/media/home/50_Nano_Banana_2_Lite/good_06_брать.jpg",
+      "width": 896,
+      "height": 1200
+    },
+    {
+      "model": 12,
+      "src": "/media/home/50_Nano_Banana_2_Lite/good_08_не брать.jpg",
+      "width": 1200,
+      "height": 896
+    },
+    {
+      "model": 12,
+      "src": "/media/home/50_Nano_Banana_2_Lite/good_09_брать.jpg",
+      "width": 928,
+      "height": 1152
+    },
+    {
+      "model": 13,
+      "src": "/media/home/18_Nano_Banana_2_Preview/good_01_брать.jpg",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 13,
+      "src": "/media/home/18_Nano_Banana_2_Preview/good_04_править.jpg",
+      "width": 848,
+      "height": 1264
+    },
+    {
+      "model": 13,
+      "src": "/media/home/18_Nano_Banana_2_Preview/good_05_править.jpg",
+      "width": 2528,
+      "height": 1696
+    },
+    {
+      "model": 13,
+      "src": "/media/home/18_Nano_Banana_2_Preview/good_06_править.jpg",
+      "width": 3584,
+      "height": 4800
+    },
+    {
+      "model": 13,
+      "src": "/media/home/18_Nano_Banana_2_Preview/good_08_брать.jpg",
+      "width": 2400,
+      "height": 1792
+    },
+    {
+      "model": 13,
+      "src": "/media/home/18_Nano_Banana_2_Preview/good_09_брать.jpg",
+      "width": 3712,
+      "height": 4608
+    },
+    {
+      "model": 14,
+      "src": "/media/home/09_Qwen_Image_3_Pro/good_01_брать.png",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 14,
+      "src": "/media/home/09_Qwen_Image_3_Pro/good_02_брать.png",
+      "width": 1024,
+      "height": 1822
+    },
+    {
+      "model": 14,
+      "src": "/media/home/09_Qwen_Image_3_Pro/good_03_править.png",
+      "width": 1822,
+      "height": 1024
+    },
+    {
+      "model": 14,
+      "src": "/media/home/09_Qwen_Image_3_Pro/good_04_брать.png",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "model": 14,
+      "src": "/media/home/09_Qwen_Image_3_Pro/good_05_не брать.png",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "model": 14,
+      "src": "/media/home/09_Qwen_Image_3_Pro/good_06_брать.png",
+      "width": 1024,
+      "height": 1536
+    },
+    {
+      "model": 15,
+      "src": "/media/home/13_Qwen_Image_3/good_01_брать.png",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 15,
+      "src": "/media/home/13_Qwen_Image_3/good_02_править.png",
+      "width": 1024,
+      "height": 1822
+    },
+    {
+      "model": 15,
+      "src": "/media/home/13_Qwen_Image_3/good_03_править.png",
+      "width": 1822,
+      "height": 1024
+    },
+    {
+      "model": 15,
+      "src": "/media/home/13_Qwen_Image_3/good_04_не брать.png",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "model": 15,
+      "src": "/media/home/13_Qwen_Image_3/good_05_брать.png",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "model": 15,
+      "src": "/media/home/13_Qwen_Image_3/good_06_брать.png",
+      "width": 1024,
+      "height": 1536
+    },
+    {
+      "model": 16,
+      "src": "/media/home/22_Qwen_Image_2.1_Pro/good_01_не брать.png",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 16,
+      "src": "/media/home/22_Qwen_Image_2.1_Pro/good_02_править.png",
+      "width": 1024,
+      "height": 1822
+    },
+    {
+      "model": 16,
+      "src": "/media/home/22_Qwen_Image_2.1_Pro/good_03_брать.png",
+      "width": 1822,
+      "height": 1024
+    },
+    {
+      "model": 16,
+      "src": "/media/home/22_Qwen_Image_2.1_Pro/good_04_брать.png",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "model": 16,
+      "src": "/media/home/22_Qwen_Image_2.1_Pro/good_05_брать.png",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "model": 16,
+      "src": "/media/home/22_Qwen_Image_2.1_Pro/good_06_брать.png",
+      "width": 1024,
+      "height": 1536
+    },
+    {
+      "model": 17,
+      "src": "/media/home/32_Hy_Image_3.5/good_01_не брать.png",
+      "width": 1536,
+      "height": 1536
+    },
+    {
+      "model": 17,
+      "src": "/media/home/32_Hy_Image_3.5/good_02_не брать.png",
+      "width": 1536,
+      "height": 2732
+    },
+    {
+      "model": 17,
+      "src": "/media/home/32_Hy_Image_3.5/good_03_не брать.png",
+      "width": 2732,
+      "height": 1536
+    },
+    {
+      "model": 17,
+      "src": "/media/home/32_Hy_Image_3.5/good_04_не брать.png",
+      "width": 1536,
+      "height": 1920
+    },
+    {
+      "model": 17,
+      "src": "/media/home/32_Hy_Image_3.5/good_05_брать.png",
+      "width": 2304,
+      "height": 1536
+    },
+    {
+      "model": 17,
+      "src": "/media/home/32_Hy_Image_3.5/good_06_брать.png",
+      "width": 1536,
+      "height": 2304
+    },
+    {
+      "model": 18,
+      "src": "/media/home/35_Qwen_Image_2.1_Turbo/good_01_брать.png",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 18,
+      "src": "/media/home/35_Qwen_Image_2.1_Turbo/good_02_править.png",
+      "width": 1024,
+      "height": 1822
+    },
+    {
+      "model": 18,
+      "src": "/media/home/35_Qwen_Image_2.1_Turbo/good_03_брать.png",
+      "width": 1822,
+      "height": 1024
+    },
+    {
+      "model": 18,
+      "src": "/media/home/35_Qwen_Image_2.1_Turbo/good_04_не брать.png",
+      "width": 1024,
+      "height": 1280
+    },
+    {
+      "model": 18,
+      "src": "/media/home/35_Qwen_Image_2.1_Turbo/good_05_править.png",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "model": 18,
+      "src": "/media/home/35_Qwen_Image_2.1_Turbo/good_06_брать.png",
+      "width": 1024,
+      "height": 1536
+    },
+    {
+      "model": 19,
+      "src": "/media/home/07_FLUX.2_Max/good_01_брать.jpg",
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "model": 19,
+      "src": "/media/home/07_FLUX.2_Max/good_02_брать.jpg",
+      "width": 1024,
+      "height": 1824
+    },
+    {
+      "model": 19,
+      "src": "/media/home/07_FLUX.2_Max/good_03_брать.jpg",
+      "width": 1824,
+      "height": 1024
+    },
+    {
+      "model": 19,
+      "src": "/media/home/07_FLUX.2_Max/good_05_брать.jpg",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "model": 19,
+      "src": "/media/home/07_FLUX.2_Max/good_06_править.jpg",
+      "width": 1024,
+      "height": 1536
+    },
+    {
+      "model": 19,
+      "src": "/media/home/07_FLUX.2_Max/good_07_брать.jpg",
+      "width": 1376,
+      "height": 1024
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { catalogProvider, catalogResponse } from './modelCatalog';
 const catalog = JSON.parse(readFileSync(new URL('../fixtures/catalog.json', import.meta.url), 'utf8'));
+const banana = JSON.parse(readFileSync(new URL('../fixtures/banana-catalog.json', import.meta.url), 'utf8'));
 const agent = JSON.parse(readFileSync(new URL('../fixtures/agent.json', import.meta.url), 'utf8'));
 const file = {
   id: 12,
@@ -51,7 +52,7 @@ async function setup(page: Page) {
       body =
         catalogProvider(url) === 'OPEN_AI_CONVERSATION'
           ? [agent]
-          : catalog.filter((m: any) => m.reference.provider === catalogProvider(url));
+          : [...catalog, ...banana].filter((m: any) => m.reference.provider === catalogProvider(url));
     else if (p === '/api/conversation') {
       const c = JSON.parse(url.searchParams.get('conditions') || '{}');
       body = pageOf(c.status === 'LOADING' ? [] : [work]);
@@ -70,7 +71,7 @@ test('home removes search/history and folded navigation keeps centered icons', a
   await setup(page);
   await page.goto('/');
   await expect(page.locator('.home-task,.home-stories')).toHaveCount(0);
-  await expect(page.locator('.home-signs')).toHaveCSS('border-top-width', '0px');
+  await expect(page.locator('.gf-modes')).toHaveCSS('border-top-width', '0px');
   await expect(page.getByRole('link', { name: 'Generate Prompt', exact: true }).first()).not.toBeVisible();
   await expect(page.getByRole('button', { name: 'Дополнительные инструменты', exact: true })).toHaveCount(0);
   await expect(
@@ -80,35 +81,30 @@ test('home removes search/history and folded navigation keeps centered icons', a
   ).toHaveCount(0);
   await page.getByRole('button', { name: 'Свернуть меню', exact: true }).click();
   await page.waitForTimeout(650);
-  const geometry = await page.locator('.shell-nav-item.active').evaluate((el) => {
-    const icon = el.querySelector('img')!.getBoundingClientRect(),
+  const geometry = await page.locator('.gf-nav-item.gf-is-active').evaluate((el) => {
+    const icon = el.querySelector('svg')!.getBoundingClientRect(),
       row = el.getBoundingClientRect();
     return { dx: Math.abs(icon.x + icon.width / 2 - (row.x + row.width / 2)), width: icon.width };
   });
-  expect(geometry.width).toBe(18);
+  expect(geometry.width).toBe(20);
   expect(geometry.dx).toBeLessThan(2);
 });
-test('image/video template editors apply text and preserve the draft on cancellation', async ({ page }) => {
+test('image and video templates populate the composer and reset without sending a request', async ({
+  page,
+}) => {
   const writes = await setup(page);
   for (const route of ['/image', '/video']) {
     await page.goto(route);
-    const title = route === '/image' ? 'Главное фото на белом фоне (маркетплейс)' : 'Studio product turn';
-    await page.getByRole('button', { name: title, exact: true }).click();
-    const editor = page.getByRole('dialog', { name: title, exact: true });
-    await expect(editor.getByRole('button', { name: 'Из библиотеки', exact: true })).toHaveCount(0);
-    await editor.getByText('Редактировать исходный шаблон', { exact: true }).click();
-    const field = editor.getByRole('textbox', { name: 'Текст шаблона', exact: true });
-    await field.fill('Черновик для отмены');
-    await editor.getByRole('button', { name: 'Закрыть', exact: true }).click();
-    await expect(page.locator(route === '/image' ? '#img-draft' : '#vd-draft')).toHaveValue('');
-    await page.getByRole('button', { name: title, exact: true }).click();
-    await editor.getByText('Редактировать исходный шаблон', { exact: true }).click();
-    await field.fill('Обновлённый текст шаблона');
-    await editor.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-    await expect(editor).toHaveCount(0);
-    await expect(page.locator(route === '/image' ? '#img-draft' : '#vd-draft')).toHaveValue(
-      'Обновлённый текст шаблона',
-    );
+    await page
+      .getByRole('button', { name: /^Использовать шаблон / })
+      .first()
+      .click();
+    const draft = page.locator(route === '/image' ? '#img-draft' : '#vd-draft');
+    await expect(draft).not.toHaveValue('');
+    await draft.fill('Обновлённый текст шаблона');
+    await expect(draft).toHaveValue('Обновлённый текст шаблона');
+    await page.getByRole('button', { name: 'Сбросить шаблон', exact: true }).click();
+    await expect(draft).toHaveValue('');
   }
   expect(writes).toEqual([]);
 });
@@ -125,6 +121,7 @@ test('library icon filters have accessible names, no audio/link creation, and re
   await page.getByRole('button', { name: 'Все', exact: true }).click();
   await page.getByLabel('Действия с «Фото.jpg»', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Создать ссылку', exact: true })).toHaveCount(0);
+  await page.locator('.file-actions[open] summary').filter({ hasText: 'Дополнительно' }).click();
   await page.getByRole('button', { name: 'Название и теги', exact: true }).click();
   const input = page.getByRole('textbox', { name: 'Название', exact: true });
   await input.fill('Новое название.jpg');
@@ -177,7 +174,7 @@ test('mobile screens fit, template/model panels open above the composer, and gal
       true,
     );
     if (route === '/image' || route === '/video')
-      await expect(page.locator('.masonry-cards')).toHaveAttribute('data-columns', '2');
+      await expect(page.locator('.design-feed .wall')).toHaveCSS('grid-template-columns', /^\S+px \S+px$/);
   }
   await page.screenshot({
     path: test.info().outputPath('mobile-before.png'),
@@ -190,16 +187,18 @@ test('mobile screens fit, template/model panels open above the composer, and gal
   await page.getByRole('button', { name: 'Закрыть шаблоны и настройки', exact: true }).click();
   await expect(page.getByRole('complementary', { name: 'Галерея шаблонов' })).not.toBeVisible();
   await page.getByRole('button', { name: /^Модель:/ }).click();
-  const choices = page.locator('[data-menu-above="true"]');
+  const choices = page.locator('.media-model-popup');
   await expect(choices).toBeVisible();
   const menuBox = await choices.boundingBox(),
     formBox = await page.locator('#cw-compose').boundingBox();
   expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(formBox!.y - 5);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Меню', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Основное меню', exact: true })).toBeVisible();
   expect(
-    await page.getByRole('dialog', { name: 'Меню' }).evaluate((el) => el.getBoundingClientRect().left),
+    await page
+      .getByRole('navigation', { name: 'Основное меню', exact: true })
+      .evaluate((el) => el.getBoundingClientRect().left),
   ).toBeGreaterThanOrEqual(0);
 });
 
@@ -228,17 +227,21 @@ test('model names are unbranded and alphabetical, favorites keep their priority'
   await menu.getByRole('button', { name: 'В избранные: ' + picked, exact: true }).click();
   await expect(menu.getByRole('option').first()).toHaveAttribute('aria-label', picked);
 });
-test('content templates promote favorites and hide empty decorative controls', async ({ page }) => {
+test('content templates can be filtered by favorites and hide empty decorative controls', async ({
+  page,
+}) => {
   await setup(page);
   await page.goto('/chat');
+  await page.getByRole('button', { name: 'Развернуть панель', exact: true }).click();
   const cards = page.locator('#cw-gallery > article');
   await expect(cards.nth(2)).toBeVisible();
-  const title = await cards.nth(2).locator('.cw-card-label strong').innerText();
+  const title = await cards.nth(2).locator('.studio-template-caption').innerText();
   await cards
     .nth(2)
     .getByRole('button', { name: /В избранное:/ })
     .click();
-  await expect(cards.first().locator('.cw-card-label strong')).toHaveText(title);
+  await page.getByRole('button', { name: 'Избранные шаблоны' }).click();
+  await expect(cards.first().locator('.studio-template-caption')).toHaveText(title);
   await expect(page.getByText('Поле внизу.', { exact: false })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
   await expect(page.getByText('Дизайн-система', { exact: true })).toHaveCount(0);
@@ -248,9 +251,7 @@ test('visible video previews loop with motion allowed', async ({ page }) => {
   await setup(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/video');
-  const card = page.getByRole('article', { name: 'Послание в объектив', exact: true });
-  await card.getByRole('button', { name: /^Посмотреть/ }).click();
-  const clip = card.locator('video');
+  const clip = page.locator('.design-feed [data-kind="template"] video').first();
   await expect(clip).toBeAttached();
   await expect
     .poll(

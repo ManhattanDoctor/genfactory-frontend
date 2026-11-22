@@ -1,0 +1,19 @@
+.app-tooltip {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid rgba(244, 244, 240, 0.12);
+  border-radius: 8px;
+  background: #17171b;
+  color: #f4f4f0;
+  font:
+    500 12px/1.4 'Manrope Variable',
+    sans-serif;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  pointer-events: none;
+}

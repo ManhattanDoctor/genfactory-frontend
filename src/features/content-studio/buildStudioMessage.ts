@@ -80,8 +80,13 @@ export async function buildStudioMessage({
     effectiveSound,
   } = controls;
   const creative = fields
-    .filter((field) => field.id !== 'quality' && (mode === 'video' || !['camera', 'move'].includes(field.id)))
-    .filter((field) => !['Авто', 'Нет', 'Не задано'].includes(settings[field.id]))
+    .filter((field) => field.id !== 'quality')
+    .filter(
+      (field) =>
+        !!settings[field.id] &&
+        field.modes.includes(mode) &&
+        !['Авто', 'Нет', 'Не задано'].includes(settings[field.id]),
+    )
     .map((field) => `${field.label}: ${settings[field.id]}`);
   const context = [
     ...(preparingScript && mode === 'video'

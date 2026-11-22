@@ -1,3 +1,5 @@
+import { HistoryCardBody } from '../../components/HistoryCardBody';
+import { previewCardStyle } from '../../components/previewCardStyle';
 import type { ReactElement, ReactNode } from 'react';
 import { Heart, Clock3, CircleAlert } from 'lucide-react';
 import { ConversationCover } from './ConversationCover';
@@ -63,16 +65,16 @@ export function ConversationCard({
     <span className="history-source">Студия контента</span>
   );
   return (
-    <article className="generation-card history-card">
+    <article style={previewCardStyle(c.preview)} className="generation-card history-card">
       <button
         type="button"
         className="history-card-link"
         aria-label={`Открыть результат ${c.name}`}
-        title={title ? `${c.name}\n${title}` : c.name}
+        data-tooltip={title ? `${c.name}\n${title}` : c.name}
         aria-busy={opening}
         onClick={onOpen}
       />
-      <header>
+      <header className={sourceBelowTitle ? 'artifact-preview-header' : undefined}>
         <div className="history-visual">
           <ConversationCover conversation={c} isStatic />
           <div className="history-badges">
@@ -92,22 +94,36 @@ export function ConversationCard({
             <Heart className="history-favorite-mark" size={18} fill="currentColor" aria-label="В избранном" />
           )}
         </div>
-        {heading ?? <h2 title={c.name}>{c.name}</h2>}
-        {sourceBelowTitle && source}
+        {!sourceBelowTitle && (heading ?? <h2 data-tooltip={c.name}>{c.name}</h2>)}
       </header>
-      <div className="history-meta">
-        <p className="small muted">
-          <span className="history-message-count">
-            {c.messageCount !== undefined ? `${c.messageCount} ${messageWord(c.messageCount)}` : 'Беседа'}
-          </span>
-          <time
-            dateTime={new Date(c.lastMessageDate || c.createdDate).toISOString()}
-            title={new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU')}
-          >
-            {historyDate(c.lastMessageDate || c.createdDate)}
-          </time>
-        </p>
-      </div>
+      {sourceBelowTitle ? (
+        <HistoryCardBody
+          title={c.name}
+          source={c.tags?.includes('content-studio') ? 'Студия контента' : undefined}
+          metadata={
+            c.messageCount !== undefined ? `${c.messageCount} ${messageWord(c.messageCount)}` : 'Беседа'
+          }
+          date={
+            <time dateTime={new Date(c.lastMessageDate || c.createdDate).toISOString()}>
+              {historyDate(c.lastMessageDate || c.createdDate)}
+            </time>
+          }
+        />
+      ) : (
+        <div className="history-meta">
+          <p className="small muted">
+            <span className="history-message-count">
+              {c.messageCount !== undefined ? `${c.messageCount} ${messageWord(c.messageCount)}` : 'Беседа'}
+            </span>
+            <time
+              dateTime={new Date(c.lastMessageDate || c.createdDate).toISOString()}
+              data-tooltip={new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU')}
+            >
+              {historyDate(c.lastMessageDate || c.createdDate)}
+            </time>
+          </p>
+        </div>
+      )}
       {children}
     </article>
   );

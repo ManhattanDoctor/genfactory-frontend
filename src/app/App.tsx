@@ -8,6 +8,8 @@ import { Building2, Menu } from 'lucide-react';
 import { AppNavigation } from './AppNavigation';
 import { Modal } from '../components/Modal';
 import { formatBalance } from '../lib/money';
+import { HomeShell } from './home/HomeNavigation';
+import './sections.css';
 import { Home } from './Home';
 import { Company } from './Company';
 const ContentStudio = lazy(() =>
@@ -44,6 +46,39 @@ export function App(): ReactElement {
     setMobileNav(false);
     window.scrollTo(0, 0);
   }, [location.pathname, location.search]);
+  if (location.pathname === '/')
+    return (
+      <>
+        <Home />
+        <AppUpdateNotice />
+      </>
+    );
+  const sections: Record<string, [string, ReactElement]> = {
+    '/image': ['Изображения', <Studio key="image" kind="image" />],
+    '/video': ['Видео', <Studio key="video" kind="video" />],
+    '/chat': ['Студия контента', <ContentStudio key={auth.user?.id} />],
+    '/artifacts': ['История', <Artifacts />],
+    '/library': ['Библиотека', <Library />],
+    '/account': ['Мой аккаунт', <Account />],
+  };
+  const section = sections[location.pathname.replace(/\/$/, '')];
+  if (section)
+    return (
+      <>
+        <HomeShell title={section[0]}>
+          <Suspense
+            fallback={
+              <div role="status" className="empty-state">
+                Загрузка…
+              </div>
+            }
+          >
+            {section[1]}
+          </Suspense>
+        </HomeShell>
+        <AppUpdateNotice />
+      </>
+    );
   return (
     <div translate="no" className={`app studio-shell ${collapsed ? 'nav-collapsed' : ''}`}>
       <a href="#main" className="skip-link">
@@ -127,7 +162,7 @@ export function App(): ReactElement {
               <span>Войти</span>
             </button>
           )}
-          <Link to="/company" className="shell-account-link shell-company-link" title="О компании">
+          <Link to="/company" className="shell-account-link shell-company-link" data-tooltip="О компании">
             <Building2 size={18} aria-hidden="true" />
             <span>О компании</span>
           </Link>
@@ -163,22 +198,19 @@ export function App(): ReactElement {
             }
           >
             <Routes>
-              <Route path="/" element={<Home />} />
               <Route path="/company" element={<Company />} />
-              <Route path="/chat" element={<ContentStudio key={auth.user?.id} />} />
+
               <Route path="/agent" element={<TextStudio mode="chat" />} />
               <Route path="/prompt" element={<PromptStudio />} />
               <Route path="/script" element={<TextStudio mode="script" />} />
               <Route path="/templates" element={<Templates />} />
               <Route path="/brand" element={<Brand />} />
-              <Route path="/image" element={<Studio kind="image" />} />
-              <Route path="/video" element={<Studio kind="video" />} />
+
               <Route path="/audio" element={<AudioStudio />} />
-              <Route path="/artifacts" element={<Artifacts />} />
-              <Route path="/library" element={<Library />} />
+
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/open" element={<OpenConversation />} />
-              <Route path="/account" element={<Account />} />
+
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route
                 path="*"

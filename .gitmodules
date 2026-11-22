@@ -1,0 +1,3 @@
+[submodule "vendor/gnosis-common"]
+	path = vendor/gnosis-common
+	url = https://github.com/ManhattanDoctor/gnosis-common.git

@@ -1,9 +1,11 @@
+import { LibrarySearch } from '../../components/LibrarySearch';
+import { previewCardStyle } from '../../components/previewCardStyle';
 import { Skeleton } from '../../components/Skeleton';
 import { downloadFile } from '../../lib/files';
 import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, LayoutGrid, File, MessageCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, List, MessageCircle } from 'lucide-react';
 import { api, getSession } from '../../lib/api';
 import type { ArtifactType, IFileArtifact, IConversationArtifact, IGnosisFile } from '../../lib/types';
 import { useAuth } from '../auth/AuthProvider';
@@ -87,7 +89,8 @@ export function Artifacts(): ReactElement {
       if (current()) setActing(undefined);
     }
   }
-  const [type, setType] = useState<ArtifactType>();
+  const [view, setView] = useState<'grid' | 'list' | 'chat'>('grid');
+  const type: ArtifactType | undefined = view === 'chat' ? 'CONVERSATION' : undefined;
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -161,19 +164,19 @@ export function Artifacts(): ReactElement {
             <div className="chips" aria-label="Тип записей истории">
               {(
                 [
-                  { value: undefined, name: 'Все', icon: LayoutGrid },
-                  { value: 'FILE', name: 'Файлы', icon: File },
-                  { value: 'CONVERSATION', name: 'Беседы', icon: MessageCircle },
+                  { value: 'grid', name: 'Сетка', icon: LayoutGrid },
+                  { value: 'list', name: 'Список', icon: List },
+                  { value: 'chat', name: 'Только беседы', icon: MessageCircle },
                 ] as const
               ).map((item) => (
                 <button
                   key={item.name}
-                  className={`chip ${type === item.value ? 'active' : ''}`}
+                  className={`chip ${view === item.value ? 'active' : ''}`}
                   aria-label={item.name}
-                  title={item.name}
-                  aria-pressed={type === item.value}
+                  data-tooltip={item.name}
+                  aria-pressed={view === item.value}
                   onClick={() => {
-                    setType(item.value);
+                    setView(item.value);
                     setPage(0);
                   }}
                 >
@@ -181,13 +184,18 @@ export function Artifacts(): ReactElement {
                 </button>
               ))}
             </div>
-            <input
+            <LibrarySearch
               aria-label="Поиск по истории"
               placeholder="Поиск по названию и запросу"
               maxLength={512}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
+            {search && (
+              <button className="text-button" onClick={() => setSearch('')}>
+                Сбросить
+              </button>
+            )}
           </div>
           {list.error && (
             <div role="alert">
@@ -203,7 +211,11 @@ export function Artifacts(): ReactElement {
               <h2>{query ? 'Ничего не найдено' : 'История пока пуста'}</h2>
             </div>
           )}
-          <div className="history-list file-browser" aria-label="История" aria-busy={list.isPending}>
+          <div
+            className={'asset-feed history-list file-browser history-view-' + view}
+            aria-label="История"
+            aria-busy={list.isPending}
+          >
             {user && list.isPending && (
               <>
                 <div
@@ -228,8 +240,13 @@ export function Artifacts(): ReactElement {
                   <h3 className="history-day">{historyDay(item.activityDate)}</h3>
                 )}
                 {item.type === 'FILE' ? (
-                  <article className="file-entry" aria-busy={opening === item.id}>
+                  <article
+                    style={previewCardStyle(item.preview)}
+                    className="file-entry"
+                    aria-busy={opening === item.id}
+                  >
                     <FileCard
+                      compact
                       source={item.workspace === 'CONTENT_STUDIO' ? 'Студия контента' : undefined}
                       file={{
                         ...item,

@@ -16,7 +16,7 @@ export function StudioQueuePanel({ queue }: { queue: ConversationQueue }) {
                 <span className="cw-queue-position" aria-hidden="true">
                   {index + 1}
                 </span>
-                <span className="cw-queue-title" title={item.title}>
+                <span className="cw-queue-title" data-tooltip={item.title}>
                   {item.title}
                 </span>
                 <button

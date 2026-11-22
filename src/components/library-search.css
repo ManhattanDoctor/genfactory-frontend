@@ -1,0 +1,35 @@
+.library-search {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(244, 244, 240, 0.08);
+  border-radius: 999px;
+  background: rgba(17, 17, 20, 0.85);
+}
+.library-search svg {
+  flex: none;
+  color: #8e8e86;
+}
+.library-search:focus-within {
+  border-color: rgba(221, 249, 74, 0.35);
+  box-shadow: 0 0 0 1px rgba(221, 249, 74, 0.15);
+}
+:is(.file-controls, .library-toolbar) .library-search > input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  outline: 0;
+  box-shadow: none;
+}

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { AI_MODEL_TIMEOUT } from './vendor/gnosis-common/ai/requestTimeout.json';
 const require = createRequire(import.meta.url);
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -14,6 +15,11 @@ export default defineConfig(({ mode }) => {
         name: 'genfactory-update-worker',
         apply: 'build',
         generateBundle() {
+          this.emitFile({
+            type: 'asset',
+            fileName: 'generation-timeout.conf',
+            source: `proxy_read_timeout ${AI_MODEL_TIMEOUT}ms;\nproxy_send_timeout ${AI_MODEL_TIMEOUT}ms;\n`,
+          });
           this.emitFile({
             type: 'asset',
             fileName: 'genfactory-sw.js',
@@ -49,8 +55,8 @@ self.addEventListener('message', event => {
         '/api': {
           target: env.GNOSIS_API_TARGET || 'http://127.0.0.1:3015',
           changeOrigin: true,
-          timeout: 1_200_000,
-          proxyTimeout: 1_200_000,
+          timeout: AI_MODEL_TIMEOUT,
+          proxyTimeout: AI_MODEL_TIMEOUT,
         },
       },
     },

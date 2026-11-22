@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Check, Copy, Download, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { Check, Copy, Download, RotateCw, Settings } from 'lucide-react';
 import type { ContentConversation } from './useContentConversation';
 import { openActiveJobs } from '../../components/ActiveJobs';
 import { CollapsibleMessage } from './CollapsibleMessage';
@@ -22,14 +22,21 @@ interface ITurn {
   ask?: IConversationMessage;
   reply?: IConversationMessage;
 }
+function pendingText(message?: IConversationMessage): string {
+  if (message?.settings?.isToolsDisabled) return 'Готовим ответ…';
+  return message?.settings?.tools?.some((tool) => tool.uid.includes('VIDEO'))
+    ? 'Ролик готовится'
+    : 'Кадр готовится';
+}
 function PendingResult({ text }: { text: string }): ReactElement {
   return (
     <div className="studio-pending-result">
-      <span role="status">{text}</span>
-      <button type="button" aria-haspopup="dialog" className="text-button" onClick={openActiveJobs}>
-        <BriefcaseBusiness size={16} aria-hidden />
-        Работы
-      </button>
+      <div className="studio-pending-copy">
+        <strong role="status">{text}</strong>
+        <button type="button" aria-haspopup="dialog" className="text-button" onClick={openActiveJobs}>
+          Открыть в работах
+        </button>
+      </div>
     </div>
   );
 }
@@ -110,6 +117,12 @@ export function ContentThread({
         const waiting = !reply && index === turns.length - 1 && conversation.status === 'LOADING';
         const files = reply?.files || [];
         const question = reply?.files?.length ? undefined : parseStudioQuestion(reply?.text, ask);
+        const nextPrompt = displayMessageText(turns[index + 1]?.ask?.text || '');
+        const answerPrefix = question && `Ответ на вопрос «${question.question}»: `;
+        const previousAnswer =
+          answerPrefix && nextPrompt.startsWith(answerPrefix)
+            ? nextPrompt.slice(answerPrefix.length)
+            : undefined;
         const copyText = question?.question || reply?.text || prompt;
         const key = ask ? `ask:${ask.id}` : `reply:${reply!.id}`;
         return (
@@ -179,33 +192,7 @@ export function ContentThread({
             )}
             <div className="as-bot">
               <div className="as-bot-main">
-                <p className="as-role">Ассистент</p>
-                {waiting && (
-                  <PendingResult
-                    text={ask?.settings?.isToolsDisabled ? 'Готовим ответ…' : 'Кадр готовится'}
-                  />
-                )}
-                {reply?.text && (
-                  <div className="as-reply">
-                    <div className="as-body">
-                      {question ? (
-                        <StudioQuestionCard
-                          question={question}
-                          disabled={busy || page !== 0 || messages.data?.items[0]?.id !== reply.id}
-                          onAnswer={(answer) => onAnswer(question, reply.id, answer)}
-                        />
-                      ) : (
-                        <CollapsibleMessage>
-                          <MessageContent
-                            text={studioReplyText(reply.text)}
-                            files={reply.files}
-                            onOpen={setPreview}
-                          />
-                        </CollapsibleMessage>
-                      )}
-                    </div>
-                  </div>
-                )}
+                {waiting && <PendingResult text={pendingText(ask)} />}
                 {waiting &&
                   progress.tools.map((tool, i) => (
                     <p className="as-status" key={i}>
@@ -245,6 +232,28 @@ export function ContentThread({
                     </button>
                   ),
                 )}
+                {reply?.text && (
+                  <div className="as-reply">
+                    <div className="as-body">
+                      {question ? (
+                        <StudioQuestionCard
+                          question={question}
+                          previousAnswer={previousAnswer}
+                          disabled={busy || page !== 0 || messages.data?.items[0]?.id !== reply.id}
+                          onAnswer={(answer) => onAnswer(question, reply.id, answer)}
+                        />
+                      ) : (
+                        <CollapsibleMessage>
+                          <MessageContent
+                            text={studioReplyText(reply.text)}
+                            files={reply.files}
+                            onOpen={setPreview}
+                          />
+                        </CollapsibleMessage>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {files.map((file) => {
                   const generation = file.origin?.generation;
                   const options = generation?.options;
@@ -264,86 +273,106 @@ export function ContentThread({
                     typeof options?.seed === 'number' ? `Seed: ${options.seed}` : undefined,
                   ];
                   return (
-                    <p key={file.id} className="content-result-meta" title={file.name}>
+                    <p key={file.id} className="content-result-meta" data-tooltip={file.name}>
                       {[
                         ...new Set(
-                          values.filter((value) => value !== undefined && value !== null && value !== ''),
+                          values
+                            .filter((value) => value !== undefined && value !== null && value !== '')
+                            .map(String),
                         ),
-                      ].join(' · ')}
+                      ].map((value) => (
+                        <span key={value}>{value}</span>
+                      ))}
                     </p>
                   );
                 })}
-                <div className={files.length ? 'as-actions content-result-actions' : 'as-actions'}>
-                  {files
-                    .filter((file) => file.origin?.generation)
-                    .map((file) => (
-                      <button
+                {!question && !waiting && (
+                  <div className={files.length ? 'as-actions content-result-actions' : 'as-actions'}>
+                    {files.map((file) => (
+                      <a
                         className="button"
                         key={file.id}
-                        disabled={busy}
-                        onClick={() => onUseParameters(file)}
+                        href={safeMediaUrl(file.path)}
+                        data-tooltip={files.length > 1 ? `Скачать ${file.name}` : 'Скачать'}
+                        aria-label={files.length > 1 ? `Скачать ${file.name}` : 'Скачать'}
+                        download={file.name}
+                        target="_blank"
+                        rel="noreferrer"
                       >
-                        <SlidersHorizontal size={16} aria-hidden="true" />
-                        Использовать параметры{files.length > 1 ? `: ${file.name}` : ''}
-                      </button>
+                        <Download size={16} aria-hidden="true" />
+                      </a>
                     ))}
-                  {(ask?.settings?.isToolsDisabled === true ||
-                    ask?.text?.startsWith('[Genfactory:script]\n')) &&
-                    !!reply?.text &&
-                    !question &&
-                    isReadyScript(reply.text) &&
-                    !files.length && (
-                      <button
-                        className="button"
-                        disabled={busy}
-                        onClick={() => onUseScript(reply.text!, reply.id)}
-                      >
-                        Использовать сценарий
-                      </button>
-                    )}
-                  <button
-                    className="button"
-                    disabled={!prompt || conversation.status === 'LOADING'}
-                    onClick={() => onRepeat(prompt)}
-                  >
-                    {!!files.length && <RotateCcw size={16} aria-hidden="true" />}
-                    Повторить запрос
-                  </button>
-                  <button
-                    className="button"
-                    disabled={!copyText}
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(copyText);
-                        setCopied(key);
-                        setCopyError(false);
-                      } catch {
-                        setCopyError(true);
-                      }
-                    }}
-                  >
-                    {!!files.length &&
-                      (copied === key ? (
-                        <Check size={16} aria-hidden="true" />
-                      ) : (
-                        <Copy size={16} aria-hidden="true" />
-                      ))}
-                    {copied === key ? 'Текст скопирован' : 'Скопировать текст'}
-                  </button>
-                  {files.map((file) => (
-                    <a
+                    {(ask?.settings?.isToolsDisabled === true ||
+                      ask?.text?.startsWith('[Genfactory:script]\n')) &&
+                      !!reply?.text &&
+                      !question &&
+                      isReadyScript(reply.text) &&
+                      !files.length && (
+                        <button
+                          className="button"
+                          disabled={busy}
+                          onClick={() => onUseScript(reply.text!, reply.id)}
+                        >
+                          Использовать сценарий
+                        </button>
+                      )}
+                    <button
                       className="button"
-                      key={file.id}
-                      href={safeMediaUrl(file.path)}
-                      download={file.name}
-                      target="_blank"
-                      rel="noreferrer"
+                      disabled={!prompt || conversation.status === 'LOADING'}
+                      data-tooltip="Повторить запрос"
+                      aria-label="Повторить запрос"
+                      onClick={() => onRepeat(prompt)}
                     >
-                      <Download size={16} aria-hidden="true" />
-                      Скачать{files.length > 1 ? ` ${file.name}` : ''}
-                    </a>
-                  ))}
-                </div>
+                      {!!files.length && <RotateCw size={16} aria-hidden="true" />}
+                      {!files.length && 'Повторить запрос'}
+                    </button>
+                    {files
+                      .filter((file) => file.origin?.generation)
+                      .map((file) => (
+                        <button
+                          className="button"
+                          key={file.id}
+                          disabled={busy}
+                          data-tooltip={
+                            files.length > 1
+                              ? `Использовать параметры: ${file.name}`
+                              : 'Использовать параметры'
+                          }
+                          aria-label={
+                            files.length > 1
+                              ? `Использовать параметры: ${file.name}`
+                              : 'Использовать параметры'
+                          }
+                          onClick={() => onUseParameters(file)}
+                        >
+                          <Settings size={16} aria-hidden="true" />
+                        </button>
+                      ))}
+                    <button
+                      className="button"
+                      data-tooltip={copied === key ? 'Текст скопирован' : 'Скопировать текст'}
+                      aria-label={copied === key ? 'Текст скопирован' : 'Скопировать текст'}
+                      disabled={!copyText}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(copyText);
+                          setCopied(key);
+                          setCopyError(false);
+                        } catch {
+                          setCopyError(true);
+                        }
+                      }}
+                    >
+                      {!!files.length &&
+                        (copied === key ? (
+                          <Check size={16} aria-hidden="true" />
+                        ) : (
+                          <Copy size={16} aria-hidden="true" />
+                        ))}
+                      {!files.length && (copied === key ? 'Текст скопирован' : 'Скопировать текст')}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </article>
@@ -351,9 +380,7 @@ export function ContentThread({
       })}
       {conversation.status === 'LOADING' && !turns.some((turn) => !turn.reply) && (
         <div className="as-turn cw-turn">
-          <PendingResult
-            text={latestTurn?.ask?.settings?.isToolsDisabled ? 'Готовим ответ…' : 'Кадр готовится'}
-          />
+          <PendingResult text={pendingText(latestTurn?.ask)} />
         </div>
       )}
       {copyError && <p role="status">Не удалось скопировать текст.</p>}

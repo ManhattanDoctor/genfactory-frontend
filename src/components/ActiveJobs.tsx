@@ -107,12 +107,9 @@ function TaskCard({
           )}
         </div>
         <div className="job-card-content">
-          <b className="job-card-title" title={title || view.title}>
+          <b className="job-card-title" data-tooltip={title || view.title}>
             {title || view.title}
           </b>
-          <small className="job-card-id">
-            {localRequest ? 'Запрос' : 'Задача'} {item.id}
-          </small>
           <span className="job-card-status">
             {!completed && <LoaderCircle size={14} aria-hidden="true" />}
             {status || 'Выполняется'}
@@ -181,7 +178,7 @@ function JobCard({
         )}
       </div>
       <div className="job-card-content">
-        <b className="job-card-title" title={conversation.name}>
+        <b className="job-card-title" data-tooltip={conversation.name}>
           {conversation.name}
         </b>
         <small className="job-card-id">Диалог №{conversation.id}</small>
@@ -229,13 +226,28 @@ export function openActiveJobs(): void {
   window.dispatchEvent(new Event(openJobsEvent));
 }
 
-export function ActiveJobs(): ReactElement | null {
+type JobTrigger = (status: string, label: string, show: () => void) => ReactElement;
+
+export function ActiveJobs({ renderTrigger }: { renderTrigger?: JobTrigger } = {}): ReactElement | null {
   const auth = useAuth();
   return auth.user ? (
-    <Jobs key={`${auth.user.id}:${auth.session}`} userId={auth.user.id} sid={auth.session!} />
+    <Jobs
+      renderTrigger={renderTrigger}
+      key={`${auth.user.id}:${auth.session}`}
+      userId={auth.user.id}
+      sid={auth.session!}
+    />
   ) : null;
 }
-function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
+function Jobs({
+  userId,
+  sid,
+  renderTrigger,
+}: {
+  userId: number;
+  sid: string;
+  renderTrigger?: JobTrigger;
+}): ReactElement {
   const client = useQueryClient();
   const { pathname, search } = useLocation();
   const selectedImage = useQuery<string | null>({
@@ -341,11 +353,16 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
     })),
     ...finishedTasks.map((task) => ({
       key: `task:${task.input.body.task.session || task.id}`,
-      label: `Запрос ${task.input.body.task.session || task.id} · ${task.status === 'success' ? 'Готово' : 'Проверьте результат'}`,
+      label: task.status === 'success' ? 'Готово' : 'Проверьте результат',
     })),
     ...remoteNotices.map((notice) => ({
       key: `execution:${notice.id}`,
-      label: `Задача ${notice.id} · ${notice.result === 'COMPLETED' ? 'Готово' : notice.result === 'CANCELLED' ? 'Отменено' : 'Проверьте результат'}`,
+      label:
+        notice.result === 'COMPLETED'
+          ? 'Готово'
+          : notice.result === 'CANCELLED'
+            ? 'Отменено'
+            : 'Проверьте результат',
     })),
   ];
   const relevantPopup = (item: JobNotice) =>
@@ -373,17 +390,25 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
         </div>,
         document.body,
       )}
-      <button
-        className="button jobs-button"
-        aria-label={unavailable ? 'Статусы работ недоступны' : `Активные работы: ${count}`}
-        onClick={() => setOpen(true)}
-      >
-        <BriefcaseBusiness size={18} aria-hidden="true" /> Работы{' '}
-        <span>
-          {unavailable ? '-' : count}
-          {hasNotices ? ' •' : ''}
-        </span>
-      </button>
+      {renderTrigger ? (
+        renderTrigger(
+          (unavailable ? '-' : String(count)) + (hasNotices ? ' •' : ''),
+          unavailable ? 'Статусы работ недоступны' : `Активные работы: ${count}`,
+          () => setOpen(true),
+        )
+      ) : (
+        <button
+          className="button jobs-button"
+          aria-label={unavailable ? 'Статусы работ недоступны' : `Активные работы: ${count}`}
+          onClick={() => setOpen(true)}
+        >
+          <BriefcaseBusiness size={18} aria-hidden="true" /> Работы{' '}
+          <span>
+            {unavailable ? '-' : count}
+            {hasNotices ? ' •' : ''}
+          </span>
+        </button>
+      )}
       {open &&
         createPortal(
           <Modal
@@ -396,7 +421,7 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
                   type="button"
                   className="icon-button"
                   aria-label="Очистить уведомления"
-                  title="Очистить уведомления"
+                  data-tooltip="Очистить уведомления"
                   disabled={!hasNotices}
                   onClick={() => {
                     setNotices([]);
@@ -415,7 +440,7 @@ function Jobs({ userId, sid }: { userId: number; sid: string }): ReactElement {
                   to="/artifacts"
                   className="icon-button"
                   aria-label="Вся история"
-                  title="Вся история"
+                  data-tooltip="Вся история"
                   onClick={() => setOpen(false)}
                 >
                   <History size={18} />

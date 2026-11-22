@@ -192,12 +192,15 @@ test('several direct image tasks run concurrently without blocking the editor or
   expect(state.conversationWrites).toEqual([]);
 });
 
-test('video templates stay mounted while a request starts and fails', async ({ page }) => {
+test('video previews in the generation feed stay mounted while a request starts and fails', async ({
+  page,
+}) => {
   const state = await setup(page, true, true);
   await page.goto('/video');
-  const template = page.locator('.ds-template-card video').first();
-  await expect(template).toBeVisible();
-  const original = await template.elementHandle();
+  await page.getByRole('tab', { name: 'Генерации', exact: true }).click();
+  const preview = page.locator('.design-feed [data-kind="gen"] video').first();
+  await expect(preview).toBeVisible();
+  const original = await preview.elementHandle();
   await page.locator('#vd-draft').fill('Проверка стабильности галереи');
   await page.getByRole('button', { name: 'Собрать видео', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);

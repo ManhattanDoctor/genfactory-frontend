@@ -1,0 +1,98 @@
+{
+  "image-feed-tpl_02_Nano_Banana_2.1": {
+    "tags": ["фото", "товар"],
+    "src": "/media/home/02_Nano_Banana_2.1/good_01_брать.jpg",
+    "poster": "",
+    "previewRatio": "1024 / 1024"
+  },
+  "image-feed-tpl_04_Nano_Banana_Pro": {
+    "tags": ["без фото", "товар"],
+    "src": "/media/home/04_Nano_Banana_Pro/good_01_брать.png",
+    "poster": "",
+    "previewRatio": "1024 / 1024"
+  },
+  "image-feed-tpl_06_Seedream_5_Pro": {
+    "tags": ["без фото", "товар", "свет"],
+    "src": "/media/home/06_Seedream_5_Pro/good_01_править.jpg",
+    "poster": "",
+    "previewRatio": "2048 / 2048"
+  },
+  "image-feed-tpl_08_FLUX_3": {
+    "tags": ["фото", "текст"],
+    "src": "/media/home/08_FLUX_3/good_01_править.png",
+    "poster": "",
+    "previewRatio": "1024 / 1024"
+  },
+  "image-feed-tpl_12_Nano_Banana_Pro_Preview": {
+    "tags": ["без фото", "товар"],
+    "src": "/media/home/12_Nano_Banana_Pro_Preview/good_01_брать.jpg",
+    "poster": "",
+    "previewRatio": "1024 / 1024"
+  },
+  "image-feed-tpl_15_Seedream_4.5": {
+    "tags": ["без фото", "свет"],
+    "src": "/media/home/15_Seedream_4.5/good_01_править.jpg",
+    "poster": "",
+    "previewRatio": "2048 / 2048"
+  },
+  "image-feed-tpl_30_Seedream_5_Lite": {
+    "tags": ["фото", "товар"],
+    "src": "/media/home/30_Seedream_5_Lite/good_01_брать.jpg",
+    "poster": "",
+    "previewRatio": "2048 / 2048"
+  },
+  "image-feed-tpl_40_Recraft_V4.1_Utility_Pro": {
+    "tags": ["без фото", "плакат"],
+    "src": "/media/home/40_Recraft_V4.1_Utility_Pro/good_01_брать.webp",
+    "poster": "",
+    "previewRatio": "2048 / 2048"
+  },
+  "video-feed-tpl_17": {
+    "tags": ["ролик", "фото", "улица"],
+    "src": "/media/video-feed/templates/17.mp4",
+    "poster": "/media/video-feed/posters/17.jpg",
+    "previewRatio": "848 / 464"
+  },
+  "video-feed-tpl_13": {
+    "tags": ["ролик", "фото", "фэнтези"],
+    "src": "/media/video-feed/templates/13.mp4",
+    "poster": "/media/video-feed/posters/13.jpg",
+    "previewRatio": "1024 / 1272"
+  },
+  "video-feed-tpl_10": {
+    "tags": ["ролик", "фото", "динамика"],
+    "src": "/media/video-feed/templates/10.mp4",
+    "poster": "/media/video-feed/posters/10.jpg",
+    "previewRatio": "848 / 464"
+  },
+  "video-feed-tpl_26": {
+    "tags": ["ролик", "фото", "город"],
+    "src": "/media/video-feed/templates/26.mp4",
+    "poster": "/media/video-feed/posters/26.jpg",
+    "previewRatio": "1280 / 720"
+  },
+  "video-feed-tpl_20": {
+    "tags": ["ролик", "фото", "селфи"],
+    "src": "/media/video-feed/templates/20.mp4",
+    "poster": "/media/video-feed/posters/20.jpg",
+    "previewRatio": "1280 / 720"
+  },
+  "video-feed-tpl_07": {
+    "tags": ["ролик", "фото", "путешествие"],
+    "src": "/media/video-feed/templates/07.mp4",
+    "poster": "/media/video-feed/posters/07.jpg",
+    "previewRatio": "848 / 432"
+  },
+  "video-feed-tpl_06": {
+    "tags": ["ролик", "фото", "динамика"],
+    "src": "/media/video-feed/templates/06.mp4",
+    "poster": "/media/video-feed/posters/06.jpg",
+    "previewRatio": "1280 / 720"
+  },
+  "video-feed-tpl_11": {
+    "tags": ["ролик", "фото", "путешествие"],
+    "src": "/media/video-feed/templates/11.mp4",
+    "poster": "/media/video-feed/posters/11.jpg",
+    "previewRatio": "1280 / 720"
+  }
+}

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { ModelDigest } from '../../components/ModelDigest';
+import home from '../../app/home/content.json';
+import videoDigests from './videoDigests.json';
 import { Modal } from '../../components/Modal';
 import type { IModelDescription } from '../../lib/types';
 import { ModelPickerList } from './ModelPickerList';
@@ -52,6 +55,7 @@ export function MediaModelPicker({
   disabled,
   mobile,
   studio,
+  composer,
   favorites,
   onFavorite,
   error,
@@ -65,6 +69,7 @@ export function MediaModelPicker({
   disabled?: boolean;
   mobile: boolean;
   studio?: boolean;
+  composer?: boolean;
   favorites?: string[];
   onFavorite?: (key: string) => void;
   error?: string;
@@ -89,6 +94,15 @@ export function MediaModelPicker({
     return () => document.removeEventListener('pointerdown', outside);
   }, [open, mobile, info]);
   const detail = info && guide(info, kind);
+  const digest =
+    info &&
+    (kind === 'image'
+      ? home.digests.find((d) => d.model === info.reference.model)
+      : videoDigests.find(
+          (d) =>
+            d.title.toLowerCase() === modelTitle(info).toLowerCase() ||
+            info.reference.model.endsWith('/' + d.id),
+        ));
   const content = open && (
     <>
       <ModelPickerList
@@ -99,6 +113,7 @@ export function MediaModelPicker({
           favorites ?? [],
           (item) => item.id,
         )}
+        onClose={composer ? close : undefined}
         selected={selected}
         favorites={favorites}
         onFavorite={onFavorite}
@@ -109,7 +124,21 @@ export function MediaModelPicker({
         }}
       />
       {error && <p role="alert">{error}</p>}
-      {info && detail && (
+      {info && digest && (
+        <ModelDigest detail={digest} onClose={() => setInfo(undefined)}>
+          <button
+            type="button"
+            className="gf-btn-primary"
+            onClick={() => {
+              onSelect(modelKey(info));
+              close();
+            }}
+          >
+            Выбрать эту модель
+          </button>
+        </ModelDigest>
+      )}
+      {info && detail && !digest && (
         <Modal title={`О модели ${modelTitle(info)}`} onClose={() => setInfo(undefined)}>
           <p>
             <strong>Когда брать</strong>
@@ -164,7 +193,7 @@ export function MediaModelPicker({
         className={studio ? 'cw-model' : 'cw-chip'}
         type="button"
         aria-label={name}
-        title={label}
+        data-tooltip={label}
         aria-haspopup={mobile ? 'dialog' : 'listbox'}
         aria-expanded={open}
         disabled={disabled}
@@ -174,7 +203,7 @@ export function MediaModelPicker({
         }}
       >
         <span className="content-control-label gf-model-trigger-name">{label}</span>
-        {!studio && <ChevronDown size={12} />}
+        {!studio && !composer && <ChevronDown size={12} />}
       </button>
       {open &&
         (mobile ? (

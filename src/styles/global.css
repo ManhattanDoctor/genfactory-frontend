@@ -3853,3 +3853,26 @@ video:-webkit-full-screen {
   flex: none;
   white-space: nowrap;
 }
+
+/* Text actions in messages and recoverable errors follow the designer's msg-more control. */
+button.text-button.message-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--gf-accent, #ddf94a);
+  font-size: 13px;
+  font-weight: 600;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+button.text-button.message-action:hover {
+  text-decoration: underline;
+}
+@media (pointer: coarse) {
+  button.text-button.message-action {
+    min-height: 44px;
+  }
+}
