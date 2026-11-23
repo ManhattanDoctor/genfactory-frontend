@@ -1033,47 +1033,54 @@ test('recent UI fixes: digest examples scroll vertically inside the mobile viewp
   expect(await gallery.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
 });
 
-test('recent UI fixes: studio keeps tabs and tags visible and the grip dismisses the sheet', async ({
-  page,
-}) => {
-  await mockApi(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/chat');
-  const trigger = page.getByRole('button', { name: 'Шаблоны и настройки', exact: true });
-  await trigger.click();
-  const sheet = page.getByRole('dialog', { name: 'Шаблоны и настройки', exact: true });
-  await expect(sheet).toBeFocused();
-  await sheet.getByRole('tab', { name: 'Шаблоны', exact: true }).click();
-  const tags = sheet.getByRole('group', { name: 'Жанры', exact: true });
-  const list = sheet.locator('#cw-gallery');
-  const cards = list.locator('.cw-card');
-  await expect(cards.nth(2)).toBeVisible();
-  const rowGap = await cards.evaluateAll((items) => {
-    const [left, right, nextRow] = items.map((item) => item.getBoundingClientRect());
-    return nextRow.top - Math.max(left.bottom, right.bottom);
-  });
-  expect(rowGap).toBeGreaterThanOrEqual(1);
-  const top = await tags.evaluate((el) => el.getBoundingClientRect().top);
-  await list.evaluate((el) => (el.scrollTop = 200));
-  expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
-  expect(await tags.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(top, 0);
-  const grip = sheet.getByRole('button', { name: 'Закрыть шаблоны и настройки', exact: true });
-  const box = (await grip.boundingBox())!;
-  const cdp = await page.context().newCDPSession(page);
-  for (const [type, dy] of [
-    ['touchStart', 0],
-    ['touchMove', 28],
-    ['touchMove', 84],
-    ['touchEnd', 84],
-  ] as const) {
-    await cdp.send('Input.dispatchTouchEvent', {
-      type,
-      touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + box.width / 2, y: box.y + 5 + dy }],
+test(
+  'mobile Studio template rows stay apart and filters stay visible',
+  { tag: ['@smoke', '@mobile-layout'] },
+  async ({ page, browserName }) => {
+    await mockApi(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/chat');
+    const trigger = page.getByRole('button', { name: 'Шаблоны и настройки', exact: true });
+    await trigger.click();
+    const sheet = page.getByRole('dialog', { name: 'Шаблоны и настройки', exact: true });
+    await expect(sheet).toBeFocused();
+    await sheet.getByRole('tab', { name: 'Шаблоны', exact: true }).click();
+    const tags = sheet.getByRole('group', { name: 'Жанры', exact: true });
+    const list = sheet.locator('#cw-gallery');
+    const cards = list.locator('.cw-card');
+    await expect(cards.nth(2)).toBeVisible();
+    const rowGap = await cards.evaluateAll((items) => {
+      const [left, right, nextRow] = items.map((item) => item.getBoundingClientRect());
+      return nextRow.top - Math.max(left.bottom, right.bottom);
     });
-  }
-  await expect(sheet).toBeHidden();
-  await expect(trigger).toBeFocused();
-});
+    expect(rowGap).toBeGreaterThanOrEqual(1);
+    const top = await tags.evaluate((el) => el.getBoundingClientRect().top);
+    await list.evaluate((el) => (el.scrollTop = 200));
+    expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    expect(await tags.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(top, 0);
+    const grip = sheet.getByRole('button', { name: 'Закрыть шаблоны и настройки', exact: true });
+    if (browserName === 'chromium') {
+      const box = (await grip.boundingBox())!;
+      const cdp = await page.context().newCDPSession(page);
+      for (const [type, dy] of [
+        ['touchStart', 0],
+        ['touchMove', 28],
+        ['touchMove', 84],
+        ['touchEnd', 84],
+      ] as const) {
+        await cdp.send('Input.dispatchTouchEvent', {
+          type,
+          touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + box.width / 2, y: box.y + 5 + dy }],
+        });
+      }
+    } else {
+      await grip.click();
+    }
+    await expect(sheet).toBeHidden();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    if (browserName === 'chromium') await expect(trigger).toBeFocused();
+  },
+);
 
 test('recent UI fixes: video templates keep 16:9 tiles and duration has only a stepper', async ({ page }) => {
   await mockApi(page);
@@ -3634,6 +3641,7 @@ test(
 );
 
 // Temporarily unavailable: the writer is hidden by request; remove these legacy cases with the mode.
+// The Studio composer currently has SCRIPT_WRITER_ENABLED=false.
 test.skip('content studio writer disables tools for the request and preserves connected tools', async ({
   page,
 }) => {
@@ -3725,18 +3733,22 @@ test('content studio restores a running job and receives socket completion witho
 });
 
 for (const width of [390, 1440]) {
-  test(`Studio reconciles a lost response with server history at ${width}px`, async ({ page }) => {
-    const state = await mockApi(page);
-    state.abortAfterAccept = true;
-    await page.setViewportSize({ width, height: 844 });
-    await page.goto('/chat');
-    await page.locator('#cw-draft').fill('Подготовь сценарий');
-    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-    await expect(page.locator('.cw-thread')).toContainText('Подготовь сценарий');
-    await expect(page.locator('#cw-draft')).toHaveValue('');
-    await expect(page.locator('.content-feedback[role="alert"]')).toHaveCount(0);
-    expect(state.sends).toHaveLength(1);
-  });
+  test(
+    `Studio reconciles a lost response with server history at ${width}px`,
+    { tag: '@smoke' },
+    async ({ page }) => {
+      const state = await mockApi(page);
+      state.abortAfterAccept = true;
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/chat');
+      await page.locator('#cw-draft').fill('Подготовь сценарий');
+      await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+      await expect(page.locator('.cw-thread')).toContainText('Подготовь сценарий');
+      await expect(page.locator('#cw-draft')).toHaveValue('');
+      await expect(page.locator('.content-feedback[role="alert"]')).toHaveCount(0);
+      expect(state.sends).toHaveLength(1);
+    },
+  );
 }
 
 test('Studio keeps the draft if the server has not confirmed acceptance', async ({ page }) => {
@@ -3920,31 +3932,35 @@ test('content studio rejects unsupported attachments before upload', async ({ pa
   expect(state.sends).toHaveLength(0);
 });
 
-test('mobile Studio video settings keep the stepper and menus apart', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await mockApi(page);
-  await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Видео', exact: true }).click();
-  await page.getByRole('button', { name: 'Ещё', exact: true }).click();
-  const sheet = page.getByRole('dialog', { name: 'Кадр и длина' });
-  const stepper = sheet.getByRole('group', { name: 'Длительность видео' });
-  const sound = sheet.getByRole('button', { name: 'Без звука', exact: true });
-  const scenes = sheet.getByRole('button', { name: 'Один кадр', exact: true });
-  await expect(sound).toBeVisible();
+test(
+  'mobile Studio video settings keep the stepper and menus apart',
+  { tag: '@mobile-layout' },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await mockApi(page);
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Видео', exact: true }).click();
+    await page.getByRole('button', { name: 'Ещё', exact: true }).click();
+    const sheet = page.getByRole('dialog', { name: 'Кадр и длина' });
+    const stepper = sheet.getByRole('group', { name: 'Длительность видео' });
+    const sound = sheet.getByRole('button', { name: 'Без звука', exact: true });
+    const scenes = sheet.getByRole('button', { name: 'Один кадр', exact: true });
+    await expect(sound).toBeVisible();
 
-  const durationBox = (await stepper.boundingBox())!;
-  const soundBox = (await sound.boundingBox())!;
-  const scenesBox = (await scenes.boundingBox())!;
-  expect(soundBox.y - durationBox.y - durationBox.height).toBeGreaterThanOrEqual(8);
-  expect(scenesBox.x - soundBox.x - soundBox.width).toBeGreaterThanOrEqual(8);
+    const durationBox = (await stepper.boundingBox())!;
+    const soundBox = (await sound.boundingBox())!;
+    const scenesBox = (await scenes.boundingBox())!;
+    expect(soundBox.y - durationBox.y - durationBox.height).toBeGreaterThanOrEqual(8);
+    expect(scenesBox.x - soundBox.x - soundBox.width).toBeGreaterThanOrEqual(8);
 
-  await sound.click();
-  await sheet.getByRole('option', { name: 'Со звуком', exact: true }).click();
-  await scenes.click();
-  await sheet.getByRole('option', { name: 'Набор сцен', exact: true }).click();
-  await expect(sheet.getByRole('button', { name: 'Набор сцен', exact: true })).toBeVisible();
-});
+    await sound.click();
+    await sheet.getByRole('option', { name: 'Со звуком', exact: true }).click();
+    await scenes.click();
+    await sheet.getByRole('option', { name: 'Набор сцен', exact: true }).click();
+    await expect(sheet.getByRole('button', { name: 'Набор сцен', exact: true })).toBeVisible();
+  },
+);
 
 test('desktop Studio sends sound, duration, scene structure and aspect ratio independently', async ({
   page,
@@ -4545,6 +4561,7 @@ test('optional template clears previous references and sends explicitly from scr
   expect(state.sends[1].text).toContain('предыдущем результате');
 });
 
+// This multi-turn scenario requires the disabled Studio writer.
 for (const command of ['подтверждаю', 'да сделай уже видео!']) {
   test.skip(`content studio does not change mode for text command: ${command}`, async ({ page }) => {
     const state = await mockApi(page);
@@ -4710,76 +4727,78 @@ test(
   },
 );
 
-test('library picker keeps batch upload status inside its button and explains the file limit', async ({
-  page,
-}, testInfo) => {
-  await mockApi(page);
-  await page.route('**/api/file?*', (route) =>
-    route.fulfill({
-      json: pagination([
-        { ...file, preview: { image: { status: 'READY', width: 450, height: 1000, url: file.path } } },
-      ]),
-    }),
-  );
-  let uploads = 0;
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route('**/api/file', async (route) => {
-    if (route.request().method() !== 'POST') return route.fallback();
-    if (++uploads === 4) await gate;
-    await route.fulfill({
-      status: 403,
-      json: { code: 'FILE_AMOUNT_EXCEED', message: 'FileAmountExceedError' },
+test(
+  'library picker keeps batch upload status inside its button and explains the file limit',
+  { tag: '@smoke' },
+  async ({ page }, testInfo) => {
+    await mockApi(page);
+    await page.route('**/api/file?*', (route) =>
+      route.fulfill({
+        json: pagination([
+          { ...file, preview: { image: { status: 'READY', width: 450, height: 1000, url: file.path } } },
+        ]),
+      }),
+    );
+    let uploads = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
     });
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
-  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
-  const picker = page.getByRole('dialog', { name: 'Библиотека' });
-  await picker.locator('input[type=file]').setInputFiles(
-    Array.from({ length: 4 }, (_, index) => ({
-      name: `image-${index}.png`,
-      mimeType: 'image/png',
-      buffer: readFileSync(new URL('../../public/media/templates/2026-11-13/2.png', import.meta.url)),
-    })),
-  );
-  await expect.poll(() => uploads).toBe(4);
-  const button = picker.getByRole('button', { name: 'Загрузить файл', exact: true });
-  try {
-    for (const width of [390, 1440]) {
-      await page.setViewportSize({ width, height: 844 });
-      await expect(button).toHaveAttribute('aria-busy', 'true');
-      await expect(button.locator('.file-upload-count')).toHaveText('4/4');
-      const header = (await picker.locator('.modal-head').boundingBox())!;
-      const searchField = (await picker.locator('.library-search').boundingBox())!;
-      const controls = (await picker.locator('.file-controls').boundingBox())!;
-      expect(controls.y - header.y - header.height).toBeCloseTo(0, 0);
-      expect(searchField.y - header.y - header.height).toBeLessThanOrEqual(16);
-      const card = (await picker.locator('.file-entry').first().boundingBox())!;
-      expect(card.width).toBeGreaterThanOrEqual(140);
-      const bounds = await button.boundingBox();
-      const status = await button.locator('.upload-button-status').boundingBox();
-      const count = await button.locator('.file-upload-count').boundingBox();
-      const search = await picker.getByRole('textbox', { name: 'Поиск по всем файлам' }).boundingBox();
-      expect(status!.x).toBeGreaterThanOrEqual(bounds!.x);
-      expect(status!.x + status!.width).toBeLessThanOrEqual(count!.x);
-      expect(count!.x + count!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
-      expect(search!.width).toBeGreaterThan(40);
-      expect(await picker.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`library-upload-${width}.png`) });
+    await page.route('**/api/file', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      if (++uploads === 4) await gate;
+      await route.fulfill({
+        status: 403,
+        json: { code: 'FILE_AMOUNT_EXCEED', message: 'FileAmountExceedError' },
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+    await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: 'Библиотека' });
+    await picker.locator('input[type=file]').setInputFiles(
+      Array.from({ length: 4 }, (_, index) => ({
+        name: `image-${index}.png`,
+        mimeType: 'image/png',
+        buffer: readFileSync(new URL('../../public/media/templates/2026-11-13/2.png', import.meta.url)),
+      })),
+    );
+    await expect.poll(() => uploads).toBe(4);
+    const button = picker.getByRole('button', { name: 'Загрузить файл', exact: true });
+    try {
+      for (const width of [390, 1440]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expect(button).toHaveAttribute('aria-busy', 'true');
+        await expect(button.locator('.file-upload-count')).toHaveText('4/4');
+        const header = (await picker.locator('.modal-head').boundingBox())!;
+        const searchField = (await picker.locator('.library-search').boundingBox())!;
+        const controls = (await picker.locator('.file-controls').boundingBox())!;
+        expect(controls.y - header.y - header.height).toBeCloseTo(0, 0);
+        expect(searchField.y - header.y - header.height).toBeLessThanOrEqual(16);
+        const card = (await picker.locator('.file-entry').first().boundingBox())!;
+        expect(card.width).toBeGreaterThanOrEqual(140);
+        const bounds = await button.boundingBox();
+        const status = await button.locator('.upload-button-status').boundingBox();
+        const count = await button.locator('.file-upload-count').boundingBox();
+        const search = await picker.getByRole('textbox', { name: 'Поиск по всем файлам' }).boundingBox();
+        expect(status!.x).toBeGreaterThanOrEqual(bounds!.x);
+        expect(status!.x + status!.width).toBeLessThanOrEqual(count!.x);
+        expect(count!.x + count!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
+        expect(search!.width).toBeGreaterThan(40);
+        expect(await picker.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath(`library-upload-${width}.png`) });
+      }
+    } finally {
+      release();
     }
-  } finally {
-    release();
-  }
-  await expect(picker.getByRole('alert')).toContainText('Достигнут лимит количества файлов');
-  await expect(picker.getByRole('alert')).not.toContainText('FileAmountExceedError');
-  await expect(picker.locator('.file-browser > [role=status]')).toHaveText('Загружено: 0 из 4');
-  await expect(button).toHaveAttribute('aria-busy', 'false');
-  await expect(button).toBeEnabled();
-});
+    await expect(picker.getByRole('alert')).toContainText('Достигнут лимит количества файлов');
+    await expect(picker.getByRole('alert')).not.toContainText('FileAmountExceedError');
+    await expect(picker.locator('.file-browser > [role=status]')).toHaveText('Загружено: 0 из 4');
+    await expect(button).toHaveAttribute('aria-busy', 'false');
+    await expect(button).toBeEnabled();
+  },
+);
 
 test('mobile library search keeps focus and selection while results refresh', async ({ page }, testInfo) => {
   await mockApi(page);
@@ -5557,6 +5576,7 @@ test(
   },
 );
 
+// These scenarios require the disabled Studio writer switch.
 for (const initialWriter of [true, false]) {
   test.skip(`content studio preserves writer changed during a pending request: ${initialWriter}`, async ({
     page,
@@ -6858,6 +6878,7 @@ test('library multiselect preserves selection across folders and supports desele
   await expect(page.locator('.cw-files .composer-attachment')).toHaveCount(2);
 });
 
+// The library route does not enable FileBrowser's allowBatchRemove option.
 test.skip('library batch delete confirms IDs, preserves failed selections and retries only failures', async ({
   page,
 }, testInfo) => {
@@ -10111,29 +10132,33 @@ for (const width of [390, 1440]) {
 }
 
 for (const height of [640, 844]) {
-  test(`mobile studio composer has no extra bottom strip at height ${height}`, async ({ page }) => {
-    await page.setViewportSize({ width: 390, height });
-    await mockApi(page);
-    await page.goto('/chat');
-    await expect(page.locator('#cw-draft')).toBeVisible();
-    const geometry = await page.evaluate(() => {
-      const studio = document.querySelector('.content-studio')!.getBoundingClientRect();
-      const chat = document.querySelector('.content-studio .cw-chat')!.getBoundingClientRect();
-      const composer = document.querySelector('#cw-compose')!.getBoundingClientRect();
-      const tabs = document.querySelector('#cw-mode')!.getBoundingClientRect();
-      return {
-        center: (tabs.left + tabs.right - composer.left - composer.right) / 2,
-        extra: studio.bottom - chat.bottom,
-        gap: chat.bottom - composer.bottom,
-        horizontal: document.documentElement.scrollWidth > innerWidth,
-      };
-    });
-    expect(geometry.extra).toBeCloseTo(0, 0);
-    expect(geometry.gap).toBeCloseTo(8, 0);
-    expect(geometry.center).toBeCloseTo(0, 0);
-    expect(geometry.horizontal).toBe(false);
-    await page.screenshot({ path: `/tmp/gnosis-mobile-studio-bottom-${height}.png` });
-  });
+  test(
+    `mobile studio composer has no extra bottom strip at height ${height}`,
+    { tag: '@mobile-layout' },
+    async ({ page }) => {
+      await page.setViewportSize({ width: 390, height });
+      await mockApi(page);
+      await page.goto('/chat');
+      await expect(page.locator('#cw-draft')).toBeVisible();
+      const geometry = await page.evaluate(() => {
+        const studio = document.querySelector('.content-studio')!.getBoundingClientRect();
+        const chat = document.querySelector('.content-studio .cw-chat')!.getBoundingClientRect();
+        const composer = document.querySelector('#cw-compose')!.getBoundingClientRect();
+        const tabs = document.querySelector('#cw-mode')!.getBoundingClientRect();
+        return {
+          center: (tabs.left + tabs.right - composer.left - composer.right) / 2,
+          extra: studio.bottom - chat.bottom,
+          gap: chat.bottom - composer.bottom,
+          horizontal: document.documentElement.scrollWidth > innerWidth,
+        };
+      });
+      expect(geometry.extra).toBeCloseTo(0, 0);
+      expect(geometry.gap).toBeCloseTo(8, 0);
+      expect(geometry.center).toBeCloseTo(0, 0);
+      expect(geometry.horizontal).toBe(false);
+      await page.screenshot({ path: `/tmp/gnosis-mobile-studio-bottom-${height}.png` });
+    },
+  );
 }
 
 test('socket completion keeps the user turn mounted without periodic conversation polling', async ({
