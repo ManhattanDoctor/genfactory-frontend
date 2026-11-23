@@ -29,6 +29,7 @@ export function VideoTemplateMedia({ item }: { item: ITemplateCard }) {
       type="button"
       style={{ aspectRatio: item.ratio.replace(':', ' / ') }}
       aria-label={`${playing ? 'Приостановить' : 'Посмотреть'}: ${item.title}`}
+      title={`${playing ? 'Приостановить' : 'Посмотреть'}: ${item.title}`}
       onClick={() => {
         const video = clip.current;
         if (!video) return;

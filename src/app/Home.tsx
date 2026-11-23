@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { catalogQuery } from '../features/catalog/catalogQuery';
 import { useAuth } from '../features/auth/AuthProvider';
-import { HomeShell, modes } from './home/HomeNavigation';
+import { modes } from './home/HomeNavigation';
 import { icons } from './home/icons';
 import content from './home/content.json';
 import './home/home.css';
@@ -30,6 +30,7 @@ function ModeCard({ mode, index }: { mode: (typeof modes)[number]; index: number
     <Link
       to={mode.to}
       aria-label={mode.action}
+      title={mode.action}
       onMouseEnter={() => void video.current?.play().catch(() => {})}
       className={'gf-mode-card' + (index === 2 ? ' gf-mode-card-video' : '')}
     >
@@ -74,7 +75,7 @@ export function Home() {
       : undefined;
   }
   return (
-    <HomeShell>
+    <>
       <h1 id="home-title" className="gf-sr-only">
         Главная GenFactory
       </h1>
@@ -133,6 +134,7 @@ export function Home() {
                 key={w.src}
                 className="gf-wall-item"
                 aria-label={'Создать в модели ' + digest.title}
+                title={'Создать в модели ' + digest.title}
                 to={to}
               >
                 {card}
@@ -159,6 +161,7 @@ export function Home() {
               className="gf-digest-card"
               onClick={() => setDetail(m)}
               aria-label={'Открыть дайджест ' + m.title}
+              title={'Открыть дайджест ' + m.title}
             >
               <div className="gf-digest-mosaic">
                 {m.covers.map((src) => (
@@ -191,6 +194,6 @@ export function Home() {
           )}
         </ModelDigest>
       )}
-    </HomeShell>
+    </>
   );
 }

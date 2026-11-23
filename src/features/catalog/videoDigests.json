@@ -1,6 +1,8 @@
 [
   {
     "title": "Seedance 2.5",
+    "summary": "Нужен длинный ролик с сюжетом и одним героем в кадре.",
+    "tags": ["длинный", "звук"],
     "id": "seedance-2.5",
     "gallery": [
       "/media/video-feed/posters/01.jpg",
@@ -19,6 +21,8 @@
   },
   {
     "title": "Seedance 2.5 Flash",
+    "summary": "Нужен быстрый черновик длинного ролика со звуком.",
+    "tags": ["быстро", "звук"],
     "id": "seedance-2.5-flash",
     "gallery": [
       "/media/video-feed/posters/04.jpg",
@@ -37,6 +41,8 @@
   },
   {
     "title": "Seedance 2.0",
+    "summary": "Нужен обычный ролик из текста или пары кадров.",
+    "tags": ["звук", "из фото"],
     "id": "seedance-2.0",
     "gallery": [
       "/media/video-feed/posters/07.jpg",
@@ -55,6 +61,8 @@
   },
   {
     "title": "Veo 3.1",
+    "summary": "Нужен короткий киношный ролик сразу со звуком.",
+    "tags": ["звук", "кампейн"],
     "id": "veo-3.1",
     "gallery": [
       "/media/video-feed/posters/10.jpg",
@@ -69,6 +77,8 @@
   },
   {
     "title": "Veo 3.1 Fast",
+    "summary": "Нужен быстрый короткий ролик почти как у Veo.",
+    "tags": ["быстро", "звук"],
     "id": "veo-3.1-fast",
     "gallery": [
       "/media/video-feed/posters/13.jpg",
@@ -87,6 +97,8 @@
   },
   {
     "title": "Wan 3.0",
+    "summary": "Нужен ролик разной длины со стартовым фото и звуком.",
+    "tags": ["звук", "из фото"],
     "id": "wan-3.0",
     "gallery": [
       "/media/video-feed/posters/16.jpg",
@@ -105,6 +117,8 @@
   },
   {
     "title": "Wan 2.7",
+    "summary": "Нужен ролик из текста или фото со звуком без лишних настроек.",
+    "tags": ["звук", "из фото"],
     "id": "wan-2.7",
     "gallery": [
       "/media/video-feed/posters/19.jpg",
@@ -123,6 +137,8 @@
   },
   {
     "title": "Kling 3.0 Pro",
+    "summary": "Нужно сильное движение и лицо по фото в кадре.",
+    "tags": ["лицо", "движение"],
     "id": "kling-v3-pro",
     "gallery": [
       "/media/video-feed/posters/22.jpg",
@@ -141,6 +157,8 @@
   },
   {
     "title": "Kling 3.0 Standard",
+    "summary": "Нужны лицо и движение без премиум-цены Pro.",
+    "tags": ["лицо", "движение"],
     "id": "kling-v3-std",
     "gallery": [
       "/media/video-feed/posters/25.jpg",
@@ -159,6 +177,8 @@
   },
   {
     "title": "Runway Gen-4.5",
+    "summary": "Нужно киношное движение с референсом персонажа.",
+    "tags": ["кампейн", "из фото"],
     "id": "runway-gen-4.5",
     "gallery": [
       "/media/video-feed/posters/02.jpg",
@@ -177,6 +197,8 @@
   },
   {
     "title": "Grok Imagine Video 1.5",
+    "summary": "Нужен быстрый ролик из текста или стартового кадра.",
+    "tags": ["быстро", "из фото"],
     "id": "grok-imagine-video-1.5",
     "gallery": [
       "/media/video-feed/posters/05.jpg",
@@ -195,6 +217,8 @@
   },
   {
     "title": "Grok Imagine Video 1.5 Lite",
+    "summary": "Нужен самый быстрый черновик движения.",
+    "tags": ["быстро", "черновик"],
     "id": "grok-imagine-video-1.5-lite",
     "gallery": [
       "/media/video-feed/posters/08.jpg",
@@ -213,6 +237,8 @@
   },
   {
     "title": "Grok Imagine Video",
+    "summary": "Нужен короткий ролик без лишних настроек.",
+    "tags": ["просто", "быстро"],
     "id": "grok-imagine-video",
     "gallery": [
       "/media/video-feed/posters/11.jpg",
@@ -231,6 +257,8 @@
   },
   {
     "title": "FLUX 3 Video",
+    "summary": "Нужен контроль первого и последнего кадра со звуком.",
+    "tags": ["звук", "из фото"],
     "id": "flux-3-video",
     "gallery": [
       "/media/video-feed/posters/14.jpg",
@@ -245,6 +273,8 @@
   },
   {
     "title": "Hailuo 2.3",
+    "summary": "Нужен предметный ролик из текста или одного фото.",
+    "tags": ["предмет", "из фото"],
     "id": "hailuo-2.3",
     "gallery": [
       "/media/video-feed/posters/17.jpg",
@@ -259,6 +289,8 @@
   },
   {
     "title": "MiniMax H3",
+    "summary": "Нужен точный контроль сцены и несколько сторон кадра.",
+    "tags": ["контроль", "из фото"],
     "id": "hailuo-3",
     "gallery": [
       "/media/video-feed/posters/20.jpg",

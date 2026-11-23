@@ -107,7 +107,7 @@ function TaskCard({
           )}
         </div>
         <div className="job-card-content">
-          <b className="job-card-title" data-tooltip={title || view.title}>
+          <b className="job-card-title" title={title || view.title}>
             {title || view.title}
           </b>
           <span className="job-card-status">
@@ -178,7 +178,7 @@ function JobCard({
         )}
       </div>
       <div className="job-card-content">
-        <b className="job-card-title" data-tooltip={conversation.name}>
+        <b className="job-card-title" title={conversation.name}>
           {conversation.name}
         </b>
         <small className="job-card-id">Диалог №{conversation.id}</small>
@@ -421,7 +421,7 @@ function Jobs({
                   type="button"
                   className="icon-button"
                   aria-label="Очистить уведомления"
-                  data-tooltip="Очистить уведомления"
+                  title="Очистить уведомления"
                   disabled={!hasNotices}
                   onClick={() => {
                     setNotices([]);
@@ -440,7 +440,7 @@ function Jobs({
                   to="/artifacts"
                   className="icon-button"
                   aria-label="Вся история"
-                  data-tooltip="Вся история"
+                  title="Вся история"
                   onClick={() => setOpen(false)}
                 >
                   <History size={18} />
@@ -448,6 +448,7 @@ function Jobs({
                 <button
                   className="icon-button"
                   aria-label="Обновить статусы"
+                  title="Обновить статусы"
                   onClick={() => {
                     void query.refetch();
                     void executions.refetch();

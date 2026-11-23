@@ -54,6 +54,7 @@ export function AppUpdateNotice(): ReactElement | null {
       <div className="update-notice-actions">
         <button
           aria-label="Обновить приложение"
+          title="Обновить приложение"
           className="button primary"
           disabled={busy}
           onClick={() => updater.current?.apply()}

@@ -1,3 +1,4 @@
+import { MessageAction } from './MessageAction';
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -44,14 +45,8 @@ export function FilePreviewRetry({
     }
   }
   return (
-    <button
-      type="button"
-      className="text-button"
-      disabled={busy}
-      aria-busy={busy}
-      onClick={() => void retry()}
-    >
+    <MessageAction disabled={busy} aria-busy={busy} onClick={() => void retry()}>
       {busy ? 'Запускаем…' : 'Повторить создание превью'}
-    </button>
+    </MessageAction>
   );
 }

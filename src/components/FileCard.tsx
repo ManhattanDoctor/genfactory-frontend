@@ -88,11 +88,11 @@ export function FileCard({
         <div>
           {file.groupId != null ? (
             <div className="file-group-title">
-              <b data-tooltip={file.name}>{file.name}</b>
+              <b title={file.name}>{file.name}</b>
               <span className="compact-tag">Групповой</span>
             </div>
           ) : (
-            <b data-tooltip={file.name}>{file.name}</b>
+            <b title={file.name}>{file.name}</b>
           )}
           {source && <span className="history-source">{source}</span>}
           <GenerationSummary file={file} />

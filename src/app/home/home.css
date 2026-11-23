@@ -1053,6 +1053,10 @@ dialog.gf-detail {
   border: 0;
   color: inherit;
 }
+body:has(dialog.gf-detail[open]) {
+  overflow: hidden;
+}
+
 dialog.gf-detail::backdrop {
   background: transparent;
 }

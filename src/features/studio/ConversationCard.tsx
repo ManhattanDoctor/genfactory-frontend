@@ -70,7 +70,7 @@ export function ConversationCard({
         type="button"
         className="history-card-link"
         aria-label={`Открыть результат ${c.name}`}
-        data-tooltip={title ? `${c.name}\n${title}` : c.name}
+        title={title ? `${c.name}\n${title}` : c.name}
         aria-busy={opening}
         onClick={onOpen}
       />
@@ -94,7 +94,7 @@ export function ConversationCard({
             <Heart className="history-favorite-mark" size={18} fill="currentColor" aria-label="В избранном" />
           )}
         </div>
-        {!sourceBelowTitle && (heading ?? <h2 data-tooltip={c.name}>{c.name}</h2>)}
+        {!sourceBelowTitle && (heading ?? <h2 title={c.name}>{c.name}</h2>)}
       </header>
       {sourceBelowTitle ? (
         <HistoryCardBody
@@ -117,7 +117,7 @@ export function ConversationCard({
             </span>
             <time
               dateTime={new Date(c.lastMessageDate || c.createdDate).toISOString()}
-              data-tooltip={new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU')}
+              title={new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU')}
             >
               {historyDate(c.lastMessageDate || c.createdDate)}
             </time>

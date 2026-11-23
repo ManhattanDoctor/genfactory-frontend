@@ -236,7 +236,7 @@ export function FileActions({
           type="button"
           className="icon-button"
           aria-label={`Удалить ${file.name}`}
-          data-tooltip="Удалить"
+          title="Удалить"
           disabled={busy || !manageable}
           onClick={remove}
         >
@@ -260,6 +260,7 @@ export function FileActions({
           <summary
             className="icon-button"
             aria-label={variant === 'preview-menu' ? 'Действия с файлом' : `Действия с «${file.name}»`}
+            title={variant === 'preview-menu' ? 'Действия с файлом' : `Действия с «${file.name}»`}
           >
             <MoreHorizontal size={18} />
           </summary>

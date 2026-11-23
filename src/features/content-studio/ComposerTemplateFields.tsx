@@ -1,3 +1,5 @@
+import './composer-template.css';
+import { SelectControl } from '../../components/SelectControl';
 import { useState } from 'react';
 import { PromptTemplate } from './PromptTemplate';
 import { templateVariableLabel } from './templateRecipe';
@@ -17,7 +19,7 @@ export function ComposerTemplateFields({
 }) {
   const [custom, setCustom] = useState<Record<string, boolean>>({});
   return (
-    <div className="composer-template-fields">
+    <div className="composer-template-fields" role="group" aria-label="Параметры шаблона">
       {recipe.variables.map((key) => {
         const background = /^(BG|BACKGROUND)(?:_COLOR|_SCENE)?$/.test(key) && !recipe.choices.has(key);
         const label = background ? 'Фон' : templateVariableLabel(key);
@@ -28,9 +30,10 @@ export function ComposerTemplateFields({
         return (
           <div key={key}>
             <label>
-              <span data-tooltip={label}>{label}</span>
+              <span title={label}>{label}</span>
               {options ? (
-                <select
+                <SelectControl
+                  data-template-variable={key}
                   aria-label={label}
                   disabled={disabled}
                   value={other ? '__other' : value}
@@ -49,9 +52,10 @@ export function ComposerTemplateFields({
                     </option>
                   ))}
                   {background && <option value="__other">Другое</option>}
-                </select>
+                </SelectControl>
               ) : (
                 <input
+                  data-template-variable={key}
                   disabled={disabled}
                   type={recipe.isNumeric(key) ? 'number' : 'text'}
                   step={recipe.isNumeric(key) ? 'any' : undefined}
@@ -62,8 +66,9 @@ export function ComposerTemplateFields({
             </label>
             {other && (
               <label>
-                <span data-tooltip="Свой фон">Свой фон</span>
+                <span title="Свой фон">Свой фон</span>
                 <input
+                  data-template-variable={key}
                   disabled={disabled}
                   value={value}
                   onChange={(event) => onChange(key, event.target.value)}

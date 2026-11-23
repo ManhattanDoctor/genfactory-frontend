@@ -1,10 +1,8 @@
 import { VideoDuration } from '../../components/VideoDuration';
-import { Modal } from '../../components/Modal';
+import { Dialog, Modal } from '../../components/Modal';
 import { ImageAspectGrid } from '../studio/ImageAspectGrid';
 import { StudioQueuePanel } from './StudioQueuePanel';
-import { ComposerTemplatePanel } from './ComposerTemplatePanel';
 import { AppliedTemplate } from '../../components/AppliedTemplate';
-import { RequiredPhotoSlots } from '../../components/RequiredPhotoSlots';
 import { MediaModelPicker } from '../catalog/MediaModelPicker';
 import { fitTemplateDuration, resolveTemplateDuration } from './templateDuration';
 import { loadTemplate } from './templateCatalog';
@@ -33,7 +31,6 @@ import {
 } from '../../lib/image-upload';
 import { scriptReferences } from './script';
 import '../catalog/model-favorites.css';
-import { ComposerTemplateFields } from './ComposerTemplateFields';
 import { PromptTemplate } from './PromptTemplate';
 import {
   prepareComposerTemplate,
@@ -133,7 +130,7 @@ export function ContentStudio(): ReactElement {
   const [panel, setPanel] = useState('templates');
   const [selectedModel, setSelectedModel] = useState('Auto');
   const catalog = useStudioCatalog(mode, user?.id);
-  const [galleryHidden, setGalleryHidden] = useState(
+  const [desktopGalleryHidden, setDesktopGalleryHidden] = useState(
     () => localStorage.getItem('genfactory.rail-open') !== '1',
   );
   const [width, setWidth] = useState(() => {
@@ -181,7 +178,6 @@ export function ContentStudio(): ReactElement {
     () => (templates as ITemplateCard[]).find((item) => item.id === templateId && item.kind === mode),
     [mode, templateId],
   );
-  const isFeedTemplate = !!currentTemplate?.id.startsWith(mode + '-feed-');
   const [photoHintDismissed, setPhotoHintDismissed] = useState(false);
   const templateRecipe = useMemo(
     () => new PromptTemplate(composerTemplate?.slots.map((slot) => slot.expression).join(' ') || ''),
@@ -264,7 +260,6 @@ export function ContentStudio(): ReactElement {
     work.setError('');
   };
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 780px)').matches);
-  const sheet = useRef<HTMLDialogElement>(null);
   const studio = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -290,6 +285,24 @@ export function ContentStudio(): ReactElement {
   }, [mobile]);
   const [mobileSettings, setMobileSettings] = useState(false);
   const [mobileGallery, setMobileGallery] = useState(false);
+  const [overlayGallery, setOverlayGallery] = useState(() => matchMedia('(max-width: 900px)').matches);
+  const galleryHidden = overlayGallery ? !mobileGallery : desktopGalleryHidden;
+  const toggleGallery = (open: boolean) => {
+    if (overlayGallery) setMobileGallery(open);
+    else {
+      setDesktopGalleryHidden(!open);
+      localStorage.setItem('genfactory.rail-open', open ? '1' : '0');
+    }
+  };
+  useEffect(() => {
+    const query = matchMedia('(max-width: 900px)');
+    const change = () => {
+      setOverlayGallery(query.matches);
+      setMobileGallery(false);
+    };
+    query.addEventListener('change', change);
+    return () => query.removeEventListener('change', change);
+  }, []);
   useEffect(() => {
     const query = window.matchMedia('(max-width: 780px)');
     const change = () => {
@@ -302,10 +315,6 @@ export function ContentStudio(): ReactElement {
     query.addEventListener('change', change);
     return () => query.removeEventListener('change', change);
   }, []);
-  useEffect(() => {
-    if (mobileGallery) sheet.current?.showModal();
-    else sheet.current?.close();
-  }, [mobileGallery]);
 
   const input = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -318,8 +327,16 @@ export function ContentStudio(): ReactElement {
     [],
   );
   const current = useMemo(
-    () => (mode === 'presentation' ? archiveTemplates : studioTemplates).filter((t) => t.kind === mode),
-    [mode],
+    () => [
+      ...studioTemplates.filter(
+        (item) =>
+          item.kind === mode &&
+          (frameSlot ||
+            (item.model && findTemplateModel(catalog.data || [], item.model.model, item.modelTitle || ''))),
+      ),
+      ...archiveTemplates.filter((item) => item.kind === mode),
+    ],
+    [mode, frameSlot, catalog.data],
   );
   const genres = useMemo(
     () => [...new Set(current.flatMap((t: ITemplateCard) => t.tags || [t.genre]).filter(Boolean))],
@@ -418,8 +435,12 @@ export function ContentStudio(): ReactElement {
                   (candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }),
                 )
               : model;
-        if (loaded.modelTitle && !target)
-          throw new Error('Модель «' + loaded.modelTitle + '» сейчас недоступна.');
+        if (loaded.model && !target)
+          throw new Error(
+            loaded.modelTitle
+              ? 'Модель «' + loaded.modelTitle + '» сейчас недоступна.'
+              : 'Модель шаблона сейчас недоступна.',
+          );
         const full = fitTemplateDuration(loaded, duration, target);
         applyTemplateText(loaded.model && target ? { ...full, model: target.reference } : full, target);
       } catch (error) {
@@ -984,7 +1005,7 @@ export function ContentStudio(): ReactElement {
       return;
     }
     if (busy || submitting.current?.scope === work.scope) return;
-    if (isFeedTemplate && needsTemplateImages) {
+    if (currentTemplate && needsTemplateImages) {
       setPhotoHintDismissed(false);
       studio.current?.querySelector<HTMLButtonElement>('.feed-photo-tile > button')?.focus();
       return;
@@ -1194,7 +1215,6 @@ export function ContentStudio(): ReactElement {
               label="Длительность видео"
               onChange={(value) => {
                 if (
-                  isFeedTemplate &&
                   currentTemplate &&
                   'prompt' in currentTemplate &&
                   typeof currentTemplate.prompt === 'string'
@@ -1234,7 +1254,8 @@ export function ContentStudio(): ReactElement {
         <button
           type="button"
           className="mobile-gallery-close icon-button"
-          aria-label="Закрыть шаблоны и настройки"
+          aria-label={mobile ? 'Закрыть шаблоны и настройки' : 'Свернуть панель'}
+          title={mobile ? 'Закрыть шаблоны и настройки' : 'Свернуть панель'}
           onClick={() => setMobileGallery(false)}
         >
           <X size={20} aria-hidden="true" />
@@ -1247,7 +1268,7 @@ export function ContentStudio(): ReactElement {
               role="tab"
               aria-selected={panel === key}
               aria-label={index ? (settingsChanged ? 'Настройки, есть изменения' : 'Настройки') : 'Шаблоны'}
-              data-tooltip={key === 'settings' && settingsChanged ? 'Есть изменения' : undefined}
+              title={key === 'settings' && settingsChanged ? 'Есть изменения' : undefined}
               onClick={() => setPanel(key)}
             >
               {index ? <Sun size={18} aria-hidden /> : <LayoutGrid size={18} aria-hidden />}
@@ -1269,6 +1290,7 @@ export function ContentStudio(): ReactElement {
                   key={direction}
                   disabled={!next}
                   aria-label={direction > 0 ? 'Сделать панель шире' : 'Сделать панель уже'}
+                  title={direction > 0 ? 'Сделать панель шире' : 'Сделать панель уже'}
                   onClick={() => {
                     setWidth(next);
                     localStorage.setItem('genfactory.content-gallery-width', next);
@@ -1330,7 +1352,7 @@ export function ContentStudio(): ReactElement {
                         <button
                           className="settings-row-head"
                           aria-expanded={frameMenu === slot}
-                          data-tooltip={
+                          title={
                             attachments.some((file) => !file.slot)
                               ? 'Уберите обычные референсы перед выбором опорных кадров.'
                               : undefined
@@ -1368,6 +1390,7 @@ export function ContentStudio(): ReactElement {
                                 aria-label={
                                   slot === 'start' ? 'Выбрать начальный кадр' : 'Выбрать конечный кадр'
                                 }
+                                title={slot === 'start' ? 'Выбрать начальный кадр' : 'Выбрать конечный кадр'}
                                 popoverTarget={'frame-sources-' + slot}
                               >
                                 {frame?.url ? <img src={frame.url} alt="" /> : <Plus size={18} />}
@@ -1377,6 +1400,7 @@ export function ContentStudio(): ReactElement {
                                   type="button"
                                   className="studio-frame-remove"
                                   aria-label="Убрать кадр"
+                                  title="Убрать кадр"
                                   disabled={busy}
                                   onClick={() => {
                                     setAttachments((previous) =>
@@ -1500,7 +1524,7 @@ export function ContentStudio(): ReactElement {
 
   const studioAttachments = (!!publicReference || picked.length > 0 || attachments.length > 0) && (
     <StudioAttachments
-      inline={isFeedTemplate}
+      inline={!!currentTemplate}
       publicReference={publicReference}
       onRemovePublicReference={() => {
         setTemplateVideoReference(undefined);
@@ -1638,6 +1662,7 @@ export function ContentStudio(): ReactElement {
                       key={key}
                       type="button"
                       aria-label={label}
+                      title={label}
                       aria-pressed={mode === key}
                       disabled={busy}
                       onClick={() => {
@@ -1658,45 +1683,29 @@ export function ContentStudio(): ReactElement {
                     </button>
                   ))}
                 </div>
-                <div className={isFeedTemplate ? 'cw-field feed-template-fields' : 'cw-field'}>
-                  {!isFeedTemplate && currentTemplate && (
-                    <ComposerTemplatePanel
-                      title={currentTemplate.title}
-                      disabled={busy}
-                      onReset={resetComposerTemplate}
-                    >
-                      {composerTemplate && templateRecipe.variables.length > 0 && (
-                        <ComposerTemplateFields
-                          key={currentTemplate.id}
-                          disabled={busy}
-                          recipe={templateRecipe}
-                          values={composerTemplate.values}
-                          onChange={(key, value) => {
-                            const next = updateComposerField(
-                              rebaseComposerTemplate(composerTemplate, draft),
-                              key,
-                              value,
-                            );
-                            setComposerTemplate(next);
-                            setDraft(next.text);
-                            work.setError('');
-                          }}
-                        />
-                      )}
-                      <RequiredPhotoSlots
-                        count={requiredPhotos}
-                        filled={photoCount}
-                        disabled={busy || attachments.some((file) => !!file.slot)}
-                        onAdd={() => {
-                          setFrameSlot(undefined);
-                          setLibrary({ scope: draftScope });
-                        }}
-                      />
-                    </ComposerTemplatePanel>
-                  )}
-                  {isFeedTemplate && currentTemplate ? (
+                <div className={currentTemplate ? 'cw-field feed-template-fields' : 'cw-field'}>
+                  {currentTemplate ? (
                     <AppliedTemplate
                       title={currentTemplate.title}
+                      key={currentTemplate.id}
+                      fields={
+                        composerTemplate
+                          ? {
+                              recipe: templateRecipe,
+                              values: composerTemplate.values,
+                              onChange: (key, value) => {
+                                const next = updateComposerField(
+                                  rebaseComposerTemplate(composerTemplate, draft),
+                                  key,
+                                  value,
+                                );
+                                setComposerTemplate(next);
+                                setDraft(next.text);
+                                work.setError('');
+                              },
+                            }
+                          : undefined
+                      }
                       disabled={busy}
                       photoDisabled={busy || attachments.some((file) => !!file.slot)}
                       photoHintDismissed={photoHintDismissed}
@@ -1759,7 +1768,7 @@ export function ContentStudio(): ReactElement {
                     type="button"
                     aria-label="Добавить файл"
                     disabled={busy || attachments.some((file) => file.slot)}
-                    data-tooltip={
+                    title={
                       attachments.some((file) => file.slot)
                         ? 'Меняйте опорные кадры в настройках или уберите их перед добавлением обычных референсов.'
                         : needsTemplateImages
@@ -1816,11 +1825,12 @@ export function ContentStudio(): ReactElement {
                     className="cw-send"
                     type="submit"
                     aria-label="Отправить запрос"
+                    title="Отправить запрос"
                     aria-busy={busy || (work.busy && !draft.trim() && !picked.length && !attachments.length)}
                     disabled={
                       busy ||
                       missingFields ||
-                      (needsTemplateImages && !isFeedTemplate) ||
+                      (needsTemplateImages && !currentTemplate) ||
                       (!draft.trim() && !picked.length && !attachments.length)
                     }
                   >
@@ -1846,14 +1856,12 @@ export function ContentStudio(): ReactElement {
             </div>
           </section>
           {!mobile && (
-            <div className={galleryHidden ? 'studio-strip' : 'studio-fold'}>
+            <div className={overlayGallery || galleryHidden ? 'studio-strip' : 'studio-fold'}>
               <button
                 aria-label={galleryHidden ? 'Развернуть панель' : 'Свернуть панель'}
+                title={galleryHidden ? 'Развернуть панель' : 'Свернуть панель'}
                 aria-expanded={!galleryHidden}
-                onClick={() => {
-                  setGalleryHidden(!galleryHidden);
-                  localStorage.setItem('genfactory.rail-open', galleryHidden ? '1' : '0');
-                }}
+                onClick={() => toggleGallery(galleryHidden)}
               >
                 <svg
                   width="20"
@@ -1868,15 +1876,15 @@ export function ContentStudio(): ReactElement {
                   <path d="M15 7.5v9" strokeLinecap="round" />
                 </svg>
               </button>
-              {galleryHidden &&
+              {(overlayGallery || galleryHidden) &&
                 ['templates', 'settings'].map((key) => (
                   <button
                     key={key}
                     aria-label={key === 'templates' ? 'Шаблоны' : 'Настройки'}
+                    title={key === 'templates' ? 'Шаблоны' : 'Настройки'}
                     onClick={() => {
                       setPanel(key);
-                      setGalleryHidden(false);
-                      localStorage.setItem('genfactory.rail-open', '1');
+                      toggleGallery(true);
                     }}
                   >
                     {key === 'templates' ? <LayoutGrid size={20} /> : <Sun size={20} />}
@@ -1890,6 +1898,7 @@ export function ContentStudio(): ReactElement {
               <button
                 className="gf-sidebar-toggle"
                 aria-label="Шаблоны и настройки"
+                title="Шаблоны и настройки"
                 aria-expanded={mobileGallery}
                 onClick={() => setMobileGallery(true)}
               >
@@ -1897,8 +1906,9 @@ export function ContentStudio(): ReactElement {
               </button>,
               document.getElementById('studio-mobile-actions')!,
             )}
-          {mobile && mobileSettings && (
+          {mobile && (
             <Modal
+              open={mobileSettings}
               title="Кадр и длина"
               className="design-image-settings"
               onClose={() => setMobileSettings(false)}
@@ -1916,18 +1926,15 @@ export function ContentStudio(): ReactElement {
               {mode === 'video' && <div className="mobile-generation-controls">{generationControls}</div>}
             </Modal>
           )}
-          {mobile ? (
-            <dialog
-              ref={sheet}
-              className="studio-mobile-sheet studio-gallery-sheet"
+          {overlayGallery ? (
+            <Dialog
+              open={mobileGallery}
+              className={mobile ? 'studio-mobile-sheet studio-gallery-sheet' : 'studio-gallery-drawer'}
               aria-label="Шаблоны и настройки"
               onClose={() => setMobileGallery(false)}
-              onClick={(event) => {
-                if (event.target === sheet.current) setMobileGallery(false);
-              }}
             >
               {gallery}
-            </dialog>
+            </Dialog>
           ) : (
             gallery
           )}

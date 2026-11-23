@@ -241,7 +241,7 @@ function History({ userId }: { userId: number }): ReactElement {
                 type="button"
                 className="button"
                 aria-label="Предыдущая страница"
-                data-tooltip="Предыдущая страница"
+                title="Предыдущая страница"
                 disabled={page === 0}
                 onClick={() => setPage((p) => p - 1)}
               >
@@ -254,7 +254,7 @@ function History({ userId }: { userId: number }): ReactElement {
                 type="button"
                 className="button"
                 aria-label="Следующая страница"
-                data-tooltip="Следующая страница"
+                title="Следующая страница"
                 disabled={page + 1 >= query.data.pages}
                 onClick={() => setPage((p) => p + 1)}
               >

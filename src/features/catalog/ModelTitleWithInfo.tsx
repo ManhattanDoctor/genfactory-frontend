@@ -25,6 +25,7 @@ export function ModelTitleWithInfo({
             type="button"
             className={infoClassName}
             aria-label={`О модели ${title}`}
+            title={`О модели ${title}`}
             onClick={(event) => {
               event.stopPropagation();
               onInfo();

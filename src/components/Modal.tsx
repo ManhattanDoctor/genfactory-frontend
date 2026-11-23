@@ -1,26 +1,22 @@
 import './modal-footer.css';
 import { useEffect, useRef, useId, type ReactNode, type ReactElement } from 'react';
 import { X } from 'lucide-react';
-export function Modal({
-  title,
-  children,
+export function Dialog({
+  open = true,
   onClose,
-  wide = false,
-  headerActions,
-  hideHeader = false,
-  className = '',
+  children,
+  ...attributes
 }: {
-  className?: string;
-  title: string;
-  children: ReactNode;
+  open?: boolean;
   onClose: () => void;
-  wide?: boolean;
-  headerActions?: ReactNode;
-  hideHeader?: boolean;
+  children: ReactNode;
+  className: string;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
 }): ReactElement {
-  const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
+    if (!open) return;
     const dialog = ref.current;
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog?.showModal();
@@ -28,13 +24,11 @@ export function Modal({
       dialog?.close();
       if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     };
-  }, []);
+  }, [open]);
   return (
     <dialog
       ref={ref}
-      aria-labelledby={hideHeader ? undefined : titleId}
-      aria-label={hideHeader ? title : undefined}
-      className={`modal ${wide ? 'wide' : ''} ${className}`}
+      {...attributes}
       onCancel={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -44,25 +38,65 @@ export function Modal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      {children}
+    </dialog>
+  );
+}
+
+export function Modal({
+  title,
+  children,
+  onClose,
+  wide = false,
+  open = true,
+  headerActions,
+  hideHeader = false,
+  className = '',
+}: {
+  className?: string;
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+  wide?: boolean;
+  open?: boolean;
+  headerActions?: ReactNode;
+  hideHeader?: boolean;
+}): ReactElement {
+  const titleId = useId();
+  const closeButton = (
+    <button
+      type="button"
+      className={hideHeader ? 'icon-button modal-close' : 'icon-button'}
+      onClick={onClose}
+      aria-label="Закрыть"
+      title="Закрыть"
+    >
+      <X size={20} />
+    </button>
+  );
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      aria-labelledby={hideHeader ? undefined : titleId}
+      aria-label={hideHeader ? title : undefined}
+      className={`modal ${wide ? 'wide' : ''} ${className}`}
+    >
       {hideHeader ? (
-        <button type="button" className="icon-button modal-close" onClick={onClose} aria-label="Закрыть">
-          <X size={20} />
-        </button>
+        closeButton
       ) : (
         <div className="modal-head">
-          <h2 id={titleId} data-tooltip={title}>
+          <h2 id={titleId} title={title}>
             {title}
           </h2>
           <div className="modal-head-actions">
             {headerActions}
-            <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть">
-              <X size={20} />
-            </button>
+            {closeButton}
           </div>
         </div>
       )}
       {children}
-    </dialog>
+    </Dialog>
   );
 }
 

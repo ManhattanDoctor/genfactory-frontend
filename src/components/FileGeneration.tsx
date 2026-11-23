@@ -35,7 +35,7 @@ export function GenerationSummary({ file }: { file: Pick<IGnosisFile, 'origin'> 
     options.quality,
   ];
   return (
-    <span className="file-generation-summary" data-tooltip="Параметры запроса генерации">
+    <span className="file-generation-summary" title="Параметры запроса генерации">
       {values.filter((value) => typeof value === 'string' && value).join(' · ')}
     </span>
   );

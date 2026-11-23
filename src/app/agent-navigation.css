@@ -87,3 +87,14 @@
     display: none;
   }
 }
+
+.gf-nav .agent-nav-row:has(.agent-nav-fold) .gf-nav-item {
+  padding-right: 32px;
+}
+.gf-is-sidebar-collapsed .gf-nav .agent-nav-row .gf-nav-item {
+  padding-right: 12px;
+}
+.gf-is-sidebar-collapsed .agent-nav-projects,
+.gf-is-sidebar-collapsed .agent-nav-fold {
+  display: none;
+}

@@ -26,7 +26,7 @@ export function UploadButtonContent({
           ? 'Загрузка…'
           : 'Подготовка…';
   return (
-    <span className="upload-button-status" role="status" data-tooltip={progress?.fileName}>
+    <span className="upload-button-status" role="status" title={progress?.fileName}>
       <LoaderCircle size={17} className="upload-button-spinner" aria-hidden="true" />
       <span className={compact ? 'sr-only' : undefined}>{label}</span>
     </span>

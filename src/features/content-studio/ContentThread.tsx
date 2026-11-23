@@ -1,3 +1,4 @@
+import { MessageAction } from '../../components/MessageAction';
 import { Check, Copy, Download, RotateCw, Settings } from 'lucide-react';
 import type { ContentConversation } from './useContentConversation';
 import { openActiveJobs } from '../../components/ActiveJobs';
@@ -42,9 +43,13 @@ function PendingResult({
             : 'Готовим ответ…'}
         </strong>
         {generation && (
-          <button type="button" aria-haspopup="dialog" className="text-button" onClick={openActiveJobs}>
+          <MessageAction
+            aria-haspopup="dialog"
+
+            onClick={openActiveJobs}
+          >
             Открыть в работах
-          </button>
+          </MessageAction>
         )}
       </div>
     </div>
@@ -116,7 +121,8 @@ export function ContentThread({
       {messages.isPending && <p role="status">Загружаем сообщения…</p>}
       {messages.error && (
         <p role="alert">
-          Не удалось загрузить сообщения. <button onClick={() => void messages.refetch()}>Повторить</button>
+          Не удалось загрузить сообщения.{' '}
+          <MessageAction onClick={() => void messages.refetch()}>Повторить</MessageAction>
         </p>
       )}
       {turns.map(({ ask, reply }, index) => {
@@ -149,6 +155,7 @@ export function ContentThread({
                             key={file.id}
                             className="content-thumb"
                             aria-label={`Открыть ${file.name}`}
+                            title={`Открыть ${file.name}`}
                             onClick={() => setPreview(file)}
                           >
                             <Media file={file} isPlaybackDisabled />
@@ -228,6 +235,7 @@ export function ContentThread({
                       className="content-result-preview"
                       key={file.id}
                       aria-label={`Открыть ${file.name}`}
+                      title={`Открыть ${file.name}`}
                       onClick={() => setPreview(file)}
                     >
                       <Media
@@ -283,7 +291,7 @@ export function ContentThread({
                     typeof options?.seed === 'number' ? `Seed: ${options.seed}` : undefined,
                   ];
                   return (
-                    <p key={file.id} className="content-result-meta" data-tooltip={file.name}>
+                    <p key={file.id} className="content-result-meta" title={file.name}>
                       {[
                         ...new Set(
                           values
@@ -303,7 +311,7 @@ export function ContentThread({
                         className="button"
                         key={file.id}
                         href={safeMediaUrl(file.path)}
-                        data-tooltip={files.length > 1 ? `Скачать ${file.name}` : 'Скачать'}
+                        title={files.length > 1 ? `Скачать ${file.name}` : 'Скачать'}
                         aria-label={files.length > 1 ? `Скачать ${file.name}` : 'Скачать'}
                         download={file.name}
                         target="_blank"
@@ -329,12 +337,11 @@ export function ContentThread({
                     <button
                       className="button"
                       disabled={!prompt || conversation.status === 'LOADING'}
-                      data-tooltip="Повторить запрос"
+                      title="Повторить запрос"
                       aria-label="Повторить запрос"
                       onClick={() => onRepeat(prompt)}
                     >
-                      {!!files.length && <RotateCw size={16} aria-hidden="true" />}
-                      {!files.length && 'Повторить запрос'}
+                      <RotateCw size={16} aria-hidden="true" />
                     </button>
                     {files
                       .filter((file) => file.origin?.generation)
@@ -343,7 +350,7 @@ export function ContentThread({
                           className="button"
                           key={file.id}
                           disabled={busy}
-                          data-tooltip={
+                          title={
                             files.length > 1
                               ? `Использовать параметры: ${file.name}`
                               : 'Использовать параметры'
@@ -360,7 +367,7 @@ export function ContentThread({
                       ))}
                     <button
                       className="button"
-                      data-tooltip={copied === key ? 'Текст скопирован' : 'Скопировать текст'}
+                      title={copied === key ? 'Текст скопирован' : 'Скопировать текст'}
                       aria-label={copied === key ? 'Текст скопирован' : 'Скопировать текст'}
                       disabled={!copyText}
                       onClick={async () => {
@@ -373,13 +380,11 @@ export function ContentThread({
                         }
                       }}
                     >
-                      {!!files.length &&
-                        (copied === key ? (
-                          <Check size={16} aria-hidden="true" />
-                        ) : (
-                          <Copy size={16} aria-hidden="true" />
-                        ))}
-                      {!files.length && (copied === key ? 'Текст скопирован' : 'Скопировать текст')}
+                      {copied === key ? (
+                        <Check size={16} aria-hidden="true" />
+                      ) : (
+                        <Copy size={16} aria-hidden="true" />
+                      )}
                     </button>
                   </div>
                 )}
@@ -401,12 +406,12 @@ export function ContentThread({
       )}
       {!!messages.data && messages.data.pages > 1 && (
         <nav aria-label="Страницы сообщений">
-          <button disabled={page === 0} onClick={() => setPage(page - 1)}>
+          <MessageAction disabled={page === 0} onClick={() => setPage(page - 1)}>
             Новее
-          </button>
-          <button disabled={page + 1 >= messages.data.pages} onClick={() => setPage(page + 1)}>
+          </MessageAction>
+          <MessageAction disabled={page + 1 >= messages.data.pages} onClick={() => setPage(page + 1)}>
             Раньше
-          </button>
+          </MessageAction>
         </nav>
       )}
       <div ref={end} />

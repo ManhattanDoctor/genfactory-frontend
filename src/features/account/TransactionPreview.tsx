@@ -26,6 +26,7 @@ export function TransactionPreview({
       <button
         className="transaction-preview"
         aria-label={`Открыть результат: ${file.name}`}
+        title={`Открыть результат: ${file.name}`}
         onClick={() => setOpened(true)}
       >
         <Media file={file} isPlaybackDisabled />

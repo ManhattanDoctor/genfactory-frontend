@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Download, RotateCcw, Trash2 } from 'lucide-react';
 import images from './image-feed.json';
 import videos from './video-feed.json';
+import type { IModelDescription } from '../../lib/types';
+import { findTemplateModel } from '../catalog/presentation';
+import type { ITemplateCard } from '../content-studio/materials';
 import { shuffle } from 'lodash';
 
 export type FeedCard = (typeof images.templates)[number] & { previewWidth?: number; previewHeight?: number };
@@ -39,15 +42,21 @@ const tabs = [
 export type FeedTab = (typeof tabs)[number]['key'];
 export function DesignFeed({
   kind,
+  models,
   tab,
   onTab,
+  archive,
+  onApplyArchive,
   onApply,
   busy,
   children,
 }: {
   kind: 'image' | 'video';
+  models: IModelDescription[];
   tab: FeedTab;
   onTab: (tab: FeedTab) => void;
+  archive: ITemplateCard[];
+  onApplyArchive: (card: ITemplateCard) => void;
   onApply: (card: FeedCard) => void;
   busy: boolean;
   children?: ReactNode;
@@ -62,11 +71,22 @@ export function DesignFeed({
   const wall = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
   const [hidden, setHidden] = useState<string[]>([]);
-  const mixed = useMemo(
-    () => shuffle([...feed.templates, ...feed.generations]).slice(0, 40),
-    [feed, revision],
+  const templates = useMemo(
+    () => [
+      ...feed.templates.filter((card) => findTemplateModel(models, card.modelId, card.modelTitle)),
+      ...archive,
+    ],
+    [feed, models, archive],
   );
-  const cards = tab === 'shuffle' ? mixed : feed[tab];
+  const generations = useMemo(
+    () => feed.generations.filter((card) => findTemplateModel(models, card.modelId, card.modelTitle)),
+    [feed, models],
+  );
+  const mixed = useMemo(
+    () => shuffle([...templates, ...generations]).slice(0, 40),
+    [templates, generations, revision],
+  );
+  const cards = tab === 'shuffle' ? mixed : tab === 'templates' ? templates : generations;
   useEffect(() => {
     if (kind !== 'video' || !wall.current) return;
     const observer = new IntersectionObserver(
@@ -92,7 +112,7 @@ export function DesignFeed({
               role="tab"
               className={'feed-tab' + (key === tab ? ' is-active' : '')}
               aria-label={name}
-              data-tooltip={hints[key]}
+              title={hints[key]}
               aria-selected={tab === key}
               onClick={() => {
                 onTab(key);
@@ -111,23 +131,28 @@ export function DesignFeed({
         {cards
           .filter((c) => !hidden.includes(c.id))
           .map((card) => {
-            const template = feed.templates.includes(card);
+            const archived = 'kind' in card;
+            const template = archived || feed.templates.includes(card);
+            const apply = () => (archived ? onApplyArchive(card) : onApply(card));
+            const dimensions = archived
+              ? { style: { aspectRatio: card.previewRatio || card.ratio.replace(':', ' / ') } }
+              : { width: card.previewWidth, height: card.previewHeight };
             return (
               <article key={card.id} className="card" data-kind={template ? 'template' : 'gen'}>
                 <button
                   type="button"
                   className="feed-preview"
                   aria-label={(template ? 'Использовать шаблон ' : 'Повторить ') + card.title}
+                  title={(template ? 'Использовать шаблон ' : 'Повторить ') + card.title}
                   disabled={busy}
-                  onClick={() => onApply(card)}
+                  onClick={apply}
                 >
                   {kind === 'image' ? (
                     <img
                       src={card.src}
                       alt=""
                       loading="lazy"
-                      width={card.previewWidth}
-                      height={card.previewHeight}
+                      {...dimensions}
                     />
                   ) : (
                     <video
@@ -135,10 +160,9 @@ export function DesignFeed({
                       playsInline
                       loop
                       preload="none"
-                      width={card.previewWidth}
-                      height={card.previewHeight}
-                      poster={card.poster}
-                      src={card.src}
+                      {...dimensions}
+                      poster={card.poster || card.src.replace(/\.mp4$/, '.jpg')}
+                      src={archived ? card.previewSrc || card.src : card.src}
                     />
                   )}
                   <span className="card-overlay">
@@ -148,20 +172,22 @@ export function DesignFeed({
                 </button>
                 {!template && (
                   <div className="card-actions">
-                    <a className="icon-btn" href={card.src} download aria-label="Скачать">
+                    <a className="icon-btn" href={card.src} download aria-label="Скачать" title="Скачать">
                       <Download />
                     </a>
                     <button
                       className="icon-btn"
                       aria-label="Повторить"
+                      title="Повторить"
                       disabled={busy}
-                      onClick={() => onApply(card)}
+                      onClick={apply}
                     >
                       <RotateCcw />
                     </button>
                     <button
                       className="icon-btn"
                       aria-label="Удалить из ленты"
+                      title="Удалить из ленты"
                       onClick={() => setHidden((ids) => [...ids, card.id])}
                     >
                       <Trash2 />

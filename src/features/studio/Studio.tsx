@@ -1,3 +1,4 @@
+import { MessageAction } from '../../components/MessageAction';
 import type { VideoComposerTemplate } from './variants';
 import { FileReferenceType } from '../../lib/types';
 import {
@@ -1603,13 +1604,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
             {catalog.error && (
               <div className="inline-error">
                 <span>{catalog.error.message}</span>{' '}
-                <button
-                  type="button"
-                  className="text-button message-action"
-                  onClick={() => void catalog.refetch()}
-                >
-                  Загрузить снова
-                </button>
+                <MessageAction onClick={() => void catalog.refetch()}>Загрузить снова</MessageAction>
               </div>
             )}
             {model && (

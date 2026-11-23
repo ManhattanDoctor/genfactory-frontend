@@ -1,13 +1,12 @@
+import { MessageAction } from '../../components/MessageAction';
 import { VideoDuration } from '../../components/VideoDuration';
 import { AspectShape, ImageAspectGrid } from './ImageAspectGrid';
 import { DesignFeed, feeds, type FeedCard, type FeedTab } from './DesignFeed';
-import { ComposerTemplatePanel } from '../content-studio/ComposerTemplatePanel';
 import {
   prepareComposerTemplate,
   rebaseComposerTemplate,
   updateComposerField,
 } from '../content-studio/templateComposer';
-import { ComposerTemplateFields } from '../content-studio/ComposerTemplateFields';
 import { PromptTemplate } from '../content-studio/PromptTemplate';
 import type { VideoComposerTemplate } from './variants';
 import { RequiredPhotoSlots } from '../../components/RequiredPhotoSlots';
@@ -231,7 +230,7 @@ export function MediaWorkspace({
     composerTemplate &&
     [...feed.templates, ...feed.generations].find((item) => item.id === composerTemplate.id);
   const mediaComposer = !seedance && !banana;
-  const activeFeedCard = mediaComposer ? feedTemplate : undefined;
+  const appliedCard = templateCard || feedTemplate;
   const [photoHintDismissed, setPhotoHintDismissed] = useState(false);
   const needsTemplateImages = missingPhotos > 0;
   const [notice, setNotice] = useState('');
@@ -465,6 +464,10 @@ export function MediaWorkspace({
       const target = loaded.model
         ? models.find((candidate) => modelKey(candidate) === modelKey({ reference: loaded.model! }))
         : model;
+      if (loaded.model && !target) {
+        setNotice('Модель шаблона сейчас недоступна.');
+        return;
+      }
       const item = fitTemplateDuration(loaded, options.duration, target);
       await applyTemplateText(item, savedText || item.prompt);
     } catch (error) {
@@ -546,6 +549,7 @@ export function MediaWorkspace({
             type="button"
             className="image-result-open"
             aria-label={`Открыть ${file.name}`}
+            title={`Открыть ${file.name}`}
             onClick={(e) => {
               e.currentTarget.focus({ preventScroll: true });
               setPreview(file);
@@ -560,7 +564,7 @@ export function MediaWorkspace({
               aria-label={`Скачать ${file.name}`}
               disabled={downloadIds.includes(file.id)}
               aria-busy={downloadIds.includes(file.id)}
-              data-tooltip="Скачать"
+              title="Скачать"
               onClick={() => void downloadResult(file)}
             >
               <Download size={18} />
@@ -568,7 +572,7 @@ export function MediaWorkspace({
             <button
               type="button"
               aria-label={`Переделать ${file.name}`}
-              data-tooltip="Переделать"
+              title="Переделать"
               disabled={busy}
               onClick={() => repeatFile(file)}
             >
@@ -614,6 +618,7 @@ export function MediaWorkspace({
               type="button"
               className="media-answer-open"
               aria-label="Открыть ответ по запросу"
+              title="Открыть ответ по запросу"
               onClick={() => setAnswerView(displayMessageText(text))}
             >
               <span className="media-answer-heading">
@@ -703,6 +708,7 @@ export function MediaWorkspace({
           className="cw-chip"
           type="button"
           aria-label="Звук"
+          title="Звук"
           aria-pressed={!!options.generateAudio}
           disabled={busy || soundOptions.length < 2}
           onClick={() => onOptions({ ...options, generateAudio: !options.generateAudio })}
@@ -792,6 +798,7 @@ export function MediaWorkspace({
               type="button"
               className="img-file-edit"
               aria-label="Редактировать шаблон"
+              title="Редактировать шаблон"
               disabled={busy}
               onClick={() => {
                 void applyTemplate(selected, templateText);
@@ -842,7 +849,7 @@ export function MediaWorkspace({
               <nav aria-label="Страницы результатов">
                 <button
                   aria-label="Предыдущая страница"
-                  data-tooltip="Предыдущая страница"
+                  title="Предыдущая страница"
                   disabled={!page}
                   onClick={() => setPage(page - 1)}
                 >
@@ -851,7 +858,7 @@ export function MediaWorkspace({
                 <span>{page + 1}</span>
                 <button
                   aria-label="Следующая страница"
-                  data-tooltip="Следующая страница"
+                  title="Следующая страница"
                   disabled={page + 1 >= messages.data!.pages}
                   onClick={() => setPage(page + 1)}
                 >
@@ -881,6 +888,9 @@ export function MediaWorkspace({
         )}
         {!banana && !seedance && (
           <DesignFeed
+            archive={imageTemplates}
+            onApplyArchive={(card) => void applyTemplate(card)}
+            models={models}
             key={kind}
             tab={feedTab}
             onTab={(tab) => {
@@ -905,7 +915,7 @@ export function MediaWorkspace({
             promptInput.current?.focus();
             return;
           }
-          if (activeFeedCard && missingPhotos) {
+          if (appliedCard && missingPhotos) {
             setPhotoHintDismissed(false);
             dock.current?.querySelector<HTMLButtonElement>('.feed-photo-tile > button')?.focus();
             return;
@@ -918,31 +928,24 @@ export function MediaWorkspace({
             {video ? 'Опишите сцену ролика' : 'Напишите, что нарисовать'}
           </div>
         )}
-        <div className={activeFeedCard ? 'cw-field feed-template-fields' : 'cw-field'}>
-          {!activeFeedCard && (templateCard || feedTemplate) && composerTemplate && boundTemplate && (
-            <ComposerTemplatePanel
-              title={(templateCard || feedTemplate)!.title}
-              disabled={busy}
-              onReset={onResetComposerTemplate}
-            >
-              {recipe.variables.length > 0 && (
-                <ComposerTemplateFields
-                  key={composerTemplate.id}
-                  disabled={busy}
-                  recipe={recipe}
-                  values={boundTemplate.values}
-                  onChange={(key, value) => {
-                    const next = updateComposerField(boundTemplate, key, value);
-                    onComposerTemplate({ ...next, id: composerTemplate.id });
-                    onPrompt(next.text);
-                  }}
-                />
-              )}
-            </ComposerTemplatePanel>
-          )}
-          {activeFeedCard ? (
+        <div className={appliedCard ? 'cw-field feed-template-fields' : 'cw-field'}>
+          {appliedCard ? (
             <AppliedTemplate
-              title={activeFeedCard.title}
+              title={appliedCard.title}
+              key={appliedCard.id}
+              fields={
+                composerTemplate && boundTemplate
+                  ? {
+                      recipe: recipe,
+                      values: boundTemplate.values,
+                      onChange: (key, value) => {
+                        const next = updateComposerField(boundTemplate, key, value);
+                        onComposerTemplate({ ...next, id: composerTemplate.id });
+                        onPrompt(next.text);
+                      },
+                    }
+                  : undefined
+              }
               disabled={busy}
               photoDisabled={busy || !!unavailable}
               photoHintDismissed={photoHintDismissed}
@@ -998,7 +1001,7 @@ export function MediaWorkspace({
             {(!video || !model || referenceLimit(model) > 0) && (
               <button
                 className={`cw-plus ${needsTemplateImages ? `needs-template-images${templateGlowActive ? ' template-glow-active' : ''}` : ''}`}
-                data-tooltip={
+                title={
                   needsTemplateImages
                     ? `Добавьте свои ${video && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${photoCount + missingPhotos}`
                     : video
@@ -1090,6 +1093,7 @@ export function MediaWorkspace({
                   type="button"
                   className="cw-chip image-aspect-trigger"
                   aria-label="Стороны"
+                  title="Стороны"
                   aria-haspopup="dialog"
                   popoverTarget="image-aspect-popup"
                   disabled={busy}
@@ -1154,10 +1158,11 @@ export function MediaWorkspace({
             className="cw-send"
             type="submit"
             aria-label={video ? 'Собрать видео' : 'Собрать изображение'}
+            title={video ? 'Собрать видео' : 'Собрать изображение'}
             disabled={
               busy ||
               unavailable ||
-              (missingPhotos > 0 && !activeFeedCard) ||
+              (missingPhotos > 0 && !appliedCard) ||
               missingFields ||
               (!mediaComposer &&
                 !prompt.trim() &&
@@ -1184,20 +1189,16 @@ export function MediaWorkspace({
               prefs.error ||
               (history.error ? `Не удалось загрузить историю ${video ? 'видео' : 'изображений'}.` : '')}
             {retry && (
-              <button
-                type="button"
-                className="text-button message-action"
-                onClick={retry}
-                disabled={retryHistory && history.isFetching}
-              >
+              <MessageAction onClick={retry} disabled={retryHistory && history.isFetching}>
                 Загрузить снова
-              </button>
+              </MessageAction>
             )}
           </p>
         )}
       </form>
-      {compactTools && settingsOpen && (
+      {compactTools && (
         <Modal
+          open={settingsOpen}
           title={video ? 'Кадр, длина и звук' : 'Ещё настройки'}
           className={`studio-mobile-sheet image-settings-sheet ${mediaComposer ? 'design-image-settings' : ''}`}
           onClose={() => setSettingsOpen(false)}
@@ -1382,6 +1383,7 @@ export function ImageMenu({
         type="button"
         className="cw-chip"
         aria-label={name}
+        title={name}
         aria-expanded={open}
         aria-haspopup="listbox"
         disabled={disabled}
@@ -1390,7 +1392,7 @@ export function ImageMenu({
         }}
       >
         {models ? (
-          <span className="gf-model-trigger-name" data-tooltip={label}>
+          <span className="gf-model-trigger-name" title={label}>
             {label}
           </span>
         ) : (
@@ -1432,6 +1434,7 @@ export function ImageMenu({
                 role="option"
                 aria-selected={value === selection}
                 aria-label={value}
+                title={value}
                 disabled={allowedValues && !allowedValues.includes(value)}
                 key={value}
                 onClick={() => {

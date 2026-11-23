@@ -1,13 +1,8 @@
 import type { ReactElement } from 'react';
 import { OpenConversation } from './OpenConversation';
 import { AppUpdateNotice } from '../components/AppUpdateNotice';
-import { ActiveJobs } from '../components/ActiveJobs';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { Route, Routes, Link, useLocation } from 'react-router-dom';
-import { Building2, Menu } from 'lucide-react';
-import { AppNavigation } from './AppNavigation';
-import { Modal } from '../components/Modal';
-import { formatBalance } from '../lib/money';
+import { lazy, Suspense, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { HomeShell } from './home/HomeNavigation';
 import './sections.css';
 import { Home } from './Home';
@@ -39,196 +34,66 @@ const AuthCallback = lazy(() =>
 );
 export function App(): ReactElement {
   const auth = useAuth();
-  const [mobileNav, setMobileNav] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   useEffect(() => {
-    setMobileNav(false);
     window.scrollTo(0, 0);
   }, [location.pathname, location.search]);
-  if (location.pathname === '/')
-    return (
-      <>
-        <Home />
-        <AppUpdateNotice />
-      </>
-    );
   const sections: Record<string, [string, ReactElement]> = {
+    '/': ['Главная', <Home />],
     '/image': ['Изображения', <Studio key="image" kind="image" />],
     '/video': ['Видео', <Studio key="video" kind="video" />],
     '/chat': ['Студия контента', <ContentStudio key={auth.user?.id} />],
     '/artifacts': ['История', <Artifacts />],
     '/library': ['Библиотека', <Library />],
     '/account': ['Мой аккаунт', <Account />],
+    '/company': ['О компании', <Company />],
   };
-  const section = sections[location.pathname.replace(/\/$/, '')];
-  if (section)
-    return (
-      <>
-        <HomeShell title={section[0]}>
-          <Suspense
-            fallback={
-              <div role="status" className="empty-state">
-                Загрузка…
-              </div>
-            }
-          >
-            {section[1]}
-          </Suspense>
-        </HomeShell>
-        <AppUpdateNotice />
-      </>
-    );
-  return (
-    <div translate="no" className={`app studio-shell ${collapsed ? 'nav-collapsed' : ''}`}>
-      <a href="#main" className="skip-link">
-        К содержимому
-      </a>
-      <header className="shell-mobile-header">
-        <button
-          className="icon-button"
-          onClick={() => setMobileNav(true)}
-          aria-label="Открыть меню"
-          aria-expanded={mobileNav}
-        >
-          <Menu size={22} />
-        </button>
-        <Link to="/" className="brand" aria-label="Genfactory - главная">
-          GENFACTORY
+  const editors: Record<string, [string, ReactElement]> = {
+    '/agent': ['Обсудить идею', <TextStudio mode="chat" />],
+    '/prompt': ['Подготовить промпт', <PromptStudio />],
+    '/script': ['Написать сценарий', <TextStudio mode="script" />],
+    '/templates': ['Шаблоны', <Templates />],
+    '/brand': ['Правила бренда', <Brand />],
+    '/audio': ['Аудио', <AudioStudio />],
+    '/history': ['Беседы', <HistoryPage />],
+    '/open': ['Беседа', <OpenConversation />],
+    '/auth/callback': ['Вход', <AuthCallback />],
+  };
+  const path = location.pathname.replace(/\/+$/, '').toLowerCase() || '/';
+  const section = sections[path];
+  const [title, content] = section ||
+    editors[path] || [
+      'Страница не найдена',
+      <div className="empty-state">
+        <h1>Здесь пока нет кадра</h1>
+        <p>Страница не найдена.</p>
+        <Link className="button primary" to="/">
+          Вернуться в студию
         </Link>
-      </header>
-      <aside className="shell-sidebar" aria-label="Навигация студии">
-        <button
-          className="icon-button shell-collapse"
-          onClick={() => setCollapsed(!collapsed)}
-          aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
-          aria-expanded={!collapsed}
+      </div>,
+    ];
+  return (
+    <>
+      <HomeShell title={title}>
+        <Suspense
+          fallback={
+            <div role="status" className="empty-state">
+              Загрузка…
+            </div>
+          }
         >
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-        </button>
-        <AppNavigation />
-        <div className="shell-account" aria-label="Аккаунт и работы">
-          {auth.user ? (
-            <>
-              <ActiveJobs />
-              <Link to="/account" className="shell-account-link" aria-label="Открыть аккаунт">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="8" r="3.25" />
-                  <path d="M5.2 19.4a6.8 6.8 0 0 1 13.6 0" />
-                </svg>
-                <span>
-                  <b>Мой аккаунт</b>
-                  <small>
-                    {auth.error
-                      ? 'Баланс недоступен'
-                      : Number(auth.balances.RUB ?? '0') <= 0
-                        ? 'Пополните баланс'
-                        : `${formatBalance(auth.balances.RUB, 'RUB')} GF`}
-                  </small>
-                </span>
-              </Link>
-            </>
+          {section ? (
+            content
           ) : (
-            <button
-              className="shell-account-link"
-              aria-label="Войти в аккаунт"
-              aria-busy={auth.loading || auth.signingIn}
-              disabled={auth.signingIn}
-              onClick={() => void auth.signIn()}
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="8" r="3.25" />
-                <path d="M5.2 19.4a6.8 6.8 0 0 1 13.6 0" />
-              </svg>
-              <span>Войти</span>
-            </button>
-          )}
-          <Link to="/company" className="shell-account-link shell-company-link" data-tooltip="О компании">
-            <Building2 size={18} aria-hidden="true" />
-            <span>О компании</span>
-          </Link>
-        </div>
-      </aside>
-      {mobileNav && (
-        <Modal title="Меню" className="mobile-navigation-modal" onClose={() => setMobileNav(false)}>
-          <AppNavigation onNavigate={() => setMobileNav(false)} />
-        </Modal>
-      )}
-      <main id="main" className="main">
-        {auth.signInError && (
-          <div className="page-content sign-in-notice">
-            <p className="error" role="alert">
-              {auth.signInError}{' '}
-              <button
-                type="button"
-                className="text-button"
-                disabled={auth.signingIn}
-                onClick={() => void auth.signIn()}
-              >
-                Повторить вход
-              </button>
-            </p>
-          </div>
-        )}
-        <div className="route-view" key={location.pathname}>
-          <Suspense
-            fallback={
-              <div className="empty-state" role="status">
-                <span className="spinner" /> Открываем студию…
+            <div className="studio-shell editor-section">
+              <div className="route-view" key={path}>
+                {content}
               </div>
-            }
-          >
-            <Routes>
-              <Route path="/company" element={<Company />} />
-
-              <Route path="/agent" element={<TextStudio mode="chat" />} />
-              <Route path="/prompt" element={<PromptStudio />} />
-              <Route path="/script" element={<TextStudio mode="script" />} />
-              <Route path="/templates" element={<Templates />} />
-              <Route path="/brand" element={<Brand />} />
-
-              <Route path="/audio" element={<AudioStudio />} />
-
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/open" element={<OpenConversation />} />
-
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route
-                path="*"
-                element={
-                  <div className="empty-state">
-                    <h1>Здесь пока нет кадра</h1>
-                    <p>Страница не найдена.</p>
-                    <Link className="button primary" to="/">
-                      Вернуться в студию
-                    </Link>
-                  </div>
-                }
-              />
-            </Routes>
-          </Suspense>
-        </div>
-      </main>
+            </div>
+          )}
+        </Suspense>
+      </HomeShell>
       <AppUpdateNotice />
-    </div>
+    </>
   );
 }

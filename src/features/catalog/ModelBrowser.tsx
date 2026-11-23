@@ -1,4 +1,4 @@
-import './model-picker-list.css';
+import { ModelPickerList } from './ModelPickerList';
 import { MODEL_SEARCH_MIN_COUNT } from './presentation';
 import type { ReactElement } from 'react';
 import { isAllowedProvider } from '../../lib/modelPolicy';
@@ -47,7 +47,6 @@ export function ModelBrowser({
         <input
           className="gf-model-search"
           aria-label="Поиск моделей"
-          autoFocus
           placeholder="Название модели"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -64,38 +63,30 @@ export function ModelBrowser({
           </button>
         ))}
       </div>
-      <div className="model-browser-list">
-        {matches.map((m) => (
-          <article className="model-browser-card" key={key(m)}>
-            <div>
-              <h3>{modelTitle(m)}</h3>
-              <p className="small">{modelSummary(m)}</p>
-              <div className="workspace-actions">
-                <button
-                  className="button primary"
-                  onClick={() => {
-                    onSelect(m);
-                    onClose();
-                  }}
-                >
-                  {value === key(m) ? 'Выбрана' : 'Выбрать'}
-                </button>
-                <button
-                  className="button"
-                  disabled={!user}
-                  aria-label={`${prefs.value.favoriteModels.includes(key(m)) ? 'Убрать из избранных' : 'В избранные'}: ${modelTitle(m)}`}
-                  onClick={() =>
-                    prefs.update((p) => ({ ...p, favoriteModels: toggleItem(p.favoriteModels, key(m)) }))
-                  }
-                >
-                  {prefs.value.favoriteModels.includes(key(m)) ? '★' : '☆'}
-                </button>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-      {!matches.length && <p role="status">Подходящих моделей не найдено.</p>}
+      {matches.length ? (
+        <div className="composer-model-list" role="listbox" aria-label="Модели">
+          <ModelPickerList
+            showSearch={false}
+            items={matches.map((m) => ({ id: key(m), title: modelTitle(m), summary: modelSummary(m) }))}
+            selected={value}
+            favorites={prefs.value.favoriteModels}
+            onSelect={(id) => {
+              const model = matches.find((m) => key(m) === id);
+              if (model) {
+                onSelect(model);
+                onClose();
+              }
+            }}
+            onFavorite={
+              user
+                ? (id) => prefs.update((p) => ({ ...p, favoriteModels: toggleItem(p.favoriteModels, id) }))
+                : undefined
+            }
+          />
+        </div>
+      ) : (
+        <p role="status">Подходящих моделей не найдено.</p>
+      )}
       {prefs.error && <p role="alert">{prefs.error}</p>}
     </Modal>
   );

@@ -4,6 +4,7 @@ import { ActiveJobs } from '../../components/ActiveJobs';
 import { useAuth } from '../../features/auth/AuthProvider';
 import { formatBalance } from '../../lib/money';
 import { icons } from './icons';
+import { ConversationNavigation } from '../ConversationNavigation';
 
 export const modes = [
   { icon: 'studio', to: '/chat', label: 'Студия контента', action: 'Создать в студии' },
@@ -12,7 +13,7 @@ export const modes = [
 ] as const;
 
 export function HomeShell({ children, title = 'Главная' }: { children: ReactNode; title?: string }) {
-  const pathname = useLocation().pathname.replace(/\/$/, '') || '/';
+  const pathname = useLocation().pathname.replace(/\/+$/, '').toLowerCase() || '/';
   const auth = useAuth();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('gf-home-sidebar-collapsed') === '1');
   const [mobile, setMobile] = useState(() => matchMedia('(max-width:780px)').matches);
@@ -34,6 +35,9 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
       aria-label={
         mobile ? (open ? 'Закрыть меню' : 'Открыть меню') : collapsed ? 'Развернуть меню' : 'Свернуть меню'
       }
+      title={
+        mobile ? (open ? 'Закрыть меню' : 'Открыть меню') : collapsed ? 'Развернуть меню' : 'Свернуть меню'
+      }
       onClick={() => {
         if (mobile) setOpen(!open);
         else {
@@ -49,7 +53,8 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
     <Link
       key={to}
       to={to}
-      data-tooltip={label}
+      onClick={() => setOpen(false)}
+      title={label}
       aria-label={label}
       aria-current={to === pathname ? 'page' : undefined}
       className={'gf-nav-item' + (to === pathname ? ' gf-is-active' : '')}
@@ -89,7 +94,21 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
           </div>
           <nav className="gf-nav" aria-label="Основное меню">
             {nav('home', '/', 'Главная')}
-            {modes.map((m) => nav(m.icon, m.to, m.label))}
+            {modes.map((m) =>
+              m.to === '/chat' && auth.user ? (
+                <ConversationNavigation
+                  key={auth.user.id}
+                  path="/chat"
+                  tag="content-studio"
+                  label="Студии контента"
+                  onNavigate={() => setOpen(false)}
+                >
+                  {nav(m.icon, m.to, m.label)}
+                </ConversationNavigation>
+              ) : (
+                nav(m.icon, m.to, m.label)
+              ),
+            )}
             <div className="gf-nav-divider" />
             {nav('library', '/library', 'Библиотека')}
             {nav('history', '/artifacts', 'История')}
@@ -98,7 +117,7 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
             {auth.user ? (
               <ActiveJobs
                 renderTrigger={(status, label, show) => (
-                  <button className="gf-nav-item" aria-label={label} onClick={show}>
+                  <button className="gf-nav-item" aria-label={label} title={label} onClick={show}>
                     <span className="gf-nav-icon">{icons.jobs}</span>
                     <span className="gf-nav-label">Работы</span>
                     <span className="gf-nav-badge">{status}</span>
@@ -109,6 +128,7 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
               <button
                 className="gf-nav-item"
                 aria-label="Войти, чтобы посмотреть работы"
+                title="Войти, чтобы посмотреть работы"
                 disabled={auth.signingIn}
                 onClick={() => void auth.signIn()}
               >

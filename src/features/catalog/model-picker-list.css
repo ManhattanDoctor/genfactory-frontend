@@ -6,6 +6,8 @@
   min-width: 0;
 }
 .gf-model-row {
+  position: relative;
+  isolation: isolate;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -28,6 +30,34 @@
   min-width: 0;
   text-align: left;
   font: inherit;
+}
+.studio-shell .gf-model-row button.gf-model-choice:not(:disabled):active {
+  scale: none;
+}
+.gf-model-row .gf-model-choice::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.gf-model-choice > .gf-model-copy {
+  position: relative;
+}
+.gf-model-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+  margin-inline-start: auto;
+  pointer-events: none;
+}
+.gf-model-actions > button {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+.gf-model-actions:empty {
+  display: none;
 }
 .gf-model-choice img,
 .gf-model-placeholder {
@@ -69,8 +99,8 @@
   color: #17180a;
   border-color: transparent;
 }
-.gf-model-row button:hover,
-.gf-model-row button:focus-visible {
+.gf-model-actions button:hover,
+.gf-model-actions button:focus-visible {
   background: #303036;
   border-radius: 8px;
 }
@@ -176,10 +206,19 @@
   font-family: var(--gf-font);
 }
 .composer-model-list .image-model-head {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   padding-inline: 2px;
 }
+.composer-model-list .image-model-close {
+  margin-inline-start: auto;
+}
+.composer-model-list input.gf-model-search {
+  min-height: 44px;
+  padding-inline: 14px;
+  border-radius: 12px;
+}
 .composer-model-list .gf-model-row {
+  gap: 12px;
   padding: 12px 10px;
   border-radius: 12px;
   color: var(--gf-text);
@@ -191,12 +230,14 @@
   background: rgba(244, 244, 240, 0.07);
 }
 .composer-model-list .gf-model-choice {
+  background: transparent;
   padding: 0;
   gap: 12px;
   line-height: 1.45;
 }
 .composer-model-list .gf-model-choice img,
 .composer-model-list .gf-model-placeholder {
+  box-sizing: border-box;
   width: 32px;
   height: 32px;
   margin: 0;
@@ -205,6 +246,8 @@
   background: rgba(244, 244, 240, 0.06);
 }
 .composer-model-list .gf-model-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-size: 14px;
   font-weight: 650;
   letter-spacing: -0.01em;
@@ -216,10 +259,19 @@
   white-space: normal;
   color: var(--gf-text-3);
 }
+.composer-model-list .compact-tag {
+  min-height: 0;
+  padding: 2px 7px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .composer-model-list .gf-model-tags {
   margin-top: 3px;
 }
-.composer-model-list .gf-model-row > button:not(.gf-model-choice) {
+.composer-model-list .gf-model-actions > button {
+  box-sizing: border-box;
+  flex: 0 0 40px;
   display: grid;
   place-items: center;
   width: 40px;

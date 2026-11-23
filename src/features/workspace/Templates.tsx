@@ -78,6 +78,7 @@ export function Templates() {
                 className="button"
                 disabled={!user}
                 aria-label={`${prefs.value.favoriteTemplates.includes(p.id) ? 'Убрать из избранного' : 'В избранное'}: ${p.name}`}
+                title={`${prefs.value.favoriteTemplates.includes(p.id) ? 'Убрать из избранного' : 'В избранное'}: ${p.name}`}
                 onClick={() =>
                   prefs.update((v) => ({ ...v, favoriteTemplates: toggleItem(v.favoriteTemplates, p.id) }))
                 }

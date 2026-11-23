@@ -445,6 +445,7 @@ function PromptEditor(): ReactElement {
               <button
                 className="prompt-card-open"
                 aria-label={`Открыть ${card.result?.title || 'ответ'}`}
+                title={`Открыть ${card.result?.title || 'ответ'}`}
                 onClick={() => setViewer(card)}
               >
                 {card.files[0] ? <Media file={card.files[0]} /> : <span>Готовый промпт</span>}
@@ -452,18 +453,26 @@ function PromptEditor(): ReactElement {
               <div className="img-actions is-tools">
                 {card.result?.prompt && (
                   <>
-                    <button aria-label="Скопировать промпт" onClick={() => void copy(card.result!.prompt!)}>
+                    <button
+                      aria-label="Скопировать промпт"
+                      title="Скопировать промпт"
+                      onClick={() => void copy(card.result!.prompt!)}
+                    >
                       <Copy size={18} />
                     </button>
-                    <button aria-label="Скачать TXT" onClick={() => download(card.result!.prompt!)}>
+                    <button
+                      aria-label="Скачать TXT"
+                      title="Скачать TXT"
+                      onClick={() => download(card.result!.prompt!)}
+                    >
                       <Download size={18} />
                     </button>
-                    <button aria-label="В генератор" onClick={() => usePrompt(card)}>
+                    <button aria-label="В генератор" title="В генератор" onClick={() => usePrompt(card)}>
                       <ArrowUpRight size={18} />
                     </button>
                   </>
                 )}
-                <button aria-label="Открыть промпт" onClick={() => setViewer(card)}>
+                <button aria-label="Открыть промпт" title="Открыть промпт" onClick={() => setViewer(card)}>
                   <Expand size={18} />
                 </button>
               </div>
@@ -551,6 +560,7 @@ function PromptEditor(): ReactElement {
             className="cw-plus"
             type="button"
             aria-label="Добавить изображение или видео"
+            title="Добавить изображение или видео"
             disabled={busy || files.length >= 4}
             onClick={() => (auth.user ? setPicker(true) : void auth.signIn())}
           >
@@ -665,6 +675,7 @@ function PromptEditor(): ReactElement {
             className="cw-send"
             type="submit"
             aria-label="Собрать промпт"
+            title="Собрать промпт"
             disabled={
               busy ||
               !files.length ||

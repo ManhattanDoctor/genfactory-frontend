@@ -173,7 +173,7 @@ export function Artifacts(): ReactElement {
                   key={item.name}
                   className={`chip ${view === item.value ? 'active' : ''}`}
                   aria-label={item.name}
-                  data-tooltip={item.name}
+                  title={item.name}
                   aria-pressed={view === item.value}
                   onClick={() => {
                     setView(item.value);
@@ -297,6 +297,7 @@ export function Artifacts(): ReactElement {
               <button
                 className="button"
                 aria-label="Предыдущая страница"
+                title="Предыдущая страница"
                 disabled={!page}
                 onClick={() => setPage(page - 1)}
               >
@@ -308,6 +309,7 @@ export function Artifacts(): ReactElement {
               <button
                 className="button"
                 aria-label="Следующая страница"
+                title="Следующая страница"
                 disabled={page + 1 >= list.data.pages}
                 onClick={() => setPage(page + 1)}
               >

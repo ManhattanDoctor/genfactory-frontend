@@ -67,14 +67,10 @@
 .template-settings p:last-child {
   color: #9a9aa0;
 }
-.template-fields,
-.template-variables {
+.template-fields {
   display: grid;
   gap: 16px;
   min-width: 0;
-}
-.template-variables:empty {
-  display: none;
 }
 .template-editor label {
   display: grid;

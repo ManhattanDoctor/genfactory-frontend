@@ -748,6 +748,8 @@ a svg {
 .modal {
   --modal-gutter: 24px;
   --modal-padding: var(--modal-gutter);
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
   border: 1px solid #393b3e;
   background: #17181b;
   color: inherit;
@@ -2067,9 +2069,6 @@ a svg {
   }
   .top-login {
     font-size: 10px;
-  }
-  .composer textarea {
-    font-size: 16px;
   }
   .setting-field input,
   .setting-field select,
@@ -3397,6 +3396,7 @@ a svg,
 }
 .file-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 .file-form label {
@@ -3865,7 +3865,7 @@ button.text-button.message-action {
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: var(--gf-accent, #ddf94a);
+  color: var(--gf-text, #f4f4f5);
   font-size: 13px;
   font-weight: 600;
   vertical-align: baseline;

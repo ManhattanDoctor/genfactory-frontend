@@ -238,23 +238,6 @@
   outline: none;
   box-shadow: none;
 }
-.image-workspace .img-dock:has(.composer-template-options) {
-  padding: 12px;
-}
-.image-workspace .cw-field:has(.composer-template-options) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-}
-.image-workspace .cw-field > .composer-template-options {
-  margin: 0;
-  padding: 0 0 8px;
-  border-bottom: 1px solid var(--ds-line-soft, rgb(255 255 255 / 10%));
-}
-.image-workspace .cw-field:has(.composer-template-options) > .img-files,
-.image-workspace .cw-field:has(.composer-template-options) > :is(#img-draft, #vd-draft) {
-  padding: 0;
-}
 .image-workspace #img-draft::placeholder {
   color: rgba(244, 244, 245, 0.32);
 }

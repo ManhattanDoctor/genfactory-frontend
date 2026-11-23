@@ -1,3 +1,4 @@
+import { ComposerTemplateFields } from './ComposerTemplateFields';
 import { PromptTemplate } from './PromptTemplate';
 import { PromptPreview, PromptSource, promptParts } from './PromptText';
 import type { ReactElement } from 'react';
@@ -5,12 +6,7 @@ import { useState } from 'react';
 import { Modal, ModalFooter } from '../../components/Modal';
 import type { ITemplate } from './materials';
 import './template-editor.css';
-import {
-  templateVariableLabel,
-  templateDuration,
-  adaptTemplateDuration,
-  templateTimingError,
-} from './templateRecipe';
+import { templateDuration, adaptTemplateDuration, templateTimingError } from './templateRecipe';
 
 export function TemplateEditor({
   item,
@@ -119,43 +115,17 @@ export function TemplateEditor({
                   </label>
                 </>
               )}
-              <div className="template-variables">
-                {variables.map((key) => (
-                  <label key={key}>
-                    {templateVariableLabel(key)}
-                    {recipe?.choices.has(key) ? (
-                      <select
-                        data-template-variable={key}
-                        value={values[key] || ''}
-                        onChange={(e) => {
-                          setValues({ ...values, [key]: e.target.value });
-                          setError('');
-                        }}
-                      >
-                        <option value="" disabled>
-                          Выберите вариант
-                        </option>
-                        {recipe.choices.get(key)!.map((choice) => (
-                          <option key={choice} value={choice}>
-                            {choice}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        data-template-variable={key}
-                        type={recipe?.isNumeric(key) ? 'number' : 'text'}
-                        step={recipe?.isNumeric(key) ? 'any' : undefined}
-                        value={values[key] || ''}
-                        onChange={(e) => {
-                          setValues({ ...values, [key]: e.target.value });
-                          setError('');
-                        }}
-                      />
-                    )}
-                  </label>
-                ))}
-              </div>
+              {recipe && variables.length > 0 && (
+                <ComposerTemplateFields
+                  recipe={recipe}
+                  values={values}
+                  disabled={false}
+                  onChange={(key, value) => {
+                    setValues((current) => ({ ...current, [key]: value }));
+                    setError('');
+                  }}
+                />
+              )}
             </div>
             {conflict && duration !== undefined && (
               <div className="template-duration" role="status">

@@ -348,7 +348,7 @@ export function FileBrowser({
       ]);
     });
   }
-  const sectionTitle = trail.at(-1)?.name || (layout === 'page' ? 'Готово' : undefined);
+  const sectionTitle = trail.at(-1)?.name;
   return (
     <section className="file-browser" aria-label={foldersOnly ? 'Выбор папки' : 'Файлы'}>
       <nav className="file-breadcrumbs" aria-label="Путь к папке">
@@ -357,6 +357,7 @@ export function FileBrowser({
             type="button"
             className="icon-button file-back"
             aria-label="Назад в родительскую папку"
+            title="Назад в родительскую папку"
             disabled={busy}
             onClick={() => navigate(trail.slice(0, -1))}
           >
@@ -368,7 +369,7 @@ export function FileBrowser({
             type="button"
             className="icon-button file-back"
             aria-label="Корень библиотеки"
-            data-tooltip="Корень библиотеки"
+            title="Корень библиотеки"
             disabled={busy}
             onClick={() => navigate([])}
           >
@@ -455,7 +456,7 @@ export function FileBrowser({
               className="button"
               disabled={busy || !!query || !!selectedTags.length}
               aria-label="Новая папка"
-              data-tooltip="Новая папка"
+              title="Новая папка"
               onClick={() => {
                 setName('');
                 setAction({ kind: 'create' });
@@ -470,7 +471,7 @@ export function FileBrowser({
               className="button"
               disabled={busy || !!query || !!selectedTags.length}
               aria-label="Загрузить файл"
-              data-tooltip={
+              title={
                 acceptedTypes?.length === 1 && acceptedTypes[0] === 'IMAGE'
                   ? 'Загрузить фото: JPG, PNG, WebP, HEIC/HEIF'
                   : 'Загрузить файл'
@@ -516,7 +517,7 @@ export function FileBrowser({
                   className={`chip ${type === value ? 'active' : ''}`}
                   aria-pressed={type === value}
                   aria-label={label}
-                  data-tooltip={label}
+                  title={label}
                   onClick={() => {
                     setType(value);
                     setPage(0);
@@ -579,19 +580,16 @@ export function FileBrowser({
           </button>
         </p>
       )}
-      {layout &&
-        (files.data || (user && !onDestination && files.isPending)) &&
-        (sectionTitle || files.isPending || !!files.data?.total) && (
-          <header className="library-section-heading">
-            {sectionTitle && <h2>{sectionTitle}</h2>}
-            {files.isPending && !sectionTitle && <span aria-hidden="true">&nbsp;</span>}
-            {!!files.data?.total && (
-              <span>
-                {files.data.total} {fileCountLabel(files.data.total)}
-              </span>
-            )}
-          </header>
-        )}
+      {layout && sectionTitle && (
+        <header className="library-section-heading">
+          <h2>{sectionTitle}</h2>
+          {!!files.data?.total && (
+            <span>
+              {files.data.total} {fileCountLabel(files.data.total)}
+            </span>
+          )}
+        </header>
+      )}
       {user && !onDestination && files.isPending && (
         <SkeletonCards
           label="Загружаем файлы…"
@@ -606,7 +604,7 @@ export function FileBrowser({
               type="button"
               className="library-card"
               aria-label="На уровень выше"
-              data-tooltip="На уровень выше"
+              title="На уровень выше"
               disabled={busy}
               onClick={() => navigate(trail.slice(0, -1))}
             >
@@ -621,7 +619,7 @@ export function FileBrowser({
                 <div>
                   <b>Наверх</b>
                   <span>Папка</span>
-                  <span className="file-generation-summary" data-tooltip={trail.at(-2)?.name || 'Библиотека'}>
+                  <span className="file-generation-summary" title={trail.at(-2)?.name || 'Библиотека'}>
                     {trail.at(-2)?.name || 'Библиотека'}
                   </span>
                 </div>
@@ -655,7 +653,7 @@ export function FileBrowser({
                   type="button"
                   className="file-incompatible"
                   aria-label="Почему файл не подходит"
-                  data-tooltip="Не подходит для этой задачи"
+                  title="Не подходит для этой задачи"
                 >
                   <CircleAlert size={18} aria-hidden="true" />
                 </button>
@@ -670,7 +668,7 @@ export function FileBrowser({
                       disabled={!FILE_TAG_FILTER_ENABLED}
                       onClick={() => setTagFilter([tag.trim().toLocaleLowerCase('ru')])}
                       aria-label={`Файлы с тегом ${tag}`}
-                      data-tooltip={tag}
+                      title={tag}
                     >
                       {tag}
                     </button>
@@ -754,7 +752,7 @@ export function FileBrowser({
             type="button"
             className="button"
             aria-label="Предыдущая страница"
-            data-tooltip="Предыдущая страница"
+            title="Предыдущая страница"
             disabled={!page || busy}
             onClick={() => setPage((p) => p - 1)}
           >
@@ -767,7 +765,7 @@ export function FileBrowser({
             type="button"
             className="button"
             aria-label="Следующая страница"
-            data-tooltip="Следующая страница"
+            title="Следующая страница"
             disabled={page + 1 >= files.data.pages || busy}
             onClick={() => setPage((p) => p + 1)}
           >

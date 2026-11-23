@@ -29,6 +29,7 @@ export function ComposerAttachment({
           type="button"
           className="composer-attachment-open"
           aria-label={`Открыть ${file.name}`}
+          title={`Открыть ${file.name}`}
           disabled={unavailable}
           onClick={(event) => {
             event.currentTarget.focus({ preventScroll: true });
@@ -39,7 +40,7 @@ export function ComposerAttachment({
             {unavailable ? <FilePlaceholder file={file} /> : <Media file={file} isPlaybackDisabled />}
           </span>
           {label && (
-            <span className="composer-attachment-caption" data-tooltip={label}>
+            <span className="composer-attachment-caption" title={label}>
               {label}
             </span>
           )}
@@ -48,6 +49,7 @@ export function ComposerAttachment({
           type="button"
           className="composer-attachment-remove"
           aria-label={`Убрать ${file.name}`}
+          title={`Убрать ${file.name}`}
           disabled={disabled}
           onClick={onRemove}
         >

@@ -84,6 +84,7 @@ export const StudioTemplateGallery = memo(function StudioTemplateGallery({
                 type="button"
                 className="cw-template-open"
                 aria-label={`Открыть шаблон: ${item.title}`}
+                title={`Открыть шаблон: ${item.title}`}
                 disabled={busy}
                 onClick={(event) => {
                   event.currentTarget.focus({ preventScroll: true });
@@ -94,6 +95,7 @@ export const StudioTemplateGallery = memo(function StudioTemplateGallery({
                 type="button"
                 className={`cw-fav ${favorites.includes(item.id) ? 'is-on' : ''}`}
                 aria-label={`В избранное: ${item.title}`}
+                title={`В избранное: ${item.title}`}
                 aria-pressed={favorites.includes(item.id)}
                 onClick={(e) => {
                   e.stopPropagation();

@@ -44,6 +44,7 @@ export function ImageAspectGrid({
           key={value}
           type="button"
           aria-label={value}
+          title={value}
           aria-pressed={selected === value}
           disabled={disabled}
           onClick={() => onSelect(value)}

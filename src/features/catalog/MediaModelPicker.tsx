@@ -17,6 +17,17 @@ const videoModelTags: Record<string, string> = {
   'alibaba/wan-3.0': 'Видеореференс',
 };
 
+function findDigest(model: IModelDescription, kind: string) {
+  return kind === 'image'
+    ? home.digests.find((digest) => digest.model === model.reference.model)
+    : videoDigests.find(
+        (digest) =>
+          model.reference.model.endsWith('/' + digest.id) ||
+          model.reference.model.replace('/', '-') === digest.id ||
+          digest.title.toLowerCase() === modelTitle(model).toLowerCase(),
+      );
+}
+
 function guide(model: IModelDescription, kind: string) {
   if (kind === 'image') return imageModelGuide(model);
   const use = modelSummary(model);
@@ -94,21 +105,22 @@ export function MediaModelPicker({
     return () => document.removeEventListener('pointerdown', outside);
   }, [open, mobile, info]);
   const detail = info && guide(info, kind);
-  const digest =
-    info &&
-    (kind === 'image'
-      ? home.digests.find((d) => d.model === info.reference.model)
-      : videoDigests.find(
-          (d) =>
-            d.title.toLowerCase() === modelTitle(info).toLowerCase() ||
-            info.reference.model.endsWith('/' + d.id),
-        ));
+  const digest = info && findDigest(info, kind);
   const content = open && (
     <>
       <ModelPickerList
         items={favoritesFirst(
           models
-            .map((m) => ({ id: modelKey(m), title: modelTitle(m), ...guide(m, kind) }))
+            .map((model) => {
+              const digest = findDigest(model, kind);
+              return {
+                id: modelKey(model),
+                title: digest?.title ?? modelTitle(model),
+                ...(digest
+                  ? { summary: 'summary' in digest ? digest.summary : digest.take[0], tags: digest.tags }
+                  : guide(model, kind)),
+              };
+            })
             .sort((a, b) => a.title.localeCompare(b.title, 'ru', { numeric: true })),
           favorites ?? [],
           (item) => item.id,
@@ -193,7 +205,7 @@ export function MediaModelPicker({
         className={studio ? 'cw-model' : 'cw-chip'}
         type="button"
         aria-label={name}
-        data-tooltip={label}
+        title={label}
         aria-haspopup={mobile ? 'dialog' : 'listbox'}
         aria-expanded={open}
         disabled={disabled}

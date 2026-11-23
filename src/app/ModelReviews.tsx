@@ -57,6 +57,7 @@ export function ModelReviews() {
                       key={image.src}
                       type="button"
                       aria-label={'Открыть: ' + image.alt}
+                      title={'Открыть: ' + image.alt}
                       onClick={({ currentTarget }) =>
                         setSelected({ image, from: currentTarget.getBoundingClientRect() })
                       }
@@ -88,6 +89,7 @@ export function ModelReviews() {
             type="button"
             key={item.model}
             aria-label={item.title}
+            title={item.title}
             aria-current={start + i === active ? 'true' : undefined}
             onClick={() => {
               const card = track.current?.children[start + i] as HTMLElement | undefined;

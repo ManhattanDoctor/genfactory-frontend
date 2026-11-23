@@ -1,26 +1,7 @@
-.composer-template-options {
-  max-height: min(28vh, 220px);
-  overflow: auto;
+.feed-template-fields .composer-template-fields {
+  max-height: min(28dvh, 220px);
+  overflow-y: auto;
   margin-bottom: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--ds-line-soft);
-}
-.composer-template-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.composer-template-heading:not(:last-child) {
-  margin-bottom: 8px;
-}
-.composer-template-heading span {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.composer-template-heading button {
-  flex-shrink: 0;
 }
 .composer-template-fields {
   display: grid;

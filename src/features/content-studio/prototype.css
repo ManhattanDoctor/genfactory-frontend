@@ -2203,13 +2203,6 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .content-studio .img-use.ds-template-add {
-    transition: none;
-    animation: auto ease 0s 1 normal none running none;
-    filter: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
   .content-studio .cw-msg,
   .content-studio #creatives .cw-turn,
   .content-studio .cw-thread .cw-use-tag,
@@ -2436,16 +2429,6 @@
     animation: auto ease 0s 1 normal none running none;
   }
 }
-.content-studio #creatives.ms-dots {
-  background-color: var(--ds-canvas);
-  background-image: radial-gradient(rgba(255, 255, 255, 0.208) 1px, transparent 1px);
-  background-size: 18px 18px;
-  border-radius: 0px;
-}
-.content-studio #creatives.ms-dots {
-  background-image: radial-gradient(var(--ds-dot) 1px, transparent 1px);
-  background-size: var(--ds-dot-size) var(--ds-dot-size);
-}
 .content-studio #cw-gallery > .cw-card {
   gap: 0px;
   padding: 0px;
@@ -2665,11 +2648,6 @@
   background: transparent;
   box-shadow: none;
 }
-.content-studio .studio-compose textarea:focus,
-.content-studio .studio-compose textarea:focus-visible {
-  outline: none;
-  box-shadow: none;
-}
 .content-studio .studio-compose .cw-chip,
 .content-studio .studio-compose .img-chip,
 .content-studio .studio-compose .nb-chip,
@@ -2766,9 +2744,6 @@
   font-size: 15px;
   line-height: 1;
   white-space: nowrap;
-}
-.content-studio #rs-compose .cw-mode button[aria-pressed='true'] {
-  color: rgb(23, 24, 10);
 }
 .content-studio #rs-compose .cw-mode-rail {
   top: 0px;
@@ -3392,23 +3367,6 @@
 }
 .content-studio #cw-model-menu .cw-model-option[aria-selected='true'] .cw-model-copy strong {
   color: rgb(209, 254, 23);
-}
-@media (prefers-reduced-motion: reduce) {
-  .content-studio .img-use.ds-template-add {
-    transition: none;
-    animation: auto ease 0s 1 normal none running none;
-    filter: none;
-  }
-}
-.content-studio #creatives.ms-dots {
-  background-color: var(--ds-canvas);
-  background-image: radial-gradient(rgba(255, 255, 255, 0.208) 1px, transparent 1px);
-  background-size: 18px 18px;
-  border-radius: 0px;
-}
-.content-studio #creatives.ms-dots {
-  background-image: radial-gradient(var(--ds-dot) 1px, transparent 1px);
-  background-size: var(--ds-dot-size) var(--ds-dot-size);
 }
 @keyframes nb-shimmer {
   0% {

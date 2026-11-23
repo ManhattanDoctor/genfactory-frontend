@@ -1263,7 +1263,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  overflow: auto;
+  overflow: hidden;
 }
 .gf-section-main .content-studio #creative-workspace .cw-stage .cw-thread {
   display: flex;
@@ -1546,9 +1546,8 @@ dialog.modal:is(.account-topup, .folder-create-dialog, .file-move-dialog) {
 }
 @media (max-width: 780px) {
   .gf-section-main #creative-workspace .studio-compose #cw-mode {
-    width: 100%;
-    display: flex;
-    justify-content: center;
+    width: fit-content;
+    align-self: center;
   }
 }
 .gf-section-main .content-studio .cw-genre {
@@ -1815,7 +1814,7 @@ dialog.modal:is(.account-topup, .folder-create-dialog, .file-move-dialog) {
     padding: 0;
   }
   #main.gf-section-main #creatives #creative-workspace .cw-chat .cw-composer-stack {
-    padding-bottom: max(19px, env(safe-area-inset-bottom));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
   #main.gf-section-main #creative-workspace .studio-compose #cw-mode,
   #main.gf-section-main #creative-workspace .studio-compose #cw-mode button {
@@ -2098,14 +2097,18 @@ dialog.modal:is(.account-topup, .folder-create-dialog, .file-move-dialog) {
   }
 }
 
-/* The search field occupies its own row below the controls on narrow screens. */
 @media (max-width: 780px) {
   .gf-section-main .artifacts-page .library-toolbar .chips {
     order: 0;
   }
+  .gf-section-main .artifacts-page .library-toolbar > .library-search {
+    order: 3;
+  }
+  .gf-section-main .library-page .file-controls .file-toolbar > .library-search {
+    order: -1;
+  }
   .gf-section-main .artifacts-page .library-toolbar > .library-search,
   .gf-section-main .library-page .file-controls .file-toolbar > .library-search {
-    order: 3;
     flex: 1 0 100%;
     width: 100%;
     min-height: 44px;
@@ -2170,7 +2173,8 @@ dialog.modal:is(.account-topup, .folder-create-dialog, .file-move-dialog) {
     align-items: flex-start;
   }
   #main.gf-section-main #creative-workspace #cw-mode button {
-    flex: 1;
+    flex: none;
+    justify-content: center;
   }
   #main.gf-section-main #creative-workspace .cw-tools .mobile-gallery-toggle {
     display: inline-flex;
@@ -2266,10 +2270,6 @@ dialog.modal.folder-create-dialog {
     background: #121216;
     overflow-y: auto;
     box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.5);
-  }
-  .gf-section-main :is(.studio-gallery-sheet, .design-image-settings)::backdrop {
-    background: transparent;
-    backdrop-filter: none;
   }
   .gf-section-main #creative-workspace .studio-gallery-sheet #studio-gallery {
     display: flex;
@@ -2804,4 +2804,131 @@ dialog:is(.account-topup, .library-picker, .folder-create-dialog) .modal-footer 
   #creative-workspace .studio-gallery-sheet #studio-gallery[data-gallery-view='settings'] .cw-gallery-body {
     padding-top: 16px;
   }
+}
+
+.gf-section-main .content-studio #creative-workspace .cw-chat,
+.gf-section-main .content-studio #creative-workspace .cw-stage {
+  min-height: 0;
+  overflow: hidden;
+}
+.gf-section-main .content-studio #creatives .cw-thread {
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+}
+.gf-section-main .content-studio #creatives .cw-thread::-webkit-scrollbar {
+  display: block;
+}
+
+@media (min-width: 781px) and (max-width: 900px) {
+  #main.gf-section-main > .content-studio:has(#creatives),
+  .gf-section-main .content-studio #creatives.panel {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+  .gf-section-main .content-studio #creatives #creative-workspace {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    grid-template-rows: minmax(0, 1fr);
+    height: 100%;
+  }
+  .gf-section-main .content-studio #creative-workspace .cw-chat {
+    height: 100%;
+    min-width: 0;
+  }
+  .gf-section-main dialog.studio-gallery-drawer {
+    --panel-offset: 100% 0;
+    position: fixed;
+    inset: 0 0 0 auto;
+    margin: 0;
+    width: min(var(--rail-width, 360px), 100%);
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: 0;
+    border: 0;
+    background: var(--gf-sidebar);
+    color: var(--gf-text);
+  }
+  .gf-section-main .studio-gallery-drawer #studio-gallery {
+    position: static;
+    height: 100%;
+  }
+  .studio-gallery-drawer #studio-gallery .cw-gallery-head {
+    padding-left: 8px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .studio-gallery-drawer #studio-gallery .mobile-gallery-close {
+    display: inline-grid;
+    place-items: center;
+  }
+}
+
+@media (max-width: 780px) {
+  #main.gf-section-main > .content-studio:has(#creatives) {
+    height: calc(var(--studio-visible-height, 100dvh) - 57px);
+    min-height: 0;
+    overflow: hidden;
+  }
+  #main.gf-section-main .content-studio #creatives.panel {
+    height: 100%;
+    min-height: 0;
+  }
+  #main.gf-section-main #creative-workspace .studio-compose .cw-field {
+    max-height: min(38dvh, calc(var(--studio-visible-height, 100dvh) * 0.38));
+    overflow-y: auto;
+  }
+}
+
+.gf-section-main dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer) {
+  translate: var(--panel-offset, 0 100%);
+  overscroll-behavior: contain;
+  transition:
+    translate 0.28s var(--gf-ease),
+    display 0.28s allow-discrete,
+    overlay 0.28s allow-discrete;
+}
+.gf-section-main dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer)[open] {
+  translate: none;
+}
+.gf-section-main dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer)::backdrop {
+  background: rgb(0 0 0 / 55%);
+  backdrop-filter: none;
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    display 0.28s allow-discrete,
+    overlay 0.28s allow-discrete;
+}
+.gf-section-main
+  dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer)[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  .gf-section-main dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer)[open] {
+    translate: var(--panel-offset, 0 100%);
+  }
+  .gf-section-main
+    dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer)[open]::backdrop {
+    opacity: 0;
+  }
+}
+html:has(dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer)[open]),
+html:has(dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer)[open]) body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gf-section-main dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer),
+  .gf-section-main dialog:is(.studio-mobile-sheet, .design-image-settings, .studio-gallery-drawer)::backdrop {
+    transition: none;
+  }
+}
+
+.gf-section-main > .editor-section {
+  --sidebar: inherit;
+  --header: inherit;
+  min-height: 100%;
+  min-width: 0;
 }

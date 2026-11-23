@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { useState, type ReactNode } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
+import './agent-navigation.css';
 import { api } from '../lib/api';
 import { useAuth } from '../features/auth/AuthProvider';
 
@@ -54,6 +55,7 @@ export function ConversationNavigation({
             type="button"
             className="agent-nav-fold"
             aria-label={`${expanded ? 'Свернуть' : 'Развернуть'} диалоги ${label}`}
+            title={`${expanded ? 'Свернуть' : 'Развернуть'} диалоги ${label}`}
             aria-expanded={expanded}
             onClick={() => setExpanded((value) => !value)}
           />
@@ -73,7 +75,7 @@ export function ConversationNavigation({
               }
               to={`${path}?conversation=${c.id}`}
               onClick={onNavigate}
-              data-tooltip={c.name}
+              title={c.name}
             >
               <span>{c.name || 'Диалог'}</span>
             </Link>

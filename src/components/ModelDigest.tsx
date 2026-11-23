@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
+import { Dialog } from './Modal';
 interface Digest {
   title: string;
   verdict: string;
@@ -16,27 +17,9 @@ export function ModelDigest({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const el = dialog.current;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    el?.showModal();
-    return () => {
-      el?.close();
-      document.body.style.overflow = overflow;
-    };
-  }, []);
+  const titleId = useId();
   return (
-    <dialog
-      ref={dialog}
-      className="gf-detail"
-      aria-labelledby="digest-title"
-      onCancel={onClose}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <Dialog className="gf-detail" aria-labelledby={titleId} onClose={onClose}>
       <div className="gf-detail-panel">
         <div className="gf-detail-bar">
           <button type="button" className="gf-btn-back" onClick={onClose}>
@@ -52,7 +35,7 @@ export function ModelDigest({
             </svg>
             Назад
           </button>
-          <h2 className="gf-detail-title" id="digest-title">
+          <h2 className="gf-detail-title" id={titleId}>
             {detail.title}
           </h2>
         </div>
@@ -82,6 +65,6 @@ export function ModelDigest({
           </div>
         </div>
       </div>
-    </dialog>
+    </Dialog>
   );
 }

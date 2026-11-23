@@ -184,6 +184,7 @@ export function AgentWorkspace({
             className="cw-plus"
             type="button"
             aria-label="Добавить изображение"
+            title="Добавить изображение"
             disabled={busy || files.length >= 4 || (!!user && !model?.capabilities?.includes('IMAGE_INPUT'))}
             onClick={onLibrary}
           >
@@ -208,6 +209,7 @@ export function AgentWorkspace({
             className="cw-send"
             type="submit"
             aria-label="Отправить"
+            title="Отправить"
             disabled={busy || disabled || (!prompt.trim() && !files.length)}
           >
             <ArrowUp size={22} />

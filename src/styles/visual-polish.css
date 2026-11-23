@@ -270,11 +270,6 @@
 .studio-shell .template-example {
   display: none;
 }
-.studio-shell .template-variables {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
 .studio-shell .history-card-link {
   padding: 0;
   border: 0;
@@ -466,9 +461,6 @@
   }
   .studio-shell .content-studio .cw-model-pick {
     position: relative;
-  }
-  .studio-shell .template-variables {
-    grid-template-columns: 1fr;
   }
   .studio-shell .template-dialog .template-editor {
     padding: var(--modal-gutter);
@@ -1014,23 +1006,6 @@
   .studio-shell .mobile-generation-controls .cw-model-menu {
     top: calc(100% + 4px);
     bottom: auto;
-  }
-}
-
-@media (max-width: 720px) {
-  .studio-shell .content-studio #cw-compose:has(.composer-template-options) {
-    max-height: calc(var(--studio-visible-height, 100dvh) - 80px);
-  }
-  .studio-shell .content-studio #cw-compose .cw-field:has(.composer-template-options) {
-    display: block;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scroll-padding-block: 8px;
-  }
-  .studio-shell .content-studio .composer-template-options {
-    max-height: none;
-    overflow: visible;
   }
 }
 

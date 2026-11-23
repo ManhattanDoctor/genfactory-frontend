@@ -57,7 +57,7 @@ export function ConversationCover({
       className="history-cover"
       onClick={onOpen}
       aria-label={`Открыть файл ${conversation.name}`}
-      data-tooltip="Открыть файл"
+      title="Открыть файл"
     >
       {content}
     </button>
@@ -66,6 +66,7 @@ export function ConversationCover({
       className="history-cover"
       to={`/${kind}?conversation=${conversation.id}`}
       aria-label={`Открыть работу ${conversation.name}`}
+      title={`Открыть работу ${conversation.name}`}
     >
       {content}
     </Link>

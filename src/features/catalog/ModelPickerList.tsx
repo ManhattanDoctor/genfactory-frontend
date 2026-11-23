@@ -33,6 +33,7 @@ export function ModelPickerList({
   onFavorite,
   onInfo,
   onClose,
+  showSearch = true,
 }: {
   items: Item[];
   selected?: string;
@@ -41,9 +42,10 @@ export function ModelPickerList({
   onFavorite?: (id: string) => void;
   onInfo?: (id: string) => void;
   onClose?: () => void;
+  showSearch?: boolean;
 }) {
   const [search, setSearch] = useState('');
-  const searchable = items.length >= MODEL_SEARCH_MIN_COUNT;
+  const searchable = showSearch && items.length >= MODEL_SEARCH_MIN_COUNT;
   const query = searchable ? search.trim().toLowerCase() : '';
   const matches = items.filter(({ id, title, summary, tags }) =>
     [title, id, summary, ...(tags || [])].join(' ').toLowerCase().includes(query),
@@ -55,7 +57,6 @@ export function ModelPickerList({
       <div className={onClose ? 'image-model-head' : undefined} hidden={!searchable && !onClose}>
         {searchable && (
           <input
-            autoFocus={!!onClose}
             type="search"
             className="gf-model-search"
             aria-label="Поиск моделей"
@@ -86,6 +87,7 @@ export function ModelPickerList({
                 role="option"
                 aria-selected={selected === id}
                 aria-label={title}
+                title={title}
                 className="gf-model-choice"
                 onClick={() => onSelect(id)}
               >
@@ -98,12 +100,12 @@ export function ModelPickerList({
                 )}
                 <span className="gf-model-copy">
                   <span className="gf-model-heading">
-                    <span className="gf-model-name" data-tooltip={title}>
+                    <span className="gf-model-name" title={title}>
                       {title}
                     </span>
                   </span>
                   {summary && (
-                    <small className="gf-model-summary" data-tooltip={summary}>
+                    <small className="gf-model-summary" title={summary}>
                       {summary}
                     </small>
                   )}
@@ -122,26 +124,34 @@ export function ModelPickerList({
                   </span>
                 )}
               </button>
-              {onFavorite && (
-                <button
-                  type="button"
-                  aria-pressed={favorite}
-                  aria-label={(favorite ? 'Убрать из избранных: ' : 'В избранные: ') + title}
-                  onClick={() => onFavorite(id)}
-                >
-                  <Heart size={16} fill={favorite ? 'currentColor' : 'none'} />
-                </button>
-              )}
-              {onClose && (
-                <span aria-hidden="true" className="gf-model-check">
-                  {selected === id && <Check size={12} />}
-                </span>
-              )}
-              {onInfo && (
-                <button type="button" aria-label={'О модели ' + title} onClick={() => onInfo(id)}>
-                  {onClose ? 'i' : <Info size={16} />}
-                </button>
-              )}
+              <div className="gf-model-actions">
+                {onFavorite && (
+                  <button
+                    type="button"
+                    aria-pressed={favorite}
+                    aria-label={(favorite ? 'Убрать из избранных: ' : 'В избранные: ') + title}
+                    title={(favorite ? 'Убрать из избранных: ' : 'В избранные: ') + title}
+                    onClick={() => onFavorite(id)}
+                  >
+                    <Heart size={onClose ? 18 : 16} fill={favorite ? 'currentColor' : 'none'} />
+                  </button>
+                )}
+                {onClose && (
+                  <span aria-hidden="true" className="gf-model-check">
+                    {selected === id && <Check size={12} />}
+                  </span>
+                )}
+                {onInfo && (
+                  <button
+                    type="button"
+                    aria-label={'О модели ' + title}
+                    title={'О модели ' + title}
+                    onClick={() => onInfo(id)}
+                  >
+                    {onClose ? 'i' : <Info size={16} />}
+                  </button>
+                )}
+              </div>
             </div>
           </Fragment>
         );

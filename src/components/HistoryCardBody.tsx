@@ -14,11 +14,11 @@ export function HistoryCardBody({
 }) {
   return (
     <div className="artifact-body">
-      <h3 className="artifact-title" data-tooltip={title}>
+      <h3 className="artifact-title" title={title}>
         {title}
       </h3>
       {source ? (
-        <span className="artifact-source" data-tooltip={source}>
+        <span className="artifact-source" title={source}>
           {source}
         </span>
       ) : (

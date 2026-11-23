@@ -884,7 +884,7 @@ test('image history reloads after a failure without submitting the draft', async
   await draft.fill('Сохранённый черновик');
   recovered = true;
   const retry = alert.getByRole('button', { name: 'Загрузить снова' });
-  await expect(retry).toHaveCSS('color', 'rgb(221, 249, 74)');
+  await expect(retry).toHaveCSS('color', 'rgb(244, 244, 240)');
   await expect(retry).toHaveCSS('font-weight', '600');
   await expect(retry.locator('svg')).toHaveCount(0);
   await retry.click();
@@ -979,21 +979,21 @@ test('advanced editor: select arrows stay inside controls at desktop and mobile 
   });
 });
 
-test('home model digests show customer guidance and open example images', async ({ page }) => {
+test('home model digests show customer guidance and restore focus', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
-  const review = page.getByRole('article', { name: 'Nano Banana 2', exact: true });
-  await expect(review.getByText('Когда брать', { exact: true })).toBeVisible();
-  await expect(review.getByText('Когда не брать', { exact: true })).toBeVisible();
-  const preview = review.getByRole('button', { name: /^Открыть:/ }).first();
-  await preview.click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog').getByRole('heading')).toHaveCount(0);
-  await expect(page.getByRole('dialog')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0.82)');
-  await expect(page.getByRole('dialog').getByRole('button', { name: 'Закрыть' })).toBeFocused();
+  await page.getByRole('tab', { name: 'Дайджесты' }).click();
+  const trigger = page.getByRole('button', { name: 'Открыть дайджест Nano Banana 2.1', exact: true });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Nano Banana 2.1', exact: true });
+  for (const title of ['Когда брать', 'Когда не брать']) {
+    await expect(dialog.getByRole('heading', { name: title })).toBeVisible();
+  }
+  await expect(dialog.locator('.gf-detail-gallery img').first()).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Назад' })).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(preview).toBeFocused();
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });
 
 test('advanced editor: reference survives restoration of a different saved video model', async ({ page }) => {
@@ -4031,15 +4031,16 @@ test('content studio model search and favorites preserve actual selection across
   await page.goto('/chat?conversation=101');
   await page.getByRole('button', { name: 'Изображение', exact: true }).click();
   await page.locator('.cw-model').click();
+  await expect(page.locator('.cw-model')).toBeFocused();
   await page.getByRole('searchbox', { name: 'Поиск моделей' }).fill(selected.reference.model);
   await expect(page.getByRole('option', { name: title, exact: true })).toBeVisible();
   await expect(page.getByRole('option')).toHaveCount(1);
   await page.getByRole('button', { name: `О модели ${title}`, exact: true }).click();
-  const info = page.getByRole('dialog', { name: `О модели ${title}` });
+  const info = page.getByRole('dialog', { name: title, exact: true });
   await expect(info).toContainText('Когда брать');
   await expect(info).toContainText('Когда не брать');
   expect(state.sends).toHaveLength(0);
-  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await info.getByRole('button', { name: 'Назад', exact: true }).click();
   await page.getByRole('button', { name: `В избранные: ${title}`, exact: true }).click();
   await expect(page.locator('.cw-model')).toHaveAttribute('aria-expanded', 'true');
   await page.getByRole('searchbox', { name: 'Поиск моделей' }).fill('');
@@ -4060,7 +4061,7 @@ test('content studio model search and favorites preserve actual selection across
   );
   await page.keyboard.press('Escape');
   await expect(page.locator('.cw-model')).toBeFocused();
-  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('button', { name: 'Настройки', exact: true }).click();
   await page.locator('#cw-draft').fill('Чашка на белом фоне');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);
@@ -4790,13 +4791,15 @@ test('library incompatible document is visibly marked and cannot be attached', a
   const card = page.locator('.file-entry').filter({ hasText: 'Document.pdf' });
   await expect(card).toHaveClass(/is-incompatible/);
   await expect(card.locator('.library-card')).toBeDisabled();
-  await expect(page.getByRole('tooltip', { name: 'Не подходит для этой задачи' })).toBeHidden();
   await expect(card.locator('.file-incompatible')).toHaveCSS('color', 'rgb(255, 208, 138)');
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.keyboard.press('Tab');
     await card.getByRole('button', { name: 'Почему файл не подходит' }).focus();
-    await expect(page.getByRole('tooltip', { name: 'Не подходит для этой задачи' })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Почему файл не подходит' })).toHaveAttribute(
+      'title',
+      'Не подходит для этой задачи',
+    );
     const movie = page.locator('.file-entry').filter({ hasText: 'Movie.mp4' });
     await movie.hover();
     await expect(movie.locator('video')).toHaveCount(0);
@@ -6835,7 +6838,7 @@ for (const width of [1440, 390]) {
     const card = page.locator('.history-card').filter({ hasText: 'Проект студии' });
     await expect(card.locator('.history-source')).toHaveText('Студия контента');
     await expect(card.locator('.history-status')).toContainText('В работе');
-    await expect(card.locator('.history-card-link')).toHaveAttribute('data-tooltip', /Модель генерации:/);
+    await expect(card.locator('.history-card-link')).toHaveAttribute('title', /Модель генерации:/);
     await expect(
       page.locator('.history-card').filter({ hasText: 'Обычная беседа' }).locator('.history-source'),
     ).toHaveCount(0);
@@ -9569,11 +9572,13 @@ for (const width of [390, 1440]) {
       };
       element.scrollTop = element.scrollHeight;
       return {
+        horizontal: element.scrollWidth - element.clientWidth,
         scroll: element.scrollTop,
         headerShift: header.getBoundingClientRect().top - before.header,
         contentShift: content.getBoundingClientRect().top - before.content,
       };
     });
+    expect(geometry.horizontal).toBe(0);
     expect(geometry.scroll).toBeGreaterThan(0);
     expect(Math.abs(geometry.headerShift)).toBeLessThanOrEqual(1);
     expect(geometry.contentShift).toBeLessThan(0);
@@ -9898,38 +9903,33 @@ for (const width of [360, 1440]) {
   });
 }
 
-for (const width of [360, 390]) {
-  test(`mobile studio settings use a full screen panel with a fixed header at ${width}px`, async ({
-    page,
-  }) => {
+for (const width of [360, 840]) {
+  test(`studio settings overlay dims and locks the background at ${width}px`, async ({ page }) => {
     await mockApi(page);
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/chat');
-    await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
-    const panel = page.locator('aside.cw-gallery');
-    await expect(panel).toBeVisible();
-    await expect.poll(async () => Math.round((await panel.boundingBox())!.y)).toBe(0);
-    const box = (await panel.boundingBox())!;
-    expect(Math.round(box.width)).toBe(width);
-    expect(Math.round(box.height)).toBe(844);
-    await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
-    const close = page.getByRole('button', { name: 'Закрыть шаблоны и настройки', exact: true });
-    const tabs = await panel.locator('.cw-gallery-tabs').boundingBox();
-    const closeBox = (await close.boundingBox())!;
-    expect(closeBox.width).toBeGreaterThanOrEqual(44);
-    expect(closeBox.x).toBeGreaterThanOrEqual(tabs!.x + tabs!.width);
-    await expect(panel.locator('.cw-tab-rail')).toBeHidden();
-    const header = panel.locator('.cw-gallery-head');
-    const before = await header.boundingBox();
-    await panel.locator('.cw-settings-pane').evaluate((el) => {
-      el.scrollTop = el.scrollHeight;
+    const open = page.getByRole('button', {
+      name: width === 360 ? 'Шаблоны и настройки' : 'Развернуть панель',
+      exact: true,
     });
-    expect(await header.boundingBox()).toEqual(before);
-    await expect(close).toBeVisible();
-    await page.screenshot({ path: `/tmp/gnosis-studio-settings-${width}.png` });
-    await close.click();
-    await expect(panel).toBeHidden();
-    await expect(page.locator('#cw-draft')).toBeVisible();
+    await open.click();
+    const dialog = page.getByRole('dialog', { name: 'Шаблоны и настройки' });
+    await dialog.getByRole('tab', { name: 'Настройки', exact: true }).click();
+    await expect.poll(() => dialog.evaluate((el) => getComputedStyle(el, '::backdrop').opacity)).toBe('1');
+    expect(await dialog.evaluate((el) => getComputedStyle(el, '::backdrop').backgroundColor)).toBe(
+      'rgba(0, 0, 0, 0.55)',
+    );
+    await expect(page.locator('html')).toHaveCSS('overflow', 'hidden');
+    const box = (await dialog.boundingBox())!;
+    expect(Math.round(box.y + box.height)).toBe(844);
+    expect(Math.round(box.x + box.width)).toBe(width);
+    expect(width === 360 ? box.y : box.x).toBeGreaterThan(0);
+    await page.mouse.click(4, 4);
+    await expect(dialog).toBeHidden();
+    await expect(open).toBeFocused();
+    await open.click();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
   });
 }
 
@@ -9996,15 +9996,18 @@ for (const height of [640, 844]) {
     const geometry = await page.evaluate(() => {
       const studio = document.querySelector('.content-studio')!.getBoundingClientRect();
       const chat = document.querySelector('.content-studio .cw-chat')!.getBoundingClientRect();
-      const composer = document.querySelector('.cw-composer-stack')!.getBoundingClientRect();
+      const composer = document.querySelector('#cw-compose')!.getBoundingClientRect();
+      const tabs = document.querySelector('#cw-mode')!.getBoundingClientRect();
       return {
+        center: (tabs.left + tabs.right - composer.left - composer.right) / 2,
         extra: studio.bottom - chat.bottom,
         gap: chat.bottom - composer.bottom,
         horizontal: document.documentElement.scrollWidth > innerWidth,
       };
     });
     expect(geometry.extra).toBeCloseTo(0, 0);
-    expect(geometry.gap).toBeCloseTo(14, 0);
+    expect(geometry.gap).toBeCloseTo(8, 0);
+    expect(geometry.center).toBeCloseTo(0, 0);
     expect(geometry.horizontal).toBe(false);
     await page.screenshot({ path: `/tmp/gnosis-mobile-studio-bottom-${height}.png` });
   });
@@ -10296,20 +10299,57 @@ for (const width of [390, 1440]) {
           below: bubble.getBoundingClientRect().bottom - button.bottom,
         };
       });
-      expect(spacing).toEqual({ status: '0px 16px', bubble: '10px 12px', indent: 0, above: 12, below: 10 });
+      expect(spacing).toEqual({ status: '10px 12px', bubble: '10px 12px', indent: 0, above: 12, below: 10 });
       await toggle.click();
     }
   });
 }
 
-test('chat links to jobs when the video tool is running', async ({ page }) => {
-  const state = await mockApi(page);
-  state.conversations.push({ ...savedConversation(), status: 'LOADING' });
-  state.progress = { data: { tools: [{ uid: 'VIDEO', status: 'STARTED' }] } };
-  await page.goto('/chat?conversation=101');
-  await expect(page.getByText('Ролик готовится', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Открыть в работах' })).toBeVisible();
-});
+for (const [uid, label] of [
+  ['IMAGE', 'Кадр готовится'],
+  ['VIDEO', 'Ролик готовится'],
+]) {
+  test(`chat uses message action styling while ${uid} is running`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 740 });
+    const state = await mockApi(page);
+    state.conversations.push({ ...savedConversation(), status: 'LOADING' });
+    state.messages.set(101, [
+      {
+        id: 1,
+        role: 'USER',
+        text: Array(15).fill('Описание кадра').join('\n'),
+        createdDate: file.createdDate,
+      },
+    ]);
+    state.progress = { data: { tools: [{ uid, status: 'STARTED' }] } };
+    await page.goto('/chat?conversation=101');
+    await expect(page.getByText(label, { exact: true })).toBeVisible();
+    const jobs = page.getByRole('button', { name: 'Открыть в работах' });
+    const toggle = page.getByRole('button', { name: 'Показать ещё' });
+    for (const property of [
+      'font-size',
+      'font-weight',
+      'color',
+      'min-height',
+      'padding',
+      'text-decoration-line',
+    ]) {
+      await expect(jobs).toHaveCSS(
+        property,
+        await toggle.evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), property),
+      );
+    }
+    expect(await jobs.evaluate((el) => el.getBoundingClientRect().right <= innerWidth)).toBe(true);
+    await expect(jobs).toHaveCSS('color', 'rgb(244, 244, 240)');
+    await toggle.click();
+    const collapse = page.getByRole('button', { name: 'Свернуть', exact: true });
+    await collapse.hover();
+    await expect(collapse).toHaveCSS('color', 'rgb(244, 244, 240)');
+    await expect(collapse).toHaveCSS('text-decoration-line', 'underline');
+    await jobs.click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+}
 
 for (const width of [390, 1440]) {
   for (const kind of ['image', 'video'] as const) {
@@ -10378,6 +10418,57 @@ for (const width of [390, 1440]) {
   }
 }
 
+for (const [kind, title] of [
+  ['image', 'Главное фото на белом фоне (маркетплейс)'],
+  ['video', 'Studio product turn'],
+] as const) {
+  for (const width of [390, 1440]) {
+    test(`archive ${kind} uses the shared template composer and keeps editable fields at ${width}px`, async ({
+      page,
+    }) => {
+      await mockApi(page);
+      await page.route(/\.mp4(?:\?|$)/, (route) => route.abort());
+      await page.setViewportSize({ width, height: 900 });
+      for (const studio of [false, true]) {
+        await page.goto(studio ? '/chat' : '/' + kind, { waitUntil: 'domcontentloaded' });
+        if (studio) {
+          await page
+            .locator('#cw-mode')
+            .getByRole('button', { name: kind === 'video' ? 'Видео' : 'Изображение', exact: true })
+            .click();
+          await page
+            .getByRole('button', {
+              name: width === 390 ? 'Шаблоны и настройки' : 'Развернуть панель',
+              exact: true,
+            })
+            .click();
+        }
+        await page
+          .getByRole('button', {
+            name: (studio ? 'Открыть шаблон: ' : 'Использовать шаблон ') + title,
+            exact: true,
+          })
+          .first()
+          .click();
+        const field = page.locator('.feed-template-fields');
+        await expect(field.locator('.feed-template-chips')).toContainText(title);
+        await field
+          .getByRole('group', { name: 'Параметры шаблона' })
+          .getByLabel('Название вашего продукта', { exact: true })
+          .fill('Кружка');
+        await expect(field.locator('textarea')).toHaveValue(/Кружка/);
+        const add = field.getByRole('button', { name: 'Добавить фото 1', exact: true });
+        await expect(add).toHaveCSS('width', width === 390 ? '64px' : '56px');
+        await add.click();
+        await selectLibraryFile(page, 'Test result');
+        await expect(field.getByRole('button', { name: 'Убрать Test result' })).toBeVisible();
+        await field.getByRole('button', { name: 'Сбросить шаблон' }).click();
+        await expect(page.locator('.feed-template-chips')).toHaveCount(0);
+      }
+    });
+  }
+}
+
 test('library loading cards reserve the file grid before the list arrives', async ({ page }) => {
   await mockApi(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -10407,4 +10498,30 @@ test('library loading cards reserve the file grid before the list arrives', asyn
     for (const k of ['x', 'y', 'width', 'height'] as const)
       expect(Math.abs(before![k] - after![k]), k).toBeLessThanOrEqual(1);
   }
+});
+
+test('generation galleries only offer templates from the active model catalog', async ({ page }) => {
+  await mockApi(page);
+  await page.route(/\.mp4(?:\?|$)/, (route) => route.abort());
+  await page.goto('/video', { waitUntil: 'domcontentloaded' });
+  const gallery = page.getByRole('tabpanel');
+  await expect(
+    gallery.getByRole('button', { name: 'Использовать шаблон Уличная культура', exact: true }),
+  ).toBeVisible();
+  await expect(
+    gallery.getByRole('button', { name: 'Использовать шаблон Токио-селфи', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Генерации' }).click();
+  await expect(
+    gallery.getByRole('button', { name: 'Повторить Случайный смартфон-ролик', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Перемешать' }).click();
+  await expect(gallery.getByRole('button', { name: /Токио-селфи|Случайный смартфон-ролик/ })).toHaveCount(0);
+  await page.goto('/chat', { waitUntil: 'domcontentloaded' });
+  await page.locator('#cw-mode').getByRole('button', { name: 'Видео', exact: true }).click();
+  await page.getByRole('button', { name: 'Развернуть панель' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Открыть шаблон: Уличная культура', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Открыть шаблон: Токио-селфи', exact: true })).toHaveCount(0);
 });

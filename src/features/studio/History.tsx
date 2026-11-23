@@ -216,7 +216,7 @@ export function History(): ReactElement {
                   key={id}
                   className={`chip ${filter === id ? 'active' : ''}`}
                   aria-label={label}
-                  data-tooltip={label}
+                  title={label}
                   aria-pressed={filter === id}
                   onClick={() => {
                     setFilter(id);
@@ -359,7 +359,7 @@ export function History(): ReactElement {
                         </button>
                       </form>
                     ) : (
-                      <h2 data-tooltip={c.name}>{c.name}</h2>
+                      <h2 title={c.name}>{c.name}</h2>
                     )
                   }
                 >
@@ -383,7 +383,7 @@ export function History(): ReactElement {
               <button
                 className="button"
                 aria-label="Предыдущая страница"
-                data-tooltip="Предыдущая страница"
+                title="Предыдущая страница"
                 disabled={!page}
                 onClick={() => setPagination({ userId: auth.user?.id, page: page - 1, query })}
               >
@@ -395,7 +395,7 @@ export function History(): ReactElement {
               <button
                 className="button"
                 aria-label="Следующая страница"
-                data-tooltip="Следующая страница"
+                title="Следующая страница"
                 disabled={page + 1 >= list.data.pages}
                 onClick={() => setPagination({ userId: auth.user?.id, page: page + 1, query })}
               >

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { ComposerTemplateFields } from '../features/content-studio/ComposerTemplateFields';
+import type { ComponentProps, ReactNode } from 'react';
 import { RequiredPhotoSlots } from './RequiredPhotoSlots';
 import '../features/studio/feed-template.css';
 
@@ -13,6 +14,7 @@ interface Props {
   onReset: () => void;
   onDismissPhotoHint: () => void;
   onAdd: () => void;
+  fields?: Omit<ComponentProps<typeof ComposerTemplateFields>, 'disabled'>;
   children?: ReactNode;
 }
 
@@ -27,6 +29,7 @@ export function AppliedTemplate({
   onReset,
   onDismissPhotoHint,
   onAdd,
+  fields,
   children,
 }: Props) {
   return (
@@ -47,6 +50,9 @@ export function AppliedTemplate({
           </span>
         )}
       </div>
+      {fields && fields.recipe.variables.length > 0 && (
+        <ComposerTemplateFields {...fields} disabled={disabled} />
+      )}
       {(children || missingPhotos > 0) && (
         <div className="img-files">
           {children}

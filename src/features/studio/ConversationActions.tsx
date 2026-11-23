@@ -44,7 +44,7 @@ export function ConversationActions({
         }
       }}
     >
-      <summary aria-label={`Действия работы ${c.name}`} data-tooltip="Действия работы">
+      <summary aria-label={`Действия работы ${c.name}`} title="Действия работы">
         <MoreHorizontal size={18} />
       </summary>
       <div
@@ -59,7 +59,7 @@ export function ConversationActions({
           <Link
             className="button"
             aria-label="Аудиостудия"
-            data-tooltip="Продолжить работу с аудио"
+            title="Продолжить работу с аудио"
             to={`/audio?mode=${c.tags?.includes('stt') ? 'stt' : 'tts'}&conversation=${c.id}`}
           >
             <AudioLines size={16} aria-hidden="true" />
@@ -85,7 +85,7 @@ export function ConversationActions({
         <button
           className="history-icon-button"
           aria-label="Переименовать"
-          data-tooltip="Переименовать"
+          title="Переименовать"
           disabled={busy || c.status === 'LOADING'}
           onClick={onRename}
         >
@@ -95,7 +95,7 @@ export function ConversationActions({
         <button
           className="history-icon-button"
           aria-label={!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
-          data-tooltip={!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
+          title={!!c.isArchived ? 'Вернуть из архива' : 'В архив'}
           disabled={busy}
           onClick={onArchive}
         >

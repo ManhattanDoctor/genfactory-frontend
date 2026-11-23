@@ -160,6 +160,7 @@ export function ConversationResults({
                     className="result-image"
                     onClick={() => setPreview(file)}
                     aria-label={`Открыть ${file.name}`}
+                    title={`Открыть ${file.name}`}
                   >
                     <Media file={file} />
                   </button>
