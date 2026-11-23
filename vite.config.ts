@@ -43,7 +43,7 @@ self.addEventListener('message', event => {
       },
     },
     server: {
-      watch: { usePolling: true, interval: 250 },
+      watch: process.env.CI ? null : undefined,
       port: 5173,
       strictPort: true,
       proxy: {

@@ -26,6 +26,10 @@ jobs:
     environment: ${{ inputs.demo && 'genfactory-demo' || 'production' }}
     steps:
       - uses: actions/checkout@v4
+        if: ${{ !inputs.demo }}
+        with:
+          sparse-checkout: scripts/deploy.sh
+          sparse-checkout-cone-mode: false
       - name: Update Docker container over SSH
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
@@ -58,7 +62,7 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           target="$SSH_USERNAME@$SSH_HOST"
           remote_dir="/tmp/genfactory-deploy-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          ssh_opts=(-i ~/.ssh/genfactory -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          ssh_opts=(-i ~/.ssh/genfactory -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ConnectionAttempts=3)
           if [[ "${{ inputs.demo }}" == true ]]; then
             printf '%s' "$GHCR_TOKEN" | ssh "${ssh_opts[@]}" "$target" "sudo -n -H -u dev /usr/local/lib/genfactory-frontend/deploy-demo.sh $GITHUB_SHA $DIGEST $REGISTRY_USER"
             exit 0

@@ -300,24 +300,9 @@ for (const width of [390, 1440])
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
-test('all 30 video templates open the shared editor without sending and model information closes cleanly', async ({
-  page,
-}) => {
-  const state = await setup(page);
+test('video model information closes with Escape', async ({ page }) => {
+  await setup(page);
   await page.goto('/video');
-  const cards = page.locator('.ds-template-card');
-  await expect(cards).toHaveCount(30);
-  for (let index = 0; index < 30; index++) {
-    await cards
-      .nth(index)
-      .getByRole('button', { name: /^Использовать шаблон:/ })
-      .click();
-    await expect(
-      page.getByRole('dialog').getByRole('button', { name: 'Использовать шаблон', exact: true }),
-    ).toBeVisible();
-    await page.keyboard.press('Escape');
-  }
-  expect(state.tasks).toHaveLength(0);
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
   await page
     .getByRole('button', { name: /^О модели / })

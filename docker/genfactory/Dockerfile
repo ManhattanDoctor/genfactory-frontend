@@ -1,4 +1,5 @@
 FROM nginx:stable-alpine
+COPY public/media/ /usr/share/nginx/html/media/
 COPY dist/ /usr/share/nginx/html/
 RUN mv /usr/share/nginx/html/generation-timeout.conf /etc/nginx/generation-timeout.conf
 COPY docker/genfactory/default.conf.template /etc/nginx/templates/default.conf.template

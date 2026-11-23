@@ -1,6 +1,8 @@
 name: Frontend checks
 on:
   push:
+    branches: ['**']
+    tags-ignore: ['astra-*']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -30,7 +32,15 @@ jobs:
       - run: npm run format:check
       - run: npm run build
       - run: npm test
-      - run: npx playwright install --with-deps chromium
+      - name: Prepare browser
+        env:
+          FULL_REGRESSION: ${{ inputs.full_regression }}
+        run: |
+          if [[ "$FULL_REGRESSION" != true ]] && google-chrome --version; then
+            echo 'PLAYWRIGHT_CHROME_CHANNEL=chrome' >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps --only-shell chromium
+          fi
       - name: ${{ inputs.full_regression && 'Full browser regression' || 'Browser smoke checks' }}
         run: ${{ inputs.full_regression && 'npm run test:e2e:full' || 'npm run test:e2e:smoke' }}
       - run: npm run test:sw

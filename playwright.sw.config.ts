@@ -3,6 +3,7 @@ export default defineConfig({
   testDir: './tests/sw',
   workers: 1,
   use: {
+    channel: process.env.PLAYWRIGHT_CHROME_CHANNEL,
     baseURL: 'https://genfactory.test:5443',
     ignoreHTTPSErrors: true,
     launchOptions: {

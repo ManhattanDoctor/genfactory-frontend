@@ -1,6 +1,11 @@
 *
 !dist/
 !dist/**
+dist/media
+!public/
+public/*
+!public/media/
+!public/media/**
 !docker/
 !docker/genfactory/
 !docker/genfactory/**
