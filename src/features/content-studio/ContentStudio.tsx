@@ -263,14 +263,10 @@ export function ContentStudio(): ReactElement {
   const studio = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const viewport = window.visualViewport;
-    const element = studio.current;
+    const element = studio.current?.closest<HTMLElement>('.gf-app');
     if (!mobile || !viewport || !element) return;
     const fit = () => {
-      const covered = Math.max(
-        0,
-        element.getBoundingClientRect().bottom - viewport.offsetTop - viewport.height,
-      );
-      element.style.setProperty('--studio-keyboard-inset', `${covered}px`);
+      element.style.setProperty('--studio-viewport-top', `${viewport.offsetTop}px`);
       element.style.setProperty('--studio-visible-height', `${viewport.height}px`);
     };
     fit();
@@ -279,7 +275,7 @@ export function ContentStudio(): ReactElement {
     return () => {
       viewport.removeEventListener('resize', fit);
       viewport.removeEventListener('scroll', fit);
-      element.style.removeProperty('--studio-keyboard-inset');
+      element.style.removeProperty('--studio-viewport-top');
       element.style.removeProperty('--studio-visible-height');
     };
   }, [mobile]);

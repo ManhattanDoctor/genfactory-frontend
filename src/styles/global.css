@@ -24,6 +24,7 @@
     rgba(11, 11, 12, 0) 100%
   );
   color-scheme: dark;
+  touch-action: pan-x pan-y;
 }
 * {
   box-sizing: border-box;

@@ -2580,6 +2580,7 @@ dialog:is(.account-topup, .library-picker, .folder-create-dialog) .modal-footer 
 #studio-gallery #cw-gallery {
   display: grid;
   grid-template-columns: repeat(var(--studio-columns, 2), minmax(0, 1fr));
+  grid-auto-rows: max-content;
   align-content: start;
   align-items: start;
   gap: 8px;
@@ -2882,8 +2883,29 @@ dialog:is(.account-topup, .library-picker, .folder-create-dialog) .modal-footer 
 }
 
 @media (max-width: 780px) {
+  html:has(.gf-app .content-studio),
+  body:has(.gf-app .content-studio) {
+    overflow: hidden;
+    overscroll-behavior-y: none;
+  }
+  .gf-app:has(.content-studio) {
+    position: fixed;
+    inset: var(--studio-viewport-top, 0px) 0 auto;
+    height: var(--studio-visible-height, 100dvh);
+    min-height: 0;
+  }
+  .gf-app:has(.content-studio) .gf-main {
+    height: 100%;
+    min-height: 0;
+  }
+  .gf-section-main:has(> .content-studio) {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
   #main.gf-section-main > .content-studio:has(#creatives) {
-    height: calc(var(--studio-visible-height, 100dvh) - 57px);
+    flex: 1;
+    height: auto;
     min-height: 0;
     overflow: hidden;
   }

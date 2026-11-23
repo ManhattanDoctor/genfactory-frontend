@@ -1046,6 +1046,13 @@ test('recent UI fixes: studio keeps tabs and tags visible and the grip dismisses
   await sheet.getByRole('tab', { name: 'Шаблоны', exact: true }).click();
   const tags = sheet.getByRole('group', { name: 'Жанры', exact: true });
   const list = sheet.locator('#cw-gallery');
+  const cards = list.locator('.cw-card');
+  await expect(cards.nth(2)).toBeVisible();
+  const rowGap = await cards.evaluateAll((items) => {
+    const [left, right, nextRow] = items.map((item) => item.getBoundingClientRect());
+    return nextRow.top - Math.max(left.bottom, right.bottom);
+  });
+  expect(rowGap).toBeGreaterThanOrEqual(1);
   const top = await tags.evaluate((el) => el.getBoundingClientRect().top);
   await list.evaluate((el) => (el.scrollTop = 200));
   expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
