@@ -45,9 +45,13 @@ jobs:
         run: ${{ inputs.full_regression && 'npm run test:e2e:full' || 'npm run test:e2e:smoke' }}
       - run: npm run test:sw
       - name: Check mobile Studio in WebKit
+        timeout-minutes: 5
         run: |
-          npx playwright install --with-deps webkit
-          npx playwright test --config playwright.mobile-webkit.config.ts
+          version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          docker run --rm --network host --ipc host --user "$(id -u):$(id -g)" \
+            -e CI=true -v "$PWD:/workspace" -w /workspace \
+            "mcr.microsoft.com/playwright:v${version}-noble" \
+            ./node_modules/.bin/playwright test --config playwright.mobile-webkit.config.ts
       - name: Check deployment scripts
         run: bash -n scripts/deploy.sh scripts/container-smoke.sh && sh -n docker/genfactory/15-check-api.sh
       - name: Build runtime image
