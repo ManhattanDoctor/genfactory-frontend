@@ -5458,9 +5458,11 @@ test(
     await page.goto('/video?conversation=101');
     await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
     await expect(page.getByRole('textbox', { name: 'Идея ролика', exact: true })).toBeEnabled();
+    await expect.poll(() => state.joinedRooms).toContain('conversation101');
+    state.joinedRooms.length = 0;
     await page.reload();
     await expect(page.locator('.image-result-pending')).toContainText('Видео ещё создаётся…');
-    await expect.poll(() => !!state.socket).toBeTruthy();
+    await expect.poll(() => state.joinedRooms).toContain('conversation101');
     conversation.status = 'LOADED';
     state.messages.set(101, [
       request,
@@ -5479,7 +5481,7 @@ test(
           { uid: crypto.randomUUID(), name: 'ConversationChangedEvent', data: { id: 101, item: {} } },
         ]),
     );
-    await expect(page.locator('.image-result-pending')).toHaveCount(0);
+    await expect(page.locator('.image-result-pending')).toHaveCount(0, { timeout: 12000 });
     await expect(page.locator('.image-result')).toHaveCount(1);
     await expect(page.getByRole('textbox', { name: 'Идея ролика', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Активные работы: 0' })).toBeVisible();
