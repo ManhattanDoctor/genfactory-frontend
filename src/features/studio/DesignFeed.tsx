@@ -148,12 +148,7 @@ export function DesignFeed({
                   onClick={apply}
                 >
                   {kind === 'image' ? (
-                    <img
-                      src={card.src}
-                      alt=""
-                      loading="lazy"
-                      {...dimensions}
-                    />
+                    <img src={card.src} alt="" loading="lazy" {...dimensions} />
                   ) : (
                     <video
                       muted
