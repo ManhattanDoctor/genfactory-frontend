@@ -44,6 +44,8 @@ export class ApiError extends Error {
     super(message);
   }
 }
+export class RequestOutcomeError extends ApiError {}
+
 export function retryQuery(failureCount: number, error: Error): boolean {
   return failureCount < 1 && !(error instanceof ApiError && [401, 403, 429].includes(error.status));
 }
@@ -85,7 +87,8 @@ export async function request<T>(
         (res.status === 408 || res.status >= 500) &&
         data.code !== 'AI_VENDOR_ERROR' &&
         (message === serviceError || res.status === 408);
-      throw new ApiError(
+      const ErrorType = outcomeHint && unknownOutcome ? RequestOutcomeError : ApiError;
+      throw new ErrorType(
         outcomeHint && unknownOutcome ? `${message} ${outcomeHint}` : message,
         res.status,
         data.details,
@@ -97,7 +100,7 @@ export async function request<T>(
     return text ? (JSON.parse(text) as T) : (undefined as T);
   } catch (error) {
     if (dispatched && outcomeHint && !(error instanceof ApiError))
-      throw new Error(`${error instanceof Error ? error.message : 'Ответ не получен.'} ${outcomeHint}`);
+      throw new RequestOutcomeError(`Не удалось получить ответ от сервера. ${outcomeHint}`, 0, error);
     throw error;
   } finally {
     if (writing) {

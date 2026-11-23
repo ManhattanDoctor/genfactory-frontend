@@ -1,5 +1,6 @@
 declare const __APP_BUILD_ID__: string;
 export const WORKER_PATH = '/genfactory-sw.js';
+const ACTIVATION_TIMEOUT_MS = 4000;
 export function canUseUpdateWorker(production: boolean, location: Pick<Location, 'hostname' | 'protocol'>) {
   const host = location.hostname.toLowerCase();
   return (
@@ -14,12 +15,15 @@ export function canUseUpdateWorker(production: boolean, location: Pick<Location,
 export function watchAppUpdate(onAvailable: () => void, onReload: () => void) {
   let registration: ServiceWorkerRegistration | undefined;
   let stopped = false;
-  let requested = false;
+  let activationTimer: ReturnType<typeof setTimeout> | undefined;
+  const reload = () => {
+    clearTimeout(activationTimer);
+    activationTimer = undefined;
+    onReload();
+  };
   const controllerChanged = () => {
-    if (requested) {
-      requested = false;
-      onReload();
-    } else navigator.serviceWorker.controller?.postMessage({ type: 'GENFACTORY_VERSION' });
+    if (activationTimer !== undefined) reload();
+    else navigator.serviceWorker.controller?.postMessage({ type: 'GENFACTORY_VERSION' });
   };
   const version = (event: MessageEvent) => {
     if (event.data?.type === 'GENFACTORY_VERSION' && event.data.version !== __APP_BUILD_ID__) onAvailable();
@@ -56,12 +60,22 @@ export function watchAppUpdate(onAvailable: () => void, onReload: () => void) {
     .catch(() => {});
   return {
     apply() {
-      if (registration?.waiting) {
-        requested = true;
-        registration.waiting.postMessage({ type: 'GENFACTORY_ACTIVATE' });
-      } else onReload();
+      if (stopped || activationTimer !== undefined) return;
+      const waiting = registration?.waiting;
+      if (!waiting) {
+        reload();
+        return;
+      }
+      // The worker never intercepts fetches, so a normal reload can get the new build.
+      activationTimer = setTimeout(reload, ACTIVATION_TIMEOUT_MS);
+      try {
+        waiting.postMessage({ type: 'GENFACTORY_ACTIVATE' });
+      } catch {
+        reload();
+      }
     },
     dispose() {
+      clearTimeout(activationTimer);
       stopped = true;
       clearInterval(timer);
       registration?.removeEventListener('updatefound', updateFound);

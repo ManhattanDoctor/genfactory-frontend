@@ -3724,16 +3724,39 @@ test('content studio restores a running job and receives socket completion witho
   expect(state.sends).toHaveLength(0);
 });
 
-test('content studio retains draft after an accepted network failure without retry', async ({ page }) => {
+for (const width of [390, 1440]) {
+  test(`Studio reconciles a lost response with server history at ${width}px`, async ({ page }) => {
+    const state = await mockApi(page);
+    state.abortAfterAccept = true;
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/chat');
+    await page.locator('#cw-draft').fill('Подготовь сценарий');
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    await expect(page.locator('.cw-thread')).toContainText('Подготовь сценарий');
+    await expect(page.locator('#cw-draft')).toHaveValue('');
+    await expect(page.locator('.content-feedback[role="alert"]')).toHaveCount(0);
+    expect(state.sends).toHaveLength(1);
+  });
+}
+
+test('Studio keeps the draft if the server has not confirmed acceptance', async ({ page }) => {
   const state = await mockApi(page);
-  state.abortAfterAccept = true;
-  await page.goto('/chat');
+  state.conversations.push(savedConversation());
+  let attempts = 0;
+  await page.route('**/api/conversation/*/message', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    attempts++;
+    await route.abort('failed');
+  });
+  await page.goto('/chat?conversation=101');
   await page.locator('#cw-draft').fill('Подготовь сценарий');
-  await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Проверьте');
+  const button = page.getByRole('button', { name: 'Отправить запрос', exact: true });
+  await expect(button).toBeEnabled();
+  await button.click();
+  await expect(page.getByRole('alert')).toContainText('Не удалось получить ответ от сервера.');
   await expect(page.locator('#cw-draft')).toHaveValue('Подготовь сценарий');
-  await expect(page.locator('.cw-thread')).toContainText('Подготовь сценарий');
-  expect(state.sends).toHaveLength(1);
+  expect(attempts).toBe(1);
+  expect(state.sends).toHaveLength(0);
 });
 
 test('content studio controls keep chevrons clear of labels and match conversation structure', async ({
@@ -3897,14 +3920,37 @@ test('content studio rejects unsupported attachments before upload', async ({ pa
   expect(state.sends).toHaveLength(0);
 });
 
-test('content studio sends sound duration scene structure and quality independently', async ({ page }) => {
+test('mobile Studio video settings keep the stepper and menus apart', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockApi(page);
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Видео', exact: true }).click();
+  await page.getByRole('button', { name: 'Ещё', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Кадр и длина' });
+  const stepper = sheet.getByRole('group', { name: 'Длительность видео' });
+  const sound = sheet.getByRole('button', { name: 'Без звука', exact: true });
+  const scenes = sheet.getByRole('button', { name: 'Один кадр', exact: true });
+  await expect(sound).toBeVisible();
+
+  const durationBox = (await stepper.boundingBox())!;
+  const soundBox = (await sound.boundingBox())!;
+  const scenesBox = (await scenes.boundingBox())!;
+  expect(soundBox.y - durationBox.y - durationBox.height).toBeGreaterThanOrEqual(8);
+  expect(scenesBox.x - soundBox.x - soundBox.width).toBeGreaterThanOrEqual(8);
+
+  await sound.click();
+  await sheet.getByRole('option', { name: 'Со звуком', exact: true }).click();
+  await scenes.click();
+  await sheet.getByRole('option', { name: 'Набор сцен', exact: true }).click();
+  await expect(sheet.getByRole('button', { name: 'Набор сцен', exact: true })).toBeVisible();
+});
+
+test('desktop Studio sends sound, duration, scene structure and aspect ratio independently', async ({
+  page,
+}) => {
   const state = await mockApi(page);
   await page.goto('/chat');
-  await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
-
-  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
-  await page.getByRole('button', { name: /^Качество / }).click();
-  await page.getByRole('option', { name: 'low', exact: true }).click();
   await page.getByRole('button', { name: 'Видео', exact: true }).click();
   await page.getByRole('button', { name: 'Без звука', exact: true }).click();
   await page.getByRole('option', { name: 'Со звуком', exact: true }).click();
@@ -4668,6 +4714,13 @@ test('library picker keeps batch upload status inside its button and explains th
   page,
 }, testInfo) => {
   await mockApi(page);
+  await page.route('**/api/file?*', (route) =>
+    route.fulfill({
+      json: pagination([
+        { ...file, preview: { image: { status: 'READY', width: 450, height: 1000, url: file.path } } },
+      ]),
+    }),
+  );
   let uploads = 0;
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -4700,6 +4753,13 @@ test('library picker keeps batch upload status inside its button and explains th
       await page.setViewportSize({ width, height: 844 });
       await expect(button).toHaveAttribute('aria-busy', 'true');
       await expect(button.locator('.file-upload-count')).toHaveText('4/4');
+      const header = (await picker.locator('.modal-head').boundingBox())!;
+      const searchField = (await picker.locator('.library-search').boundingBox())!;
+      const controls = (await picker.locator('.file-controls').boundingBox())!;
+      expect(controls.y - header.y - header.height).toBeCloseTo(0, 0);
+      expect(searchField.y - header.y - header.height).toBeLessThanOrEqual(16);
+      const card = (await picker.locator('.file-entry').first().boundingBox())!;
+      expect(card.width).toBeGreaterThanOrEqual(140);
       const bounds = await button.boundingBox();
       const status = await button.locator('.upload-button-status').boundingBox();
       const count = await button.locator('.file-upload-count').boundingBox();

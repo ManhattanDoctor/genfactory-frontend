@@ -10,6 +10,7 @@ export function AppUpdateNotice(): ReactElement | null {
   const [available, setAvailable] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
   const updater = useRef<ReturnType<typeof watchAppUpdate> | undefined>(undefined);
   useEffect(() => {
@@ -26,9 +27,16 @@ export function AppUpdateNotice(): ReactElement | null {
     const reload = () => {
       if (isBusy()) {
         setBusy(true);
+        setApplying(false);
+        return;
+      }
+      if (!navigator.onLine) {
+        setError('Соединение прервалось. Повторите обновление, когда интернет появится.');
+        setApplying(false);
         return;
       }
       if (!window.dispatchEvent(new Event('genfactory:before-update', { cancelable: true }))) {
+        setApplying(false);
         setError('Не удалось сохранить черновик. Скопируйте текст перед обновлением.');
         return;
       }
@@ -56,12 +64,18 @@ export function AppUpdateNotice(): ReactElement | null {
           aria-label="Обновить приложение"
           title="Обновить приложение"
           className="button primary"
-          disabled={busy}
-          onClick={() => updater.current?.apply()}
+          disabled={busy || applying}
+          aria-busy={applying}
+          onClick={() => {
+            if (!updater.current) return;
+            setError('');
+            setApplying(true);
+            updater.current.apply();
+          }}
         >
-          {busy ? 'Дождитесь завершения работы' : 'Обновить приложение'}
+          {applying ? 'Обновляем…' : busy ? 'Дождитесь завершения работы' : 'Обновить приложение'}
         </button>
-        <button type="button" className="button" onClick={() => setDismissed(true)}>
+        <button type="button" className="button" disabled={applying} onClick={() => setDismissed(true)}>
           Позже
         </button>
       </div>

@@ -197,7 +197,7 @@
   --title-size: 14px;
 }
 .gf-section-main .library-page .library-grid.asset-feed .file-entry {
-  min-width: 0;
+  min-width: min(100%, 140px);
   overflow: hidden;
 }
 .gf-section-main .library-page .library-grid.asset-feed .library-card {

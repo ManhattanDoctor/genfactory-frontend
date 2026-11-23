@@ -983,24 +983,6 @@
     inset: auto;
     height: 100%;
   }
-  .studio-shell .mobile-generation-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    padding: 10px 12px 0;
-    gap: 6px;
-  }
-  .studio-shell .mobile-generation-controls .cw-stepper {
-    height: 44px;
-  }
-  .studio-shell .mobile-generation-controls :is(.cw-chip, .cw-stepper button) {
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .studio-shell .mobile-generation-controls .cw-model-menu {
-    top: calc(100% + 4px);
-    bottom: auto;
-  }
 }
 
 @media (max-width: 720px) {

@@ -1619,6 +1619,7 @@ export function ContentStudio(): ReactElement {
                       )
                         return;
                       submittedDraft.current = undefined;
+                      work.confirmSubmission();
                       pending.clear();
                     }}
                     onUseParameters={(file) => void restoreResult(file)}

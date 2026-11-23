@@ -13,7 +13,7 @@ import {
   useQueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { api, getSession } from '../../lib/api';
+import { api, getSession, RequestOutcomeError } from '../../lib/api';
 import type {
   IConversation,
   IConversationMessage,
@@ -34,6 +34,7 @@ export interface ContentConversation {
   id: number | undefined;
   conversation: IConversation | undefined;
   isExecutionError: boolean;
+  confirmSubmission: () => void;
   error: string;
   setError: (message: string, isExecution?: boolean) => void;
   busy: boolean;
@@ -57,10 +58,6 @@ export function useContentConversation(): ContentConversation {
   const raw = params.get('conversation');
   const id = raw && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : undefined;
   const client = useQueryClient();
-  const [failure, setFailure] = useState({ message: '', isExecution: false });
-  function setError(message: string, isExecution = false): void {
-    setFailure({ message, isExecution });
-  }
   const [preparing, setPreparing] = useState<object>();
   const lock = useRef<object | undefined>(undefined);
   const route = `${auth.session}:${location.key}:${raw}`;
@@ -77,6 +74,22 @@ export function useContentConversation(): ContentConversation {
   // Own creation keeps its token through intermediate renders and the new route.
   // Any other navigation, including the same URL with another history key, cancels it.
   const active = scope.current.token;
+  const [scopedFailure, setFailure] = useState<{
+    scope: object;
+    message: string;
+    isExecution: boolean;
+    unconfirmed: boolean;
+  }>();
+  const failure = scopedFailure?.scope === active ? scopedFailure : undefined;
+  const submissionConfirmed = useRef(false);
+  function setError(message: string, isExecution = false, unconfirmed = false): void {
+    setFailure(message ? { scope: active, message, isExecution, unconfirmed } : undefined);
+  }
+  function confirmSubmission(): void {
+    submissionConfirmed.current = true;
+    setFailure((value) => (value?.scope === active && value.unconfirmed ? undefined : value));
+  }
+
   useEffect(
     () => () => {
       scope.current.token = {};
@@ -106,13 +119,12 @@ export function useContentConversation(): ContentConversation {
   const send = useMutation({
     mutationKey: ['send-message', auth.user?.id],
     retry: false,
-    mutationFn: ({ id, body, sid }: { id: number; body: IMessageCreate; sid: string; scopeToken: object }) =>
+    mutationFn: ({ id, body, sid }: { id: number; body: IMessageCreate; sid: string }) =>
       api.sendMessage(id, body, sid),
     onSettled: (_data, failure, variables) => {
       if (getSession() !== variables.sid) return;
       if (failure && auth.user)
         conversationQueue(client, auth.user.id, variables.id, variables.sid).pauseAfterFailure();
-      if (failure && scope.current.token === variables.scopeToken) setError(failure.message, true);
       if (!auth.user) return;
       scheduleRefresh(
         client,
@@ -131,9 +143,6 @@ export function useContentConversation(): ContentConversation {
     },
   });
   const busy = preparing === active || pending > 0 || detail.data?.status === 'LOADING';
-  useEffect(() => {
-    setFailure({ message: '', isExecution: false });
-  }, [active]);
   async function submit(
     body: IMessageCreate,
     title: string,
@@ -151,6 +160,7 @@ export function useContentConversation(): ContentConversation {
       setError('Не удалось загрузить модель ассистента.');
       return false;
     }
+    submissionConfirmed.current = false;
     lock.current = active;
     setPreparing(active);
     setError('');
@@ -189,12 +199,13 @@ export function useContentConversation(): ContentConversation {
         setParams({ conversation: String(conversation.id) }, { replace: true });
       }
       sent = true;
-      await send.mutateAsync({ id: conversation.id, body, sid, scopeToken: currentScope });
+      await send.mutateAsync({ id: conversation.id, body, sid });
       return current();
     } catch (e) {
       if (current()) {
         const message = e instanceof Error ? e.message : 'Запрос не выполнен.';
-        setError(message, sent);
+        const unconfirmed = sent && e instanceof RequestOutcomeError;
+        if (!unconfirmed || !submissionConfirmed.current) setError(message, sent, unconfirmed);
       }
       return false;
     } finally {
@@ -211,11 +222,12 @@ export function useContentConversation(): ContentConversation {
   return {
     thread: { page, setPage: (page) => setPagination({ scope: active, page }), messages },
     historyFiles,
+    confirmSubmission,
     scope: active,
     id,
     conversation: detail.data,
-    isExecutionError: !!failure.message && failure.isExecution,
-    error: failure.message || detail.error?.message || (raw && !id ? 'Некорректный адрес беседы.' : ''),
+    isExecutionError: !!failure?.isExecution,
+    error: failure?.message || detail.error?.message || (raw && !id ? 'Некорректный адрес беседы.' : ''),
     setError,
     busy,
     queue:

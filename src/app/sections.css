@@ -2091,6 +2091,20 @@ dialog.modal:is(.account-topup, .folder-create-dialog, .file-move-dialog) {
     letter-spacing: 0.02em;
     text-transform: uppercase;
   }
+  .design-image-settings .mobile-generation-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .design-image-settings .mobile-generation-controls .video-duration-control {
+    margin: 0;
+  }
+  .design-image-settings .mobile-generation-controls :is(.cw-chip, .cw-stepper button) {
+    min-width: 44px;
+    min-height: 44px;
+  }
   .design-image-settings::before {
     content: '';
     display: block;

@@ -122,6 +122,32 @@ test('production worker updates on demand, preserves draft and never resends a r
   expect(writes()).toBe(0);
   expect(await page.evaluate(() => caches.keys())).toEqual([]);
 });
+test('a missing worker activation notification falls back to reload and preserves the draft', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    navigator.serviceWorker.addEventListener('controllerchange', (event) => {
+      if (sessionStorage.getItem('test-skip-controller-notification')) {
+        sessionStorage.removeItem('test-skip-controller-notification');
+        event.stopImmediatePropagation();
+      }
+    });
+  });
+  const writes = await setup(page, false, '/chat');
+  const draft = page.getByLabel('Запрос', { exact: true });
+  await draft.fill('Сохранить черновик при задержке обновления');
+  await release(page);
+  await page.evaluate(() => sessionStorage.setItem('test-skip-controller-notification', 'true'));
+  const button = page.getByRole('button', { name: 'Обновить приложение' });
+  const navigation = page.waitForEvent('load');
+  await button.click();
+  await expect(button).toHaveAttribute('aria-busy', 'true');
+  await navigation;
+  await expect(draft).toHaveValue('Сохранить черновик при задержке обновления');
+  await expect(button).toHaveCount(0);
+  expect(writes()).toBe(0);
+});
+
 test('update is disabled while a server generation is running', async ({ page }) => {
   await setup(page, true);
   await release(page);
