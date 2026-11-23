@@ -54,8 +54,8 @@ export function ModelPickerList({
   const firstOther = matches.find((item) => !favorites?.includes(item.id))?.id;
   return (
     <div className={onClose ? 'gf-model-list composer-model-list' : 'gf-model-list'}>
-      <div className={onClose ? 'image-model-head' : undefined} hidden={!searchable && !onClose}>
-        {searchable && (
+      {searchable && (
+        <div className="image-model-head">
           <input
             type="search"
             className="gf-model-search"
@@ -64,13 +64,13 @@ export function ModelPickerList({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-        )}
-        {onClose && (
-          <button type="button" className="image-model-close" aria-label="Закрыть" onClick={onClose}>
-            ×
-          </button>
-        )}
-      </div>
+          {onClose && (
+            <button type="button" className="image-model-close" aria-label="Закрыть" onClick={onClose}>
+              ×
+            </button>
+          )}
+        </div>
+      )}
       {matches.map(({ id, title, summary, tags }) => {
         // The part before ":" identifies the adapter, which can serve multiple brands.
         const model = id.slice(id.indexOf(':') + 1);
@@ -136,9 +136,9 @@ export function ModelPickerList({
                     <Heart size={onClose ? 18 : 16} fill={favorite ? 'currentColor' : 'none'} />
                   </button>
                 )}
-                {onClose && (
+                {onClose && selected === id && (
                   <span aria-hidden="true" className="gf-model-check">
-                    {selected === id && <Check size={12} />}
+                    <Check size={12} />
                   </span>
                 )}
                 {onInfo && (

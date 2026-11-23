@@ -126,7 +126,11 @@ export function DesignFeed({
           ))}
         </div>
       </div>
-      <div ref={wall} className="wall" role="tabpanel">
+      <div
+        ref={wall}
+        className={kind === 'video' && tab === 'templates' ? 'wall video-template-wall' : 'wall'}
+        role="tabpanel"
+      >
         {children}
         {cards
           .filter((c) => !hidden.includes(c.id))

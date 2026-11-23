@@ -3607,7 +3607,10 @@ test(
     await page.getByRole('tab', { name: 'Настройки', exact: true }).click();
 
     await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
-    await page.getByRole('option', { name: '1:1', exact: true }).click();
+    await page
+      .getByRole('group', { name: 'Соотношение сторон' })
+      .getByRole('button', { name: '1:1', exact: true })
+      .click();
     await page.locator('#cw-draft').fill('Чашка на белом фоне');
     await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
     await expect.poll(() => state.sends.length).toBe(1);
@@ -3811,7 +3814,10 @@ test('content studio template is a recipe and selected format stays in structure
   await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
   await selectLibraryFile(page, 'Test result');
   await page.getByRole('button', { name: 'Стороны: 1:1', exact: true }).click();
-  await page.getByRole('option', { name: '2:3', exact: true }).click();
+  await page
+    .getByRole('group', { name: 'Соотношение сторон' })
+    .getByRole('button', { name: '2:3', exact: true })
+    .click();
   await expect(page.locator('#cw-draft')).toHaveValue(/Красная чашка/);
   expect(state.sends).toHaveLength(0);
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
@@ -3899,7 +3905,10 @@ test('content studio sends sound duration scene structure and quality independen
   await page.getByRole('option', { name: 'Набор сцен', exact: true }).click();
   await page.getByRole('button', { name: 'Длиннее', exact: true }).click();
   await page.getByRole('button', { name: 'Стороны: 9:16', exact: true }).click();
-  await page.getByRole('option', { name: '16:9', exact: true }).click();
+  await page
+    .getByRole('group', { name: 'Соотношение сторон' })
+    .getByRole('button', { name: '16:9', exact: true })
+    .click();
   await page.locator('#cw-draft').fill('Ролик с несколькими сценами');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => state.sends.length).toBe(1);

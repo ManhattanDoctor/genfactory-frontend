@@ -1,6 +1,6 @@
 import { VideoDuration } from '../../components/VideoDuration';
 import { Dialog, Modal } from '../../components/Modal';
-import { ImageAspectGrid } from '../studio/ImageAspectGrid';
+import { ImageAspectGrid, ImageAspectPicker } from '../studio/ImageAspectGrid';
 import { StudioQueuePanel } from './StudioQueuePanel';
 import { AppliedTemplate } from '../../components/AppliedTemplate';
 import { MediaModelPicker } from '../catalog/MediaModelPicker';
@@ -1238,13 +1238,24 @@ export function ContentStudio(): ReactElement {
         </>
       )}
       {!mobile && mode !== 'presentation' && ratioOptions.length > 0 && (
-        <StudioMenu
+        <ImageAspectPicker
           disabled={busy || referenceRatio}
-          label={referenceRatio ? 'По исходному кадру' : effectiveRatio}
-          ariaLabel={`Стороны: ${referenceRatio ? 'по исходному кадру' : effectiveRatio}`}
-          options={ratioOptions}
-          onSelect={setRatio}
-        />
+          value={effectiveRatio}
+          referenceRatio={referenceRatio}
+          label={`Стороны: ${referenceRatio ? 'по исходному кадру' : effectiveRatio}`}
+        >
+          {(close) => (
+            <ImageAspectGrid
+              values={ratioOptions}
+              selected={effectiveRatio}
+              disabled={busy || referenceRatio}
+              onSelect={(value) => {
+                setRatio(value);
+                close();
+              }}
+            />
+          )}
+        </ImageAspectPicker>
       )}
     </>
   );

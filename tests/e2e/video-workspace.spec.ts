@@ -300,6 +300,47 @@ for (const width of [390, 1440])
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
+test('video model search appears from six models and stays opaque while scrolling', async ({ page }) => {
+  await setup(page);
+  await page.setViewportSize({ width: 390, height: 540 });
+  const allModels = Array.from({ length: 6 }, (_, index) => {
+    const model = catalog[index % catalog.length];
+    return {
+      ...model,
+      name: `Video model ${index + 1}`,
+      reference: { ...model.reference, model: `test/video-model-${index + 1}` },
+    };
+  });
+  let models = allModels.slice(0, 5);
+  await page.route('**/api/aimodels?*', (route) =>
+    catalogProvider(route.request().url()) === 'OPEN_ROUTER_VIDEO'
+      ? route.fulfill({ json: catalogPage(models) })
+      : route.fallback(),
+  );
+  const trigger = page.getByRole('button', { name: 'Модель', exact: true });
+  const picker = page.getByRole('listbox', { name: 'Модель', exact: true });
+  const search = picker.getByRole('searchbox', { name: 'Поиск моделей' });
+  const header = picker.locator('.image-model-head');
+  await page.goto('/video');
+  await trigger.click();
+  await expect(picker.getByRole('option')).toHaveCount(5);
+  await expect(header).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(picker).toBeHidden();
+
+  models = allModels;
+  await page.reload();
+  await trigger.click();
+  await expect(picker.getByRole('option')).toHaveCount(6);
+  await expect(search).toBeVisible();
+  await expect(header).toHaveCSS('background-color', 'rgb(18, 18, 22)');
+  await picker.evaluate((element) => (element.scrollTop = element.scrollHeight));
+  expect(await picker.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(search).toBeInViewport();
+  await search.fill(models[0].reference.model);
+  await expect(picker.getByRole('option')).toHaveCount(1);
+});
+
 test('video model information closes with Escape', async ({ page }) => {
   await setup(page);
   await page.goto('/video');

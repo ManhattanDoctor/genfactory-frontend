@@ -1036,6 +1036,8 @@
   }
   .studio-model-sheet :is(.gf-model-row button, .modal-head-actions > button) {
     min-height: 44px;
+  }
+  .studio-model-sheet .modal-head-actions > button {
     min-width: 44px;
   }
 }

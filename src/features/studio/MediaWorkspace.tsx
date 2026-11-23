@@ -1,6 +1,6 @@
 import { MessageAction } from '../../components/MessageAction';
 import { VideoDuration } from '../../components/VideoDuration';
-import { AspectShape, ImageAspectGrid } from './ImageAspectGrid';
+import { ImageAspectGrid, ImageAspectPicker } from './ImageAspectGrid';
 import { DesignFeed, feeds, type FeedCard, type FeedTab } from './DesignFeed';
 import {
   prepareComposerTemplate,
@@ -743,15 +743,14 @@ export function MediaWorkspace({
       </SelectControl>
     </label>
   );
-  const aspectGrid = (
+  const aspectGrid = (close: () => void) => (
     <ImageAspectGrid
       values={ratios}
       selected={ratio}
       disabled={!!busy || !!referenceRatio}
       onSelect={(value) => {
         chooseRatio(value);
-        setSettingsOpen(false);
-        dock.current?.querySelector<HTMLElement>('.image-aspect-popup:popover-open')?.hidePopover();
+        close();
       }}
     />
   );
@@ -1087,34 +1086,17 @@ export function MediaWorkspace({
                 </button>
               )}
             {!compactTools && mediaComposer && (video || ratios.length > 0 || quality.length > 0) && (
-              <>
-                <button
-                  type="button"
-                  className="cw-chip image-aspect-trigger"
-                  aria-label="Стороны"
-                  title="Стороны"
-                  aria-haspopup="dialog"
-                  popoverTarget="image-aspect-popup"
-                  disabled={busy}
-                >
-                  <AspectShape value={ratio} />
-                  {referenceRatio ? 'По исходному кадру' : ratio || 'Стороны'}
-                </button>
-                <div
-                  id="image-aspect-popup"
-                  className="image-aspect-popup"
-                  popover="auto"
-                  role="dialog"
-                  aria-label="Стороны"
-                >
-                  <div className="aspect-title">Какой кадр нужен</div>
-                  {aspectGrid}
-                  {qualityField}
-                  {video && resolutionSetting}
-                  {video && shapeSetting}
-                  {limits && <p className="video-model-limits">{limits}</p>}
-                </div>
-              </>
+              <ImageAspectPicker value={ratio} referenceRatio={!!referenceRatio} disabled={busy}>
+                {(close) => (
+                  <>
+                    {aspectGrid(close)}
+                    {qualityField}
+                    {video && resolutionSetting}
+                    {video && shapeSetting}
+                    {limits && <p className="video-model-limits">{limits}</p>}
+                  </>
+                )}
+              </ImageAspectPicker>
             )}
             {!mediaComposer && !compactTools && (!!ratios.length || banana) && (
               <ImageMenu
@@ -1204,7 +1186,7 @@ export function MediaWorkspace({
           onClose={() => setSettingsOpen(false)}
         >
           {video && <p className="aspect-title">Размер кадра</p>}
-          {mediaComposer && aspectGrid}
+          {mediaComposer && aspectGrid(() => setSettingsOpen(false))}
           {!mediaComposer && ratios.length > 0 && (
             <label className="setting-field">
               <span>Соотношение сторон</span>

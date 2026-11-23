@@ -201,12 +201,26 @@
   display: none;
 }
 
+.image-model-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  background: #121216;
+}
+.image-model-head .gf-model-search {
+  flex: 1;
+  min-width: 0;
+}
+
 .composer-model-list {
   gap: 2px;
   font-family: var(--gf-font);
 }
 .composer-model-list .image-model-head {
-  margin-bottom: 8px;
   padding-inline: 2px;
 }
 .composer-model-list .image-model-close {
@@ -219,7 +233,7 @@
 }
 .composer-model-list .gf-model-row {
   gap: 12px;
-  padding: 12px 10px;
+  padding: 12px 4px 12px 10px;
   border-radius: 12px;
   color: var(--gf-text);
 }
@@ -271,11 +285,12 @@
 }
 .composer-model-list .gf-model-actions > button {
   box-sizing: border-box;
-  flex: 0 0 40px;
+  flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
+  width: 32px;
   height: 40px;
+  padding: 0;
   border-radius: 10px;
   color: var(--gf-text-3);
 }

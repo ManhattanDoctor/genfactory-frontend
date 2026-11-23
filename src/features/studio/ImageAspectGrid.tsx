@@ -1,3 +1,5 @@
+import { useId, useRef, type ReactNode } from 'react';
+
 const shapes: Record<string, [string, number, number]> = {
   '1:1': ['Квадрат', 18, 18],
   '4:5': ['Портрет', 15, 19],
@@ -57,5 +59,49 @@ export function ImageAspectGrid({
         </button>
       ))}
     </div>
+  );
+}
+
+export function ImageAspectPicker({
+  value,
+  referenceRatio,
+  disabled,
+  label = 'Стороны',
+  children,
+}: {
+  value: string;
+  referenceRatio: boolean;
+  disabled: boolean;
+  label?: string;
+  children: (close: () => void) => ReactNode;
+}) {
+  const id = useId();
+  const popup = useRef<HTMLDivElement>(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="cw-chip image-aspect-trigger"
+        aria-label={label}
+        title="Стороны"
+        aria-haspopup="dialog"
+        popoverTarget={id}
+        disabled={disabled}
+      >
+        <AspectShape value={value} />
+        {referenceRatio ? 'По исходному кадру' : value || 'Стороны'}
+      </button>
+      <div
+        ref={popup}
+        id={id}
+        className="image-aspect-popup"
+        popover="auto"
+        role="dialog"
+        aria-label="Стороны"
+      >
+        <div className="aspect-title">Какой кадр нужен</div>
+        {children(() => popup.current?.hidePopover())}
+      </div>
+    </>
   );
 }
