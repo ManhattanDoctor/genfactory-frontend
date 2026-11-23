@@ -151,7 +151,7 @@
   background: #34353b;
 }
 .file-generation :is(button, a):focus-visible {
-  outline: 2px solid #d1fe17;
+  outline: 1px solid var(--focus-border);
   outline-offset: 2px;
 }
 @media (max-width: 540px) {

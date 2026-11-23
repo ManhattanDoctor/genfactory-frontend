@@ -7,6 +7,7 @@ import { HomeShell } from './home/HomeNavigation';
 import './sections.css';
 import { Home } from './Home';
 import { Company } from './Company';
+import { SignInRequired } from '../features/auth/SignInRequired';
 const ContentStudio = lazy(() =>
   import('../features/content-studio/ContentStudio').then((m) => ({ default: m.ContentStudio })),
 );
@@ -32,6 +33,8 @@ import { useAuth } from '../features/auth/AuthProvider';
 const AuthCallback = lazy(() =>
   import('../features/auth/AuthCallback').then((m) => ({ default: m.AuthCallback })),
 );
+const privatePaths = new Set(['/artifacts', '/library', '/account', '/history']);
+
 export function App(): ReactElement {
   const auth = useAuth();
   const location = useLocation();
@@ -72,6 +75,7 @@ export function App(): ReactElement {
         </Link>
       </div>,
     ];
+  const page = privatePaths.has(path) && !auth.user ? <SignInRequired title={title} /> : content;
   return (
     <>
       <HomeShell title={title}>
@@ -83,11 +87,11 @@ export function App(): ReactElement {
           }
         >
           {section ? (
-            content
+            page
           ) : (
             <div className="studio-shell editor-section">
               <div className="route-view" key={path}>
-                {content}
+                {page}
               </div>
             </div>
           )}

@@ -190,7 +190,7 @@
   background: #d1fe17;
 }
 .image-workspace .img-tile:focus-visible {
-  outline: 2px solid #d1fe17;
+  outline: 1px solid var(--focus-border);
   border-radius: 16px;
   outline-offset: 2px;
 }
@@ -215,7 +215,7 @@
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow:
     0 22px 56px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(209, 254, 23, 0.28);
+    var(--focus-shadow);
 }
 .image-workspace .cw-field {
   min-width: 0;
@@ -673,7 +673,7 @@
   background: #2a2b30;
 }
 .image-workspace .image-model-row:focus-visible {
-  outline: 1px solid #d1fe17;
+  outline: 1px solid var(--focus-border);
 }
 .image-workspace .image-model-copy {
   min-width: 0;

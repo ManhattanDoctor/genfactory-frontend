@@ -40,7 +40,7 @@
   border-color: #404046;
 }
 .jobs-modal .job-card:focus-visible {
-  outline: 2px solid #8b8b94;
+  outline: 1px solid var(--focus-border);
   outline-offset: -2px;
 }
 .jobs-modal .job-card-preview {

@@ -41,9 +41,11 @@ export function ModelDigest({
         </div>
         <div className="gf-detail-body">
           <div className="gf-detail-gallery">
-            {detail.gallery.map((src) => (
-              <img key={src} src={src} alt="" loading="lazy" />
-            ))}
+            <div className="gf-detail-gallery-columns">
+              {detail.gallery.map((src) => (
+                <img key={src} src={src} alt="" loading="lazy" />
+              ))}
+            </div>
           </div>
           <div className="gf-detail-copy">
             <p className="gf-detail-verdict">{detail.verdict}</p>

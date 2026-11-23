@@ -146,7 +146,10 @@ export function ModelPickerList({
                     type="button"
                     aria-label={'О модели ' + title}
                     title={'О модели ' + title}
-                    onClick={() => onInfo(id)}
+                    onClick={(event) => {
+                      event.currentTarget.focus({ preventScroll: true });
+                      onInfo(id);
+                    }}
                   >
                     {onClose ? 'i' : <Info size={16} />}
                   </button>

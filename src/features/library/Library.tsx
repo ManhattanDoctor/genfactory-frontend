@@ -17,7 +17,7 @@ export function Library() {
   return (
     <div className="page-content page-enter library-page">
       <h1 className="sr-only">Библиотека</h1>
-      {auth.user ? (
+      {auth.user && (
         <FileBrowser
           layout="page"
           key={`${auth.user.id}:${location.key}`}
@@ -28,13 +28,6 @@ export function Library() {
             setGallery(files);
           }}
         />
-      ) : (
-        <div className="empty-state">
-          <p>Войдите, чтобы открыть библиотеку.</p>
-          <button className="button primary" onClick={() => void auth.signIn()}>
-            Войти в аккаунт
-          </button>
-        </div>
       )}
       {auth.user && preview && (
         <MediaPreview

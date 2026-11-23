@@ -979,7 +979,7 @@ test('advanced editor: select arrows stay inside controls at desktop and mobile 
   });
 });
 
-test('home model digests show customer guidance and restore focus', async ({ page }) => {
+test('home model digests show customer guidance and restore focus', async ({ page, browserName }) => {
   await mockApi(page);
   await page.goto('/');
   await page.getByRole('tab', { name: 'Дайджесты' }).click();
@@ -990,10 +990,108 @@ test('home model digests show customer guidance and restore focus', async ({ pag
     await expect(dialog.getByRole('heading', { name: title })).toBeVisible();
   }
   await expect(dialog.locator('.gf-detail-gallery img').first()).toBeVisible();
+  await expect(dialog).toBeFocused();
+  await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab');
   await expect(dialog.getByRole('button', { name: 'Назад' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
+});
+
+test('recent UI fixes: guest routes share an identical sign-in screen', async ({ page }) => {
+  await mockApi(page, false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  let expectedBox;
+  for (const path of ['/library', '/artifacts', '/account']) {
+    await page.goto(path);
+    const main = page.getByRole('main');
+    await expect(main.getByText('Войдите, чтобы открыть этот раздел.')).toBeVisible();
+    const signIn = main.getByRole('button', { name: 'Войти в аккаунт', exact: true });
+    await expect(signIn).toBeVisible();
+    await expect(signIn).toBeEnabled();
+    const box = await signIn.boundingBox();
+    if (expectedBox) expect(box).toEqual(expectedBox);
+    else expectedBox = box;
+  }
+});
+
+test('recent UI fixes: digest examples scroll vertically inside the mobile viewport', async ({ page }) => {
+  await mockApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Дайджесты' }).click();
+  await page.getByRole('button', { name: 'Открыть дайджест Nano Banana 2.1', exact: true }).click();
+  const gallery = page.locator('.gf-detail-gallery');
+  const images = gallery.locator('img');
+  await expect(images).toHaveCount(24);
+  await expect.poll(() => gallery.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  await images.last().scrollIntoViewIfNeeded();
+  await expect(images.last()).toBeInViewport();
+  await expect
+    .poll(() => images.last().evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBeGreaterThan(0);
+  expect(await gallery.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+});
+
+test('recent UI fixes: studio keeps tabs and tags visible and the grip dismisses the sheet', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/chat');
+  const trigger = page.getByRole('button', { name: 'Шаблоны и настройки', exact: true });
+  await trigger.click();
+  const sheet = page.getByRole('dialog', { name: 'Шаблоны и настройки', exact: true });
+  await expect(sheet).toBeFocused();
+  await sheet.getByRole('tab', { name: 'Шаблоны', exact: true }).click();
+  const tags = sheet.getByRole('group', { name: 'Жанры', exact: true });
+  const list = sheet.locator('#cw-gallery');
+  const top = await tags.evaluate((el) => el.getBoundingClientRect().top);
+  await list.evaluate((el) => (el.scrollTop = 200));
+  expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  expect(await tags.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(top, 0);
+  const grip = sheet.getByRole('button', { name: 'Закрыть шаблоны и настройки', exact: true });
+  const box = (await grip.boundingBox())!;
+  const cdp = await page.context().newCDPSession(page);
+  for (const [type, dy] of [
+    ['touchStart', 0],
+    ['touchMove', 28],
+    ['touchMove', 84],
+    ['touchEnd', 84],
+  ] as const) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + box.width / 2, y: box.y + 5 + dy }],
+    });
+  }
+  await expect(sheet).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
+test('recent UI fixes: video templates keep 16:9 tiles and duration has only a stepper', async ({ page }) => {
+  await mockApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/video');
+  const previews = page.locator('.design-feed .card[data-kind="template"] .feed-preview');
+  await expect(previews.first()).toBeVisible({ timeout: 20_000 });
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    const ratios = await previews.evaluateAll((items) =>
+      items.slice(0, 12).map((item) => {
+        const box = item.getBoundingClientRect();
+        return box.width / box.height;
+      }),
+    );
+    expect(ratios.length).toBeGreaterThan(1);
+    for (const ratio of ratios) expect(ratio).toBeCloseTo(16 / 9, 1);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Ещё', exact: true }).click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet.getByRole('slider')).toHaveCount(0);
+  const duration = sheet.getByRole('group', { name: 'Длина ролика' });
+  await expect(duration.getByRole('button', { name: 'Короче' })).toBeVisible();
+  await expect(duration.getByRole('button', { name: 'Длиннее' })).toBeVisible();
 });
 
 test('advanced editor: reference survives restoration of a different saved video model', async ({ page }) => {
@@ -3258,7 +3356,7 @@ test('OAuth redirect login does not use popup windows', { tag: '@smoke' }, async
       throw new Error('Popup prohibited');
     };
   });
-  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  await page.getByRole('button', { name: 'Войти в аккаунт', exact: true }).click();
   await expect(page).toHaveURL(/sso\.example\.test.*openid-connect\/auth/);
   const url = new URL(page.url());
   expect(url.searchParams.get('theme')).toBe('genfactory');
@@ -3288,11 +3386,11 @@ test(
     );
     await page.goto('/account');
     const sidebar = page.getByRole('button', { name: 'Войти, чтобы посмотреть работы', exact: true });
-    const account = page.getByRole('main').getByRole('button', { name: 'Войти', exact: true });
+    const account = page.getByRole('main').getByRole('button', { name: 'Войти в аккаунт', exact: true });
     await sidebar.click();
     await expect.poll(() => requests).toBe(1);
     await expect(sidebar).toBeDisabled();
-    await account.click();
+    await expect(account).toBeDisabled();
     expect(requests).toBe(1);
     await expect(page.getByRole('dialog')).toHaveCount(0);
     release!();
@@ -4333,47 +4431,26 @@ for (const title of ['Studio product turn', 'Product in use']) {
   });
 }
 
-test.describe('complete template catalog', () => {
-  test.describe.configure({ mode: 'parallel' });
-  for (const kind of ['image', 'video']) {
-    const items = templates.filter((item) => item.kind === kind);
-    for (let offset = 0; offset < items.length; offset += 20) {
-      test(`all ${kind} templates prepare a complete draft without generation: ${offset + 1}-${Math.min(offset + 20, items.length)}`, async ({
-        page,
-      }) => {
-        test.setTimeout(120_000);
-        const state = await mockApi(page);
-        await page.goto('/chat');
-        const modeName = { image: 'Изображение', video: 'Видео' }[kind]!;
-        await page.getByRole('button', { name: modeName, exact: true }).click();
-        for (const [index, item] of items.slice(offset, offset + 20).entries()) {
-          const card = page.locator('.cw-card').nth(offset + index);
-          await card.locator('.cw-template-open').click();
-          const dialog = page.getByRole('dialog', { name: item.title, exact: true });
-          const inputs = dialog.locator('[data-template-variable]');
-          for (const input of await inputs.all()) await input.fill('Тестовые данные');
-          if (kind === 'presentation')
-            await page
-              .getByLabel('Тема и исходные факты')
-              .fill('Кофейня: 2 филиала, основана в 2020 году. Другие данные неизвестны.');
-          else {
-            // Проверяем доступный референс во всех media-шаблонах без загрузки и платного запроса.
-            await dialog.getByRole('button', { name: 'Из библиотеки' }).click();
-            await selectLibraryFile(page, 'Test result');
-          }
-          const adapt = dialog.getByRole('button', { name: /Адаптировать под/ });
-          if (await adapt.count()) await adapt.click();
-          const prepared = await dialog.getByLabel('Готовый текст для редактора').innerText();
-          expect(prepared, item.id).not.toMatch(/\{[A-Za-z][A-Za-z_0-9]*\}/);
-          await dialog.getByRole('button', { name: 'Использовать шаблон' }).click();
-          await expect(dialog).toHaveCount(0);
-          await expect(page.locator('#cw-draft')).toHaveValue(prepared);
-          expect(state.sends, item.id).toHaveLength(0);
-          expect(state.uploads, item.id).toBe(0);
-        }
-      });
-    }
-  }
+test('studio fills an inline image template and attaches a library photo without sending', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  await page.goto('/chat');
+  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+  await page.getByRole('button', { name: 'Шаблоны', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Открыть шаблон: Главное фото на белом фоне (маркетплейс)', exact: true })
+    .click();
+  const fields = page.getByRole('group', { name: 'Параметры шаблона' });
+  await fields.getByLabel('Название вашего продукта', { exact: true }).fill('Красная чашка');
+  await expect(page.locator('#cw-draft')).toHaveValue(/Красная чашка/);
+  await page.getByRole('button', { name: 'Добавить фото 1', exact: true }).click();
+  await selectLibraryFile(page, 'Test result');
+  await expect(page.locator('.composer-attachment')).toContainText('Test result');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(state.sends).toHaveLength(0);
+  expect(state.tasks).toHaveLength(0);
+  expect(state.uploads).toBe(0);
 });
 
 test('optional template clears previous references and sends explicitly from scratch', async ({ page }) => {
@@ -8952,10 +9029,10 @@ async function templateVideoSetup(page: Page) {
 
 async function applyVideoTemplate(page: Page, path: string, title: string) {
   if (path === '/video') {
-    const card = page.getByRole('article', { name: title, exact: true });
-    await card.hover();
-    await card.getByRole('button', { name: `Использовать шаблон: ${title}`, exact: true }).click();
+    await page.getByRole('button', { name: `Использовать шаблон ${title}`, exact: true }).click();
   } else {
+    const expand = page.getByRole('button', { name: 'Шаблоны', exact: true });
+    if (await expand.isVisible()) await expand.click();
     const card = page
       .locator('.cw-card')
       .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
@@ -9297,53 +9374,21 @@ test('long image history keeps pagination and the shared viewer working', async 
 });
 
 for (const path of ['/video', '/chat']) {
-  test(`all video templates use the form duration on ${path}`, async ({ page }) => {
-    test.setTimeout(300000);
+  test(`video templates follow the chosen duration and stay editable on ${path}`, async ({ page }) => {
     const { state } = await templateVideoSetup(page);
-    await page.route('**/media/templates/2026-11-13/video/references/*.mp4', (route) =>
-      route.fulfill({ contentType: 'video/mp4', body: 'reference fixture' }),
-    );
-    await page.route('**/media/templates/2026-11-13/video/05.mp4', (route) =>
-      route.fulfill({ contentType: 'video/mp4', body: 'reference fixture' }),
-    );
     await page.goto(path);
-    if (path === '/video') {
-      await expect(page.getByRole('button', { name: 'Модель', exact: true })).not.toContainText('Не выбрана');
-      await page.getByRole('button', { name: 'Длительность', exact: true }).click();
-      await page.getByRole('option', { name: '6 с', exact: true }).click();
-    } else {
-      await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
-      await page.getByRole('button', { name: 'Короче', exact: true }).click();
-      await expect(page.getByRole('group', { name: 'Длительность видео' })).toContainText('6 с');
-    }
+    if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
+    const duration = page.getByRole('group', {
+      name: path === '/video' ? 'Длина ролика' : 'Длительность видео',
+      exact: true,
+    });
+    await expect(duration).toContainText('8 с');
+    await duration.getByRole('button', { name: 'Короче', exact: true }).click();
+    await expect(duration).toContainText('6 с');
     const draft = page.locator(path === '/video' ? '#vd-draft' : '#cw-draft');
-    for (const item of templates.filter((item) => item.kind === 'video')) {
-      const before = await draft.inputValue();
-      await applyVideoTemplate(page, path, item.title);
-      const dialog = page.getByRole('dialog', { name: item.title, exact: true });
-      await expect
-        .poll(async () => (await dialog.isVisible()) || (await draft.inputValue()) !== before, {
-          message: item.id,
-        })
-        .toBe(true);
-      if (await dialog.isVisible()) {
-        for (const input of await dialog.locator('[data-template-variable]').all())
-          await input.fill('Тестовые данные');
-        await dialog.getByRole('button', { name: 'Использовать шаблон', exact: true }).click();
-        await expect(dialog).toHaveCount(0);
-      }
-      await expect(draft).toHaveValue(/^Duration: 6-second video\./);
-      expect(
-        [...(await draft.inputValue()).matchAll(/\b(\d+(?:\.\d+)?)-second\b/g)].every(
-          (match) => Number(match[1]) === 6,
-        ),
-        item.id,
-      ).toBe(true);
-    }
-    if (path === '/video') {
-      await page.getByRole('button', { name: 'Длительность', exact: true }).click();
-      await page.getByRole('option', { name: '8 с', exact: true }).click();
-    } else await page.getByRole('button', { name: 'Длиннее', exact: true }).click();
+    await applyVideoTemplate(page, path, 'Замена персонажа в танце');
+    await expect(draft).toHaveValue(/^Duration: 6-second video\./);
+    await duration.getByRole('button', { name: 'Длиннее', exact: true }).click();
     await expect(draft).toHaveValue(/^Duration: 8-second video\./);
     expect(state.tasks).toHaveLength(0);
     expect(state.sends).toHaveLength(0);

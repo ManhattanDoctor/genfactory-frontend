@@ -15,8 +15,8 @@
   color: #8e8e86;
 }
 .library-search:focus-within {
-  border-color: rgba(221, 249, 74, 0.35);
-  box-shadow: 0 0 0 1px rgba(221, 249, 74, 0.15);
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-shadow);
 }
 :is(.file-controls, .library-toolbar) .library-search > input {
   flex: 1;

@@ -21,7 +21,7 @@ import '../studio/history.css';
 import './artifacts.css';
 
 export function Artifacts(): ReactElement {
-  const { user, session, signIn } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const cache = useQueryClient();
   const [editing, setEditing] = useState<IConversationArtifact>();
@@ -151,14 +151,7 @@ export function Artifacts(): ReactElement {
   return (
     <div className="page-content page-enter work-history library-page artifacts-page">
       <h1 className="sr-only">История</h1>
-      {!user ? (
-        <div className="empty-state">
-          <p>Войдите, чтобы открыть историю.</p>
-          <button className="button primary" onClick={() => void signIn()}>
-            Войти в аккаунт
-          </button>
-        </div>
-      ) : (
+      {user && (
         <>
           <div className="library-toolbar">
             <div className="chips" aria-label="Тип записей истории">

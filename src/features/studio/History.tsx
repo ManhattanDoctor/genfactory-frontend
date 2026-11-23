@@ -193,14 +193,7 @@ export function History(): ReactElement {
     <div className="page-content work-history" ref={historyRoot}>
       <h1 className="sr-only">Беседы</h1>
       {preview && <MediaPreview file={preview} files={[preview]} onClose={() => setPreview(undefined)} />}
-      {!auth.user ? (
-        <div className="empty-state">
-          <p>Войдите, чтобы открыть беседы.</p>
-          <button className="button primary" onClick={() => void auth.signIn()}>
-            Войти
-          </button>
-        </div>
-      ) : (
+      {auth.user && (
         <>
           <div className="library-toolbar">
             <div className="chips">

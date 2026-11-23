@@ -1,6 +1,15 @@
 .gf-section-main .design-media-composer .feed-template-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   padding: 0;
-  display: block;
+}
+.gf-section-main
+  .design-media-composer
+  .feed-template-fields
+  > :is(.feed-template-chips, .img-files, .video-template-hint) {
+  margin-block: 0;
+  padding-block: 0;
 }
 .feed-template-chips {
   display: flex;

@@ -866,20 +866,14 @@
   padding-bottom: var(--pagination-space);
 }
 
-/* Shared brighter glow for the focused composer and template attachment hint. */
-.studio-shell {
-  --composer-focus-glow:
-    0 0 0 1px rgba(209, 254, 23, 0.65), 0 0 8px rgba(209, 254, 23, 0.16), 0 0 18px rgba(209, 254, 23, 0.08);
-}
-.studio-shell .image-workspace .img-dock:focus-within,
 .studio-shell .image-workspace .cw-plus.needs-template-images:not(:disabled),
-.studio-shell .content-studio .studio-compose:focus-within,
-.studio-shell .content-studio #creatives .cw-compose:focus-within,
 .studio-shell .content-studio .cw-plus.needs-template-images:not(:disabled) {
   border-color: rgba(209, 254, 23, 0.5);
   box-shadow:
     0 16px 32px rgba(0, 0, 0, 0.28),
-    var(--composer-focus-glow);
+    0 0 0 1px rgba(209, 254, 23, 0.65),
+    0 0 8px rgba(209, 254, 23, 0.16),
+    0 0 18px rgba(209, 254, 23, 0.08);
   animation: none;
 }
 

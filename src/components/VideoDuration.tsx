@@ -41,27 +41,5 @@ export function VideoDuration({
       </button>
     </div>
   );
-  return mobile ? (
-    <div className="video-duration-control">
-      <p className="aspect-title">Длина ролика</p>
-      {stepper}
-      {durations.length > 1 && (
-        <>
-          <input
-            type="range"
-            aria-label="Длина ролика в секундах"
-            aria-valuetext={selected + ' с'}
-            disabled={disabled}
-            min={0}
-            max={durations.length - 1}
-            value={Math.max(0, durations.indexOf(selected))}
-            onChange={(e) => onChange(durations[e.target.valueAsNumber])}
-          />
-          <small>{durations.join(' · ')} с</small>
-        </>
-      )}
-    </div>
-  ) : (
-    stepper
-  );
+  return mobile ? <div className="video-duration-control">{stepper}</div> : stepper;
 }

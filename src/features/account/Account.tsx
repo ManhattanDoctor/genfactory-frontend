@@ -3,7 +3,7 @@ import './account.css';
 import { BalanceHistory } from './BalanceHistory';
 import { formatBalance, currencyLabel } from '../../lib/money';
 import { useEffect, useState } from 'react';
-import { Plus, UserRound, RefreshCw, LogOut } from 'lucide-react';
+import { Plus, RefreshCw, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { Modal, ModalFooter } from '../../components/Modal';
 export function Account(): ReactElement {
@@ -29,7 +29,7 @@ export function Account(): ReactElement {
           </button>
         </div>
       )}
-      {auth.user ? (
+      {auth.user && (
         <div className="account-grid">
           <section className="account-card profile-card">
             <div className="profile-row">
@@ -45,7 +45,14 @@ export function Account(): ReactElement {
               </div>
             </div>
             <p className="gf-hint">GF - единицы студии. Стоимость кадра и ролика видна до отправки.</p>
-            <button className="button" onClick={() => setConfirmLogout(true)}>
+            <button
+              type="button"
+              className="button"
+              onClick={(event) => {
+                event.currentTarget.focus({ preventScroll: true });
+                setConfirmLogout(true);
+              }}
+            >
               <LogOut size={16} /> Выйти из аккаунта
             </button>
           </section>
@@ -64,7 +71,8 @@ export function Account(): ReactElement {
               <button
                 type="button"
                 className="btn-plus"
-                onClick={() => {
+                onClick={(event) => {
+                  event.currentTarget.focus({ preventScroll: true });
                   setAmount('500');
                   setTopup(true);
                 }}
@@ -119,13 +127,6 @@ export function Account(): ReactElement {
               </div>
             )}
           </section>
-        </div>
-      ) : (
-        <div className="empty-state">
-          <UserRound size={36} />
-          <button className="button primary" onClick={() => void auth.signIn()}>
-            Войти
-          </button>
         </div>
       )}
       <BalanceHistory />

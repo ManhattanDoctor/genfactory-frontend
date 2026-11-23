@@ -10,6 +10,9 @@
   --line: #292a2c;
   --muted: #97999f;
   --accent: #d1fe17;
+  --focus-border: rgba(221, 249, 74, 0.35);
+  --focus-shadow: 0 0 0 1px rgba(221, 249, 74, 0.15);
+  --focus-ring: 0 0 0 1px var(--focus-border), 0 0 0 2px rgba(221, 249, 74, 0.15);
   --sidebar: 216px;
   --header: 76px;
   --pagination-space: 24px;
@@ -74,7 +77,8 @@ textarea {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: #8b9f42;
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-shadow);
 }
 input,
 select {
@@ -83,8 +87,8 @@ select {
 }
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
+  outline: 1px solid transparent;
+  box-shadow: var(--focus-ring);
 }
 h1,
 h2,
@@ -1075,7 +1079,8 @@ a svg {
   background: #fff;
 }
 .toggle-field input:focus-visible + .toggle-track {
-  outline: 2px solid var(--accent);
+  outline: 1px solid var(--focus-border);
+  box-shadow: var(--focus-shadow);
 }
 .advanced-button {
   display: flex;

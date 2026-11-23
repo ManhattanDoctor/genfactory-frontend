@@ -1,3 +1,5 @@
+import '../../src/lib/transport-polyfills';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
 import { useRef, useState } from 'react';
 import { Masonry } from '../../src/components/Masonry';
@@ -40,4 +42,8 @@ function Gallery() {
     </div>
   );
 }
-createRoot(document.getElementById('root')!).render(<Gallery />);
+createRoot(document.getElementById('root')!).render(
+  <QueryClientProvider client={new QueryClient()}>
+    <Gallery />
+  </QueryClientProvider>,
+);

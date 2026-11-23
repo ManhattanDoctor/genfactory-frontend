@@ -62,7 +62,7 @@ import { ArrowUp, Plus, X, Menu, LayoutGrid, Sun, ChevronLeft, ChevronRight } fr
 import { LibraryPicker } from '../../components/LibraryPicker';
 import { useAuth } from '../auth/AuthProvider';
 import { useDraft } from '../workspace/drafts';
-import { toggleItem, usePreferences } from '../workspace/preferences';
+import { usePreferences } from '../workspace/preferences';
 import { defaultAssistant } from '../catalog/defaultAssistant';
 import { findTemplateModel, modelKey, modelTitle } from '../catalog/presentation';
 import archiveTemplates from './templates.json';
@@ -1797,16 +1797,8 @@ export function ContentStudio(): ReactElement {
                     selected={model ? modelKey(model) : selectedModel}
                     name={`Модель: ${model ? modelTitle(model) : selectedModel}`}
                     onSelect={setSelectedModel}
-                    favorites={user ? prefs.value.favoriteModels : undefined}
-                    onFavorite={
-                      user
-                        ? (key) =>
-                            prefs.update((current) => ({
-                              ...current,
-                              favoriteModels: toggleItem(current.favoriteModels, key),
-                            }))
-                        : undefined
-                    }
+                    favorites={prefs.value.favoriteModels}
+                    onFavorite={prefs.toggleFavoriteModel}
                     error={prefs.error}
                   />
                   {mobile && (
@@ -1908,6 +1900,7 @@ export function ContentStudio(): ReactElement {
             )}
           {mobile && (
             <Modal
+              swipeToClose
               open={mobileSettings}
               title="Кадр и длина"
               className="design-image-settings"
@@ -1929,6 +1922,7 @@ export function ContentStudio(): ReactElement {
           {overlayGallery ? (
             <Dialog
               open={mobileGallery}
+              swipeToClose={mobile}
               className={mobile ? 'studio-mobile-sheet studio-gallery-sheet' : 'studio-gallery-drawer'}
               aria-label="Шаблоны и настройки"
               onClose={() => setMobileGallery(false)}

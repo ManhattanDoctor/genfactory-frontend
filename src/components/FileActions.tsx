@@ -484,7 +484,9 @@ export function FileActions({
                   <label>
                     Название
                     <input
-                      autoFocus
+                      ref={(input) => {
+                        if (input) input.autofocus = true;
+                      }}
                       required
                       minLength={3}
                       maxLength={124}

@@ -93,7 +93,7 @@
   text-align: left;
 }
 .content-studio .cw-card-media:focus-visible {
-  outline: 2px solid #d1fe17;
+  outline: 1px solid var(--focus-border);
   outline-offset: -2px;
 }
 .content-studio #cw-gallery .cw-add {
@@ -108,7 +108,7 @@
   display: flex;
 }
 .content-studio #cw-gallery .cw-add:focus-visible {
-  outline: 2px solid #d1fe17;
+  outline: 1px solid var(--focus-border);
   outline-offset: 3px;
 }
 @media (max-width: 900px) {
@@ -794,7 +794,7 @@
   background: transparent;
 }
 .content-studio .cw-template-open:focus-visible {
-  outline: 2px solid var(--ds-accent, #d1fe17);
+  outline: 1px solid var(--focus-border);
   outline-offset: -2px;
 }
 

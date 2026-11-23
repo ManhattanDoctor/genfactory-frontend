@@ -26,7 +26,7 @@
 
 .gf-section-main .design-feed .feed-tab:focus-visible {
   outline: none;
-  box-shadow: var(--gf-focus-quiet);
+  box-shadow: var(--focus-ring);
 }
 
 .gf-section-main .design-feed .feed-top {
@@ -276,7 +276,7 @@
 .gf-section-main .image-workspace .cw-chip:focus-visible,
 .gf-section-main .image-workspace .cw-plus:focus-visible {
   outline: none;
-  box-shadow: var(--gf-focus-quiet);
+  box-shadow: var(--focus-ring);
 }
 .gf-section-main .image-workspace .img-dock textarea:focus,
 .gf-section-main .image-workspace .img-dock textarea:focus-visible {
@@ -284,7 +284,7 @@
 }
 .gf-section-main .image-workspace .cw-send:focus-visible {
   outline: none;
-  box-shadow: var(--gf-focus);
+  box-shadow: var(--focus-ring);
 }
 .gf-section-main .image-workspace .img-dock {
   pointer-events: auto;
@@ -399,7 +399,7 @@
 .gf-section-main .content-studio .studio-mode-selector button:focus-visible,
 .gf-section-main .content-studio .cw-gallery-tabs button:focus-visible {
   outline: none;
-  box-shadow: var(--gf-focus-quiet);
+  box-shadow: var(--focus-ring);
 }
 .gf-section-main .content-studio #cw-draft:focus,
 .gf-section-main .content-studio #cw-draft:focus-visible {
@@ -1099,6 +1099,18 @@
 .gf-section-main .design-feed video {
   width: 100%;
   height: auto;
+}
+.gf-section-main .video-workspace .design-feed .card[data-kind='template'] {
+  align-self: start;
+}
+.gf-section-main .video-workspace .design-feed .card[data-kind='template'] .feed-preview {
+  aspect-ratio: 16 / 9;
+}
+.gf-section-main .video-workspace .design-feed .card[data-kind='template'] video {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  object-fit: cover;
 }
 .gf-section-main .design-feed .card:focus-within :is(.card-actions, .card-overlay) {
   opacity: 1;
@@ -2069,9 +2081,6 @@ dialog.modal:is(.account-topup, .folder-create-dialog, .file-move-dialog) {
     letter-spacing: 0.02em;
     text-transform: uppercase;
   }
-  .design-image-settings .video-duration-control > .aspect-title {
-    margin: 0;
-  }
   .design-image-settings::before {
     content: '';
     display: block;
@@ -2260,15 +2269,15 @@ dialog.modal.folder-create-dialog {
     inset: auto 0 0;
     width: 100%;
     max-width: none;
-    height: auto;
-    max-height: min(78dvh, 720px);
+    height: min(78dvh, 720px);
+    max-height: 100dvh;
     margin: 0;
     padding: 12px 16px 24px;
     border: 1px solid var(--gf-border);
     border-radius: 20px 20px 0 0;
     color: var(--gf-text);
     background: #121216;
-    overflow-y: auto;
+    overflow: hidden;
     box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.5);
   }
   .gf-section-main #creative-workspace .studio-gallery-sheet #studio-gallery {
@@ -2276,7 +2285,7 @@ dialog.modal.folder-create-dialog {
     flex-direction: column;
     position: static;
     width: 100%;
-    height: auto;
+    height: 100%;
     max-height: none;
     border: 0;
     padding: 0;
@@ -2285,12 +2294,14 @@ dialog.modal.folder-create-dialog {
   .gf-section-main .studio-gallery-sheet .cw-gallery-head {
     display: flex;
     flex-direction: column;
+    flex: none;
     padding: 0;
     gap: 0;
   }
   .gf-section-main .studio-gallery-sheet .mobile-gallery-close {
     display: block;
     align-self: center;
+    touch-action: none;
     width: 64px;
     height: 22px;
     min-height: 22px;
@@ -2354,8 +2365,9 @@ dialog.modal.folder-create-dialog {
     padding: 0 12px;
   }
   #creative-workspace .studio-gallery-sheet #studio-gallery .cw-gallery-body {
-    flex: none;
-    overflow: visible;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
   #creative-workspace
     .studio-gallery-sheet
@@ -2380,29 +2392,11 @@ dialog.modal.folder-create-dialog {
   display: none;
 }
 .video-duration-control {
-  display: grid;
-  gap: 10px;
   width: 100%;
   margin: 10px 0;
 }
 .video-duration-control .duration-stepper {
   width: fit-content;
-}
-.video-duration-control .aspect-title {
-  margin: 0;
-  padding-inline: 0;
-}
-.video-duration-control input[type='range'] {
-  width: 100%;
-  height: 36px;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  accent-color: var(--gf-accent);
-}
-.video-duration-control small {
-  color: var(--gf-text-3);
-  font-size: 12px;
 }
 .duration-stepper[aria-disabled='true'] {
   opacity: 0.45;
@@ -2466,8 +2460,8 @@ dialog.account-topup .topup-field input {
 dialog.account-topup .topup-field input:focus,
 .folder-create-dialog .file-form input:focus {
   outline: none;
-  border-color: rgba(221, 249, 74, 0.4);
-  box-shadow: 0 0 0 1px rgba(221, 249, 74, 0.2);
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-shadow);
 }
 dialog.modal:is(.account-topup, .folder-create-dialog) .modal-footer {
   position: static;
@@ -2557,7 +2551,7 @@ dialog:is(.account-topup, .library-picker, .folder-create-dialog) .modal-footer 
   }
 }
 
-/* The rail body is the desktop scroll container; the mobile sheet scrolls as a whole. */
+/* The desktop rail scrolls within its body. */
 #studio-gallery .cw-gallery-body > :is(.cw-settings-pane, .cw-templates-pane) {
   position: static;
   display: block;
@@ -2716,8 +2710,18 @@ dialog:is(.account-topup, .library-picker, .folder-create-dialog) .modal-footer 
   }
 }
 @media (max-width: 780px) {
-  #creative-workspace .studio-gallery-sheet #studio-gallery .cw-gallery-body {
-    overflow: visible;
+  #creative-workspace .studio-gallery-sheet #studio-gallery .cw-gallery-body > .cw-templates-pane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  #creative-workspace .studio-gallery-sheet .cw-genres {
+    flex: none;
+  }
+  #creative-workspace .studio-gallery-sheet #cw-gallery {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
   }
   #studio-gallery .cw-settings-pane {
     padding-top: 4px;
@@ -2803,6 +2807,8 @@ dialog:is(.account-topup, .library-picker, .folder-create-dialog) .modal-footer 
 @media (max-width: 780px) {
   #creative-workspace .studio-gallery-sheet #studio-gallery[data-gallery-view='settings'] .cw-gallery-body {
     padding-top: 16px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
   }
 }
 

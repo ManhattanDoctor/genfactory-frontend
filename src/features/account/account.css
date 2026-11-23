@@ -121,11 +121,6 @@
   color: #c8c8ce;
   font-size: 13px;
 }
-.account-page .empty-state {
-  border: 1px solid #2c2c31;
-  background: #1a1b1e;
-  border-radius: 18px;
-}
 @media (max-width: 600px) {
   .account-page.page-content {
     padding: 16px 12px 32px;
@@ -167,7 +162,7 @@
   border-color: #414248;
 }
 .account-page .transaction-conversation:focus-visible {
-  outline: 2px solid #c4b5fd;
+  outline: 1px solid var(--focus-border);
   outline-offset: 3px;
 }
 .account-page .transaction-main {
@@ -336,7 +331,7 @@
   line-height: 15px;
 }
 .account-page .transaction-preview:focus-visible {
-  outline: 2px solid #c4b5fd;
+  outline: 1px solid var(--focus-border);
   outline-offset: 3px;
 }
 @media (max-width: 600px) {

@@ -213,7 +213,8 @@
   pointer-events: none;
 }
 .home-task:focus-within {
-  border-color: #d1fe17d9;
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-shadow);
 }
 .home-task textarea {
   flex: 1;
@@ -1264,7 +1265,7 @@
 .studio-home .stories-switch button:focus-visible,
 .studio-home .stories-frame:focus-visible,
 .studio-home .stories-more:focus-visible {
-  outline: 2px solid var(--stories-accent);
+  outline: 1px solid var(--focus-border);
   outline-offset: 2px;
 }
 .studio-home .stories-empty {

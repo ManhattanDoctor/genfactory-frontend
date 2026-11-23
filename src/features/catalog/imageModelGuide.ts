@@ -4,7 +4,9 @@ import { modelSummary } from './presentation';
 import { referenceMinimum, supportsReferences } from './schema';
 
 export function imageModelGuide(model: IModelDescription) {
-  const review = modelReviews.find((item) => item.model === model.reference.model);
+  const { provider, model: id } = model.reference;
+  const reviewId = provider === 'OPEN_AI_IMAGE_GPT' && !id.includes('/') ? 'openai/' + id : id;
+  const review = modelReviews.find((item) => item.model === reviewId);
   const use = review?.use || modelSummary(model);
   const first = use.split(/(?<=[.!?])\s/)[0];
   const summary = first.length <= 80 ? first : first.slice(0, 80).replace(/\s+\S*$/, '') + '…';
@@ -20,8 +22,8 @@ export function imageModelGuide(model: IModelDescription) {
         ? 'Опишите объект и фон. При необходимости приложите референс.'
         : 'Опишите объект, фон и желаемую композицию.';
   return {
-    summary,
-    tags: tags.slice(0, 2),
+    summary: review?.summary || summary,
+    tags: review?.niche ? [review.niche] : tags.slice(0, 2),
     use,
     avoid: review?.avoid || 'Ограничения для этой модели в дайджесте пока не описаны.',
     start,

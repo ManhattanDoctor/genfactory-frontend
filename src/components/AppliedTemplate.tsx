@@ -65,7 +65,7 @@ export function AppliedTemplate({
           />
         </div>
       )}
-      {video && missingPhotos > 0 && <p className="video-template-hint">Для шаблона приложите своё фото</p>}
+      {video && missingPhotos > 0 && <p className="video-template-hint">Не хватает фото: {missingPhotos}.</p>}
     </>
   );
 }

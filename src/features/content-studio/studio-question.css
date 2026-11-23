@@ -93,8 +93,8 @@
 }
 .msg-choice-custom-input:focus {
   outline: none;
-  border-color: rgba(244, 244, 240, 0.28);
-  box-shadow: var(--gf-focus-quiet);
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-shadow);
 }
 .msg-choice-custom-input:disabled {
   opacity: 0.45;
@@ -134,6 +134,6 @@
   pointer-events: none;
 }
 .content-studio .cw-thread :is(button, a, input):focus-visible {
-  outline: 2px solid var(--gf-accent);
+  outline: 1px solid var(--focus-border);
   outline-offset: 2px;
 }

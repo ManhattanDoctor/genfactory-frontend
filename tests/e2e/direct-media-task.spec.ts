@@ -158,6 +158,19 @@ test('a failed direct task keeps the draft and does not retry or fall back to a 
   expect(state.conversationWrites).toEqual([]);
 });
 
+test('image task failure stays visible while editing the next draft', async ({ page }) => {
+  const state = await setup(page, true, true);
+  await page.goto('/image');
+  const draft = page.locator('#img-draft');
+  await draft.fill('Первое изображение');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect(draft).toHaveValue('');
+  await draft.fill('Следующее изображение');
+  state.release();
+  await expect(page.locator('.img-dock').getByText(/Сервис временно недоступен/)).toBeVisible();
+  await expect(draft).toHaveValue('Следующее изображение');
+});
+
 test('several direct image tasks run concurrently without blocking the editor or overwriting the next draft', async ({
   page,
 }) => {

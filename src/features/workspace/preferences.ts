@@ -81,12 +81,8 @@ export function usePreferences() {
       return null;
     }
   });
-  const value = useMemo(() => (user ? read(key) : empty), [raw, key, user?.id]);
-  const update = (change: (current: IPreferences) => IPreferences) => {
-    if (!user) {
-      setError('Войдите, чтобы сохранить настройки.');
-      return false;
-    }
+  const value = useMemo(() => read(key), [raw, key]);
+  const save = (change: (current: IPreferences) => IPreferences) => {
     try {
       localStorage.setItem(key, JSON.stringify(change(read(key))));
       window.dispatchEvent(new Event(eventName));
@@ -97,7 +93,14 @@ export function usePreferences() {
       return false;
     }
   };
-  return { value, update, error };
+  const update = (change: (current: IPreferences) => IPreferences) => {
+    if (user) return save(change);
+    setError('Войдите, чтобы сохранить настройки.');
+    return false;
+  };
+  const toggleFavoriteModel = (id: string) =>
+    save((current) => ({ ...current, favoriteModels: toggleItem(current.favoriteModels, id) }));
+  return { value, update, toggleFavoriteModel, error };
 }
 export const toggleItem = <T>(items: T[], item: T) =>
   items.includes(item) ? items.filter((x) => x !== item) : [...items, item];

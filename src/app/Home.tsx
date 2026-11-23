@@ -159,7 +159,10 @@ export function Home() {
             <button
               key={m.title}
               className="gf-digest-card"
-              onClick={() => setDetail(m)}
+              onClick={(event) => {
+                event.currentTarget.focus({ preventScroll: true });
+                setDetail(m);
+              }}
               aria-label={'Открыть дайджест ' + m.title}
               title={'Открыть дайджест ' + m.title}
             >

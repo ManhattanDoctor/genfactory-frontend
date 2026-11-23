@@ -99,8 +99,7 @@
 }
 .template-editor input:focus,
 .template-editor textarea:focus {
-  outline: 1px solid #787880;
-  outline-offset: 1px;
+  outline: 1px solid transparent;
 }
 .template-editor details {
   padding-bottom: 16px;

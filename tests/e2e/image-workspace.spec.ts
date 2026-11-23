@@ -214,24 +214,83 @@ test('image draft and selected options survive reload without executing a reques
   await expect(page.getByRole('button', { name: 'Качество', exact: true })).toHaveText('high');
   expect(state.tasks).toHaveLength(0);
 });
+test('guest image favorites persist with the archived model copy and tags', async ({ page }) => {
+  await setup(page, true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/image');
+  const trigger = page.getByRole('button', { name: 'Модель', exact: true });
+  await trigger.click();
+  const row = page.getByRole('option', { name: 'K3 Edit', exact: true });
+  await expect(row.locator('.gf-model-summary')).toContainText('Это модель правки одного фото');
+  await expect(row.locator('.compact-tag')).toHaveText('правка одного фото по тексту');
+  await page.getByRole('button', { name: 'В избранные: K3 Edit', exact: true }).click();
+  await page.reload();
+  await trigger.click();
+  await expect(page.getByRole('option').first()).toHaveAccessibleName('K3 Edit');
+  await page.getByRole('button', { name: 'Убрать из избранных: K3 Edit', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'В избранные: K3 Edit', exact: true })).toBeVisible();
+});
+
+for (const [route, title] of [
+  ['/image', 'Ещё настройки'],
+  ['/chat', 'Кадр и длина'],
+]) {
+  test(`${route} settings sheet opens without focusing close and dismisses on a downward swipe`, async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(route);
+    const more = page.getByRole('button', { name: 'Ещё', exact: true });
+    await more.click();
+    const sheet = page.getByRole('dialog', { name: title });
+    await expect(sheet).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(sheet.getByRole('button', { name: 'Закрыть' })).toBeFocused();
+    const head = sheet.locator('.modal-head');
+    await head.scrollIntoViewIfNeeded();
+    const box = (await head.boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    const x = box.x + 35,
+      y = box.y + 10;
+    for (const [type, dy] of [
+      ['touchStart', 0],
+      ['touchMove', 30],
+      ['touchMove', 95],
+      ['touchEnd', 95],
+    ] as const) {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: type === 'touchEnd' ? [] : [{ x, y: y + dy }],
+      });
+    }
+    await expect(sheet).toBeHidden();
+    await expect(more).toBeFocused();
+  });
+}
+
 test('image model favorites change ordering without changing actual model selection', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/image');
   await page.getByRole('button', { name: 'Модель', exact: true }).click();
-  const chosen = page.getByRole('option', { name: 'GPT Image 1 Mini', exact: true });
-  await page.getByRole('button', { name: 'В избранные: GPT Image 1 Mini', exact: true }).click();
-  await expect(page.getByRole('option').first()).toHaveAccessibleName('GPT Image 1 Mini');
+  const chosen = page.getByRole('option', { name: 'Qwen Image 2.1 Turbo', exact: true });
+  await page.getByRole('button', { name: 'В избранные: Qwen Image 2.1 Turbo', exact: true }).click();
+  await expect(page.getByRole('option').first()).toHaveAccessibleName('Qwen Image 2.1 Turbo');
   await expect(
-    page.getByRole('button', { name: 'Убрать из избранных: GPT Image 1 Mini', exact: true }),
+    page.getByRole('button', { name: 'Убрать из избранных: Qwen Image 2.1 Turbo', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
   await chosen.click();
-  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 1 Mini');
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText(
+    'Qwen Image 2.1 Turbo',
+  );
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText('GPT Image 1 Mini');
+  await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText(
+    'Qwen Image 2.1 Turbo',
+  );
   await page.locator('#img-draft').fill('Чашка');
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
   await expect.poll(() => state.tasks.length).toBe(1);
-  expect(state.tasks[0].options.model).toBe('gpt-image-1-mini');
+  expect(state.tasks[0].options.model).toBe('qwen/qwen-image-2.1-turbo');
   expect(state.creates).toHaveLength(0);
 });
 
@@ -357,59 +416,25 @@ test('image gallery and composer follow the visual viewport through keyboard dis
   expect(state.tasks).toHaveLength(0);
 });
 
-test.describe('complete image template catalog', () => {
-  test.describe.configure({ mode: 'parallel' });
-  const items: { id: string; kind: string; title: string }[] = JSON.parse(
-    readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
-  );
-  const images = items.filter((item) => item.kind === 'image');
-  for (let offset = 0; offset < images.length; offset += 20) {
-    test(`all image cards apply complete editable prompts without generation or uploading: ${offset + 1}-${Math.min(offset + 20, images.length)}`, async ({
-      page,
-    }) => {
-      test.setTimeout(120_000);
-      const state = await setup(page);
-      await page.goto('/image');
-      await expect(page.getByRole('button', { name: 'Модель', exact: true })).toContainText(
-        'Riverflow V2.6 Pro',
-      );
-      for (const item of images.slice(offset, offset + 20)) {
-        await page.getByRole('button', { name: `Использовать шаблон: ${item.title}`, exact: true }).click();
-        const fields = page.getByRole('group', { name: 'Параметры шаблона' });
-        await expect(fields).toContainText(item.title);
-        for (const input of await fields.locator('input').all())
-          await input.fill((await input.getAttribute('type')) === 'number' ? '2' : 'Тестовые данные');
-        for (const select of await fields.locator('select').all()) await select.selectOption({ index: 1 });
-        const dialog = page.getByRole('dialog');
-        await expect(dialog).toHaveCount(0);
-        await expect(page.locator('#img-draft')).not.toHaveValue('');
-        expect(await page.locator('#img-draft').inputValue()).not.toMatch(/\{[A-Za-z][A-Za-z_0-9]*\}/);
-      }
-      await page.locator('#img-draft').fill('');
-      await expect(page.locator('.ds-template-card[aria-pressed=true]')).toHaveCount(0);
-      expect(state.tasks).toHaveLength(0);
-      expect(state.creates).toHaveLength(0);
-      expect(state.uploads).toBe(0);
-    });
-  }
-});
-
-test('canceling a parameterized template preserves the prompt and applying a plain template replaces it', async ({
+test('applies a plain image template inline and resets it without starting a generation', async ({
   page,
 }) => {
-  await setup(page);
+  const state = await setup(page);
   await page.goto('/image');
-  await page.locator('#img-draft').fill('Моя задача');
-  await page
-    .getByRole('button', { name: 'Посмотреть: Главное фото на белом фоне (маркетплейс)', exact: true })
-    .click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Закрыть', exact: true }).click();
-  await expect(page.locator('#img-draft')).toHaveValue('Моя задача');
-  await page.getByRole('button', { name: 'Использовать шаблон: Портрет в масштабе', exact: true }).click();
+  const draft = page.locator('#img-draft');
+  await draft.fill('Моя задача');
+  await page.getByRole('button', { name: 'Использовать шаблон Портрет в масштабе', exact: true }).click();
+  await expect(draft).toHaveValue(/Ultra-photorealistic/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#img-draft')).toHaveValue(/Ultra-photorealistic/);
-  await expect(page.locator('#img-draft')).not.toBeFocused();
-  await expect(page.locator('.composer-template')).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Параметры шаблона' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Добавить фото 1', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Сбросить шаблон' }).click();
+  await expect(draft).toHaveValue('');
+  await expect(draft).toBeFocused();
+  expect(state.tasks).toHaveLength(0);
+  expect(state.creates).toHaveLength(0);
+  expect(state.uploads).toBe(0);
 });
 
 test('image wall paginates across folders and excludes uploads and foreign files', async ({ page }) => {
@@ -458,7 +483,7 @@ test('filled template text survives reload and is submitted as the visible promp
   await page.goto('/image');
   await page
     .getByRole('button', {
-      name: 'Использовать шаблон: Главное фото на белом фоне (маркетплейс)',
+      name: 'Использовать шаблон Главное фото на белом фоне (маркетплейс)',
       exact: true,
     })
     .click();

@@ -1,3 +1,7 @@
+dialog:focus {
+  outline: none;
+}
+
 dialog.modal .modal-footer {
   position: sticky;
   bottom: calc(-1 * var(--modal-padding));

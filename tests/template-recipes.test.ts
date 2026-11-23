@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import cards from '../src/features/content-studio/templates.json';
 import { loadTemplate } from '../src/features/content-studio/templateCatalog';
+import { PromptTemplate } from '../src/features/content-studio/PromptTemplate';
+import {
+  prepareComposerTemplate,
+  updateComposerField,
+} from '../src/features/content-studio/templateComposer';
 const templates = await Promise.all(cards.map(loadTemplate));
 import fields from '../src/features/content-studio/templateFields.json';
 import {
@@ -16,10 +21,25 @@ describe('Complete designer template catalog', () => {
   it.each(templates)('$id has usable media, known fields and a fillable recipe', (item) => {
     expect(item.prompt.trim()).not.toBe('');
     expect(existsSync(new URL('../public' + item.src, import.meta.url))).toBe(true);
-    const keys = templateVariables(item.prompt);
-    for (const key of keys) expect(fields).toHaveProperty(key);
-    const ready = fillTemplate(item.prompt, Object.fromEntries(keys.map((key) => [key, 'User value'])));
+    const recipe = new PromptTemplate(item.prompt);
+    const composer = prepareComposerTemplate(item.prompt, templateReference(item) === 'required');
+    const values = Object.fromEntries(
+      recipe.variables.map((key) => {
+        expect(fields).toHaveProperty(key);
+        const value =
+          composer.values[key] ??
+          recipe.choices.get(key)?.[0] ??
+          (recipe.isNumeric(key) ? '2' : 'User value');
+        return [key, value];
+      }),
+    );
+    const ready = fillTemplate(item.prompt, values);
     expect(templateVariables(ready)).toEqual([]);
+    const filledComposer = Object.entries(values).reduce(
+      (current, [key, value]) => updateComposerField(current, key, value),
+      composer,
+    );
+    expect(filledComposer.text).toBe(ready);
     if (item.kind === 'video' && (!item.id.startsWith('video:2026-11-13:') || templateDuration(ready))) {
       expect(templateDuration(ready)).toBeGreaterThan(0);
       for (const seconds of [1, 4, 6, 15]) {

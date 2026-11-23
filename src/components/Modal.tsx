@@ -5,9 +5,11 @@ export function Dialog({
   open = true,
   onClose,
   children,
+  swipeToClose = false,
   ...attributes
 }: {
   open?: boolean;
+  swipeToClose?: boolean;
   onClose: () => void;
   children: ReactNode;
   className: string;
@@ -15,13 +17,16 @@ export function Dialog({
   'aria-labelledby'?: string;
 }): ReactElement {
   const ref = useRef<HTMLDialogElement>(null);
+  const touch = useRef<{ x: number; y: number } | undefined>(undefined);
   useEffect(() => {
-    if (!open) return;
     const dialog = ref.current;
+    if (!open || !dialog) return;
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialog?.showModal();
+    dialog.autofocus = !dialog.querySelector('[autofocus]');
+    dialog.showModal();
+    if (dialog.autofocus && document.activeElement !== dialog) dialog.focus({ preventScroll: true });
     return () => {
-      dialog?.close();
+      dialog.close();
       if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     };
   }, [open]);
@@ -29,6 +34,30 @@ export function Dialog({
     <dialog
       ref={ref}
       {...attributes}
+      onTouchStart={(event) => {
+        touch.current = undefined;
+        if (!swipeToClose || event.touches.length !== 1 || event.currentTarget.scrollTop > 0) return;
+        for (
+          let node = event.target as HTMLElement;
+          node && node !== event.currentTarget;
+          node = node.parentElement!
+        ) {
+          if (node.scrollTop > 0) return;
+        }
+        const { clientX: x, clientY: y } = event.touches[0];
+        touch.current = { x, y };
+      }}
+      onTouchCancel={() => {
+        touch.current = undefined;
+      }}
+      onTouchEnd={(event) => {
+        const start = touch.current;
+        touch.current = undefined;
+        if (!start || event.touches.length) return;
+        const { clientX, clientY } = event.changedTouches[0];
+        const distance = clientY - start.y;
+        if (distance >= 48 && distance > Math.abs(clientX - start.x)) onClose();
+      }}
       onCancel={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -52,6 +81,7 @@ export function Modal({
   headerActions,
   hideHeader = false,
   className = '',
+  swipeToClose = false,
 }: {
   className?: string;
   title: string;
@@ -60,6 +90,7 @@ export function Modal({
   wide?: boolean;
   open?: boolean;
   headerActions?: ReactNode;
+  swipeToClose?: boolean;
   hideHeader?: boolean;
 }): ReactElement {
   const titleId = useId();
@@ -77,6 +108,7 @@ export function Modal({
   return (
     <Dialog
       open={open}
+      swipeToClose={swipeToClose}
       onClose={onClose}
       aria-labelledby={hideHeader ? undefined : titleId}
       aria-label={hideHeader ? title : undefined}

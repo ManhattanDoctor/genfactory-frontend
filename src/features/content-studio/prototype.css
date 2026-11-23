@@ -43,7 +43,6 @@
   --ds-warning: #dfab01;
   --ds-danger: #e74c3c;
   --ds-info: #0256fe;
-  --ds-focus: #d1fe17;
   --ds-opacity-disabled: 0.45;
   --ds-space-1: 4px;
   --ds-space-2: 8px;
@@ -1023,10 +1022,8 @@
   background: rgb(42, 43, 48);
 }
 .content-studio .cw-clip:focus-visible {
-  outline: none;
-  box-shadow:
-    rgba(209, 254, 23, 0.28) 0px 0px 0px 1px,
-    rgba(209, 254, 23, 0.16) 0px 0px 10px;
+  outline: 1px solid transparent;
+  box-shadow: var(--focus-ring);
 }
 .content-studio .cw-field:not(:has(.cw-name:not([hidden]))) textarea {
   border-radius: 16px;
@@ -1134,10 +1131,8 @@
 .content-studio .cw-model:focus-visible,
 .content-studio .cw-stepper button:focus-visible,
 .content-studio .cw-mode button:focus-visible {
-  outline: none;
-  box-shadow:
-    rgba(209, 254, 23, 0.28) 0px 0px 0px 1px,
-    rgba(209, 254, 23, 0.16) 0px 0px 10px;
+  outline: 1px solid transparent;
+  box-shadow: var(--focus-ring);
 }
 .content-studio .cw-name input:focus,
 .content-studio .cw-name input:focus-visible,
@@ -2119,7 +2114,7 @@
   transition: none;
 }
 .content-studio .img-use.ds-template-add:focus-visible {
-  outline: rgb(209, 254, 23) solid 2px;
+  outline: 1px solid var(--focus-border);
   outline-offset: 2px;
 }
 @media (pointer: coarse) {
@@ -2872,34 +2867,10 @@
   border-bottom: 0px;
 }
 .content-studio .studio-compose:focus-within {
+  border-color: var(--focus-border);
   box-shadow:
-    rgba(0, 0, 0, 0.28) 0px 16px 32px,
-    rgba(209, 254, 23, 0.14) 0px 0px 40px;
-}
-.content-studio #creatives .cw-compose:focus-within {
-  animation: 1100ms cubic-bezier(0.2, 0, 0, 1) 140ms 1 normal both running cw-glow-pulse;
-}
-@keyframes cw-glow-pulse {
-  0% {
-    box-shadow:
-      rgba(0, 0, 0, 0.16) 0px 8px 16px,
-      rgba(209, 254, 23, 0) 0px 0px 0px;
-  }
-  38% {
-    box-shadow:
-      rgba(0, 0, 0, 0.28) 0px 16px 32px,
-      rgba(209, 254, 23, 0.1) 0px 0px 22px;
-  }
-  68% {
-    box-shadow:
-      rgba(0, 0, 0, 0.3) 0px 16px 36px,
-      rgba(209, 254, 23, 0.24) 0px 0px 56px;
-  }
-  100% {
-    box-shadow:
-      rgba(0, 0, 0, 0.28) 0px 16px 32px,
-      rgba(209, 254, 23, 0.14) 0px 0px 40px;
-  }
+    0 16px 32px rgba(0, 0, 0, 0.28),
+    var(--focus-shadow);
 }
 .content-studio .studio-compose .cw-name input {
   height: 32px;
@@ -3319,9 +3290,6 @@
     transition: none;
     transform: none;
   }
-  .content-studio #creatives .cw-compose:focus-within {
-    animation: auto ease 0s 1 normal none running none;
-  }
 }
 .content-studio #cw-compose .cw-draft-row {
   align-items: flex-end;
@@ -3359,8 +3327,8 @@
   line-height: 1.3;
 }
 .content-studio .studio-compose .cw-model-search:focus {
-  outline: none;
-  box-shadow: none;
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-shadow);
 }
 .content-studio #cw-model-menu .cw-model-option[aria-selected='true'] {
   background: rgb(42, 43, 48);
@@ -3517,7 +3485,7 @@
 .content-studio .ds-segment button:focus-visible,
 .content-studio .ds-tabs button:focus-visible,
 .content-studio .ds-field:focus-visible {
-  outline: 2px solid var(--ds-focus);
+  outline: 1px solid var(--focus-border);
   outline-offset: 2px;
 }
 .content-studio .ds-field {
@@ -3757,7 +3725,7 @@
   cursor: default;
 }
 .content-studio .cw-switch:focus-visible {
-  outline: 2px solid var(--ds-focus);
+  outline: 1px solid var(--focus-border);
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {

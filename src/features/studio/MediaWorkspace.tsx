@@ -66,7 +66,7 @@ import templates from '../content-studio/templates.json';
 import type { ITemplate, ITemplateCard } from '../content-studio/materials';
 
 import { useAuth } from '../auth/AuthProvider';
-import { usePreferences, toggleItem } from '../workspace/preferences';
+import { usePreferences } from '../workspace/preferences';
 import { Media, MediaPreview } from '../../components/MediaPreview';
 import { Modal } from '../../components/Modal';
 import { SelectControl } from '../../components/SelectControl';
@@ -231,6 +231,13 @@ export function MediaWorkspace({
     [...feed.templates, ...feed.generations].find((item) => item.id === composerTemplate.id);
   const mediaComposer = !seedance && !banana;
   const appliedCard = templateCard || feedTemplate;
+  const appliedCardId = appliedCard?.id;
+  useEffect(() => {
+    const input = promptInput.current;
+    if (!appliedCardId || !input) return;
+    input.setSelectionRange(0, 0);
+    input.scrollTop = 0;
+  }, [appliedCardId, promptInput]);
   const [photoHintDismissed, setPhotoHintDismissed] = useState(false);
   const needsTemplateImages = missingPhotos > 0;
   const [notice, setNotice] = useState('');
@@ -662,7 +669,7 @@ export function MediaWorkspace({
   const resolutionSetting = video && choices(fields.resolution, []).length > 0 && (
     <ImageMenu
       asField={compactTools || mediaComposer}
-      label={String(options.resolution || 'Не задаётся')}
+      label={String(options.resolution || 'Разрешение')}
       name="Разрешение"
       note="Размер видео. Влияет на детализацию и стоимость."
       values={choices(fields.resolution, []).map(String)}
@@ -1058,15 +1065,7 @@ export function MediaWorkspace({
               composer={mediaComposer}
               selected={model && modelKey(model)}
               favorites={prefs.value.favoriteModels}
-              onFavorite={
-                user
-                  ? (key) =>
-                      prefs.update((value) => ({
-                        ...value,
-                        favoriteModels: toggleItem(value.favoriteModels, key),
-                      }))
-                  : undefined
-              }
+              onFavorite={prefs.toggleFavoriteModel}
               onSelect={(key) => {
                 const chosen = models.find((m) => modelKey(m) === key);
                 if (chosen) onModel(chosen);
@@ -1198,6 +1197,7 @@ export function MediaWorkspace({
       </form>
       {compactTools && (
         <Modal
+          swipeToClose
           open={settingsOpen}
           title={video ? 'Кадр, длина и звук' : 'Ещё настройки'}
           className={`studio-mobile-sheet image-settings-sheet ${mediaComposer ? 'design-image-settings' : ''}`}

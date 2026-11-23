@@ -253,6 +253,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           : true,
     )
     .map((m) => (specialized === 'banana' ? { ...m, name: bananaTitle(m) } : m));
+  const catalogError = catalog.isError && !catalog.data;
   const modelKey = (m: Pick<IModelDescription, 'reference'>) =>
     `${m.reference.provider}:${m.reference.model}`;
   const savedReference = conversation ? connection(conversation, kind)?.settings?.model : undefined;
@@ -917,12 +918,9 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         setReferences([]);
         setTemplateVideoReference(undefined);
         void pending.catch((error) => {
-          if (
-            !current() ||
-            clearedSubmission.current !== taskBody.task.session ||
-            ![submittedEditor, clearedEditor].includes(editorSnapshot.current)
-          )
-            return;
+          if (!current() || clearedSubmission.current !== taskBody.task.session) return;
+          setError(imageSendError(error));
+          if (![submittedEditor, clearedEditor].includes(editorSnapshot.current)) return;
           setPrompt(prompt);
           setVideoTemplate(videoTemplate);
           setVideoTemplateMinimum(videoTemplateMinimum);
@@ -931,7 +929,6 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           setReferences(references);
           setTemplateVideoReference(templateVideoReference);
           draft.changed();
-          setError(imageSendError(error));
         });
       } catch (error) {
         if (current()) setError(imageSendError(error));
@@ -1133,16 +1130,10 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
         busy={busy || uploading}
         missingPhotos={missingPhotos}
         unavailable={!!auth.user && (!!imageBlockedReason || !!videoIssue || !model)}
-        retryCatalog={
-          catalog.error || agents.error
-            ? () => {
-                void catalog.refetch();
-                void agents.refetch();
-              }
-            : undefined
-        }
+        retryCatalog={catalogError ? () => void catalog.refetch() : undefined}
         promptInput={promptInput}
         error={
+          (catalogError ? 'Не удалось загрузить каталог моделей.' : '') ||
           (digestModel && catalog.isSuccess && !model
             ? 'Модель из дайджеста сейчас недоступна. Выберите другую модель.'
             : '') ||
@@ -1150,7 +1141,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
           videoIssue ||
           error ||
           (draft.status.startsWith('Не удалось') ? draft.status : '') ||
-          (catalog.error instanceof Error ? catalog.error.message : '')
+          (catalog.isSuccess && !models.length ? 'Сейчас нет доступных моделей.' : '')
         }
         onPrompt={(value) => {
           draft.changed();
