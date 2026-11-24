@@ -188,7 +188,12 @@ function JobCard({
   );
 }
 
+function conversationNoticeKey(c: IConversation): string {
+  return `chat:${c.id}:${c.lastMessageDate}`;
+}
+
 interface JobNotice {
+  conversationId?: number;
   key: string;
   label: string;
 }
@@ -252,7 +257,26 @@ function Jobs({
     queryFn: () => null,
     enabled: false,
   });
-  const imageConversation = new URLSearchParams(search).get('conversation');
+  const routeConversation = new URLSearchParams(search).get('conversation');
+  const studioId = pathname === '/chat' && routeConversation ? Number(routeConversation) : undefined;
+  const viewed = useRef(new Map<number, string>());
+  useEffect(() => {
+    if (!studioId) return;
+    const remember = (c?: IConversation) => {
+      if (!c || c.userId !== userId) return;
+      if (c.status === 'LOADING') viewed.current.delete(c.id);
+      else if (c.status === 'LOADED' || c.status === 'ERROR') {
+        viewed.current.set(c.id, conversationNoticeKey(c));
+        if (viewed.current.size > 32) viewed.current.delete(viewed.current.keys().next().value!);
+      }
+    };
+    remember(client.getQueryData(['conversation', userId, studioId]));
+    return client.getQueryCache().subscribe((event) => {
+      const [name, user, id] = event.query.queryKey;
+      if (event.type === 'updated' && name === 'conversation' && user === userId && id === studioId)
+        remember(event.query.state.data as IConversation | undefined);
+    });
+  }, [client, userId, studioId]);
   const { join } = useRealtime();
   const tasks = useMutationState({
     filters: { mutationKey: ['media-task', userId] },
@@ -314,7 +338,10 @@ function Jobs({
     if (!query.data || query.isError) return;
     let cancelled = false;
     const running = query.data.items.filter((c) => c.userId === userId && c.status === 'LOADING');
-    for (const c of running) tracked.current.set(c.id, c);
+    for (const c of running) {
+      if (!tracked.current.has(c.id)) viewed.current.delete(c.id);
+      tracked.current.set(c.id, c);
+    }
     if (running.length)
       setNotices((previous) => previous.filter((c) => !running.some((job) => job.id === c.id)));
     const absent = [...tracked.current.keys()].filter((id) => !running.some((c) => c.id === id));
@@ -345,7 +372,8 @@ function Jobs({
   const hasNotices = !!(notices.length || finishedTasks.length || remoteNotices.length);
   const completions: JobNotice[] = [
     ...notices.map((c) => ({
-      key: `chat:${c.id}:${c.lastMessageDate}`,
+      key: conversationNoticeKey(c),
+      conversationId: c.id,
       label: `Диалог №${c.id} · ${c.name} · ${c.status === 'ERROR' ? 'Нужна проверка' : 'Готово'}`,
     })),
     ...finishedTasks.map((task) => ({
@@ -363,8 +391,14 @@ function Jobs({
     })),
   ];
   const relevantPopup = (item: JobNotice) =>
-    pathname !== '/image' ||
-    (imageConversation ? item.key.startsWith(`chat:${imageConversation}:`) : item.key === selectedImage.data);
+    !(
+      item.conversationId &&
+      (item.conversationId === studioId || viewed.current.get(item.conversationId) === item.key)
+    ) &&
+    (pathname !== '/image' ||
+      (routeConversation
+        ? item.conversationId === Number(routeConversation)
+        : item.key === selectedImage.data));
   const previousCompletions = useRef(new Set(completions.map((item) => item.key)));
   const [popups, setPopups] = useState<JobNotice[]>([]);
   useEffect(() => {

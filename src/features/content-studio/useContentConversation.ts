@@ -27,8 +27,6 @@ import { useAuth } from '../auth/AuthProvider';
 
 export interface ContentConversation {
   thread: {
-    page: number;
-    setPage: (page: number) => void;
     messages: UseQueryResult<IPagination<IConversationMessage>, Error>;
   };
   historyFiles: () => Promise<Array<StudioHistoryFile>>;
@@ -112,9 +110,7 @@ export function useContentConversation(): ContentConversation {
     retry: false,
     queryFn: ({ signal }) => api.conversation(id!, signal),
   });
-  const [pagination, setPagination] = useState({ scope: active, page: 0 });
-  const page = pagination.scope === active ? pagination.page : 0;
-  const messages = useQuery(studioMessagesQuery(auth.user?.id, id, page));
+  const messages = useQuery(studioMessagesQuery(auth.user?.id, id, 0));
   const agents = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user,
@@ -225,7 +221,7 @@ export function useContentConversation(): ContentConversation {
     return cachedStudioHistoryFiles(client, conversation, sid);
   }
   return {
-    thread: { page, setPage: (page) => setPagination({ scope: active, page }), messages },
+    thread: { messages },
     historyFiles,
     confirmSubmission,
     scope: active,

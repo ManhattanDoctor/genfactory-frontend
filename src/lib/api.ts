@@ -5,6 +5,7 @@ export { sessionService } from './SessionService';
 import {
   DEFAULT_ASSISTANT,
   isAllowedProvider,
+  isListedModel,
   assertAllowedProvider,
   effectiveTools,
   prepareAllowedTools,
@@ -281,7 +282,7 @@ export const api = {
         { signal },
         sid,
       );
-      items.push(...page.items.filter((item) => isAllowedProvider(item.reference.provider)));
+      items.push(...page.items.filter(isListedModel));
       if (pageIndex + 1 >= page.pages) return items;
     }
   },

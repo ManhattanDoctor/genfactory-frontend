@@ -1,23 +1,33 @@
+import { LoadingRows } from '../components/Skeleton';
 import { LazyImage } from '../components/LazyImage';
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthProvider';
-import { catalogQuery } from '../features/catalog/catalogQuery';
+import { imageModelIdsQuery } from '../features/catalog/catalogQuery';
 import { HomeImageViewer } from './HomeImageViewer';
 import { modelReviews } from './modelReviewData';
 import './model-reviews.css';
 
-const visibleReviews = modelReviews.filter((review) => review.images.length > 0);
-
 export function ModelReviews() {
   const { user } = useAuth();
-  const catalog = useQuery(catalogQuery(user?.id, 'OPEN_ROUTER_IMAGE'));
+  const catalog = useQuery(imageModelIdsQuery(user?.id));
   const [limit, setLimit] = useState(6);
   const [active, setActive] = useState(0);
   const track = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<{ image: { src: string; alt: string }; from: DOMRect }>();
-  const start = Math.min(Math.max(0, active - 2), visibleReviews.length - 5);
+  const visibleReviews = modelReviews.filter(
+    (review) => review.images.length && catalog.data?.has(review.model),
+  );
+  if (catalog.isPending) return <LoadingRows label="Загружаем модели…" />;
+  if (catalog.isError)
+    return (
+      <button className="text-button" onClick={() => void catalog.refetch()}>
+        Загрузить модели снова
+      </button>
+    );
+  if (!visibleReviews.length) return null;
+  const start = Math.min(Math.max(0, active - 2), Math.max(0, visibleReviews.length - 5));
 
   return (
     <section className="model-digests" aria-labelledby="model-digests-title">
@@ -26,7 +36,7 @@ export function ModelReviews() {
         className="digest-grid"
         ref={track}
         onScroll={({ currentTarget }) => {
-          const step = (currentTarget.children[1] as HTMLElement).offsetLeft;
+          const step = (currentTarget.children[1] as HTMLElement | undefined)?.offsetLeft;
           if (step)
             setActive(
               Math.min(visibleReviews.length - 1, Math.max(0, Math.round(currentTarget.scrollLeft / step))),
@@ -34,9 +44,6 @@ export function ModelReviews() {
         }}
       >
         {visibleReviews.map((review, index) => {
-          const available = catalog.data?.some(
-            (item) => item.reference.model === review.model && item.capabilities?.includes('IMAGE_OUTPUT'),
-          );
           return (
             <article
               key={review.model}
@@ -67,13 +74,9 @@ export function ModelReviews() {
                   ))}
                 </div>
               )}
-              {available === false ? (
-                <span className="muted">Модель недоступна</span>
-              ) : (
-                <Link className="button" to={'/image?' + new URLSearchParams({ model: review.model })}>
-                  Собрать изображение
-                </Link>
-              )}
+              <Link className="button" to={'/image?' + new URLSearchParams({ model: review.model })}>
+                Собрать изображение
+              </Link>
             </article>
           );
         })}

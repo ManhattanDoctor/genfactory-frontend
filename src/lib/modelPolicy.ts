@@ -10,6 +10,15 @@ const providers = new Set([
   'OPEN_ROUTER_STT',
 ]);
 export const isAllowedProvider = (provider: string | undefined) => !!provider && providers.has(provider);
+// Models explicitly marked hidden in the Genfactory image guide, even if the upstream catalogue lists them.
+const hiddenImageModels = new Set(['meta/muse-image', 'openai/gpt-image-1', 'openai/gpt-5-image']);
+export function isListedModel(item: IModelDescription): boolean {
+  return (
+    isAllowedProvider(item.reference.provider) &&
+    (!item.status || item.status === 'ACTIVE') &&
+    !(item.reference.provider === 'OPEN_ROUTER_IMAGE' && hiddenImageModels.has(item.reference.model))
+  );
+}
 export function assertAllowedProvider(provider: string | undefined): void {
   if (!isAllowedProvider(provider))
     throw new Error(

@@ -987,8 +987,19 @@ test('advanced editor: select arrows stay inside controls at desktop and mobile 
   });
 });
 
-test('home model digests show customer guidance and restore focus', async ({ page, browserName }) => {
+async function mockDigestCatalog(page: Page) {
   await mockApi(page);
+  const models = JSON.parse(
+    readFileSync(new URL('../fixtures/banana-catalog.json', import.meta.url), 'utf8'),
+  );
+  await page.route(
+    (url) => url.pathname === '/api/aimodels' && catalogProvider(url) === 'OPEN_ROUTER_IMAGE',
+    (route) => route.fulfill({ json: catalogPage(models) }),
+  );
+}
+
+test('home model digests show customer guidance and restore focus', async ({ page, browserName }) => {
+  await mockDigestCatalog(page);
   await page.goto('/');
   await page.getByRole('tab', { name: 'Дайджесты' }).click();
   const trigger = page.getByRole('button', { name: 'Открыть дайджест Nano Banana 2.1', exact: true });
@@ -1024,7 +1035,7 @@ test('recent UI fixes: guest routes share an identical sign-in screen', async ({
 });
 
 test('recent UI fixes: digest examples scroll vertically inside the mobile viewport', async ({ page }) => {
-  await mockApi(page);
+  await mockDigestCatalog(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('tab', { name: 'Дайджесты' }).click();
@@ -3745,6 +3756,67 @@ test('content studio uploads a reference and sends video with its file id', asyn
   });
   expect(state.sends[0].settings.tools[0].settings.options).not.toHaveProperty('aspectRatio');
   await expect(page.locator('.cw-thread video')).toBeVisible();
+});
+
+test('studio prepends older messages at the top and keeps the reading position', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  const requests: number[] = [];
+  await page.route('**/api/conversation/101/message?*', (route) => {
+    const index = Number(new URL(route.request().url()).searchParams.get('pageIndex'));
+    requests.push(index);
+    const items = Array.from({ length: 20 }, (_, i) => {
+      const id = 40 - index * 20 - i;
+      return { id, role: 'USER', text: `Сообщение ${id}`, createdDate: file.createdDate };
+    });
+    return route.fulfill({ json: { ...pagination(items, 20), total: 40, pages: 2 } });
+  });
+  await page.goto('/chat?conversation=101');
+  const thread = page.locator('.cw-thread');
+  await expect(thread.getByText('Сообщение 40', { exact: true })).toBeInViewport();
+  expect(requests).not.toContain(1);
+  const anchor = thread.getByText('Сообщение 21', { exact: true });
+  const before = await anchor.evaluate((node) => {
+    node.closest('.cw-thread')!.scrollTop = 0;
+    return node.getBoundingClientRect().top;
+  });
+  await expect(thread.getByText('Сообщение 1', { exact: true })).toHaveCount(1);
+  await expect.poll(async () => Math.abs((await anchor.boundingBox())!.y - before)).toBeLessThanOrEqual(2);
+  await expect(thread.locator('.as-ask')).toHaveCount(40);
+  expect(requests.filter((index) => index === 1)).toHaveLength(1);
+  await expect(thread.getByRole('navigation', { name: 'Страницы сообщений' })).toHaveCount(0);
+});
+
+test('studio only announces the other conversation and keeps both completions in Works', async ({ page }) => {
+  const state = await mockApi(page);
+  const jobs = [101, 102].map((id) => ({
+    ...savedConversation(id),
+    status: 'LOADING' as IConversation['status'],
+  }));
+  state.conversations.push(...jobs);
+  await page.goto('/chat?conversation=101');
+  await expect(page.getByRole('button', { name: 'Активные работы: 2', exact: true })).toBeVisible();
+  await expect.poll(() => state.joinedRooms.includes('conversation101')).toBe(true);
+  for (const job of jobs) {
+    job.status = 'LOADED';
+    state.socket!.send(
+      '42/gnosisai,' +
+        JSON.stringify([
+          'transportSocketEvent',
+          {
+            uid: crypto.randomUUID(),
+            name: 'ConversationChangedEvent',
+            data: { id: job.id, item: { status: 'LOADED' } },
+          },
+        ]),
+    );
+  }
+  const popup = page.locator('.job-popup');
+  await expect(popup).toHaveText(/Диалог №102/, { timeout: 15000 });
+  await page.locator('a[href="/library"]:visible').first().click();
+  await expect(popup.filter({ hasText: 'Диалог №101' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Активные работы: 0', exact: true }).first().click();
+  await expect(page.getByRole('dialog').locator('.completed-job')).toHaveCount(2);
 });
 
 test('content studio restores a running job and receives socket completion without resending', async ({
@@ -10751,8 +10823,8 @@ for (const width of [390, 1440]) {
 }
 
 for (const [uid, label] of [
-  ['IMAGE', 'Кадр готовится'],
-  ['VIDEO', 'Ролик готовится'],
+  ['IMAGE', 'Кадр готовится…'],
+  ['VIDEO', 'Ролик готовится…'],
 ]) {
   test(`chat uses message action styling while ${uid} is running`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 740 });

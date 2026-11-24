@@ -1,3 +1,4 @@
+import { useOlderMessages } from './useOlderMessages';
 import { StudioUserBubble } from './StudioUserBubble';
 import { LoadingRows } from '../../components/Skeleton';
 import { MessageAction } from '../../components/MessageAction';
@@ -35,15 +36,15 @@ function PendingResult({
       (!tool.status || tool.status === 'STARTED') && /^(IMAGE|VIDEO)(_OPEN_(AI|ROUTER))?$/.test(tool.uid),
   );
   return (
-    <div className="studio-pending-result">
-      <div className="studio-pending-copy">
-        <strong role="status">
+    <>
+      <div className="studio-pending-result">
+        <small className="small muted" role="status">
           {generation
             ? generation.uid.startsWith('VIDEO')
-              ? 'Ролик готовится'
-              : 'Кадр готовится'
+              ? 'Ролик готовится…'
+              : 'Кадр готовится…'
             : 'Готовим ответ…'}
-        </strong>
+        </small>
         {generation && (
           <MessageAction
             aria-haspopup="dialog"
@@ -54,12 +55,19 @@ function PendingResult({
           </MessageAction>
         )}
       </div>
-    </div>
+      {tools
+        .filter((tool) => tool !== generation)
+        .map((tool, index) => (
+          <small className="small muted" key={index}>
+            {toolLabel(tool)}
+          </small>
+        ))}
+    </>
   );
 }
 
 export function ContentThread({
-  thread: { page, setPage, messages },
+  thread: { messages },
   conversation,
   onUse,
   onRepeat,
@@ -87,8 +95,13 @@ export function ContentThread({
   const [jump, setJump] = useState(false);
   const progress = useConversationProgress(conversation);
   const error = useConversationError(conversation);
+  const older = useOlderMessages(conversation.userId, conversation.id, messages.data?.pages ?? 0);
   const turns: ITurn[] = [];
-  for (const message of [...(messages.data?.items || [])].reverse()) {
+  const unique = new Map<number, IConversationMessage>();
+  for (const message of [...(messages.data?.items ?? []), ...older.items]) {
+    if (!unique.has(message.id)) unique.set(message.id, message);
+  }
+  for (const message of [...unique.values()].reverse()) {
     if (message.role === 'USER') turns.push({ ask: message });
     else if (message.role === 'ASSISTANT') {
       const last = turns.at(-1);
@@ -120,6 +133,12 @@ export function ContentThread({
   }, [messages.data, conversation.status]);
   return (
     <>
+      <div ref={older.top} aria-hidden="true" style={{ height: 1 }} />
+      {older.failed && (
+        <MessageAction onClick={() => void older.failed?.refetch()}>
+          Загрузить предыдущие сообщения снова
+        </MessageAction>
+      )}
       {messages.isPending && <LoadingRows label="Загружаем сообщения…" />}
       {messages.error && (
         <p role="alert">
@@ -204,12 +223,6 @@ export function ContentThread({
             <div className="as-bot">
               <div className="as-bot-main">
                 {waiting && <PendingResult tools={progress.tools} />}
-                {waiting &&
-                  progress.tools.map((tool, i) => (
-                    <p className="as-status" key={i}>
-                      {toolLabel(tool)}
-                    </p>
-                  ))}
                 {files.map((file) =>
                   file.type === 'VIDEO' ? (
                     <Media
@@ -250,7 +263,7 @@ export function ContentThread({
                         <StudioQuestionCard
                           question={question}
                           previousAnswer={previousAnswer}
-                          disabled={busy || page !== 0 || messages.data?.items[0]?.id !== reply.id}
+                          disabled={busy || messages.data?.items[0]?.id !== reply.id}
                           onAnswer={(answer) => onAnswer(question, reply.id, answer)}
                         />
                       ) : (
@@ -383,17 +396,7 @@ export function ContentThread({
           {error || 'Работа завершилась с ошибкой. Проверьте сообщения перед новым запуском.'}
         </p>
       )}
-      {!!messages.data && messages.data.pages > 1 && (
-        <nav aria-label="Страницы сообщений">
-          <MessageAction disabled={page === 0} onClick={() => setPage(page - 1)}>
-            Новее
-          </MessageAction>
-          <MessageAction disabled={page + 1 >= messages.data.pages} onClick={() => setPage(page + 1)}>
-            Раньше
-          </MessageAction>
-        </nav>
-      )}
-      <div ref={end} />
+      <div ref={end} data-thread-end />
       {jump && (
         <button
           className="as-jump"

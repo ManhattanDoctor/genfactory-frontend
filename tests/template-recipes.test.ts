@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import cards from '../src/features/content-studio/templates.json';
-import { loadTemplate } from '../src/features/content-studio/templateCatalog';
+import { loadTemplate, mediaTemplates } from '../src/features/content-studio/templateCatalog';
 import { PromptTemplate } from '../src/features/content-studio/PromptTemplate';
 import {
   prepareComposerTemplate,
   updateComposerField,
 } from '../src/features/content-studio/templateComposer';
-const templates = await Promise.all(cards.map(loadTemplate));
+const templates = await Promise.all(mediaTemplates.map(loadTemplate));
 import fields from '../src/features/content-studio/templateFields.json';
 import {
   templateVariables,
@@ -59,7 +59,11 @@ describe('Complete designer template catalog', () => {
     expect(templateReference(get('image:10'))).toBe('optional');
     expect(templateReference(get('image:12'))).toBe('optional');
     expect(templateReference(get('video:media/creatives/19.mp4'))).toBe('optional');
-    expect(templateReference(get('presentation:startup'))).toBe('none');
+  });
+  it('excludes presentations from the media catalog and rejects them on direct selection', async () => {
+    const presentation = cards.find((card) => card.id === 'presentation:startup')!;
+    expect(mediaTemplates).not.toContain(presentation);
+    await expect(loadTemplate(presentation)).rejects.toThrow('Неизвестный тип шаблона.');
   });
 });
 

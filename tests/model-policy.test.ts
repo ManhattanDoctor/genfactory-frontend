@@ -1,12 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import {
   isAllowedProvider,
+  isListedModel,
   assertAllowedProvider,
   assertAllowedTools,
   effectiveTools,
   prepareAllowedTools,
 } from '../src/lib/modelPolicy';
 describe('OpenRouter-only client policy', () => {
+  it('hides excluded studio models and inactive catalogue entries while keeping GPT Image 1 Mini available', () => {
+    const model = {
+      name: 'image',
+      schema: {},
+      reference: { provider: 'OPEN_ROUTER_IMAGE', model: 'openai/gpt-image-1-mini' },
+    };
+    expect(isListedModel(model)).toBe(true);
+    expect(isListedModel({ ...model, status: 'HIDDEN' })).toBe(false);
+    expect(isListedModel({ ...model, status: 'DISABLED' })).toBe(false);
+    expect(
+      isListedModel({
+        ...model,
+        reference: { ...model.reference, model: 'openai/gpt-image-1' },
+        status: 'ACTIVE',
+      }),
+    ).toBe(false);
+  });
   it.each([
     'OPEN_ROUTER_CONVERSATION',
     'OPEN_ROUTER_TEXT',

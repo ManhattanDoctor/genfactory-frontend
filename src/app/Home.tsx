@@ -1,3 +1,4 @@
+import { LoadingRows } from '../components/Skeleton';
 import { useMediaVisibility } from '../components/useMediaVisibility';
 import { LazyImage } from '../components/LazyImage';
 import { Masonry } from '../components/Masonry';
@@ -5,7 +6,7 @@ import { ModelDigest } from '../components/ModelDigest';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { catalogQuery } from '../features/catalog/catalogQuery';
+import { imageModelIdsQuery } from '../features/catalog/catalogQuery';
 import { useAuth } from '../features/auth/AuthProvider';
 import { modes } from './home/HomeNavigation';
 import { icons } from './home/icons';
@@ -64,19 +65,12 @@ function ModeCard({ mode, index }: { mode: (typeof modes)[number]; index: number
 
 export function Home() {
   const auth = useAuth();
-  const catalog = useQuery(catalogQuery(auth.user?.id, 'OPEN_ROUTER_IMAGE'));
+  const catalog = useQuery(imageModelIdsQuery(auth.user?.id));
   const [tab, setTab] = useState('generations');
   const [limit, setLimit] = useState(9);
   const [detail, setDetail] = useState<(typeof content.digests)[number]>();
-  function imageRoute(id: string) {
-    return id &&
-      (!catalog.data ||
-        catalog.data.some(
-          (item) => item.reference.model === id && item.capabilities?.includes('IMAGE_OUTPUT'),
-        ))
-      ? '/image?' + new URLSearchParams({ model: id })
-      : undefined;
-  }
+  const digests = content.digests.filter((item) => catalog.data?.has(item.model));
+  const imageRoute = (id: string) => '/image?' + new URLSearchParams({ model: id });
   return (
     <>
       <h1 id="home-title" className="gf-sr-only">
@@ -105,6 +99,12 @@ export function Home() {
           </button>
         ))}
       </div>
+      {catalog.isPending && <LoadingRows label="Загружаем модели…" />}
+      {catalog.isError && (
+        <button className="text-button" onClick={() => void catalog.refetch()}>
+          Загрузить модели снова
+        </button>
+      )}
       <section
         className="gf-panel"
         id="panel-generations"
@@ -114,40 +114,38 @@ export function Home() {
       >
         <div className="gf-wall" aria-label="Стена генераций">
           <Masonry ordered>
-            {content.wall.map((w) => {
-              const digest = content.digests[w.model],
-                to = imageRoute(digest.model);
-              const card = (
-                <>
-                  <LazyImage
-                    src={w.src}
-                    width={w.width}
-                    height={w.height}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="gf-wall-overlay">
-                    <p className="gf-wall-model">{digest.title}</p>
-                    <span className="gf-wall-create">{to ? 'Создать' : 'Модель недоступна'}</span>
-                  </div>
-                </>
-              );
-              return to ? (
-                <Link
-                  key={w.src}
-                  className="gf-wall-item"
-                  aria-label={'Создать в модели ' + digest.title}
-                  to={to}
-                >
-                  {card}
-                </Link>
-              ) : (
-                <div className="gf-wall-item" tabIndex={0} key={w.src}>
-                  {card}
-                </div>
-              );
-            })}
+            {content.wall
+              .filter((w) => catalog.data?.has(content.digests[w.model].model))
+              .map((w) => {
+                const digest = content.digests[w.model],
+                  to = imageRoute(digest.model);
+                const card = (
+                  <>
+                    <LazyImage
+                      src={w.src}
+                      width={w.width}
+                      height={w.height}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div className="gf-wall-overlay">
+                      <p className="gf-wall-model">{digest.title}</p>
+                      <span className="gf-wall-create">Создать</span>
+                    </div>
+                  </>
+                );
+                return (
+                  <Link
+                    key={w.src}
+                    className="gf-wall-item"
+                    aria-label={'Создать в модели ' + digest.title}
+                    to={to}
+                  >
+                    {card}
+                  </Link>
+                );
+              })}
           </Masonry>
         </div>
       </section>
@@ -160,7 +158,7 @@ export function Home() {
       >
         <div className="gf-digests">
           <Masonry ordered>
-            {content.digests.slice(0, limit).map((m) => (
+            {digests.slice(0, limit).map((m) => (
               <button
                 key={m.title}
                 className="gf-digest-card"
@@ -183,7 +181,7 @@ export function Home() {
             ))}
           </Masonry>
         </div>
-        {limit < content.digests.length && (
+        {limit < digests.length && (
           <div className="gf-digest-more-wrap">
             <button className="gf-btn-more" onClick={() => setLimit((n) => n + 9)}>
               Показать ещё модели
@@ -191,15 +189,11 @@ export function Home() {
           </div>
         )}
       </section>
-      {detail && (
+      {detail && catalog.data?.has(detail.model) && (
         <ModelDigest detail={detail} onClose={() => setDetail(undefined)}>
-          {imageRoute(detail.model) ? (
-            <Link className="gf-btn-primary" to={imageRoute(detail.model)!}>
-              Открыть в Изображениях
-            </Link>
-          ) : (
-            <span>Модель недоступна</span>
-          )}
+          <Link className="gf-btn-primary" to={imageRoute(detail.model)}>
+            Открыть в Изображениях
+          </Link>
         </ModelDigest>
       )}
     </>

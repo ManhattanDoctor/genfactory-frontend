@@ -116,7 +116,7 @@ export function ContentStudio(): ReactElement {
   useEffect(() => {
     if (visibleOnServer) setOutgoing(undefined);
   }, [visibleOnServer]);
-  const showOutgoing = !!localMessage && !visibleOnServer && work.thread.page === 0;
+  const showOutgoing = !!localMessage && !visibleOnServer;
   const [awaitingAcceptance, setAwaitingAcceptance] = useState<object>();
   const [preparingFrame, setPreparingFrame] = useState(false);
   const frameEpoch = useRef(0);
@@ -1114,7 +1114,6 @@ export function ContentStudio(): ReactElement {
       if (!model) throw new Error('Выберите доступную модель.');
       if (!work.conversation && !agent) throw new Error('Не удалось загрузить модель ассистента.');
       if (!(work.queue && (work.busy || work.queue.occupied))) {
-        work.thread.setPage(0);
         setOutgoing({
           scope: submissionScope,
           text: sourceDraft.trim(),

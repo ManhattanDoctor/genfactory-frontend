@@ -10,3 +10,15 @@ export function catalogQuery(userId: number | undefined, provider: string | unde
     queryFn: ({ signal }) => api.catalog(provider!, signal),
   });
 }
+
+export function imageModelIdsQuery(userId: number | undefined) {
+  return queryOptions({
+    ...catalogQuery(userId, 'OPEN_ROUTER_IMAGE'),
+    select: (models) =>
+      new Set(
+        models
+          .filter((item) => item.capabilities?.includes('IMAGE_OUTPUT'))
+          .map((item) => item.reference.model),
+      ),
+  });
+}
