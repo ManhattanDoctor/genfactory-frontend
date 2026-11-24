@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ITaskExecution, ITaskFinished } from '../../lib/types';
+import type { IInitResponse, ITaskExecution, ITaskFinished } from '../../lib/types';
 import { apiErrorMessage } from '../../lib/errorMessages';
 import { refreshFilePreview } from './filePreviewRefresh';
 import { matchesRefresh, refreshTargets, taskConversationId, type RefreshTarget } from './refreshTargets';
@@ -62,6 +62,7 @@ export class QueryRefreshService {
   private disposed = false;
   private started = false;
   private connected = false;
+  private shouldRefreshOnConnect = false;
   private stopObserving?: () => void;
 
   public constructor(
@@ -82,13 +83,18 @@ export class QueryRefreshService {
 
   public setConnected(connected: boolean): void {
     if (this.disposed) return;
+    const reconnected = connected && !this.connected && this.shouldRefreshOnConnect;
     this.connected = connected;
     if (connected) {
       clearInterval(this.fallback);
       this.fallback = undefined;
-      this.schedule();
+      if (reconnected) this.schedule();
+      this.shouldRefreshOnConnect = true;
     } else if (this.started && !this.fallback) {
-      this.fallback = setInterval(this.refreshVisible, 15000);
+      this.fallback = setInterval(() => {
+        this.shouldRefreshOnConnect = true;
+        this.refreshVisible();
+      }, 15000);
     }
   }
 
@@ -104,6 +110,26 @@ export class QueryRefreshService {
   public schedule(keys = resources, conversationId?: unknown, fileId?: unknown): void {
     const affected = keys.includes('files') || keys.includes('conversations') ? [...keys, 'artifacts'] : keys;
     this.enqueue(refreshTargets(affected, conversationId, fileId));
+  }
+
+  private updateAccountBalance(data: unknown): void {
+    const balances = Object.fromEntries(
+      Object.entries(data && typeof data === 'object' && !Array.isArray(data) ? data : {}).filter(
+        ([coin, value]) =>
+          /^[A-Z][A-Z0-9_]*$/.test(coin) && typeof value === 'string' && /^-?\d+(?:\.\d+)?$/.test(value),
+      ),
+    ) as Record<string, string>;
+    const key = ['account', this.session];
+    const account = this.client.getQueryState<IInitResponse>(key);
+    if (!Object.keys(balances).length || !account?.data || account.fetchStatus === 'fetching') {
+      this.schedule(['account', 'transactions']);
+      return;
+    }
+    this.client.setQueryData<IInitResponse>(key, {
+      ...account.data,
+      balances: { ...account.data.balances, ...balances },
+    });
+    this.schedule(['transactions']);
   }
 
   public receive(event: IRealtimeEvent): void {
@@ -136,14 +162,17 @@ export class QueryRefreshService {
       return;
     }
     const item = data.item;
+    const taskKey = ['active-tasks', this.userId];
+    const taskState = this.client.getQueryState<ITaskExecution[]>(taskKey);
+    const hasTaskSnapshot = taskState?.data !== undefined && taskState.fetchStatus === 'idle';
     if (name === 'TaskStartedEvent' && isTaskExecution(item) && item.id === data.id) {
-      this.client.setQueryData<ITaskExecution[]>(['active-tasks', this.userId], (previous) => [
+      this.client.setQueryData<ITaskExecution[]>(taskKey, (previous) => [
         ...(previous || []).filter((previousItem) => previousItem.id !== data.id),
         item,
       ]);
     }
     if (name === 'TaskFinishedEvent' && typeof data.id === 'string') {
-      this.client.setQueryData<ITaskExecution[]>(['active-tasks', this.userId], (previous) =>
+      this.client.setQueryData<ITaskExecution[]>(taskKey, (previous) =>
         (previous || []).filter((item) => item.id !== data.id),
       );
       const result = data.result;
@@ -176,23 +205,29 @@ export class QueryRefreshService {
       Number.isSafeInteger(data.id) &&
       data.id > 0
     )
-      this.schedule(['file-preview-update', 'conversations'], undefined, data.id);
+      this.schedule(['file-preview-update', 'conversation-covers', 'artifacts'], undefined, data.id);
+    else if (name === 'FileAddedEvent') this.schedule(['files']);
     else if (name.startsWith('File'))
-      this.schedule(['files', 'file-preview', 'conversations'], undefined, data.id);
-    else if (name === 'CoinBalanceChangedEvent') this.schedule(['account', 'transactions']);
+      this.schedule(['files', 'file-preview', 'conversation-covers'], undefined, data.id);
+    else if (name === 'CoinBalanceChangedEvent') this.updateAccountBalance(data);
     else if (name === 'TaskStartedEvent' || name === 'TaskFinishedEvent') {
       const conversationId = taskConversationId(data.session ?? data.item?.session);
+      const canUpdateTask = hasTaskSnapshot && isTaskExecution(item) && item.id === data.id;
       this.schedule(
         [
           ...(conversationId
-            ? ['conversation', 'messages', 'agent-messages', 'prompt-messages', 'conversation-progress']
+            ? [
+                'conversation',
+                'messages',
+                'agent-messages',
+                'prompt-messages',
+                'conversation-progress',
+                'conversations',
+                'active-jobs',
+              ]
             : []),
-          'conversations',
-          'active-jobs',
-          'active-tasks',
-          ...(name === 'TaskFinishedEvent'
-            ? ['account', 'transactions', 'transaction-results', 'files']
-            : []),
+          ...(canUpdateTask ? [] : ['active-tasks']),
+          ...(name === 'TaskFinishedEvent' ? ['transactions', 'transaction-results', 'files'] : []),
         ],
         conversationId,
       );

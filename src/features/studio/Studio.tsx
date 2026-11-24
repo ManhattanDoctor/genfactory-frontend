@@ -45,7 +45,7 @@ import { UploadSurface } from '../../components/UploadSurface';
 import { ReferenceList } from '../../components/ReferenceList';
 import { ModelBrowser } from '../catalog/ModelBrowser';
 import { favoritesFirst } from '../catalog/presentation';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation, useIsMutating } from '@tanstack/react-query';
 import {
@@ -244,15 +244,19 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
       ),
   });
   const standardImage = kind === 'image' && !specialized;
-  const models = (catalog.data || [])
-    .filter((m) =>
-      specialized === 'banana'
-        ? /gemini.*(image|banana)/i.test(m.reference.model)
-        : specialized === 'seedance'
-          ? /seedance/i.test(m.reference.model)
-          : true,
-    )
-    .map((m) => (specialized === 'banana' ? { ...m, name: bananaTitle(m) } : m));
+  const models = useMemo(
+    () =>
+      (catalog.data || [])
+        .filter((m) =>
+          specialized === 'banana'
+            ? /gemini.*(image|banana)/i.test(m.reference.model)
+            : specialized === 'seedance'
+              ? /seedance/i.test(m.reference.model)
+              : true,
+        )
+        .map((m) => (specialized === 'banana' ? { ...m, name: bananaTitle(m) } : m)),
+    [catalog.data, specialized],
+  );
   const catalogError = catalog.isError && !catalog.data;
   const modelKey = (m: Pick<IModelDescription, 'reference'>) =>
     `${m.reference.provider}:${m.reference.model}`;

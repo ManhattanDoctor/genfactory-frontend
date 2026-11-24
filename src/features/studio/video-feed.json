@@ -2,6 +2,7 @@
   "templates": [
     {
       "id": "video-feed-tpl_17",
+      "archiveTemplateId": "video:2026-11-13:17",
       "title": "Уличная культура",
       "prompt": "Собери 15 с монтаж уличной культуры 16:9: герой с фото, handheld, живой ритм города.",
       "src": "/media/video-feed/templates/17.mp4",
@@ -16,6 +17,7 @@
     },
     {
       "id": "video-feed-tpl_13",
+      "archiveTemplateId": "video:2026-11-13:13",
       "title": "Рыцарь в тёмном фэнтези",
       "prompt": "Собери тёмный фэнтези-ролик 9:16 на 15 с: герой с фото в доспехах поверх своего облика, кинематографичный монтаж.",
       "src": "/media/video-feed/templates/13.mp4",
@@ -30,6 +32,7 @@
     },
     {
       "id": "video-feed-tpl_10",
+      "archiveTemplateId": "video:2026-11-13:10",
       "title": "Драка в метро",
       "prompt": "Собери экшен в пустом ночном метро: герой с фото против отдельного злодея на фоне, handheld, тёмный grade.",
       "src": "/media/video-feed/templates/10.mp4",
@@ -44,6 +47,7 @@
     },
     {
       "id": "video-feed-tpl_26",
+      "archiveTemplateId": "video:2026-11-13:26",
       "title": "Щелчок и заморозка города",
       "prompt": "Собери 15 с: герой с фото щёлкает пальцами, город замирает, герой идёт среди застывших людей.",
       "src": "/media/video-feed/templates/26.mp4",
@@ -58,6 +62,7 @@
     },
     {
       "id": "video-feed-tpl_20",
+      "archiveTemplateId": "video:2026-11-13:20",
       "title": "Токио-селфи",
       "prompt": "Собери 10 с тревел-влога: селфи у Tokyo Tower и короткие куски как с телефона, герой с фото.",
       "src": "/media/video-feed/templates/20.mp4",
@@ -72,6 +77,7 @@
     },
     {
       "id": "video-feed-tpl_07",
+      "archiveTemplateId": "video:2026-11-13:07",
       "title": "Тревел-влог Шри-Ланка",
       "prompt": "Собери премиальный тревел-влог 30 с: герой с фото путешествует по Шри-Ланке, поезд, природа, тёплый 35mm-вайб.",
       "src": "/media/video-feed/templates/07.mp4",
@@ -86,6 +92,7 @@
     },
     {
       "id": "video-feed-tpl_06",
+      "hideFromGallery": true,
       "title": "Прыжок в парке",
       "prompt": "Собери экшен 10 с: герой с фото прыгает с ветки в парке, динамичная камера, яркий летний день, одежда строго с фото.",
       "src": "/media/video-feed/templates/06.mp4",
@@ -100,6 +107,7 @@
     },
     {
       "id": "video-feed-tpl_11",
+      "archiveTemplateId": "video:2026-11-13:11",
       "title": "Кабина самолёта",
       "prompt": "Собери экшен 30 с в кабине самолёта: герой с фото обнаруживает пустые кресла пилотов и берёт управление.",
       "src": "/media/video-feed/templates/11.mp4",
@@ -114,6 +122,7 @@
     },
     {
       "id": "video-feed-tpl_16",
+      "archiveTemplateId": "video:2026-11-13:16",
       "title": "Школьный двор",
       "prompt": "Собери сцену во дворе школы с двумя героями с двух фото, лица узнаваемые, реалистичный live-action.",
       "src": "/media/video-feed/templates/16.mp4",
@@ -128,6 +137,7 @@
     },
     {
       "id": "video-feed-tpl_23",
+      "hideFromGallery": true,
       "title": "Модельный лист персонажа",
       "prompt": "Собери модельный лист персонажа на белом фоне: три вида тела и углы головы по фото.",
       "src": "/media/video-feed/templates/23.mp4",
@@ -142,6 +152,7 @@
     },
     {
       "id": "video-feed-tpl_12",
+      "archiveTemplateId": "video:2026-11-13:12",
       "title": "Тёмное восточное фэнтези",
       "prompt": "Собери эпичный тёмный восточный фэнтези-ролик 16:9: герой строго с фото, огонь, ночь, без диалогов.",
       "src": "/media/video-feed/templates/12.mp4",
@@ -156,6 +167,7 @@
     },
     {
       "id": "video-feed-tpl_19",
+      "archiveTemplateId": "video:2026-11-13:19",
       "title": "Логотип на одежде",
       "prompt": "Статичный крупный план героя с фото: на одежде появляется логотип, остальное не двигать.",
       "src": "/media/video-feed/templates/19.mp4",
@@ -170,6 +182,7 @@
     },
     {
       "id": "video-feed-tpl_02",
+      "archiveTemplateId": "video:2026-11-13:02",
       "title": "Шторм у океана",
       "prompt": "Собери кинематографичный ролик 9:16 на 12 с: герой с фото идёт по берегу в шторм, волны и пена, холодный свет, финал крупным планом лица.",
       "src": "/media/video-feed/templates/02.mp4",
@@ -184,6 +197,7 @@
     },
     {
       "id": "video-feed-tpl_15",
+      "archiveTemplateId": "video:2026-11-13:15",
       "title": "Лев у машины",
       "prompt": "Собери 12 с вертикального смартфон-ролика: герой с фото у машины ночью сталкивается со львом, как настоящее телефонное видео.",
       "src": "/media/video-feed/templates/15.mp4",
@@ -198,6 +212,7 @@
     },
     {
       "id": "video-feed-tpl_24",
+      "archiveTemplateId": "video:2026-11-13:24",
       "title": "Портрет в гараже Ferrari",
       "prompt": "Собери кинематографичный портрет героя с фото в гараже Ferrari, тёплый свет, стиль трансляции F1.",
       "src": "/media/video-feed/templates/24.mp4",
@@ -212,6 +227,7 @@
     },
     {
       "id": "video-feed-tpl_14",
+      "archiveTemplateId": "video:2026-11-13:14",
       "title": "Полёт над Нью-Йорком",
       "prompt": "Собери непрерывный FPV-полёт: герой с фото летит над Манхэттеном, Times Square и Central Park.",
       "src": "/media/video-feed/templates/14.mp4",
@@ -226,6 +242,7 @@
     },
     {
       "id": "video-feed-tpl_03",
+      "archiveTemplateId": "video:2026-11-13:03",
       "title": "Замена танцора",
       "prompt": "Замени главного танцора в исходном ролике на героя с фото. Хореографию, монтаж, толпу и звук оставь как в исходнике.",
       "src": "/media/video-feed/templates/03.mp4",
@@ -240,6 +257,7 @@
     },
     {
       "id": "video-feed-tpl_18",
+      "archiveTemplateId": "video:2026-11-13:18",
       "title": "Случайный смартфон-ролик",
       "prompt": "Собери 15 с вертикального ролика в стиле случайной съёмки со смартфона, герой строго с фото.",
       "src": "/media/video-feed/templates/18.mp4",
@@ -254,6 +272,7 @@
     },
     {
       "id": "video-feed-tpl_25",
+      "archiveTemplateId": "video:2026-11-13:25",
       "title": "Катастрофа на башне",
       "prompt": "Собери 15 с катастрофы: два героя с двух фото спорят на башне, вспышка в океане и огромная волна.",
       "src": "/media/video-feed/templates/25.mp4",
@@ -268,6 +287,7 @@
     },
     {
       "id": "video-feed-tpl_05",
+      "archiveTemplateId": "video:2026-11-13:05",
       "title": "Бар и арена",
       "prompt": "Отредактируй исходный ролик: первого героя замени по фото 1, фигуру на сцене - по фото 2. Кадры и тайминг не меняй.",
       "src": "/media/video-feed/templates/05.mp4",
@@ -282,6 +302,7 @@
     },
     {
       "id": "video-feed-tpl_22",
+      "archiveTemplateId": "video:2026-11-13:22",
       "title": "Гиперлапс 20 городов",
       "prompt": "Собери 10 с гиперлапс-селфи: герой с фото за 20 локаций - Париж, Токио, Нью-Йорк, Рим и дальше.",
       "src": "/media/video-feed/templates/22.mp4",
@@ -296,6 +317,7 @@
     },
     {
       "id": "video-feed-tpl_08",
+      "archiveTemplateId": "video:2026-11-13:08",
       "title": "Три героя в одной сцене",
       "prompt": "Собери новую сцену по раскладке референс-ролика: три героя с трёх фото, сохранить действия и эмоции оригинала.",
       "src": "/media/video-feed/templates/08.mp4",
@@ -310,6 +332,7 @@
     },
     {
       "id": "video-feed-tpl_09",
+      "archiveTemplateId": "video:2026-11-13:09",
       "title": "Формула-1: трейлер",
       "prompt": "Собери трейлер в стиле документалки Формулы-1: герой с фото - пилот, паддок, старт, дождь, пит-стоп.",
       "src": "/media/video-feed/templates/09.mp4",
@@ -324,6 +347,7 @@
     },
     {
       "id": "video-feed-tpl_01",
+      "archiveTemplateId": "video:2026-11-13:01",
       "title": "Have a nice day",
       "prompt": "Собери ролик 9:16: герой с загруженного фото стоит во дворе под камерой сверху, трёт стекло, затем увеличивает царапину в надпись Have a nice day и смотрит в камеру.",
       "src": "/media/video-feed/templates/01.mp4",
@@ -338,6 +362,7 @@
     },
     {
       "id": "video-feed-tpl_04",
+      "archiveTemplateId": "video:2026-11-13:04",
       "title": "Воспоминания до апокалипсиса",
       "prompt": "Собери короткометражку 16:9: два героя с двух фото - встреча в заброшенном доме и тёплые воспоминания на золотом поле. Без поцелуя.",
       "src": "/media/video-feed/templates/04.mp4",
@@ -352,6 +377,7 @@
     },
     {
       "id": "video-feed-tpl_21",
+      "archiveTemplateId": "video:2026-11-13:21",
       "title": "Персонаж по раскадровке",
       "prompt": "Собери ролик по раскадровке: персонаж строго с фото, одежда с фото, естественная игра в камеру.",
       "src": "/media/video-feed/templates/21.mp4",

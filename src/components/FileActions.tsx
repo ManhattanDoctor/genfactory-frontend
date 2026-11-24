@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import { scheduleRefresh } from '../features/realtime/queryRefresh';
 import { useAuth } from '../features/auth/AuthProvider';
 import { useEffect, useId, useRef, useState, type ReactElement } from 'react';
-import { ChevronDown, ExternalLink, MoreHorizontal, Trash2 } from 'lucide-react';
+import { ChevronDown, ExternalLink, MoreHorizontal } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IGnosisFile } from '../lib/types';
 import { api, getSession, safeMediaUrl } from '../lib/api';
@@ -20,6 +20,8 @@ export function FileActions({
   file,
   disabled = false,
   variant = 'menu',
+  onRepeat,
+  repeatDisabled = false,
   onDeleted,
   onNotice,
   onUse,
@@ -29,7 +31,9 @@ export function FileActions({
 }: {
   file: Pick<PreviewFile, 'name' | 'type'> & Partial<PreviewFile>;
   disabled?: boolean;
-  variant?: 'menu' | 'preview-menu' | 'delete-button';
+  variant?: 'menu' | 'preview-menu';
+  onRepeat?: () => void;
+  repeatDisabled?: boolean;
   onDeleted?: () => void;
   onNotice?: (message: string) => void;
   onUse?: (file: IGnosisFile) => void;
@@ -231,208 +235,205 @@ export function FileActions({
   const itemClass = 'preview-menu-item';
   return (
     <>
-      {variant === 'delete-button' ? (
-        <button
-          type="button"
+      <details
+        ref={menu}
+        className={variant === 'preview-menu' ? 'preview-menu' : 'file-actions'}
+        name="file-card-actions"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && event.currentTarget.open) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeMenu();
+            event.currentTarget.querySelector('summary')?.focus();
+          }
+        }}
+        onToggle={(event) => setOpen(event.currentTarget.open)}
+      >
+        <summary
           className="icon-button"
-          aria-label={`Удалить ${file.name}`}
-          title="Удалить"
-          disabled={busy || !manageable}
-          onClick={remove}
+          aria-label={variant === 'preview-menu' ? 'Действия с файлом' : `Действия с «${file.name}»`}
+          title={variant === 'preview-menu' ? 'Действия с файлом' : `Действия с «${file.name}»`}
         >
-          <Trash2 size={18} />
-        </button>
-      ) : (
-        <details
-          ref={menu}
-          className={variant === 'preview-menu' ? 'preview-menu' : 'file-actions'}
-          name="file-card-actions"
-          onKeyDown={(event) => {
-            if (event.key === 'Escape' && event.currentTarget.open) {
-              event.preventDefault();
-              event.stopPropagation();
-              closeMenu();
-              event.currentTarget.querySelector('summary')?.focus();
-            }
-          }}
-          onToggle={(event) => setOpen(event.currentTarget.open)}
-        >
-          <summary
-            className="icon-button"
-            aria-label={variant === 'preview-menu' ? 'Действия с файлом' : `Действия с «${file.name}»`}
-            title={variant === 'preview-menu' ? 'Действия с файлом' : `Действия с «${file.name}»`}
-          >
-            <MoreHorizontal size={18} />
-          </summary>
-          <div data-action-panel className="preview-menu-panel" aria-label="Действия с текущим файлом">
-            {!folder && (
-              <button
-                type="button"
-                className={itemClass}
-                disabled={busy}
-                onClick={() => {
-                  closeMenu();
-                  void download();
-                }}
-              >
-                Скачать файл
-              </button>
-            )}
-            {!folder && safeMediaUrl(current.path) && (
-              <>
-                {(['link', 'file'] as const).map((mode) => (
-                  <FileShareButton
-                    key={`${current.id}:${current.path}:${mode}`}
-                    file={current}
-                    mode={mode}
-                    onNotice={notify}
-                    onShared={closeMenu}
-                  />
-                ))}
-              </>
-            )}
+          <MoreHorizontal size={18} />
+        </summary>
+        <div data-action-panel className="preview-menu-panel" aria-label="Действия с текущим файлом">
+          {!folder && (
+            <button
+              type="button"
+              className={itemClass}
+              disabled={busy}
+              onClick={() => {
+                closeMenu();
+                void download();
+              }}
+            >
+              Скачать файл
+            </button>
+          )}
+          {onRepeat && (
+            <button
+              type="button"
+              className={itemClass}
+              aria-label={`Переделать ${file.name}`}
+              disabled={busy || repeatDisabled}
+              onClick={() => {
+                closeMenu();
+                onRepeat();
+              }}
+            >
+              Переделать
+            </button>
+          )}
+          {!folder && safeMediaUrl(current.path) && (
+            <>
+              {(['link', 'file'] as const).map((mode) => (
+                <FileShareButton
+                  key={`${current.id}:${current.path}:${mode}`}
+                  file={current}
+                  mode={mode}
+                  onNotice={notify}
+                  onShared={closeMenu}
+                />
+              ))}
+            </>
+          )}
 
-            {((saved && current.type === 'IMAGE') || textFile.data !== undefined) && (
-              <details className="file-menu-group" name={groupName}>
-                <summary className={itemClass}>
-                  Использовать в… <ChevronDown size={16} />
-                </summary>
-                <div className="file-menu-group-items">
-                  {saved && current.type === 'IMAGE' && (
-                    <button type="button" className={itemClass} onClick={() => useFile('/image', onUse)}>
-                      Как референс
+          {((saved && current.type === 'IMAGE') || textFile.data !== undefined) && (
+            <details className="file-menu-group" name={groupName}>
+              <summary className={itemClass}>
+                Использовать в… <ChevronDown size={16} />
+              </summary>
+              <div className="file-menu-group-items">
+                {saved && current.type === 'IMAGE' && (
+                  <button type="button" className={itemClass} onClick={() => useFile('/image', onUse)}>
+                    Как референс
+                  </button>
+                )}
+                {saved && current.type === 'IMAGE' && (
+                  <>
+                    <button type="button" className={itemClass} onClick={() => useFile('/video', onAnimate)}>
+                      Анимировать
                     </button>
-                  )}
-                  {saved && current.type === 'IMAGE' && (
-                    <>
-                      <button
-                        type="button"
-                        className={itemClass}
-                        onClick={() => useFile('/video', onAnimate)}
-                      >
-                        Анимировать
-                      </button>
-                    </>
-                  )}
-                  {textFile.data !== undefined && (
-                    <>
-                      <button
-                        type="button"
-                        className={itemClass}
-                        onClick={async () => {
-                          closeMenu();
-                          try {
-                            await navigator.clipboard.writeText(textFile.data!);
-                            notify('Текст скопирован.');
-                          } catch {
-                            notify('Не удалось скопировать текст.');
-                          }
-                        }}
-                      >
-                        Копировать текст
-                      </button>
-                      <button
-                        type="button"
-                        className={itemClass}
-                        onClick={() => {
-                          closeMenu();
-                          onNavigate?.();
-                          navigate('/audio', { state: { prompt: textFile.data, userId: user?.id } });
-                        }}
-                      >
-                        Озвучить текст
-                      </button>
-                      <button
-                        type="button"
-                        className={itemClass}
-                        onClick={() => {
-                          closeMenu();
-                          onNavigate?.();
-                          navigate('/prompt', { state: { prompt: textFile.data, userId: user?.id } });
-                        }}
-                      >
-                        В описание задачи
-                      </button>
-                    </>
-                  )}
-                </div>
-              </details>
-            )}
-            {(manageable || current.origin?.generation || (!folder && safeMediaUrl(current.path))) && (
-              <details className="file-menu-group" name={groupName}>
-                <summary className={itemClass}>
-                  Дополнительно <ChevronDown size={16} />
-                </summary>
-                <div className="file-menu-group-items">
-                  {!folder && safeMediaUrl(current.path) && (
-                    <a
-                      className={itemClass}
-                      href={safeMediaUrl(current.path)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={closeMenu}
-                    >
-                      Открыть оригинал <ExternalLink size={16} />
-                    </a>
-                  )}
-                  {manageable && (
+                  </>
+                )}
+                {textFile.data !== undefined && (
+                  <>
                     <button
                       type="button"
                       className={itemClass}
-                      disabled={busy}
-                      onClick={() => {
+                      onClick={async () => {
                         closeMenu();
-                        void edit();
+                        try {
+                          await navigator.clipboard.writeText(textFile.data!);
+                          notify('Текст скопирован.');
+                        } catch {
+                          notify('Не удалось скопировать текст.');
+                        }
                       }}
                     >
-                      Название и теги
+                      Копировать текст
                     </button>
-                  )}
-                  {manageable && !folder && (
-                    <button
-                      type="button"
-                      className={itemClass}
-                      disabled={busy}
-                      onClick={() => {
-                        closeMenu();
-                        setDestination([]);
-                        setError('');
-                        setAction('move');
-                      }}
-                    >
-                      Переместить
-                    </button>
-                  )}
-                  {current.origin?.generation && (
                     <button
                       type="button"
                       className={itemClass}
                       onClick={() => {
                         closeMenu();
-                        setGenerationOpen(true);
+                        onNavigate?.();
+                        navigate('/audio', { state: { prompt: textFile.data, userId: user?.id } });
                       }}
                     >
-                      Параметры генерации
+                      Озвучить текст
                     </button>
-                  )}
-                </div>
-              </details>
-            )}
-            {manageable && (
-              <button
-                type="button"
-                className={`${itemClass} file-menu-delete danger`}
-                disabled={busy}
-                onClick={remove}
-              >
-                Удалить
-              </button>
-            )}
-            {!onNotice && notice && <p role="status">{notice}</p>}
-            {detail.isError && <p role="alert">Не удалось загрузить сведения о файле.</p>}
-          </div>
-        </details>
-      )}
+                    <button
+                      type="button"
+                      className={itemClass}
+                      onClick={() => {
+                        closeMenu();
+                        onNavigate?.();
+                        navigate('/prompt', { state: { prompt: textFile.data, userId: user?.id } });
+                      }}
+                    >
+                      В описание задачи
+                    </button>
+                  </>
+                )}
+              </div>
+            </details>
+          )}
+          {(manageable || current.origin?.generation || (!folder && safeMediaUrl(current.path))) && (
+            <details className="file-menu-group" name={groupName}>
+              <summary className={itemClass}>
+                Дополнительно <ChevronDown size={16} />
+              </summary>
+              <div className="file-menu-group-items">
+                {!folder && safeMediaUrl(current.path) && (
+                  <a
+                    className={itemClass}
+                    href={safeMediaUrl(current.path)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={closeMenu}
+                  >
+                    Открыть оригинал <ExternalLink size={16} />
+                  </a>
+                )}
+                {manageable && (
+                  <button
+                    type="button"
+                    className={itemClass}
+                    disabled={busy}
+                    onClick={() => {
+                      closeMenu();
+                      void edit();
+                    }}
+                  >
+                    Название и теги
+                  </button>
+                )}
+                {manageable && !folder && (
+                  <button
+                    type="button"
+                    className={itemClass}
+                    disabled={busy}
+                    onClick={() => {
+                      closeMenu();
+                      setDestination([]);
+                      setError('');
+                      setAction('move');
+                    }}
+                  >
+                    Переместить
+                  </button>
+                )}
+                {current.origin?.generation && (
+                  <button
+                    type="button"
+                    className={itemClass}
+                    onClick={() => {
+                      closeMenu();
+                      setGenerationOpen(true);
+                    }}
+                  >
+                    Параметры генерации
+                  </button>
+                )}
+              </div>
+            </details>
+          )}
+          {manageable && (
+            <button
+              type="button"
+              className={`${itemClass} file-menu-delete danger`}
+              disabled={busy}
+              onClick={remove}
+            >
+              Удалить
+            </button>
+          )}
+          {!onNotice && notice && <p role="status">{notice}</p>}
+          {detail.isError && <p role="alert">Не удалось загрузить сведения о файле.</p>}
+        </div>
+      </details>
       {!onNotice &&
         !open &&
         notice &&

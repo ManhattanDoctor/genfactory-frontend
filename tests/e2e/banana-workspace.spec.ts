@@ -129,6 +129,7 @@ test('banana uses the designer empty canvas and catalog settings, preserves its 
   expect(state.creates).toHaveLength(0);
   expect(state.sends).toHaveLength(0);
   await page.locator('.image-result').hover();
+  await page.getByLabel('Действия с «Чашка.png»', { exact: true }).click();
   await page.getByRole('button', { name: 'Переделать Чашка.png', exact: true }).click();
   await expect(page.locator('#nb-draft')).toHaveValue(/Красная чашка/);
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toHaveCount(1);

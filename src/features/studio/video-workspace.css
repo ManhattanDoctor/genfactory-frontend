@@ -179,10 +179,6 @@
   font-size: 14px;
   line-height: 1.35;
 }
-.video-workspace .img-actions > button:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
 
 .video-workspace .video-model-limits {
   overflow: hidden;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ComponentProps, type ReactElement } from 'react';
 import { Download, RotateCcw, Trash2 } from 'lucide-react';
 import images from './image-feed.json';
 import videos from './video-feed.json';
@@ -6,12 +6,16 @@ import type { IModelDescription } from '../../lib/types';
 import { findTemplateModel } from '../catalog/presentation';
 import type { ITemplateCard } from '../content-studio/materials';
 import { shuffle } from 'lodash';
+import { TemplateMedia } from '../content-studio/TemplateMedia';
+import { isGalleryTemplate } from '../content-studio/templateCatalog';
+import { Masonry } from '../../components/Masonry';
 
 export type FeedCard = (typeof images.templates)[number] & { previewWidth?: number; previewHeight?: number };
 export const feeds: Record<'image' | 'video', { templates: FeedCard[]; generations: FeedCard[] }> = {
   image: images,
   video: videos,
 };
+const videoTemplateSources = new Set(videos.templates.map((card) => card.src));
 const tabs = [
   {
     key: 'templates',
@@ -49,7 +53,8 @@ export function DesignFeed({
   onApplyArchive,
   onApply,
   busy,
-  children,
+  children = [],
+  layout,
 }: {
   kind: 'image' | 'video';
   models: IModelDescription[];
@@ -59,49 +64,106 @@ export function DesignFeed({
   onApplyArchive: (card: ITemplateCard) => void;
   onApply: (card: FeedCard) => void;
   busy: boolean;
-  children?: ReactNode;
+  children?: ReactElement[];
+  layout?: Omit<ComponentProps<typeof Masonry>, 'children'>;
 }) {
   const feed = feeds[kind];
   const hints: Record<FeedTab, string> = {
     templates: kind === 'video' ? 'Выбрать шаблон ролика' : 'Выбрать шаблон изображения',
-    generations:
-      kind === 'video' ? 'Посмотреть свои видео и примеры' : 'Посмотреть свои изображения и примеры',
+    generations: kind === 'video' ? 'Посмотреть свои видео' : 'Посмотреть свои изображения и примеры',
     shuffle: 'Перемешать шаблоны и примеры',
   };
-  const wall = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
   const [hidden, setHidden] = useState<string[]>([]);
   const templates = useMemo(
     () => [
-      ...feed.templates.filter((card) => findTemplateModel(models, card.modelId, card.modelTitle)),
       ...archive,
+      ...feed.templates.filter(
+        (card) => isGalleryTemplate(card.id) && findTemplateModel(models, card.modelId, card.modelTitle),
+      ),
     ],
     [feed, models, archive],
   );
   const generations = useMemo(
-    () => feed.generations.filter((card) => findTemplateModel(models, card.modelId, card.modelTitle)),
-    [feed, models],
+    () =>
+      feed.generations.filter(
+        (card) =>
+          (kind !== 'video' || !videoTemplateSources.has(card.src)) &&
+          findTemplateModel(models, card.modelId, card.modelTitle),
+      ),
+    [feed, kind, models],
   );
   const mixed = useMemo(
     () => shuffle([...templates, ...generations]).slice(0, 40),
     [templates, generations, revision],
   );
   const cards = tab === 'shuffle' ? mixed : tab === 'templates' ? templates : generations;
-  useEffect(() => {
-    if (kind !== 'video' || !wall.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const video = entry.target as HTMLVideoElement;
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.2) void video.play().catch(() => {});
-          else video.pause();
-        }
-      },
-      { rootMargin: '120px 0px', threshold: [0, 0.2, 0.5, 1] },
-    );
-    wall.current.querySelectorAll('video').forEach((video) => observer.observe(video));
-    return () => observer.disconnect();
-  }, [kind, cards, hidden]);
+  const feedCards = cards
+    .filter((c) => !hidden.includes(c.id))
+    .map((card) => {
+      const archived = 'kind' in card;
+      const template = archived || feed.templates.includes(card);
+      const apply = () => (archived ? onApplyArchive(card) : onApply(card));
+      const aspectRatio = archived
+        ? card.previewRatio || card.ratio.replace(':', ' / ')
+        : card.previewWidth && card.previewHeight
+          ? `${card.previewWidth} / ${card.previewHeight}`
+          : kind === 'video'
+            ? '16 / 9'
+            : '1';
+      return (
+        <article key={card.id} className="card" data-kind={template ? 'template' : 'gen'}>
+          <button
+            type="button"
+            className="feed-preview"
+            style={{ aspectRatio }}
+            aria-label={(template ? 'Использовать шаблон ' : 'Повторить ') + card.title}
+            title={(template ? 'Использовать шаблон ' : 'Повторить ') + card.title}
+            disabled={busy}
+            onClick={apply}
+          >
+            <TemplateMedia
+              key={card.src}
+              item={{
+                kind,
+                src: card.src,
+                poster: card.poster,
+                previewSrc: archived ? card.previewSrc : undefined,
+              }}
+            />
+            <span className="card-overlay">
+              <span className="card-title">{template ? card.title : card.modelTitle}</span>
+              <span className="card-cta">{template ? 'Использовать шаблон' : 'Создать похожее'}</span>
+            </span>
+          </button>
+          {!template && (
+            <div className="card-actions">
+              <a className="icon-btn" href={card.src} download aria-label="Скачать" title="Скачать">
+                <Download />
+              </a>
+              <button
+                className="icon-btn"
+                aria-label="Повторить"
+                title="Повторить"
+                disabled={busy}
+                onClick={apply}
+              >
+                <RotateCcw />
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="Удалить из ленты"
+                title="Удалить из ленты"
+                onClick={() => setHidden((ids) => [...ids, card.id])}
+              >
+                <Trash2 />
+              </button>
+            </div>
+          )}
+        </article>
+      );
+    });
+  const content = [...children, ...feedCards];
   return (
     <div className="design-feed">
       <div className="feed-top">
@@ -126,76 +188,10 @@ export function DesignFeed({
           ))}
         </div>
       </div>
-      <div
-        ref={wall}
-        className={kind === 'video' && tab === 'templates' ? 'wall video-template-wall' : 'wall'}
-        role="tabpanel"
-      >
-        {children}
-        {cards
-          .filter((c) => !hidden.includes(c.id))
-          .map((card) => {
-            const archived = 'kind' in card;
-            const template = archived || feed.templates.includes(card);
-            const apply = () => (archived ? onApplyArchive(card) : onApply(card));
-            const dimensions = archived
-              ? { style: { aspectRatio: card.previewRatio || card.ratio.replace(':', ' / ') } }
-              : { width: card.previewWidth, height: card.previewHeight };
-            return (
-              <article key={card.id} className="card" data-kind={template ? 'template' : 'gen'}>
-                <button
-                  type="button"
-                  className="feed-preview"
-                  aria-label={(template ? 'Использовать шаблон ' : 'Повторить ') + card.title}
-                  title={(template ? 'Использовать шаблон ' : 'Повторить ') + card.title}
-                  disabled={busy}
-                  onClick={apply}
-                >
-                  {kind === 'image' ? (
-                    <img src={card.src} alt="" loading="lazy" {...dimensions} />
-                  ) : (
-                    <video
-                      muted
-                      playsInline
-                      loop
-                      preload="none"
-                      {...dimensions}
-                      poster={card.poster || card.src.replace(/\.mp4$/, '.jpg')}
-                      src={archived ? card.previewSrc || card.src : card.src}
-                    />
-                  )}
-                  <span className="card-overlay">
-                    <span className="card-title">{template ? card.title : card.modelTitle}</span>
-                    <span className="card-cta">{template ? 'Использовать шаблон' : 'Создать похожее'}</span>
-                  </span>
-                </button>
-                {!template && (
-                  <div className="card-actions">
-                    <a className="icon-btn" href={card.src} download aria-label="Скачать" title="Скачать">
-                      <Download />
-                    </a>
-                    <button
-                      className="icon-btn"
-                      aria-label="Повторить"
-                      title="Повторить"
-                      disabled={busy}
-                      onClick={apply}
-                    >
-                      <RotateCcw />
-                    </button>
-                    <button
-                      className="icon-btn"
-                      aria-label="Удалить из ленты"
-                      title="Удалить из ленты"
-                      onClick={() => setHidden((ids) => [...ids, card.id])}
-                    >
-                      <Trash2 />
-                    </button>
-                  </div>
-                )}
-              </article>
-            );
-          })}
+      <div className={tab === 'generations' ? 'wall generation-wall' : 'wall'} role="tabpanel">
+        <Masonry {...layout} ordered={tab !== 'generations'}>
+          {content}
+        </Masonry>
       </div>
     </div>
   );

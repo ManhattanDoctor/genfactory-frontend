@@ -1,9 +1,10 @@
 import { LibrarySearch } from './LibrarySearch';
+import { Masonry } from './Masonry';
 import { HistoryCardBody } from './HistoryCardBody';
 import { previewCardStyle } from './previewCardStyle';
 import { scheduleRefresh } from '../features/realtime/queryRefresh';
 import { SkeletonCards } from './Skeleton';
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import './file-browser.css';
 import { FileCard } from './FileCard';
 import { FileActions } from './FileActions';
@@ -32,6 +33,8 @@ import { directoryPath, folderTrail, mediaType, resolveFile } from '../lib/files
 import type { IGnosisFile } from '../lib/types';
 import { useAuth } from '../features/auth/AuthProvider';
 import { Modal, ModalFooter } from './Modal';
+const libraryGap = 10;
+
 function fileCountLabel(count: number): string {
   switch (new Intl.PluralRules('ru').select(count)) {
     case 'one':
@@ -349,8 +352,96 @@ export function FileBrowser({
     });
   }
   const sectionTitle = trail.at(-1)?.name;
+  const parentCard = !!trail.length && !query && !selectedTags.length && (
+    <article className="file-entry file-parent" key="parent">
+      <button
+        type="button"
+        className="library-card"
+        aria-label="На уровень выше"
+        title="На уровень выше"
+        disabled={busy}
+        onClick={() => navigate(trail.slice(0, -1))}
+      >
+        <div className="library-media">
+          <div className="file-folder-icon">
+            <FolderUp size={44} />
+          </div>
+        </div>
+        {layout ? (
+          <HistoryCardBody title="Наверх" metadata="Папка" date={trail.at(-2)?.name || 'Библиотека'} />
+        ) : (
+          <div>
+            <b>Наверх</b>
+            <span>Папка</span>
+            <span className="file-generation-summary" title={trail.at(-2)?.name || 'Библиотека'}>
+              {trail.at(-2)?.name || 'Библиотека'}
+            </span>
+          </div>
+        )}
+      </button>
+    </article>
+  );
+  const fileCards =
+    files.data?.items.map((file) => {
+      const folder = file.type === 'DIRECTORY';
+      const incompatible = !folder && !!acceptedTypes && !acceptedTypes.includes(mediaType(file));
+      const already = selected.includes(file.linkTo ?? file.id);
+      const checked = markedIds.includes(selecting ? file.id : (file.linkTo ?? file.id));
+      return (
+        <article
+          style={previewCardStyle(file.preview)}
+          className={`file-entry${incompatible ? ' is-incompatible' : ''}`}
+          key={file.id}
+        >
+          <FileCard
+            compact={!!layout}
+            file={file}
+            onOpen={() => void open(file)}
+            disabled={busy}
+            incompatible={incompatible}
+            already={already}
+            checked={checked}
+            selectionMode={selectionMode}
+          />
+          {incompatible && (
+            <button
+              type="button"
+              className="file-incompatible"
+              aria-label="Почему файл не подходит"
+              title="Не подходит для этой задачи"
+            >
+              <CircleAlert size={18} aria-hidden="true" />
+            </button>
+          )}
+          {!foldersOnly && FILE_TAG_FILTER_ENABLED && !!file.tags?.length && (
+            <div className="file-tag-chips" aria-label={`Теги файла ${file.name}`}>
+              {file.tags.map((tag) => (
+                <button
+                  type="button"
+                  className="chip"
+                  key={tag}
+                  disabled={!FILE_TAG_FILTER_ENABLED}
+                  onClick={() => setTagFilter([tag.trim().toLocaleLowerCase('ru')])}
+                  aria-label={`Файлы с тегом ${tag}`}
+                  title={tag}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+          {!foldersOnly && file.userId === user?.id && <FileActions file={file} disabled={busy} />}
+        </article>
+      );
+    }) ?? [];
+  const cards = parentCard ? [parentCard, ...fileCards] : fileCards;
+
   return (
-    <section className="file-browser" aria-label={foldersOnly ? 'Выбор папки' : 'Файлы'}>
+    <section
+      className="file-browser"
+      style={layout ? ({ '--library-card-gap': `${libraryGap}px` } as CSSProperties) : undefined}
+      aria-label={foldersOnly ? 'Выбор папки' : 'Файлы'}
+    >
       <nav className="file-breadcrumbs" aria-label="Путь к папке">
         {!!trail.length && (
           <button
@@ -597,88 +688,22 @@ export function FileBrowser({
           assets={!!layout}
         />
       )}
-      <div className={foldersOnly ? 'file-folder-list' : layout ? 'library-grid asset-feed' : 'library-grid'}>
-        {!!trail.length && !query && !selectedTags.length && (
-          <article className="file-entry file-parent">
-            <button
-              type="button"
-              className="library-card"
-              aria-label="На уровень выше"
-              title="На уровень выше"
-              disabled={busy}
-              onClick={() => navigate(trail.slice(0, -1))}
-            >
-              <div className="library-media">
-                <div className="file-folder-icon">
-                  <FolderUp size={44} />
-                </div>
-              </div>
-              {layout ? (
-                <HistoryCardBody title="Наверх" metadata="Папка" date={trail.at(-2)?.name || 'Библиотека'} />
-              ) : (
-                <div>
-                  <b>Наверх</b>
-                  <span>Папка</span>
-                  <span className="file-generation-summary" title={trail.at(-2)?.name || 'Библиотека'}>
-                    {trail.at(-2)?.name || 'Библиотека'}
-                  </span>
-                </div>
-              )}
-            </button>
-          </article>
+      <div
+        className={
+          foldersOnly
+            ? 'file-folder-list'
+            : layout
+              ? 'library-grid asset-feed library-masonry'
+              : 'library-grid'
+        }
+      >
+        {layout && !foldersOnly && cards.length ? (
+          <Masonry gap={libraryGap} ordered>
+            {cards}
+          </Masonry>
+        ) : (
+          cards
         )}
-        {files.data?.items.map((file) => {
-          const folder = file.type === 'DIRECTORY';
-          const incompatible = !folder && !!acceptedTypes && !acceptedTypes.includes(mediaType(file));
-          const already = selected.includes(file.linkTo ?? file.id);
-          const checked = markedIds.includes(selecting ? file.id : (file.linkTo ?? file.id));
-          return (
-            <article
-              style={previewCardStyle(file.preview)}
-              className={`file-entry${incompatible ? ' is-incompatible' : ''}`}
-              key={file.id}
-            >
-              <FileCard
-                compact={!!layout}
-                file={file}
-                onOpen={() => void open(file)}
-                disabled={busy}
-                incompatible={incompatible}
-                already={already}
-                checked={checked}
-                selectionMode={selectionMode}
-              />
-              {incompatible && (
-                <button
-                  type="button"
-                  className="file-incompatible"
-                  aria-label="Почему файл не подходит"
-                  title="Не подходит для этой задачи"
-                >
-                  <CircleAlert size={18} aria-hidden="true" />
-                </button>
-              )}
-              {!foldersOnly && FILE_TAG_FILTER_ENABLED && !!file.tags?.length && (
-                <div className="file-tag-chips" aria-label={`Теги файла ${file.name}`}>
-                  {file.tags.map((tag) => (
-                    <button
-                      type="button"
-                      className="chip"
-                      key={tag}
-                      disabled={!FILE_TAG_FILTER_ENABLED}
-                      onClick={() => setTagFilter([tag.trim().toLocaleLowerCase('ru')])}
-                      aria-label={`Файлы с тегом ${tag}`}
-                      title={tag}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!foldersOnly && file.userId === user?.id && <FileActions file={file} disabled={busy} />}
-            </article>
-          );
-        })}
       </div>
       {selecting && (
         <div className="file-batch-bar">

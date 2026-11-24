@@ -7,12 +7,10 @@ interface Props {
   title: string;
   disabled: boolean;
   photoDisabled: boolean;
-  photoHintDismissed: boolean;
   photoCount: number;
   missingPhotos: number;
   video: boolean;
   onReset: () => void;
-  onDismissPhotoHint: () => void;
   onAdd: () => void;
   fields?: Omit<ComponentProps<typeof ComposerTemplateFields>, 'disabled'>;
   children?: ReactNode;
@@ -22,12 +20,10 @@ export function AppliedTemplate({
   title,
   disabled,
   photoDisabled,
-  photoHintDismissed,
   photoCount,
   missingPhotos,
   video,
   onReset,
-  onDismissPhotoHint,
   onAdd,
   fields,
   children,
@@ -41,14 +37,6 @@ export function AppliedTemplate({
             ×
           </button>
         </span>
-        {missingPhotos > 0 && !photoHintDismissed && (
-          <span>
-            + Фото
-            <button type="button" onClick={onDismissPhotoHint} aria-label="Скрыть метку фото">
-              ×
-            </button>
-          </span>
-        )}
       </div>
       {fields && fields.recipe.variables.length > 0 && (
         <ComposerTemplateFields {...fields} disabled={disabled} />

@@ -23,10 +23,13 @@ export function refreshTargets(keys: string[], conversationId?: unknown, fileId?
 }
 
 export function matchesRefresh(key: readonly unknown[], targets: RefreshTarget[], userId: number): boolean {
-  return targets.some(
-    (target) =>
-      key[0] === target.resource && (target.id === undefined || (key[1] === userId && key[2] === target.id)),
-  );
+  return targets.some((target) => {
+    if (target.resource === 'conversation-covers')
+      return key[0] === 'conversations' && key[1] === userId && key[2] !== 'navigation';
+    return (
+      key[0] === target.resource && (target.id === undefined || (key[1] === userId && key[2] === target.id))
+    );
+  });
 }
 
 export function taskConversationId(session: unknown): number | undefined {

@@ -45,9 +45,6 @@
   height: 36px;
   opacity: 1;
 }
-.content-studio #cw-gallery .cw-card-media video {
-  opacity: 1;
-}
 .content-studio .cw-files {
   flex-wrap: wrap;
 }

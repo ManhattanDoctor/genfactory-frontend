@@ -3,7 +3,7 @@
     {
       "id": "image-feed-tpl_02_Nano_Banana_2.1",
       "title": "Nano Banana 2.1",
-      "prompt": "Сделай кадр в стиле работ модели Nano Banana 2.1: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/02_Nano_Banana_2.1/good_01_брать.jpg",
       "poster": "",
       "modelTitle": "Nano Banana 2.1",
@@ -17,7 +17,7 @@
     {
       "id": "image-feed-tpl_04_Nano_Banana_Pro",
       "title": "Nano Banana Pro",
-      "prompt": "Сделай кадр в стиле работ модели Nano Banana Pro: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/04_Nano_Banana_Pro/good_01_брать.png",
       "poster": "",
       "modelTitle": "Nano Banana Pro",
@@ -31,7 +31,7 @@
     {
       "id": "image-feed-tpl_06_Seedream_5_Pro",
       "title": "Seedream 5 Pro",
-      "prompt": "Сделай кадр в стиле работ модели Seedream 5 Pro: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/06_Seedream_5_Pro/good_01_править.jpg",
       "poster": "",
       "modelTitle": "Seedream 5 Pro",
@@ -45,7 +45,7 @@
     {
       "id": "image-feed-tpl_08_FLUX_3",
       "title": "FLUX 3",
-      "prompt": "Сделай кадр в стиле работ модели FLUX 3: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/08_FLUX_3/good_01_править.png",
       "poster": "",
       "modelTitle": "FLUX 3",
@@ -59,7 +59,7 @@
     {
       "id": "image-feed-tpl_12_Nano_Banana_Pro_Preview",
       "title": "Nano Banana Pro Preview",
-      "prompt": "Сделай кадр в стиле работ модели Nano Banana Pro Preview: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/12_Nano_Banana_Pro_Preview/good_01_брать.jpg",
       "poster": "",
       "modelTitle": "Nano Banana Pro Preview",
@@ -73,7 +73,7 @@
     {
       "id": "image-feed-tpl_15_Seedream_4.5",
       "title": "Seedream 4.5",
-      "prompt": "Сделай кадр в стиле работ модели Seedream 4.5: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/15_Seedream_4.5/good_01_править.jpg",
       "poster": "",
       "modelTitle": "Seedream 4.5",
@@ -87,7 +87,7 @@
     {
       "id": "image-feed-tpl_30_Seedream_5_Lite",
       "title": "Seedream 5 Lite",
-      "prompt": "Сделай кадр в стиле работ модели Seedream 5 Lite: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/30_Seedream_5_Lite/good_01_брать.jpg",
       "poster": "",
       "modelTitle": "Seedream 5 Lite",
@@ -101,7 +101,7 @@
     {
       "id": "image-feed-tpl_40_Recraft_V4.1_Utility_Pro",
       "title": "Recraft V4.1 Utility Pro",
-      "prompt": "Сделай кадр в стиле работ модели Recraft V4.1 Utility Pro: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/40_Recraft_V4.1_Utility_Pro/good_01_брать.webp",
       "poster": "",
       "modelTitle": "Recraft V4.1 Utility Pro",
@@ -115,7 +115,7 @@
     {
       "id": "image-feed-tpl_41_Seedream_5_Flash",
       "title": "Seedream 5 Flash",
-      "prompt": "Сделай кадр в стиле работ модели Seedream 5 Flash: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/41_Seedream_5_Flash/good_01_брать.jpg",
       "poster": "",
       "modelTitle": "Seedream 5 Flash",
@@ -129,7 +129,7 @@
     {
       "id": "image-feed-tpl_46_FLUX_3_Klein",
       "title": "FLUX 3 Klein",
-      "prompt": "Сделай кадр в стиле работ модели FLUX 3 Klein: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/46_FLUX_3_Klein/good_01_брать.jpg",
       "poster": "",
       "modelTitle": "FLUX 3 Klein",
@@ -143,7 +143,7 @@
     {
       "id": "image-feed-tpl_49_Recraft_V4.1_Utility",
       "title": "Recraft V4.1 Utility",
-      "prompt": "Сделай кадр в стиле работ модели Recraft V4.1 Utility: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/49_Recraft_V4.1_Utility/good_01_брать.webp",
       "poster": "",
       "modelTitle": "Recraft V4.1 Utility",
@@ -157,7 +157,7 @@
     {
       "id": "image-feed-tpl_01_Nano_Banana_2",
       "title": "Nano Banana 2",
-      "prompt": "Сделай кадр в стиле работ модели Nano Banana 2: чёткий предмет, спокойный свет, без лишнего текста на фоне.",
+      "prompt": "Чёткий предмет, спокойный свет, без лишнего текста на фоне.",
       "src": "/media/home/01_Nano_Banana_2/good_01.jpg",
       "poster": "",
       "modelTitle": "Nano Banana 2",

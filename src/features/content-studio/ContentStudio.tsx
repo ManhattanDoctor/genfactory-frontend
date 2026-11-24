@@ -5,7 +5,12 @@ import { StudioQueuePanel } from './StudioQueuePanel';
 import { AppliedTemplate } from '../../components/AppliedTemplate';
 import { MediaModelPicker } from '../catalog/MediaModelPicker';
 import { fitTemplateDuration, resolveTemplateDuration } from './templateDuration';
-import { loadTemplate } from './templateCatalog';
+import {
+  galleryTemplateFavoriteId,
+  isGalleryTemplate,
+  loadTemplate,
+  mediaTemplates as archiveTemplates,
+} from './templateCatalog';
 import { useTemplateSelection } from './useTemplateSelection';
 import { resolvePublicReference, restoredPublicReference } from './templatePublicReference';
 import { useQueryClient } from '@tanstack/react-query';
@@ -65,9 +70,9 @@ import { useDraft } from '../workspace/drafts';
 import { usePreferences } from '../workspace/preferences';
 import { defaultAssistant } from '../catalog/defaultAssistant';
 import { findTemplateModel, modelKey, modelTitle } from '../catalog/presentation';
-import archiveTemplates from './templates.json';
 import { studioTemplates } from './designTemplates';
 const templates = [...studioTemplates, ...archiveTemplates];
+const designTemplateIds = new Set(studioTemplates.map((item) => item.id));
 import './prototype.css';
 import './content-studio.css';
 
@@ -116,7 +121,11 @@ export function ContentStudio(): ReactElement {
       return [];
     }
   });
-  const favorites = user ? prefs.value.favoriteTemplates : guestFavorites;
+  const storedFavorites = user ? prefs.value.favoriteTemplates : guestFavorites;
+  const favorites = useMemo(
+    () => [...new Set(storedFavorites.map(galleryTemplateFavoriteId))],
+    [storedFavorites],
+  );
   const toggleFavorite = useEventCallback((id: string) => {
     const next = favorites.includes(id) ? favorites.filter((value) => value !== id) : [...favorites, id];
     if (user) prefs.update((current) => ({ ...current, favoriteTemplates: next }));
@@ -178,7 +187,6 @@ export function ContentStudio(): ReactElement {
     () => (templates as ITemplateCard[]).find((item) => item.id === templateId && item.kind === mode),
     [mode, templateId],
   );
-  const [photoHintDismissed, setPhotoHintDismissed] = useState(false);
   const templateRecipe = useMemo(
     () => new PromptTemplate(composerTemplate?.slots.map((slot) => slot.expression).join(' ') || ''),
     [composerTemplate?.slots],
@@ -246,7 +254,6 @@ export function ContentStudio(): ReactElement {
     clearTimeout(templateGlowTimer.current);
     setTemplateGlowActive(true);
     templateGlowTimer.current = setTimeout(() => setTemplateGlowActive(false), 1000);
-    setPhotoHintDismissed(false);
     setAppliedTemplate(item.title);
     setTemplateId(item.id);
     setComposerTemplate(prepared.slots.length ? prepared : undefined);
@@ -327,6 +334,7 @@ export function ContentStudio(): ReactElement {
       ...studioTemplates.filter(
         (item) =>
           item.kind === mode &&
+          isGalleryTemplate(item.id) &&
           (frameSlot ||
             (item.model && findTemplateModel(catalog.data || [], item.model.model, item.modelTitle || ''))),
       ),
@@ -348,6 +356,7 @@ export function ContentStudio(): ReactElement {
       )
       .sort(
         (a, b) =>
+          Number(designTemplateIds.has(a.id)) - Number(designTemplateIds.has(b.id)) ||
           (b.addedAt || '').localeCompare(a.addedAt || '') ||
           Number(favoriteIds.has(b.id)) - Number(favoriteIds.has(a.id)),
       );
@@ -1002,7 +1011,6 @@ export function ContentStudio(): ReactElement {
     }
     if (busy || submitting.current?.scope === work.scope) return;
     if (currentTemplate && needsTemplateImages) {
-      setPhotoHintDismissed(false);
       studio.current?.querySelector<HTMLButtonElement>('.feed-photo-tile > button')?.focus();
       return;
     }
@@ -1716,12 +1724,10 @@ export function ContentStudio(): ReactElement {
                       }
                       disabled={busy}
                       photoDisabled={busy || attachments.some((file) => !!file.slot)}
-                      photoHintDismissed={photoHintDismissed}
                       photoCount={photoCount}
                       missingPhotos={Math.max(0, requiredPhotos - photoCount)}
                       video={mode === 'video'}
                       onReset={resetComposerTemplate}
-                      onDismissPhotoHint={() => setPhotoHintDismissed(true)}
                       onAdd={() => {
                         setFrameSlot(undefined);
                         setLibrary({ scope: draftScope });

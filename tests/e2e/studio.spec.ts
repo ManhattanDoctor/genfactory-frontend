@@ -497,6 +497,7 @@ test('history opens existing conversation results and a new generation uses a di
   await expectQuality(page, '1K');
   await expect(page.locator('.image-result .media-loading-skeleton')).toHaveCount(0);
   await page.locator('.image-result').hover();
+  await page.getByLabel('Действия с «Test result»', { exact: true }).click();
   await page.getByRole('button', { name: 'Переделать Test result', exact: true }).click();
   await expectQuality(page, '2K');
   await submit(page, 'Another landscape');
@@ -1033,49 +1034,67 @@ test('recent UI fixes: digest examples scroll vertically inside the mobile viewp
   expect(await gallery.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
 });
 
-test('recent UI fixes: studio keeps tabs and tags visible and the grip dismisses the sheet', async ({
+test(
+  'mobile Studio template columns keep even spacing and filters stay visible',
+  { tag: ['@smoke', '@mobile-layout'] },
+  async ({ page, browserName }) => {
+    await mockApi(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/chat');
+    const trigger = page.getByRole('button', { name: 'Шаблоны и настройки', exact: true });
+    await trigger.click();
+    const sheet = page.getByRole('dialog', { name: 'Шаблоны и настройки', exact: true });
+    await expect(sheet).toBeFocused();
+    await sheet.getByRole('tab', { name: 'Шаблоны', exact: true }).click();
+    const tags = sheet.getByRole('group', { name: 'Жанры', exact: true });
+    const list = sheet.locator('#cw-gallery');
+    const cards = list.locator('.cw-card');
+    await expect(cards.nth(2)).toBeVisible();
+    await expect
+      .poll(() =>
+        cards.evaluateAll((items) => {
+          const [left, right, nextLeft, nextRight] = items
+            .slice(0, 4)
+            .map((item) => item.getBoundingClientRect());
+          return [
+            Math.abs(left.width - right.width) < 1,
+            Math.round(nextLeft.top - left.bottom),
+            Math.round(nextRight.top - right.bottom),
+          ];
+        }),
+      )
+      .toEqual([true, 10, 10]);
+    const top = await tags.evaluate((el) => el.getBoundingClientRect().top);
+    await list.evaluate((el) => (el.scrollTop = 200));
+    expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    expect(await tags.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(top, 0);
+    const grip = sheet.getByRole('button', { name: 'Закрыть шаблоны и настройки', exact: true });
+    if (browserName === 'chromium') {
+      const box = (await grip.boundingBox())!;
+      const cdp = await page.context().newCDPSession(page);
+      for (const [type, dy] of [
+        ['touchStart', 0],
+        ['touchMove', 28],
+        ['touchMove', 84],
+        ['touchEnd', 84],
+      ] as const) {
+        await cdp.send('Input.dispatchTouchEvent', {
+          type,
+          touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + box.width / 2, y: box.y + 5 + dy }],
+        });
+      }
+    } else {
+      await grip.click();
+    }
+    await expect(sheet).toBeHidden();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    if (browserName === 'chromium') await expect(trigger).toBeFocused();
+  },
+);
+
+test('recent UI fixes: video templates use equal widths and natural heights and duration has only a stepper', async ({
   page,
 }) => {
-  await mockApi(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/chat');
-  const trigger = page.getByRole('button', { name: 'Шаблоны и настройки', exact: true });
-  await trigger.click();
-  const sheet = page.getByRole('dialog', { name: 'Шаблоны и настройки', exact: true });
-  await expect(sheet).toBeFocused();
-  await sheet.getByRole('tab', { name: 'Шаблоны', exact: true }).click();
-  const tags = sheet.getByRole('group', { name: 'Жанры', exact: true });
-  const list = sheet.locator('#cw-gallery');
-  const cards = list.locator('.cw-card');
-  await expect(cards.nth(2)).toBeVisible();
-  const rowGap = await cards.evaluateAll((items) => {
-    const [left, right, nextRow] = items.map((item) => item.getBoundingClientRect());
-    return nextRow.top - Math.max(left.bottom, right.bottom);
-  });
-  expect(rowGap).toBeGreaterThanOrEqual(1);
-  const top = await tags.evaluate((el) => el.getBoundingClientRect().top);
-  await list.evaluate((el) => (el.scrollTop = 200));
-  expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
-  expect(await tags.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(top, 0);
-  const grip = sheet.getByRole('button', { name: 'Закрыть шаблоны и настройки', exact: true });
-  const box = (await grip.boundingBox())!;
-  const cdp = await page.context().newCDPSession(page);
-  for (const [type, dy] of [
-    ['touchStart', 0],
-    ['touchMove', 28],
-    ['touchMove', 84],
-    ['touchEnd', 84],
-  ] as const) {
-    await cdp.send('Input.dispatchTouchEvent', {
-      type,
-      touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + box.width / 2, y: box.y + 5 + dy }],
-    });
-  }
-  await expect(sheet).toBeHidden();
-  await expect(trigger).toBeFocused();
-});
-
-test('recent UI fixes: video templates keep 16:9 tiles and duration has only a stepper', async ({ page }) => {
   await mockApi(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/video');
@@ -1083,14 +1102,17 @@ test('recent UI fixes: video templates keep 16:9 tiles and duration has only a s
   await expect(previews.first()).toBeVisible({ timeout: 20_000 });
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 844 });
-    const ratios = await previews.evaluateAll((items) =>
-      items.slice(0, 12).map((item) => {
-        const box = item.getBoundingClientRect();
-        return box.width / box.height;
-      }),
-    );
-    expect(ratios.length).toBeGreaterThan(1);
-    for (const ratio of ratios) expect(ratio).toBeCloseTo(16 / 9, 1);
+    await expect
+      .poll(() =>
+        previews.evaluateAll((items) => {
+          const sizes = items.slice(0, 12).map((item) => item.getBoundingClientRect());
+          return [
+            sizes.length > 1 && sizes.every((item) => Math.abs(item.width - sizes[0].width) < 1),
+            sizes.some((item) => Math.abs(item.height - sizes[0].height) > 5),
+          ];
+        }),
+      )
+      .toEqual([true, true]);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Ещё', exact: true }).click();
@@ -2586,6 +2608,32 @@ test('an unavailable preview and original settle on a fallback without repeated 
   expect(originalRequests).toBe(1);
 });
 
+test('mobile video defers file history and sidebar history until opened', async ({ page }) => {
+  await mockApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  let fileReads = 0;
+  let sidebarReads = 0;
+  page.on('request', (request) => {
+    if (request.method() !== 'GET') return;
+    const url = new URL(request.url());
+    if (url.pathname === '/api/file') fileReads++;
+    if (url.pathname === '/api/conversation' && JSON.parse(url.searchParams.get('conditions') || '{}').tags)
+      sidebarReads++;
+  });
+  await page.goto('/video');
+  await expect(page.getByRole('tab', { name: 'Шаблоны', exact: true })).toBeVisible();
+  expect(fileReads).toBe(0);
+  expect(sidebarReads).toBe(0);
+
+  await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
+  await expect.poll(() => sidebarReads).toBe(1);
+  expect(fileReads).toBe(0);
+  await page.getByRole('button', { name: 'Закрыть меню', exact: true }).click();
+  await page.getByRole('tab', { name: 'Генерации', exact: true }).click();
+  await expect.poll(() => fileReads).toBe(1);
+  expect(sidebarReads).toBe(1);
+});
+
 test('idle connected pages do not poll and a user-room event refreshes active jobs', async ({ page }) => {
   const state = await mockApi(page);
   const requests: string[] = [];
@@ -3634,6 +3682,7 @@ test(
 );
 
 // Temporarily unavailable: the writer is hidden by request; remove these legacy cases with the mode.
+// The Studio composer currently has SCRIPT_WRITER_ENABLED=false.
 test.skip('content studio writer disables tools for the request and preserves connected tools', async ({
   page,
 }) => {
@@ -3725,18 +3774,22 @@ test('content studio restores a running job and receives socket completion witho
 });
 
 for (const width of [390, 1440]) {
-  test(`Studio reconciles a lost response with server history at ${width}px`, async ({ page }) => {
-    const state = await mockApi(page);
-    state.abortAfterAccept = true;
-    await page.setViewportSize({ width, height: 844 });
-    await page.goto('/chat');
-    await page.locator('#cw-draft').fill('Подготовь сценарий');
-    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
-    await expect(page.locator('.cw-thread')).toContainText('Подготовь сценарий');
-    await expect(page.locator('#cw-draft')).toHaveValue('');
-    await expect(page.locator('.content-feedback[role="alert"]')).toHaveCount(0);
-    expect(state.sends).toHaveLength(1);
-  });
+  test(
+    `Studio reconciles a lost response with server history at ${width}px`,
+    { tag: '@smoke' },
+    async ({ page }) => {
+      const state = await mockApi(page);
+      state.abortAfterAccept = true;
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/chat');
+      await page.locator('#cw-draft').fill('Подготовь сценарий');
+      await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+      await expect(page.locator('.cw-thread')).toContainText('Подготовь сценарий');
+      await expect(page.locator('#cw-draft')).toHaveValue('');
+      await expect(page.locator('.content-feedback[role="alert"]')).toHaveCount(0);
+      expect(state.sends).toHaveLength(1);
+    },
+  );
 }
 
 test('Studio keeps the draft if the server has not confirmed acceptance', async ({ page }) => {
@@ -3920,31 +3973,35 @@ test('content studio rejects unsupported attachments before upload', async ({ pa
   expect(state.sends).toHaveLength(0);
 });
 
-test('mobile Studio video settings keep the stepper and menus apart', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await mockApi(page);
-  await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Видео', exact: true }).click();
-  await page.getByRole('button', { name: 'Ещё', exact: true }).click();
-  const sheet = page.getByRole('dialog', { name: 'Кадр и длина' });
-  const stepper = sheet.getByRole('group', { name: 'Длительность видео' });
-  const sound = sheet.getByRole('button', { name: 'Без звука', exact: true });
-  const scenes = sheet.getByRole('button', { name: 'Один кадр', exact: true });
-  await expect(sound).toBeVisible();
+test(
+  'mobile Studio video settings keep the stepper and menus apart',
+  { tag: '@mobile-layout' },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await mockApi(page);
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Видео', exact: true }).click();
+    await page.getByRole('button', { name: 'Ещё', exact: true }).click();
+    const sheet = page.getByRole('dialog', { name: 'Кадр и длина' });
+    const stepper = sheet.getByRole('group', { name: 'Длительность видео' });
+    const sound = sheet.getByRole('button', { name: 'Без звука', exact: true });
+    const scenes = sheet.getByRole('button', { name: 'Один кадр', exact: true });
+    await expect(sound).toBeVisible();
 
-  const durationBox = (await stepper.boundingBox())!;
-  const soundBox = (await sound.boundingBox())!;
-  const scenesBox = (await scenes.boundingBox())!;
-  expect(soundBox.y - durationBox.y - durationBox.height).toBeGreaterThanOrEqual(8);
-  expect(scenesBox.x - soundBox.x - soundBox.width).toBeGreaterThanOrEqual(8);
+    const durationBox = (await stepper.boundingBox())!;
+    const soundBox = (await sound.boundingBox())!;
+    const scenesBox = (await scenes.boundingBox())!;
+    expect(soundBox.y - durationBox.y - durationBox.height).toBeGreaterThanOrEqual(8);
+    expect(scenesBox.x - soundBox.x - soundBox.width).toBeGreaterThanOrEqual(8);
 
-  await sound.click();
-  await sheet.getByRole('option', { name: 'Со звуком', exact: true }).click();
-  await scenes.click();
-  await sheet.getByRole('option', { name: 'Набор сцен', exact: true }).click();
-  await expect(sheet.getByRole('button', { name: 'Набор сцен', exact: true })).toBeVisible();
-});
+    await sound.click();
+    await sheet.getByRole('option', { name: 'Со звуком', exact: true }).click();
+    await scenes.click();
+    await sheet.getByRole('option', { name: 'Набор сцен', exact: true }).click();
+    await expect(sheet.getByRole('button', { name: 'Набор сцен', exact: true })).toBeVisible();
+  },
+);
 
 test('desktop Studio sends sound, duration, scene structure and aspect ratio independently', async ({
   page,
@@ -4545,6 +4602,7 @@ test('optional template clears previous references and sends explicitly from scr
   expect(state.sends[1].text).toContain('предыдущем результате');
 });
 
+// This multi-turn scenario requires the disabled Studio writer.
 for (const command of ['подтверждаю', 'да сделай уже видео!']) {
   test.skip(`content studio does not change mode for text command: ${command}`, async ({ page }) => {
     const state = await mockApi(page);
@@ -4699,7 +4757,7 @@ test(
     await expect.poll(() => requests.length).toBe(4);
     expect(requests[3]).not.toContain('name="groupId"');
     const up = page
-      .locator('.library-grid > .file-entry')
+      .locator('.library-grid .file-entry')
       .first()
       .getByRole('button', { name: 'На уровень выше' });
     await expect(up).toBeVisible();
@@ -4710,76 +4768,78 @@ test(
   },
 );
 
-test('library picker keeps batch upload status inside its button and explains the file limit', async ({
-  page,
-}, testInfo) => {
-  await mockApi(page);
-  await page.route('**/api/file?*', (route) =>
-    route.fulfill({
-      json: pagination([
-        { ...file, preview: { image: { status: 'READY', width: 450, height: 1000, url: file.path } } },
-      ]),
-    }),
-  );
-  let uploads = 0;
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route('**/api/file', async (route) => {
-    if (route.request().method() !== 'POST') return route.fallback();
-    if (++uploads === 4) await gate;
-    await route.fulfill({
-      status: 403,
-      json: { code: 'FILE_AMOUNT_EXCEED', message: 'FileAmountExceedError' },
+test(
+  'library picker keeps batch upload status inside its button and explains the file limit',
+  { tag: '@smoke' },
+  async ({ page }, testInfo) => {
+    await mockApi(page);
+    await page.route('**/api/file?*', (route) =>
+      route.fulfill({
+        json: pagination([
+          { ...file, preview: { image: { status: 'READY', width: 450, height: 1000, url: file.path } } },
+        ]),
+      }),
+    );
+    let uploads = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
     });
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Изображение', exact: true }).click();
-  await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
-  const picker = page.getByRole('dialog', { name: 'Библиотека' });
-  await picker.locator('input[type=file]').setInputFiles(
-    Array.from({ length: 4 }, (_, index) => ({
-      name: `image-${index}.png`,
-      mimeType: 'image/png',
-      buffer: readFileSync(new URL('../../public/media/templates/2026-11-13/2.png', import.meta.url)),
-    })),
-  );
-  await expect.poll(() => uploads).toBe(4);
-  const button = picker.getByRole('button', { name: 'Загрузить файл', exact: true });
-  try {
-    for (const width of [390, 1440]) {
-      await page.setViewportSize({ width, height: 844 });
-      await expect(button).toHaveAttribute('aria-busy', 'true');
-      await expect(button.locator('.file-upload-count')).toHaveText('4/4');
-      const header = (await picker.locator('.modal-head').boundingBox())!;
-      const searchField = (await picker.locator('.library-search').boundingBox())!;
-      const controls = (await picker.locator('.file-controls').boundingBox())!;
-      expect(controls.y - header.y - header.height).toBeCloseTo(0, 0);
-      expect(searchField.y - header.y - header.height).toBeLessThanOrEqual(16);
-      const card = (await picker.locator('.file-entry').first().boundingBox())!;
-      expect(card.width).toBeGreaterThanOrEqual(140);
-      const bounds = await button.boundingBox();
-      const status = await button.locator('.upload-button-status').boundingBox();
-      const count = await button.locator('.file-upload-count').boundingBox();
-      const search = await picker.getByRole('textbox', { name: 'Поиск по всем файлам' }).boundingBox();
-      expect(status!.x).toBeGreaterThanOrEqual(bounds!.x);
-      expect(status!.x + status!.width).toBeLessThanOrEqual(count!.x);
-      expect(count!.x + count!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
-      expect(search!.width).toBeGreaterThan(40);
-      expect(await picker.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`library-upload-${width}.png`) });
+    await page.route('**/api/file', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      if (++uploads === 4) await gate;
+      await route.fulfill({
+        status: 403,
+        json: { code: 'FILE_AMOUNT_EXCEED', message: 'FileAmountExceedError' },
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Изображение', exact: true }).click();
+    await page.getByRole('button', { name: 'Добавить файл', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: 'Библиотека' });
+    await picker.locator('input[type=file]').setInputFiles(
+      Array.from({ length: 4 }, (_, index) => ({
+        name: `image-${index}.png`,
+        mimeType: 'image/png',
+        buffer: readFileSync(new URL('../../public/media/templates/2026-11-13/2.png', import.meta.url)),
+      })),
+    );
+    await expect.poll(() => uploads).toBe(4);
+    const button = picker.getByRole('button', { name: 'Загрузить файл', exact: true });
+    try {
+      for (const width of [390, 1440]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expect(button).toHaveAttribute('aria-busy', 'true');
+        await expect(button.locator('.file-upload-count')).toHaveText('4/4');
+        const header = (await picker.locator('.modal-head').boundingBox())!;
+        const searchField = (await picker.locator('.library-search').boundingBox())!;
+        const controls = (await picker.locator('.file-controls').boundingBox())!;
+        expect(controls.y - header.y - header.height).toBeCloseTo(0, 0);
+        expect(searchField.y - header.y - header.height).toBeLessThanOrEqual(16);
+        const card = (await picker.locator('.file-entry').first().boundingBox())!;
+        expect(card.width).toBeGreaterThanOrEqual(140);
+        const bounds = await button.boundingBox();
+        const status = await button.locator('.upload-button-status').boundingBox();
+        const count = await button.locator('.file-upload-count').boundingBox();
+        const search = await picker.getByRole('textbox', { name: 'Поиск по всем файлам' }).boundingBox();
+        expect(status!.x).toBeGreaterThanOrEqual(bounds!.x);
+        expect(status!.x + status!.width).toBeLessThanOrEqual(count!.x);
+        expect(count!.x + count!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
+        expect(search!.width).toBeGreaterThan(40);
+        expect(await picker.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath(`library-upload-${width}.png`) });
+      }
+    } finally {
+      release();
     }
-  } finally {
-    release();
-  }
-  await expect(picker.getByRole('alert')).toContainText('Достигнут лимит количества файлов');
-  await expect(picker.getByRole('alert')).not.toContainText('FileAmountExceedError');
-  await expect(picker.locator('.file-browser > [role=status]')).toHaveText('Загружено: 0 из 4');
-  await expect(button).toHaveAttribute('aria-busy', 'false');
-  await expect(button).toBeEnabled();
-});
+    await expect(picker.getByRole('alert')).toContainText('Достигнут лимит количества файлов');
+    await expect(picker.getByRole('alert')).not.toContainText('FileAmountExceedError');
+    await expect(picker.locator('.file-browser > [role=status]')).toHaveText('Загружено: 0 из 4');
+    await expect(button).toHaveAttribute('aria-busy', 'false');
+    await expect(button).toBeEnabled();
+  },
+);
 
 test('mobile library search keeps focus and selection while results refresh', async ({ page }, testInfo) => {
   await mockApi(page);
@@ -5557,6 +5617,7 @@ test(
   },
 );
 
+// These scenarios require the disabled Studio writer switch.
 for (const initialWriter of [true, false]) {
   test.skip(`content studio preserves writer changed during a pending request: ${initialWriter}`, async ({
     page,
@@ -6858,6 +6919,7 @@ test('library multiselect preserves selection across folders and supports desele
   await expect(page.locator('.cw-files .composer-attachment')).toHaveCount(2);
 });
 
+// The library route does not enable FileBrowser's allowBatchRemove option.
 test.skip('library batch delete confirms IDs, preserves failed selections and retries only failures', async ({
   page,
 }, testInfo) => {
@@ -7258,7 +7320,7 @@ test('artifacts filter and paginate on the server, with compact mobile controls'
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Следующая страница' }).click();
   await expect(page.getByRole('heading', { name: 'Page 2' })).toBeVisible();
-  await page.getByRole('button', { name: 'Беседы', exact: true }).click();
+  await page.getByRole('button', { name: 'Только беседы', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Page 1' })).toBeVisible();
   expect(JSON.parse(requests.at(-1)!.searchParams.get('conditions')!)).toEqual({ type: 'CONVERSATION' });
   await page.getByRole('textbox', { name: 'Поиск по истории' }).fill('chair');
@@ -8860,9 +8922,11 @@ test('media skeleton loads, reports failure and retries without opening the file
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('video template sources are attached only while visible', async ({ page }) => {
+test('video previews load on visibility and pause when scrolled away', async ({ page }) => {
   await mockApi(page);
   await page.goto('/chat', { waitUntil: 'domcontentloaded' });
+  await page.locator('#cw-mode').getByRole('button', { name: 'Видео', exact: true }).click();
+  await page.getByRole('button', { name: 'Развернуть панель', exact: true }).click();
   const videos = page.locator('#cw-gallery video');
   await expect(videos.first()).toBeAttached();
   await expect
@@ -8875,8 +8939,9 @@ test('video template sources are attached only while visible', async ({ page }) 
   expect(initial.active).toBeLessThan(initial.total);
   const firstSrc = await videos.first().getAttribute('src');
   expect(firstSrc).toContain('/previews/');
-  await page.locator('#cw-gallery').evaluate((el) => (el.scrollTop = 3000));
-  await expect(videos.first()).not.toHaveAttribute('src');
+  await videos.last().scrollIntoViewIfNeeded();
+  await expect.poll(() => videos.first().evaluate((node) => (node as HTMLVideoElement).paused)).toBe(true);
+  await expect(videos.first()).toHaveAttribute('src', firstSrc!);
 });
 
 test('conversation skeletons stay inside image and video frames', async ({ page }, testInfo) => {
@@ -9047,11 +9112,7 @@ test('chat video template selects Wan and keeps the updated identity instruction
   await mockApi(page);
   await page.goto('/chat');
   await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
-  const card = page
-    .locator('.cw-card')
-    .filter({ has: page.getByRole('button', { name: 'Открыть шаблон: Послание в объектив', exact: true }) });
-  await card.hover();
-  await card.locator('.cw-template-open').click();
+  await applyVideoTemplate(page, '/chat', 'Послание в объектив');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#cw-draft')).toHaveValue(/Герой - тот, кто на загруженном фото/);
   await expect(page.getByRole('button', { name: /^Модель:/ })).toContainText('Wan');
@@ -9109,13 +9170,9 @@ async function applyVideoTemplate(page: Page, path: string, title: string) {
   if (path === '/video') {
     await page.getByRole('button', { name: `Использовать шаблон ${title}`, exact: true }).click();
   } else {
-    const expand = page.getByRole('button', { name: 'Шаблоны', exact: true });
+    const expand = page.getByRole('button', { name: 'Развернуть панель', exact: true });
     if (await expand.isVisible()) await expand.click();
-    const card = page
-      .locator('.cw-card')
-      .filter({ has: page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }) });
-    await card.hover();
-    await card.locator('.cw-template-open').click();
+    await page.getByRole('button', { name: `Открыть шаблон: ${title}`, exact: true }).click();
   }
 }
 
@@ -9454,6 +9511,7 @@ test('long image history keeps pagination and the shared viewer working', async 
 for (const path of ['/video', '/chat']) {
   test(`video templates follow the chosen duration and stay editable on ${path}`, async ({ page }) => {
     const { state } = await templateVideoSetup(page);
+    await page.route(/\.mp4(?:\?|$)/, (route) => route.abort());
     await page.goto(path);
     if (path === '/chat') await page.getByRole('button', { name: 'Видео', exact: true }).first().click();
     const duration = page.getByRole('group', {
@@ -9741,6 +9799,147 @@ for (const path of ['/chat', '/image']) {
   });
 }
 
+test('template previews keep a skeleton until media loads on image, video and Studio', async ({ page }) => {
+  test.setTimeout(60000);
+  await mockApi(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const route of ['/image', '/video', '/chat']) {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const pattern = /\/media\/.*\.(?:jpg|jpeg|webp|png)(?:[?#]|$)/i;
+    const stall = async (request: import('@playwright/test').Route) => {
+      await gate;
+      await request.continue();
+    };
+    await page.route(pattern, stall);
+    try {
+      await page.goto(route);
+      if (route === '/chat')
+        await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
+      const preview = page.locator('.template-card-media').first();
+      await expect(preview.locator('.media-loading-skeleton')).toBeVisible();
+      const before = (await preview.boundingBox())!;
+      release();
+      await expect(preview.locator('.media-loading-skeleton')).toHaveCount(0);
+      await expect(preview.locator('img')).toBeVisible();
+      const after = (await preview.boundingBox())!;
+      expect(after.width).toBeCloseTo(before.width, 0);
+      expect(after.height).toBeCloseTo(before.height, 0);
+    } finally {
+      release();
+      await page.unroute(pattern, stall);
+    }
+  }
+});
+
+test('mobile video, library and history cards stack independently with even gaps', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push({ ...savedConversation(101), status: 'LOADING' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/video?conversation=101');
+  const videoWall = page.locator('.generation-wall .masonry-cards');
+  await expect(videoWall.locator('.image-result-pending')).toBeVisible();
+  await expect(videoWall.locator('.card[data-kind="gen"]').first()).toBeVisible();
+  await expectColumnGaps(videoWall, 10);
+
+  const libraryFiles = [600, 150, 400, 240].map((height, index) => ({
+    ...file,
+    id: 20 + index,
+    name: `Фото ${index + 1}`,
+    preview: { image: { status: 'READY', url: file.path, width: 300, height } },
+  }));
+  await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination(libraryFiles) }));
+  await page.goto('/library');
+  const libraryWall = page.locator('.library-masonry .masonry-cards');
+  await expect(libraryWall.locator('.file-entry')).toHaveCount(4);
+  await expectColumnGaps(libraryWall, 10);
+  const controls = page.locator('.file-controls');
+  const toolbar = (await controls.boundingBox())!;
+  const gallery = (await libraryWall.boundingBox())!;
+  expect(gallery.x).toBeCloseTo(toolbar.x, 0);
+  expect(gallery.width).toBeCloseTo(toolbar.width, 0);
+  expect(gallery.y - toolbar.y - toolbar.height).toBeCloseTo(0, 0);
+  await expect(controls).toHaveCSS('padding-bottom', '10px');
+
+  await page.route('**/api/artifact?*', (route) =>
+    route.fulfill({
+      json: pagination(
+        libraryFiles.map((item) => ({
+          ...item,
+          type: 'FILE',
+          fileType: 'IMAGE',
+          activityDate: item.createdDate,
+        })),
+      ),
+    }),
+  );
+  await page.goto('/artifacts');
+  const historyWall = page.locator('.history-view-grid .masonry-cards');
+  await expect(historyWall.locator('.file-entry')).toHaveCount(4);
+  await expect(page.locator('.history-day')).toHaveCount(1);
+  await expectColumnGaps(historyWall, 10);
+
+  async function expectColumnGaps(wall: ReturnType<Page['locator']>, gap: number) {
+    await expect(wall).toHaveAttribute('data-columns', '2');
+    await expect
+      .poll(() =>
+        wall.evaluate((grid) => {
+          const [a, b, c, d] = [...grid.children].slice(0, 4).map((item) => item.getBoundingClientRect());
+          return [Math.round(c.top - a.bottom), Math.round(d.top - b.bottom), Math.abs(c.top - d.top) > 1];
+        }),
+      )
+      .toEqual([gap, gap, true]);
+  }
+});
+
+test('media results and library use the same mobile card menu as History', async ({ page }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  await page.route('**/api/artifact?*', (route) =>
+    route.fulfill({
+      json: pagination([
+        {
+          ...savedConversation(),
+          type: 'CONVERSATION',
+          activityDate: file.createdDate,
+          createdDate: file.createdDate,
+        },
+      ]),
+    }),
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  for (const route of ['/image', '/video', '/library', '/artifacts', '/history']) {
+    const video = route === '/video';
+    await page.route('**/api/file?*', (request) =>
+      request.fulfill({
+        json: pagination([
+          {
+            ...file,
+            ...(video ? { type: 'VIDEO', mime: 'video/mp4', path: '/test-video.mp4' } : {}),
+            origin: { kind: 'GENERATION' },
+          },
+        ]),
+      }),
+    );
+    await page.goto(route);
+    if (route === '/image' || video) await page.getByRole('tab', { name: 'Генерации' }).click();
+    const trigger =
+      route === '/history' || route === '/artifacts'
+        ? page.getByLabel('Действия работы Saved creative work', { exact: true })
+        : page.getByLabel('Действия с «Test result»', { exact: true });
+    await expect(trigger).toHaveCSS('width', '40px');
+    await expect(trigger).toHaveCSS('border-radius', '10px');
+    await expect(trigger).toHaveCSS('opacity', '1');
+    await trigger.click();
+    const panel = trigger.locator('..').locator('[data-action-panel]');
+    await expect(panel).toHaveCSS('background-color', 'rgb(23, 23, 27)');
+  }
+});
+
 test('result card deletion is last and removes the file after confirmation', async ({ page }) => {
   await mockApi(page);
   let deleted = false;
@@ -9755,14 +9954,18 @@ test('result card deletion is last and removes the file after confirmation', asy
     return route.fulfill({ json: file });
   });
   await page.goto('/image');
+  await page.getByRole('tab', { name: 'Генерации' }).click();
   const card = page.locator('.image-result').first();
   await card.hover();
-  await expect(card.locator('.img-actions > button')).toHaveCount(3);
-  await expect(card.locator('.img-actions > button').last()).toHaveAttribute(
-    'aria-label',
-    'Удалить Test result',
-  );
-  await card.getByRole('button', { name: 'Удалить Test result', exact: true }).click();
+  await expect(card.locator('.img-actions')).toHaveCount(0);
+  await expect(card.locator('.file-actions > summary')).toHaveCount(1);
+  await card.getByLabel('Действия с «Test result»', { exact: true }).click();
+  const menu = card.getByLabel('Действия с текущим файлом');
+  await expect(menu.getByRole('button', { name: 'Скачать файл', exact: true })).toBeVisible();
+  await expect(menu.getByRole('button', { name: 'Переделать Test result', exact: true })).toBeVisible();
+  const remove = menu.getByRole('button', { name: 'Удалить', exact: true });
+  await expect(menu.locator(':scope > button').last()).toHaveText('Удалить');
+  await remove.click();
   const dialog = page.getByRole('dialog', { name: 'Удалить файл', exact: true });
   await expect(dialog).toBeVisible();
   expect(deleted).toBe(false);
@@ -10111,29 +10314,33 @@ for (const width of [390, 1440]) {
 }
 
 for (const height of [640, 844]) {
-  test(`mobile studio composer has no extra bottom strip at height ${height}`, async ({ page }) => {
-    await page.setViewportSize({ width: 390, height });
-    await mockApi(page);
-    await page.goto('/chat');
-    await expect(page.locator('#cw-draft')).toBeVisible();
-    const geometry = await page.evaluate(() => {
-      const studio = document.querySelector('.content-studio')!.getBoundingClientRect();
-      const chat = document.querySelector('.content-studio .cw-chat')!.getBoundingClientRect();
-      const composer = document.querySelector('#cw-compose')!.getBoundingClientRect();
-      const tabs = document.querySelector('#cw-mode')!.getBoundingClientRect();
-      return {
-        center: (tabs.left + tabs.right - composer.left - composer.right) / 2,
-        extra: studio.bottom - chat.bottom,
-        gap: chat.bottom - composer.bottom,
-        horizontal: document.documentElement.scrollWidth > innerWidth,
-      };
-    });
-    expect(geometry.extra).toBeCloseTo(0, 0);
-    expect(geometry.gap).toBeCloseTo(8, 0);
-    expect(geometry.center).toBeCloseTo(0, 0);
-    expect(geometry.horizontal).toBe(false);
-    await page.screenshot({ path: `/tmp/gnosis-mobile-studio-bottom-${height}.png` });
-  });
+  test(
+    `mobile studio composer has no extra bottom strip at height ${height}`,
+    { tag: '@mobile-layout' },
+    async ({ page }) => {
+      await page.setViewportSize({ width: 390, height });
+      await mockApi(page);
+      await page.goto('/chat');
+      await expect(page.locator('#cw-draft')).toBeVisible();
+      const geometry = await page.evaluate(() => {
+        const studio = document.querySelector('.content-studio')!.getBoundingClientRect();
+        const chat = document.querySelector('.content-studio .cw-chat')!.getBoundingClientRect();
+        const composer = document.querySelector('#cw-compose')!.getBoundingClientRect();
+        const tabs = document.querySelector('#cw-mode')!.getBoundingClientRect();
+        return {
+          center: (tabs.left + tabs.right - composer.left - composer.right) / 2,
+          extra: studio.bottom - chat.bottom,
+          gap: chat.bottom - composer.bottom,
+          horizontal: document.documentElement.scrollWidth > innerWidth,
+        };
+      });
+      expect(geometry.extra).toBeCloseTo(0, 0);
+      expect(geometry.gap).toBeCloseTo(8, 0);
+      expect(geometry.center).toBeCloseTo(0, 0);
+      expect(geometry.horizontal).toBe(false);
+      await page.screenshot({ path: `/tmp/gnosis-mobile-studio-bottom-${height}.png` });
+    },
+  );
 }
 
 test('socket completion keeps the user turn mounted without periodic conversation polling', async ({
@@ -10476,12 +10683,12 @@ for (const [uid, label] of [
 
 for (const width of [390, 1440]) {
   for (const kind of ['image', 'video'] as const) {
-    test(`designer template composer matches ${kind} and studio at ${width}px`, async ({ page }) => {
+    test(`template composer matches ${kind} and studio at ${width}px`, async ({ page }) => {
       const state = await mockApi(page);
       await page.route(/\.mp4(?:\?|$)/, (route) => route.abort());
       await page.setViewportSize({ width, height: 900 });
       const video = kind === 'video';
-      const title = video ? 'Уличная культура' : 'Nano Banana 2.1';
+      const title = video ? 'Полёт над Нью-Йорком' : 'Nano Banana 2.1';
       if (!video) {
         const sample = structuredClone(
           catalog.find((item) => item.reference.provider === 'OPEN_ROUTER_IMAGE')!,
@@ -10516,16 +10723,11 @@ for (const width of [390, 1440]) {
         const input = field.locator('textarea');
         if (studio) await expect(input).toHaveValue(expectedPrompt!);
         else expectedPrompt = await input.inputValue();
-        if (video && width === 1440) {
-          await page.getByRole('button', { name: 'Короче', exact: true }).click();
-          await expect(input).toHaveValue(/Собери 10 с/);
-        }
         const add = field.getByRole('button', { name: 'Добавить фото 1', exact: true });
         await expect(add).toBeInViewport();
         await expect(add).toHaveCSS('width', width < 780 ? '64px' : '56px');
         await expect(field.locator('.video-template-hint')).toHaveCount(video ? 1 : 0);
-        await field.getByRole('button', { name: 'Скрыть метку фото' }).click();
-        await expect(add).toBeVisible();
+        await expect(field.locator('.feed-template-chips > span')).toHaveCount(1);
         await page.locator(studio ? '#cw-compose .cw-send' : '.img-dock .cw-send').click();
         await expect(add).toBeFocused();
         await add.click();
@@ -10623,28 +10825,28 @@ test('library loading cards reserve the file grid before the list arrives', asyn
   }
 });
 
-test('generation galleries only offer templates from the active model catalog', async ({ page }) => {
+test('video and studio galleries show one card per archive clip', async ({ page }) => {
   await mockApi(page);
   await page.route(/\.mp4(?:\?|$)/, (route) => route.abort());
   await page.goto('/video', { waitUntil: 'domcontentloaded' });
   const gallery = page.getByRole('tabpanel');
   await expect(
-    gallery.getByRole('button', { name: 'Использовать шаблон Уличная культура', exact: true }),
-  ).toBeVisible();
+    gallery.getByRole('button', { name: 'Использовать шаблон Полёт над Нью-Йорком', exact: true }),
+  ).toHaveCount(1);
   await expect(
-    gallery.getByRole('button', { name: 'Использовать шаблон Токио-селфи', exact: true }),
+    gallery.getByRole('button', { name: 'Использовать шаблон Модельный лист персонажа', exact: true }),
   ).toHaveCount(0);
   await page.getByRole('tab', { name: 'Генерации' }).click();
-  await expect(
-    gallery.getByRole('button', { name: 'Повторить Случайный смартфон-ролик', exact: true }),
-  ).toHaveCount(0);
+  await expect(gallery.locator('.card[data-kind="gen"]')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Перемешать' }).click();
-  await expect(gallery.getByRole('button', { name: /Токио-селфи|Случайный смартфон-ролик/ })).toHaveCount(0);
+  await expect(gallery.locator('.card[data-kind="gen"]')).toHaveCount(0);
   await page.goto('/chat', { waitUntil: 'domcontentloaded' });
   await page.locator('#cw-mode').getByRole('button', { name: 'Видео', exact: true }).click();
   await page.getByRole('button', { name: 'Развернуть панель' }).click();
   await expect(
-    page.getByRole('button', { name: 'Открыть шаблон: Уличная культура', exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Открыть шаблон: Токио-селфи', exact: true })).toHaveCount(0);
+    page.getByRole('button', { name: 'Открыть шаблон: Полёт над Нью-Йорком', exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Открыть шаблон: Модельный лист персонажа', exact: true }),
+  ).toHaveCount(0);
 });

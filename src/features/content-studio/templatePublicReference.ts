@@ -1,5 +1,5 @@
 import type { ITemplateVideoReference } from './materials';
-import templates from './templates.json';
+import { mediaTemplates as templates } from './templateCatalog';
 import { FileReferenceType, type IFileReference, type IGnosisFile } from '../../lib/types';
 
 export type TemplatePublicReference = Pick<IGnosisFile, 'name' | 'path' | 'type' | 'mime' | 'size'> & {

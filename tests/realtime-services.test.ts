@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import * as api from '../src/lib/api';
 import { RealtimeService } from '../src/features/realtime/RealtimeService';
-import { QueryRefreshService } from '../src/features/realtime/QueryRefreshService';
+import { QueryRefreshService, type IRealtimeEvent } from '../src/features/realtime/QueryRefreshService';
 import {
   getQueryRefreshService,
   scheduleRefresh,
@@ -197,6 +197,51 @@ it('shares a single cache service between mutations and the socket lifecycle', (
   disposeRefresh(client, session);
   expect(vi.getTimerCount()).toBe(0);
 });
+it('uses initial HTTP reads on first connect and reconciles exactly once on reconnect', () => {
+  const refresh = new QueryRefreshService(client, 7, () => true, session);
+  cleanup.push(() => refresh.dispose());
+  const schedule = vi.spyOn(refresh, 'schedule').mockImplementation(() => {});
+  refresh.start();
+  refresh.setConnected(true);
+  refresh.setConnected(true);
+  expect(schedule).not.toHaveBeenCalled();
+  refresh.setConnected(false);
+  refresh.setConnected(true);
+  refresh.setConnected(true);
+  expect(schedule).toHaveBeenCalledOnce();
+});
+
+it('patches a valid balance event without fetching account initialization again', () => {
+  const refresh = new QueryRefreshService(client, 7, () => true, session);
+  cleanup.push(() => refresh.dispose());
+  const schedule = vi.spyOn(refresh, 'schedule').mockImplementation(() => {});
+  const key = ['account', session];
+  client.setQueryData(key, { user: { id: 7 }, balances: { RUB: '1200', USD: '400' } });
+  refresh.receive({ name: 'CoinBalanceChangedEvent', data: { RUB: '1150.25' } } as IRealtimeEvent);
+  expect(client.getQueryData(key)).toEqual({ user: { id: 7 }, balances: { RUB: '1150.25', USD: '400' } });
+  expect(schedule).toHaveBeenLastCalledWith(['transactions']);
+  refresh.receive({ name: 'CoinBalanceChangedEvent', data: {} });
+  expect(schedule).toHaveBeenLastCalledWith(['account', 'transactions']);
+});
+
+it('updates direct task status without refetching conversations or an already loaded task list', () => {
+  const refresh = new QueryRefreshService(client, 7, () => true, session);
+  cleanup.push(() => refresh.dispose());
+  const schedule = vi.spyOn(refresh, 'schedule').mockImplementation(() => {});
+  const key = ['active-tasks', 7];
+  client.setQueryData(key, []);
+  const item = { id: 'task', model: 'VIDEO', createdDate: '2026-11-17', session: 'direct-task' };
+  refresh.receive({ name: 'TaskStartedEvent', data: { id: item.id, item } });
+  expect(client.getQueryData(key)).toEqual([item]);
+  expect(schedule).toHaveBeenLastCalledWith([], undefined);
+  refresh.receive({
+    name: 'TaskFinishedEvent',
+    data: { id: item.id, item, result: 'COMPLETED', fileIds: [12] },
+  });
+  expect(client.getQueryData(key)).toEqual([]);
+  expect(schedule).toHaveBeenLastCalledWith(['transactions', 'transaction-results', 'files'], undefined);
+});
+
 it('keeps fallback and tab-return rules in the service and removes them on disposal', async () => {
   const refresh = new QueryRefreshService(client, 7, () => true, session);
   cleanup.push(() => refresh.dispose());

@@ -1,3 +1,4 @@
+import { Masonry } from './Masonry';
 import { useId, type ReactNode } from 'react';
 import { Dialog } from './Modal';
 interface Digest {
@@ -42,9 +43,11 @@ export function ModelDigest({
         <div className="gf-detail-body">
           <div className="gf-detail-gallery">
             <div className="gf-detail-gallery-columns">
-              {detail.gallery.map((src) => (
-                <img key={src} src={src} alt="" loading="lazy" />
-              ))}
+              <Masonry ordered>
+                {detail.gallery.map((src) => (
+                  <img key={src} src={src} alt="" loading="lazy" />
+                ))}
+              </Masonry>
             </div>
           </div>
           <div className="gf-detail-copy">

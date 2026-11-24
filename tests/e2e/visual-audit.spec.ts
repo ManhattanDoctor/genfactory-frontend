@@ -233,7 +233,7 @@ test('content templates can be filtered by favorites and hide empty decorative c
   await setup(page);
   await page.goto('/chat');
   await page.getByRole('button', { name: 'Развернуть панель', exact: true }).click();
-  const cards = page.locator('#cw-gallery > article');
+  const cards = page.locator('#cw-gallery article');
   await expect(cards.nth(2)).toBeVisible();
   const title = await cards.nth(2).locator('.studio-template-caption').innerText();
   await cards

@@ -23,6 +23,13 @@ describe('scoped socket refresh', () => {
     expect(client.getQueryState(['conversations', 7, 'navigation'])?.isInvalidated).toBe(true);
     client.clear();
   });
+  it('refreshes displayed conversation covers without reloading navigation titles', () => {
+    const targets = refreshTargets(['conversation-covers']);
+    expect(matchesRefresh(['conversations', 7, 0], targets, 7)).toBe(true);
+    expect(matchesRefresh(['conversations', 7, 'navigation', 'content-studio'], targets, 7)).toBe(false);
+    expect(matchesRefresh(['conversations', 8, 0], targets, 7)).toBe(false);
+  });
+
   it('retains changes from multiple conversations in the same event batch', () => {
     const targets = [...refreshTargets(['messages'], 101), ...refreshTargets(['messages'], 102)];
     expect(matchesRefresh(['messages', 7, 101, 0], targets, 7)).toBe(true);

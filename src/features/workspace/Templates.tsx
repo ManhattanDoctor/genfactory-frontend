@@ -1,3 +1,4 @@
+import { Masonry } from '../../components/Masonry';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { templates } from './presetCatalog';
@@ -58,50 +59,52 @@ export function Templates() {
         Свои шаблоны и избранное хранятся в этом браузере, отдельно для каждого аккаунта.
       </p>
       <div className="template-grid">
-        {visible.map((p) => (
-          <article className="account-card" key={p.id}>
-            <span className="eyebrow">
-              {p.kind === 'image' ? 'ИЗОБРАЖЕНИЕ' : 'ВИДЕО'} · {p.category}
-            </span>
-            <h2>{p.name}</h2>
-            <p>{p.prompt}</p>
-            <div className="workspace-actions">
-              <button
-                className="button primary"
-                onClick={() =>
-                  navigate(`/${p.kind}`, { state: { prompt: p.prompt, preset: p, userId: user?.id } })
-                }
-              >
-                Использовать шаблон
-              </button>
-              <button
-                className="button"
-                disabled={!user}
-                aria-label={`${prefs.value.favoriteTemplates.includes(p.id) ? 'Убрать из избранного' : 'В избранное'}: ${p.name}`}
-                title={`${prefs.value.favoriteTemplates.includes(p.id) ? 'Убрать из избранного' : 'В избранное'}: ${p.name}`}
-                onClick={() =>
-                  prefs.update((v) => ({ ...v, favoriteTemplates: toggleItem(v.favoriteTemplates, p.id) }))
-                }
-              >
-                {prefs.value.favoriteTemplates.includes(p.id) ? '★' : '☆'}
-              </button>
-              {prefs.value.presets.some((x) => x.id === p.id) && (
+        <Masonry ordered>
+          {visible.map((p) => (
+            <article className="account-card" key={p.id}>
+              <span className="eyebrow">
+                {p.kind === 'image' ? 'ИЗОБРАЖЕНИЕ' : 'ВИДЕО'} · {p.category}
+              </span>
+              <h2>{p.name}</h2>
+              <p>{p.prompt}</p>
+              <div className="workspace-actions">
                 <button
-                  className="text-button"
+                  className="button primary"
                   onClick={() =>
-                    prefs.update((v) => ({
-                      ...v,
-                      presets: v.presets.filter((x) => x.id !== p.id),
-                      favoriteTemplates: v.favoriteTemplates.filter((x) => x !== p.id),
-                    }))
+                    navigate(`/${p.kind}`, { state: { prompt: p.prompt, preset: p, userId: user?.id } })
                   }
                 >
-                  Удалить шаблон
+                  Использовать шаблон
                 </button>
-              )}
-            </div>
-          </article>
-        ))}
+                <button
+                  className="button"
+                  disabled={!user}
+                  aria-label={`${prefs.value.favoriteTemplates.includes(p.id) ? 'Убрать из избранного' : 'В избранное'}: ${p.name}`}
+                  title={`${prefs.value.favoriteTemplates.includes(p.id) ? 'Убрать из избранного' : 'В избранное'}: ${p.name}`}
+                  onClick={() =>
+                    prefs.update((v) => ({ ...v, favoriteTemplates: toggleItem(v.favoriteTemplates, p.id) }))
+                  }
+                >
+                  {prefs.value.favoriteTemplates.includes(p.id) ? '★' : '☆'}
+                </button>
+                {prefs.value.presets.some((x) => x.id === p.id) && (
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      prefs.update((v) => ({
+                        ...v,
+                        presets: v.presets.filter((x) => x.id !== p.id),
+                        favoriteTemplates: v.favoriteTemplates.filter((x) => x !== p.id),
+                      }))
+                    }
+                  >
+                    Удалить шаблон
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </Masonry>
       </div>
       {!visible.length && (
         <p className="empty-state">

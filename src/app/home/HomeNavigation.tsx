@@ -101,6 +101,7 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
                   path="/chat"
                   tag="content-studio"
                   label="Студии контента"
+                  menuVisible={mobile ? open : !collapsed}
                   onNavigate={() => setOpen(false)}
                 >
                   {nav(m.icon, m.to, m.label)}
