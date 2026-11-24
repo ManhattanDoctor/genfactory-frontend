@@ -102,7 +102,10 @@
 .gf-section-main .library-page .asset-feed :is(.history-card, .file-entry):hover {
   border-color: rgba(244, 244, 240, 0.12);
 }
-.gf-section-main .library-page .asset-feed :is(.history-actions, .file-actions) > summary {
+.gf-section-main
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card)
+  :is(.history-actions, .file-actions)
+  > summary {
   width: var(--more-size, 36px);
   height: var(--more-size, 36px);
   min-width: 0;
@@ -118,32 +121,41 @@
   opacity: var(--more-visible, 0);
   transition: opacity 0.15s var(--gf-ease);
 }
-.gf-section-main .library-page .asset-feed :is(.history-actions, .file-actions) > summary svg {
+.gf-section-main
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card)
+  :is(.history-actions, .file-actions)
+  > summary
+  svg {
   width: 16px;
   height: 16px;
   stroke-width: 1.8;
   filter: none;
 }
 .library-page .asset-feed :is(.file-entry, .history-card):is(:hover, :focus-within),
-.library-page .asset-feed details[open],
+.gf-section-main :is(.image-result, .work-history .history-card):is(:hover, :focus-within),
+.gf-section-main :is(.library-page .asset-feed, .image-result, .work-history .history-card) details[open],
 .artifacts-page .history-view-list {
   --more-visible: 1;
 }
 @media (max-width: 780px), (hover: none) {
-  .library-page .asset-feed {
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card) {
     --more-visible: 1;
   }
 }
 @media (max-width: 780px) {
-  .library-page .asset-feed {
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card) {
     --more-size: 40px;
   }
 }
-.library-page .asset-feed [data-action-panel] {
+.gf-section-main
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card)
+  [data-action-panel] {
   --action-menu-gutter: 8px;
   --action-menu-inset: 10px;
 }
-.library-page .asset-feed [data-action-panel]:popover-open {
+.gf-section-main
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card)
+  [data-action-panel]:popover-open {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -155,7 +167,10 @@
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
   overflow: auto;
 }
-.library-page .asset-feed [data-action-panel] :is(button, a, .preview-menu-item) {
+.gf-section-main
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card)
+  [data-action-panel]
+  :is(button, a, .preview-menu-item) {
   flex: none;
   display: flex;
   align-items: center;
@@ -172,13 +187,19 @@
   font-weight: 400;
   text-align: left;
 }
-.library-page .asset-feed [data-action-panel] :is(button, a, .preview-menu-item):hover:not(:disabled) {
+.gf-section-main
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card)
+  [data-action-panel]
+  :is(button, a, .preview-menu-item):hover:not(:disabled) {
   background: rgba(244, 244, 240, 0.08);
 }
 .library-page .asset-feed .history-menu > :is(button, a) svg {
   display: none;
 }
-.library-page .asset-feed [data-action-panel] .danger {
+.gf-section-main
+  :is(.library-page .asset-feed, .image-result, .work-history .history-card)
+  [data-action-panel]
+  .danger {
   color: #ff8f8f;
 }
 .library-page .asset-feed :is(.history-actions, .file-actions) > summary circle {
@@ -208,6 +229,17 @@
 .gf-section-main .library-page .library-grid.asset-feed .library-media {
   height: var(--media-h);
   aspect-ratio: auto;
+}
+.gf-section-main .library-page .library-masonry {
+  display: block;
+}
+.gf-section-main .library-page .library-masonry .file-entry {
+  width: 100%;
+  min-width: 0;
+}
+.gf-section-main .library-page .library-grid.library-masonry .library-media {
+  height: auto;
+  aspect-ratio: clamp(0.75, var(--media-ratio), 1.778);
 }
 .library-page .asset-feed .file-folder-icon {
   background: linear-gradient(165deg, #141418, #0c0c0f);

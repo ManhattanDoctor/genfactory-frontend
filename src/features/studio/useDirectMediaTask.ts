@@ -1,3 +1,4 @@
+import { useRealtime } from '../realtime/RealtimeProvider';
 import { scheduleRefresh } from '../realtime/queryRefresh';
 import {
   useMutation,
@@ -8,7 +9,14 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import { api, getSession } from '../../lib/api';
-import type { IGnosisFile, IPagination, ITaskRequest, ITaskResponse, MediaKind } from '../../lib/types';
+import type {
+  IGnosisFile,
+  IPagination,
+  ITaskExecution,
+  ITaskRequest,
+  ITaskResponse,
+  MediaKind,
+} from '../../lib/types';
 import { selectedImageTaskKey, visibleTasks } from './activeTasks';
 import { saveFileRecipe, type IGenerationRecipe } from './variants';
 
@@ -29,6 +37,7 @@ export function useDirectMediaTask(
   pendingTasks: Array<{ id: string; model: string; createdDate: string; localRequest?: boolean }>;
 } {
   const client = useQueryClient();
+  const { connected } = useRealtime();
   const mutationKey = ['media-task', userId, kind];
   const mutation = useMutation({
     mutationKey,
@@ -52,9 +61,9 @@ export function useDirectMediaTask(
     onSuccess: (response, input) => {
       if (getSession() !== input.sid) return;
       const saved = response.files || [];
-      if (input.kind === 'image' && saved.length) {
+      if (saved.length) {
         client.setQueryData<InfiniteData<IPagination<IGnosisFile>>>(
-          ['files', input.userId, 'image-wall'],
+          ['files', input.userId, `${input.kind}-wall`],
           (current) => {
             const first = current?.pages[0];
             if (!current || !first) return current;
@@ -71,15 +80,20 @@ export function useDirectMediaTask(
           },
         );
       }
+      const session = input.body.task.session;
+      if (session) {
+        client.setQueryData<ITaskExecution[]>(['active-tasks', input.userId], (current) =>
+          current?.some((item) => item.session === session)
+            ? current.filter((item) => item.session !== session)
+            : current,
+        );
+      }
       response.files?.forEach((file) => saveFileRecipe(input.userId, file.id, input.recipe));
     },
-    onSettled: (_response, _error, input) => {
+    onSettled: (_response, error, input) => {
       scheduleRefresh(client, input.userId, input.sid, [
         'files',
-        'active-tasks',
-        'active-jobs',
-        'account',
-        'transactions',
+        ...(error || !connected ? ['account', 'active-tasks', 'transactions'] : []),
       ]);
     },
   });

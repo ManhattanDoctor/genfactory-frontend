@@ -111,7 +111,7 @@
   inset: 0;
   overflow: auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: max-content;
   align-content: start;
   align-items: start;
@@ -192,15 +192,7 @@
   font-size: 14px;
   color: #c8c8ce;
 }
-@media (max-width: 1200px) {
-  .prompt-wall {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 @media (max-width: 600px) {
-  .prompt-wall {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .prompt-brand span {
     font-size: clamp(24px, 7vw, 36px);
   }

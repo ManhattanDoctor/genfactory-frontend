@@ -1,3 +1,5 @@
+import { Masonry } from '../../components/Masonry';
+import { groupBy } from 'lodash';
 import { downloadFile } from '../../lib/files';
 import type { ReactElement } from 'react';
 import { Heart, ChevronLeft, ChevronRight, LayoutGrid, Archive, Clock3 } from 'lucide-react';
@@ -311,65 +313,68 @@ export function History(): ReactElement {
             </div>
           )}
           <div className="history-list">
-            {visible.map((c, index) => (
-              <Fragment key={c.id}>
-                {(index === 0 ||
-                  historyDay(c.lastMessageDate || c.createdDate) !==
-                    historyDay(visible[index - 1].lastMessageDate || visible[index - 1].createdDate)) && (
-                  <h3 className="history-day">{historyDay(c.lastMessageDate || c.createdDate)}</h3>
-                )}
-                <ConversationCard
-                  conversation={c}
-                  onOpen={() => void openResult(c)}
-                  title={historyModelTitle(c)}
-                  opening={opening === c.id}
-                  heading={
-                    editing === c.id ? (
-                      <form
-                        className="rename-form"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          void rename(c);
-                        }}
+            {Object.entries(groupBy(visible, (c) => historyDay(c.lastMessageDate || c.createdDate))).map(
+              ([day, items]) => (
+                <Fragment key={day}>
+                  <h3 className="history-day">{day}</h3>
+                  <Masonry ordered>
+                    {items.map((c) => (
+                      <ConversationCard
+                        key={c.id}
+                        conversation={c}
+                        onOpen={() => void openResult(c)}
+                        title={historyModelTitle(c)}
+                        opening={opening === c.id}
+                        heading={
+                          editing === c.id ? (
+                            <form
+                              className="rename-form"
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                void rename(c);
+                              }}
+                            >
+                              <input
+                                aria-label="Новое название"
+                                minLength={2}
+                                maxLength={64}
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                              />
+                              <button className="button" disabled={saving}>
+                                Сохранить название
+                              </button>
+                              <button
+                                className="button"
+                                type="button"
+                                disabled={saving}
+                                onClick={() => setEditing(undefined)}
+                              >
+                                Отмена
+                              </button>
+                            </form>
+                          ) : (
+                            <h2 title={c.name}>{c.name}</h2>
+                          )
+                        }
                       >
-                        <input
-                          aria-label="Новое название"
-                          minLength={2}
-                          maxLength={64}
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
+                        <ConversationActions
+                          conversation={c}
+                          busy={opening === c.id || !!optimistic}
+                          onDownload={() => void openResult(c, true)}
+                          onArchive={() => void changeFlags(c, { isArchived: !c.isArchived })}
+                          onRename={() => {
+                            setEditing(c.id);
+                            setName(c.name);
+                            setError('');
+                          }}
                         />
-                        <button className="button" disabled={saving}>
-                          Сохранить название
-                        </button>
-                        <button
-                          className="button"
-                          type="button"
-                          disabled={saving}
-                          onClick={() => setEditing(undefined)}
-                        >
-                          Отмена
-                        </button>
-                      </form>
-                    ) : (
-                      <h2 title={c.name}>{c.name}</h2>
-                    )
-                  }
-                >
-                  <ConversationActions
-                    conversation={c}
-                    busy={opening === c.id || !!optimistic}
-                    onDownload={() => void openResult(c, true)}
-                    onArchive={() => void changeFlags(c, { isArchived: !c.isArchived })}
-                    onRename={() => {
-                      setEditing(c.id);
-                      setName(c.name);
-                      setError('');
-                    }}
-                  />
-                </ConversationCard>
-              </Fragment>
-            ))}
+                      </ConversationCard>
+                    ))}
+                  </Masonry>
+                </Fragment>
+              ),
+            )}
           </div>
           {list.data && list.data.pages > 1 && (
             <div className="pagination">

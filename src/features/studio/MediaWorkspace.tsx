@@ -20,7 +20,6 @@ import { UploadButtonContent } from '../../components/UploadButtonContent';
 import type { IUploadProgress } from '../../lib/api';
 import { Skeleton } from '../../components/Skeleton';
 import { supportsVideoReferences } from '../catalog/videoInputs';
-import { downloadFile } from '../../lib/files';
 import { templateVariables, templateTimingError, updateFeedDuration } from '../content-studio/templateRecipe';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
@@ -45,18 +44,7 @@ import {
   type RefObject,
 } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import {
-  ArrowUp,
-  Plus,
-  Pencil,
-  Download,
-  RotateCcw,
-  Expand,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  Info,
-} from 'lucide-react';
+import { ArrowUp, Plus, Pencil, Expand, ChevronLeft, ChevronRight, ChevronDown, Info } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { IConversation, IGnosisFile, IModelDescription, MediaKind } from '../../lib/types';
 import { favoritesFirst, findTemplateModel, modelKey, modelTitle } from '../catalog/presentation';
@@ -210,7 +198,6 @@ export function MediaWorkspace({
     if (conversation?.id) setFeedTab('generations');
   }, [conversation?.id]);
   const showHistory = banana || seedance || feedTab === 'generations';
-  const [columns, setColumns] = useState(4);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileImageWall, setMobileImageWall] = useState(false);
   const [bottom, setBottom] = useState(234);
@@ -250,8 +237,6 @@ export function MediaWorkspace({
   const conversationError = useConversationError(conversation);
   const [answerView, setAnswerView] = useState<string>();
   useEffect(() => setAnswerView(undefined), [conversation?.id]);
-  const downloading = useRef(new Set<number>());
-  const [downloadIds, setDownloadIds] = useState<number[]>([]);
   const [preview, setPreview] = useState<IGnosisFile>();
   const [page, setPage] = useState(0);
   useEffect(() => {
@@ -272,7 +257,7 @@ export function MediaWorkspace({
   const startedAt = latestMessage?.role === 'USER' ? latestMessage.createdDate : undefined;
   const history = useInfiniteQuery({
     queryKey: ['files', user?.id, `${kind}-wall`],
-    enabled: !!user,
+    enabled: !!user && showHistory,
     initialPageParam: 0,
     queryFn: ({ pageParam, signal }) => api.mediaFiles(outputType, pageParam, signal),
     getNextPageParam: (last) => (last.pageIndex + 1 < last.pages ? last.pageIndex + 1 : undefined),
@@ -362,11 +347,9 @@ export function MediaWorkspace({
       : latestAnswer?.text;
   useEffect(() => {
     const measure = () => {
-      const width = root.current?.clientWidth || innerWidth;
       const compact = window.matchMedia('(max-width: 780px)').matches;
       setMobileImageWall(compact);
       if (!compact) setSettingsOpen(false);
-      setColumns(width < 900 ? 2 : width < 1280 ? 4 : 5);
       const dockOffset = dock.current ? Number.parseFloat(getComputedStyle(dock.current).bottom) : 72;
       setBottom((dock.current?.offsetHeight || 146) + dockOffset + 16);
     };
@@ -498,22 +481,7 @@ export function MediaWorkspace({
       wall.current?.scrollTo({ top: 0, behavior: 'instant' });
     });
   };
-  const download = async (file: IGnosisFile): Promise<void> => {
-    if (downloading.current.has(file.id)) return;
-    downloading.current.add(file.id);
-    setDownloadIds([...downloading.current]);
-    setNotice('');
-    try {
-      await downloadFile(file);
-    } catch {
-      setNotice('Не удалось скачать файл. Попробуйте ещё раз.');
-    } finally {
-      downloading.current.delete(file.id);
-      setDownloadIds([...downloading.current]);
-    }
-  };
   const repeatFile = useEventCallback((file: IGnosisFile) => onRepeat(file, repeatInput(file)));
-  const downloadResult = useEventCallback(download);
   async function applyFeedCard(card: FeedCard) {
     if (busy) return;
     const target = findTemplateModel(models, card.modelId, card.modelTitle);
@@ -564,32 +532,10 @@ export function MediaWorkspace({
           >
             <Media file={file} />
           </button>
-          <FileActions file={file} />
-          <div className="img-actions">
-            <button
-              type="button"
-              aria-label={`Скачать ${file.name}`}
-              disabled={downloadIds.includes(file.id)}
-              aria-busy={downloadIds.includes(file.id)}
-              title="Скачать"
-              onClick={() => void downloadResult(file)}
-            >
-              <Download size={18} />
-            </button>
-            <button
-              type="button"
-              aria-label={`Переделать ${file.name}`}
-              title="Переделать"
-              disabled={busy}
-              onClick={() => repeatFile(file)}
-            >
-              <RotateCcw size={18} />
-            </button>
-            <FileActions file={file} variant="delete-button" />
-          </div>
+          <FileActions file={file} repeatDisabled={busy} onRepeat={() => repeatFile(file)} />
         </article>
       )),
-    [files, video, downloadIds, busy, downloadResult, repeatFile],
+    [files, video, busy, repeatFile],
   );
   const statusCards: ReactElement[] = [
     ...Array.from(
@@ -760,6 +706,7 @@ export function MediaWorkspace({
       : [];
   const visibleFiles = showHistory ? fileCards : [];
   const imageFeed = mediaComposer && !video;
+  const feedUsesMasonry = mediaComposer && feedTab === 'generations';
   const generationCards = [...statusCards, ...visibleFiles, ...galleryCards];
   const retryHistory = !error && !notice && !prefs.error && !retryCatalog && history.isLoadingError;
   const retry = retryCatalog || (retryHistory ? () => void history.refetch() : undefined);
@@ -874,12 +821,10 @@ export function MediaWorkspace({
             )}
           </div>
         )}
-        {!imageFeed && (
+        {!imageFeed && !feedUsesMasonry && (
           <div className="img-masonry" style={{ paddingBottom: banana || seedance ? bottom : 0 }}>
             {generationCards.length > 0 && (
               <Masonry
-                columns={columns}
-                gap={mobileImageWall && mediaComposer ? 8 : 12}
                 scrollRoot={wall}
                 estimateHeight={(key, width) =>
                   key === 'next-page'
@@ -906,8 +851,13 @@ export function MediaWorkspace({
             kind={video ? 'video' : 'image'}
             busy={busy || (!!user && catalogLoading)}
             onApply={(card) => void applyFeedCard(card)}
+            layout={{
+              scrollRoot: wall,
+              estimateHeight: (key, width) =>
+                key === 'next-page' ? 40 : width * (cardRatios.get(key) ?? (video ? 9 / 16 : 1)),
+            }}
           >
-            {imageFeed && generationCards}
+            {imageFeed || feedUsesMasonry ? generationCards : undefined}
           </DesignFeed>
         )}
       </div>

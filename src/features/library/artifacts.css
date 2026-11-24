@@ -49,6 +49,14 @@
   height: var(--media-h);
   aspect-ratio: auto;
 }
+.gf-section-main .artifacts-page .history-list:not(.history-view-list) :is(.file-entry, .history-card) {
+  width: 100%;
+  min-width: 0;
+}
+.gf-section-main .artifacts-page .history-list:not(.history-view-list) :is(.history-cover, .library-media) {
+  height: auto;
+  aspect-ratio: clamp(0.75, var(--media-ratio, 1.3333), 1.778);
+}
 .gf-section-main .artifacts-page .history-list.history-view-list {
   --history-gap: 8px;
   flex-flow: column nowrap;

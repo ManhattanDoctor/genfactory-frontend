@@ -1,3 +1,4 @@
+import { Masonry } from '../components/Masonry';
 import { ModelDigest } from '../components/ModelDigest';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -110,41 +111,43 @@ export function Home() {
         hidden={tab !== 'generations'}
       >
         <div className="gf-wall" aria-label="Стена генераций">
-          {content.wall.map((w, i) => {
-            const digest = content.digests[w.model],
-              to = imageRoute(digest.model);
-            const card = (
-              <>
-                <img
-                  src={w.src}
-                  width={w.width}
-                  height={w.height}
-                  alt=""
-                  loading={i < 16 ? 'eager' : 'lazy'}
-                  decoding="async"
-                />
-                <div className="gf-wall-overlay">
-                  <p className="gf-wall-model">{digest.title}</p>
-                  <span className="gf-wall-create">{to ? 'Создать' : 'Модель недоступна'}</span>
+          <Masonry ordered>
+            {content.wall.map((w, i) => {
+              const digest = content.digests[w.model],
+                to = imageRoute(digest.model);
+              const card = (
+                <>
+                  <img
+                    src={w.src}
+                    width={w.width}
+                    height={w.height}
+                    alt=""
+                    loading={i < 16 ? 'eager' : 'lazy'}
+                    decoding="async"
+                  />
+                  <div className="gf-wall-overlay">
+                    <p className="gf-wall-model">{digest.title}</p>
+                    <span className="gf-wall-create">{to ? 'Создать' : 'Модель недоступна'}</span>
+                  </div>
+                </>
+              );
+              return to ? (
+                <Link
+                  key={w.src}
+                  className="gf-wall-item"
+                  aria-label={'Создать в модели ' + digest.title}
+                  title={'Создать в модели ' + digest.title}
+                  to={to}
+                >
+                  {card}
+                </Link>
+              ) : (
+                <div className="gf-wall-item" tabIndex={0} key={w.src}>
+                  {card}
                 </div>
-              </>
-            );
-            return to ? (
-              <Link
-                key={w.src}
-                className="gf-wall-item"
-                aria-label={'Создать в модели ' + digest.title}
-                title={'Создать в модели ' + digest.title}
-                to={to}
-              >
-                {card}
-              </Link>
-            ) : (
-              <div className="gf-wall-item" tabIndex={0} key={w.src}>
-                {card}
-              </div>
-            );
-          })}
+              );
+            })}
+          </Masonry>
         </div>
       </section>
       <section
@@ -155,28 +158,30 @@ export function Home() {
         hidden={tab !== 'digests'}
       >
         <div className="gf-digests">
-          {content.digests.slice(0, limit).map((m) => (
-            <button
-              key={m.title}
-              className="gf-digest-card"
-              onClick={(event) => {
-                event.currentTarget.focus({ preventScroll: true });
-                setDetail(m);
-              }}
-              aria-label={'Открыть дайджест ' + m.title}
-              title={'Открыть дайджест ' + m.title}
-            >
-              <div className="gf-digest-mosaic">
-                {m.covers.map((src) => (
-                  <img key={src} src={src} alt="" loading="lazy" />
-                ))}
-                <div className="gf-digest-hover">
-                  <span>Открыть дайджест</span>
+          <Masonry ordered>
+            {content.digests.slice(0, limit).map((m) => (
+              <button
+                key={m.title}
+                className="gf-digest-card"
+                onClick={(event) => {
+                  event.currentTarget.focus({ preventScroll: true });
+                  setDetail(m);
+                }}
+                aria-label={'Открыть дайджест ' + m.title}
+                title={'Открыть дайджест ' + m.title}
+              >
+                <div className="gf-digest-mosaic">
+                  {m.covers.map((src) => (
+                    <img key={src} src={src} alt="" loading="lazy" />
+                  ))}
+                  <div className="gf-digest-hover">
+                    <span>Открыть дайджест</span>
+                  </div>
                 </div>
-              </div>
-              <h3 className="gf-digest-name">{m.title}</h3>
-            </button>
-          ))}
+                <h3 className="gf-digest-name">{m.title}</h3>
+              </button>
+            ))}
+          </Masonry>
         </div>
         {limit < content.digests.length && (
           <div className="gf-digest-more-wrap">

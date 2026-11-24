@@ -1,3 +1,5 @@
+import { Masonry } from '../../components/Masonry';
+import { groupBy } from 'lodash';
 import { LibrarySearch } from '../../components/LibrarySearch';
 import { previewCardStyle } from '../../components/previewCardStyle';
 import { AssetCardSkeleton, Skeleton } from '../../components/Skeleton';
@@ -223,67 +225,79 @@ export function Artifacts(): ReactElement {
                 ))}
               </>
             )}
-            {list.data?.items.map((item, index) => (
-              <Fragment key={`${item.type}:${item.id}`}>
-                {(index === 0 ||
-                  historyDay(item.activityDate) !== historyDay(list.data!.items[index - 1].activityDate)) && (
-                  <h3 className="history-day">{historyDay(item.activityDate)}</h3>
-                )}
-                {item.type === 'FILE' ? (
-                  <article
-                    style={previewCardStyle(item.preview)}
-                    className="file-entry"
-                    aria-busy={opening === item.id}
-                  >
-                    <FileCard
-                      compact
-                      source={item.workspace === 'CONTENT_STUDIO' ? 'Студия контента' : undefined}
-                      file={{
-                        ...item,
-                        type: item.fileType,
-                        origin: item.generation
-                          ? { kind: 'GENERATION', generation: item.generation }
-                          : undefined,
-                      }}
-                      disabled={opening === item.id}
-                      onOpen={() => void openFile(item)}
-                    />
-                    <FileActions file={{ id: item.id, name: item.name, type: item.fileType }} />
-                  </article>
-                ) : (
-                  <ConversationCard
-                    sourceBelowTitle
-                    conversation={{
-                      ...item,
-                      lastMessageDate: item.activityDate,
-                      tags: item.workspace
-                        ? [
-                            item.workspace === 'CONTENT_STUDIO'
-                              ? 'content-studio'
-                              : item.workspace.toLowerCase(),
-                          ]
-                        : undefined,
-                    }}
-                    onOpen={() => navigate(`/open?conversation=${item.id}`)}
-                  >
-                    <ConversationActions
+            {Object.entries(groupBy(list.data?.items ?? [], (item) => historyDay(item.activityDate))).map(
+              ([day, items]) => {
+                const cards = items.map((item) =>
+                  item.type === 'FILE' ? (
+                    <article
+                      style={previewCardStyle(item.preview)}
+                      className="file-entry"
+                      key={`file:${item.id}`}
+                      aria-busy={opening === item.id}
+                    >
+                      <FileCard
+                        compact
+                        source={item.workspace === 'CONTENT_STUDIO' ? 'Студия контента' : undefined}
+                        file={{
+                          ...item,
+                          type: item.fileType,
+                          origin: item.generation
+                            ? { kind: 'GENERATION', generation: item.generation }
+                            : undefined,
+                        }}
+                        disabled={opening === item.id}
+                        onOpen={() => void openFile(item)}
+                      />
+                      <FileActions file={{ id: item.id, name: item.name, type: item.fileType }} />
+                    </article>
+                  ) : (
+                    <ConversationCard
+                      key={`conversation:${item.id}`}
+                      sourceBelowTitle
                       conversation={{
                         ...item,
-                        tags: item.workspace === 'CONTENT_STUDIO' ? ['content-studio'] : undefined,
+                        lastMessageDate: item.activityDate,
+                        tags: item.workspace
+                          ? [
+                              item.workspace === 'CONTENT_STUDIO'
+                                ? 'content-studio'
+                                : item.workspace.toLowerCase(),
+                            ]
+                          : undefined,
                       }}
-                      busy={acting !== undefined}
-                      onDownload={() => void act(item, 'download')}
-                      onArchive={() => void act(item, 'archive')}
-                      onRename={() => {
-                        setEditing(item);
-                        setName(item.name);
-                        setError('');
-                      }}
-                    />
-                  </ConversationCard>
-                )}
-              </Fragment>
-            ))}
+                      onOpen={() => navigate(`/open?conversation=${item.id}`)}
+                    >
+                      <ConversationActions
+                        conversation={{
+                          ...item,
+                          tags: item.workspace === 'CONTENT_STUDIO' ? ['content-studio'] : undefined,
+                        }}
+                        busy={acting !== undefined}
+                        onDownload={() => void act(item, 'download')}
+                        onArchive={() => void act(item, 'archive')}
+                        onRename={() => {
+                          setEditing(item);
+                          setName(item.name);
+                          setError('');
+                        }}
+                      />
+                    </ConversationCard>
+                  ),
+                );
+                return (
+                  <Fragment key={day}>
+                    <h3 className="history-day">{day}</h3>
+                    {view !== 'list' ? (
+                      <Masonry gap={10} ordered>
+                        {cards}
+                      </Masonry>
+                    ) : (
+                      cards
+                    )}
+                  </Fragment>
+                );
+              },
+            )}
           </div>
           {list.data && list.data.pages > 1 && (
             <div className="pagination">

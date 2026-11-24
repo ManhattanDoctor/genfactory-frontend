@@ -112,3 +112,25 @@
 .asset-feed [aria-hidden='true'] > .artifact-body > :last-child {
   width: 45%;
 }
+
+.template-card-media {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  --media-loading-ratio: auto;
+}
+.template-card-media > .media-loading-frame > img,
+.template-card-media > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.template-card-media > video {
+  opacity: 0;
+}
+.template-card-media > video.is-ready {
+  opacity: 1;
+}

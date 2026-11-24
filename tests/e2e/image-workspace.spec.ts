@@ -167,8 +167,7 @@ test('image model controls send actual settings, show result and recover it on r
     )
     .toBe(true);
   await restoredResult.hover();
-  await expect(restoredResult.locator('.img-actions')).toHaveCSS('transform', 'none');
-  await expect(restoredResult.locator('.img-actions')).toHaveCSS('opacity', '1');
+  await page.getByLabel('Действия с «Закат.png»', { exact: true }).click();
   await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
   await expect(page.locator('#img-draft')).toHaveValue(/Закат над лесом[\s\S]*Последний референс/);
   expect(state.tasks).toHaveLength(1);
@@ -718,6 +717,7 @@ test('image result reserves its frame while loading and keeps actions under the 
   const before = await result.boundingBox();
   expect(before!.height).toBeGreaterThan(100);
   await result.hover();
+  await result.getByLabel('Действия с «Закат.png»', { exact: true }).click();
   const repeat = result.getByRole('button', { name: 'Переделать Закат.png', exact: true });
   await expect(repeat).toBeVisible();
   showImage();
@@ -738,7 +738,7 @@ test('redo restores the original idea and template of a new request and attaches
 }) => {
   const state = await setup(page);
   await page.goto('/image');
-  await page.getByRole('button', { name: 'Использовать шаблон: Портрет в масштабе', exact: true }).click();
+  await page.getByRole('button', { name: 'Использовать шаблон Портрет в масштабе', exact: true }).click();
   await addTemplatePhoto(page);
   const prompt = await page.locator('#img-draft').inputValue();
   await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
@@ -760,8 +760,7 @@ test('redo restores the original idea and template of a new request and attaches
     )
     .toBe(true);
   await result.hover();
-  await expect(result.locator('.img-actions')).toHaveCSS('transform', 'none');
-  await expect(result.locator('.img-actions')).toHaveCSS('opacity', '1');
+  await page.getByLabel('Действия с «Закат.png»', { exact: true }).click();
   await page.getByRole('button', { name: 'Переделать Закат.png', exact: true }).click();
   await expect(page.locator('#img-draft')).toHaveValue(/Ultra-photorealistic[\s\S]*Последний референс/);
   await expect(page.getByRole('button', { name: 'Убрать Закат.png', exact: true })).toHaveCount(1);

@@ -3,19 +3,21 @@ import { memo, useLayoutEffect, useRef, useState, type ReactElement, type RefObj
 /** Stable slots preserve order and scroll geometry; long galleries mount nearby cards only. */
 export function Masonry({
   children,
-  columns,
-  gap = 12,
+  columns: fixedColumns,
+  gap = 10,
   ordered = false,
   scrollRoot,
   estimateHeight,
 }: {
   children: ReactElement[];
-  columns: number;
+  columns?: number;
   gap?: number;
   ordered?: boolean;
   scrollRoot?: RefObject<HTMLElement | null>;
   estimateHeight?: (key: string, width: number) => number;
 }): ReactElement {
+  const [responsiveColumns, setResponsiveColumns] = useState(2);
+  const columns = fixedColumns ?? responsiveColumns;
   const root = useRef<HTMLDivElement>(null);
   const assignments = useRef({ columns, items: new Map<string, number>() });
   const sizes = useRef(new Map<string, { height: number; width: number }>());
@@ -55,6 +57,14 @@ export function Masonry({
     assignments.current = { columns, items: assigned };
     for (const key of sizes.current.keys()) if (!assigned.has(key)) sizes.current.delete(key);
     const measure = () => {
+      if (!element.clientWidth) return;
+      if (fixedColumns === undefined) {
+        const count = Math.max(1, Math.min(5, Math.floor((element.clientWidth + gap) / (140 + gap))));
+        if (count !== columns) {
+          setResponsiveColumns(count);
+          return;
+        }
+      }
       const width = (element.clientWidth - (columns - 1) * gap) / columns;
       if (width <= 0) return;
       const heights = Array.from({ length: columns }, () => 0);
@@ -97,7 +107,7 @@ export function Masonry({
       if ((child as HTMLElement).dataset.masonryMounted === 'true') observer.observe(child);
     measure();
     return () => observer.disconnect();
-  }, [columns, gap, keys, mountedKeys, ordered]);
+  }, [columns, fixedColumns, gap, keys, mountedKeys, ordered]);
 
   useLayoutEffect(() => {
     if (!virtual || !root.current) return;

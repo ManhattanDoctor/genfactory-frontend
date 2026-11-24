@@ -15,12 +15,14 @@ export function ConversationNavigation({
   label,
   children,
   onNavigate,
+  menuVisible = true,
 }: {
   path: '/chat' | '/agent';
   tag: 'content-studio' | 'chat';
   label: string;
   children: ReactNode;
   onNavigate?: () => void;
+  menuVisible?: boolean;
 }): ReactElement {
   const { user } = useAuth();
   const location = useLocation();
@@ -28,7 +30,7 @@ export function ConversationNavigation({
   const [visible, setVisible] = useState(RECENT_COUNT);
   const dialogs = useInfiniteQuery({
     queryKey: ['conversations', user?.id, 'navigation', tag],
-    enabled: !!user,
+    enabled: !!user && menuVisible && expanded,
     initialPageParam: 0,
     queryFn: ({ pageParam, signal }) =>
       api.conversations(user!.id, pageParam, signal, undefined, [tag], undefined, { isArchived: false }),

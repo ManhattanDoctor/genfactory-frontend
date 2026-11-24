@@ -261,7 +261,7 @@ test('video sends template, first frame and real settings through VIDEO and rest
   expect(state.tasks[0].task.prompt).toContain(templateText);
   expect(state.tasks[0].task.prompt).toContain('несколько сцен');
   await page.locator('.video-result').hover();
-  await expect(page.locator('.video-result .img-actions')).toHaveCSS('opacity', '1');
+  await page.getByLabel('Действия с «Чашка.mp4»', { exact: true }).click();
   await page.getByRole('button', { name: 'Переделать Чашка.mp4', exact: true }).click();
   await expect(page.locator('#vd-draft')).toHaveValue(/Покажи чашку с разных сторон[\s\S]*Ролик не подошёл/);
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toBeVisible();
@@ -528,6 +528,7 @@ test('Wan uses both catalog-supported frames in order and restores them for a re
   });
   await page.locator('.video-result .image-result-open').focus();
   await page.locator('.video-result').hover();
+  await page.getByLabel('Действия с «Чашка.mp4»', { exact: true }).click();
   await page.getByRole('button', { name: 'Переделать Чашка.mp4', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Убрать Чашка.png', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Убрать Конечный кадр.png', exact: true })).toBeVisible();

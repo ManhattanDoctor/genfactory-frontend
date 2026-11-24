@@ -1,3 +1,4 @@
+import { Masonry } from '../../components/Masonry';
 import { FileReferenceType } from '../../lib/types';
 import { catalogQuery } from '../catalog/catalogQuery';
 import type { ReactElement } from 'react';
@@ -434,66 +435,76 @@ function PromptEditor(): ReactElement {
         </div>
       )}
       <div className="prompt-wall" style={{ paddingBottom: bottom }} aria-label="Готовые промпты">
-        {busy && (
-          <div className="prompt-card prompt-wait" role="status">
-            Подготавливаем промпт…
-          </div>
-        )}
-        {cards.map((card) => (
-          <article className="prompt-card" key={card.id}>
-            <div className="prompt-card-shot">
-              <button
-                className="prompt-card-open"
-                aria-label={`Открыть ${card.result?.title || 'ответ'}`}
-                title={`Открыть ${card.result?.title || 'ответ'}`}
-                onClick={() => setViewer(card)}
-              >
-                {card.files[0] ? <Media file={card.files[0]} /> : <span>Готовый промпт</span>}
-              </button>
-              <div className="img-actions is-tools">
-                {card.result?.prompt && (
-                  <>
+        <Masonry ordered>
+          {[
+            ...(busy
+              ? [
+                  <div key="pending" className="prompt-card prompt-wait" role="status">
+                    Подготавливаем промпт…
+                  </div>,
+                ]
+              : []),
+            ...cards.map((card) => (
+              <article className="prompt-card" key={card.id}>
+                <div className="prompt-card-shot">
+                  <button
+                    className="prompt-card-open"
+                    aria-label={`Открыть ${card.result?.title || 'ответ'}`}
+                    title={`Открыть ${card.result?.title || 'ответ'}`}
+                    onClick={() => setViewer(card)}
+                  >
+                    {card.files[0] ? <Media file={card.files[0]} /> : <span>Готовый промпт</span>}
+                  </button>
+                  <div className="img-actions is-tools">
+                    {card.result?.prompt && (
+                      <>
+                        <button
+                          aria-label="Скопировать промпт"
+                          title="Скопировать промпт"
+                          onClick={() => void copy(card.result!.prompt!)}
+                        >
+                          <Copy size={18} />
+                        </button>
+                        <button
+                          aria-label="Скачать TXT"
+                          title="Скачать TXT"
+                          onClick={() => download(card.result!.prompt!)}
+                        >
+                          <Download size={18} />
+                        </button>
+                        <button aria-label="В генератор" title="В генератор" onClick={() => usePrompt(card)}>
+                          <ArrowUpRight size={18} />
+                        </button>
+                      </>
+                    )}
                     <button
-                      aria-label="Скопировать промпт"
-                      title="Скопировать промпт"
-                      onClick={() => void copy(card.result!.prompt!)}
+                      aria-label="Открыть промпт"
+                      title="Открыть промпт"
+                      onClick={() => setViewer(card)}
                     >
-                      <Copy size={18} />
+                      <Expand size={18} />
                     </button>
-                    <button
-                      aria-label="Скачать TXT"
-                      title="Скачать TXT"
-                      onClick={() => download(card.result!.prompt!)}
-                    >
-                      <Download size={18} />
-                    </button>
-                    <button aria-label="В генератор" title="В генератор" onClick={() => usePrompt(card)}>
-                      <ArrowUpRight size={18} />
-                    </button>
-                  </>
-                )}
-                <button aria-label="Открыть промпт" title="Открыть промпт" onClick={() => setViewer(card)}>
-                  <Expand size={18} />
-                </button>
-              </div>
-            </div>
-            <h3>{card.result?.title || 'Не удалось разобрать ответ'}</h3>
-            <p className="prompt-card-text">
-              {card.result?.prompt ||
-                card.result?.clarifications.join(' ') ||
-                card.result?.limitations.join(' ') ||
-                'Ответ не соответствует формату промпта. Откройте его для просмотра.'}
-            </p>
-            {dirty.current &&
-              card.input &&
-              (JSON.stringify(card.input) !== JSON.stringify(input) ||
-                card.files.map((f) => f.id).join(',') !== files.map((f) => f.id).join(',')) && (
-                <p className="prompt-stale">
-                  Это промпт предыдущего набора. Он не относится к текущим файлам.
+                  </div>
+                </div>
+                <h3>{card.result?.title || 'Не удалось разобрать ответ'}</h3>
+                <p className="prompt-card-text">
+                  {card.result?.prompt ||
+                    card.result?.clarifications.join(' ') ||
+                    card.result?.limitations.join(' ') ||
+                    'Ответ не соответствует формату промпта. Откройте его для просмотра.'}
                 </p>
-              )}
-          </article>
-        ))}
+                {dirty.current &&
+                  card.input &&
+                  (JSON.stringify(card.input) !== JSON.stringify(input) ||
+                    card.files.map((f) => f.id).join(',') !== files.map((f) => f.id).join(',')) && (
+                    <p className="prompt-stale">
+                      Это промпт предыдущего набора. Он не относится к текущим файлам.
+                    </p>
+                  )}
+              </article>
+            )),
+          ]}
+        </Masonry>
         {messages.hasNextPage && (
           <button
             className="button"

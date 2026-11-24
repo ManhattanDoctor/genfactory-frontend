@@ -16,6 +16,7 @@ cat > "$fixture_dir/default.conf" <<'NGINX'
 server {
     listen 8080;
     client_max_body_size 1g;
+    location = /api/file { return 401; }
     location = /api/check { default_type application/json; return 200 '{"ok":true}'; }
     location /api/ { return 418; }
     location /socket.io/ { return 200 "$http_upgrade"; }
@@ -50,9 +51,9 @@ grep -qi '<!doctype html>' "$fixture_dir/index.html"
 curl -fsSI "$base/auth/callback?code=smoke-secret-marker" | grep -qi 'cache-control: no-cache'
 [[ $(curl -fsS "$base/api/check") == '{"ok":true}' ]]
 [[ $(curl -s -o /dev/null -w '%{http_code}' "$base/api/missing") == 418 ]]
-# The frontend proxy must accept recordings above the old 25 MiB limit.
+# The library upload must reach the upstream authentication check.
 truncate -s 32M "$fixture_dir/recording.bin"
-[[ $(curl -sS -o /dev/null -w '%{http_code}' -H 'Expect:' --data-binary @"$fixture_dir/recording.bin" "$base/api/upload") == 418 ]]
+[[ $(curl -sS -o /dev/null -w '%{http_code}' -H 'Expect:' -F "file=@$fixture_dir/recording.bin;type=video/mp4" "$base/api/file") == 401 ]]
 [[ $(curl -s -o /dev/null -w '%{http_code}' "$base/assets/missing.js") == 404 ]]
 [[ $(curl -fsS -H 'Upgrade: websocket' "$base/socket.io/?transport=websocket") == websocket ]]
 asset=$(sed -n 's/.*src="\(\/assets\/[^\"]*\.js\)".*/\1/p' "$fixture_dir/index.html" | head -1)

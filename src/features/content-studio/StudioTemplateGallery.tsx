@@ -1,6 +1,7 @@
-import { memo, type ReactElement } from 'react';
+import { memo, useMemo, type ReactElement } from 'react';
 import { Heart } from 'lucide-react';
 import type { ITemplateCard } from './materials';
+import { Masonry } from '../../components/Masonry';
 import { TemplateMedia } from './TemplateMedia';
 interface Props {
   genre: string;
@@ -26,6 +27,16 @@ export const StudioTemplateGallery = memo(function StudioTemplateGallery({
   busy,
   pick,
 }: Props): ReactElement {
+  const ratios = useMemo(
+    () =>
+      new Map(
+        visible.map((item) => {
+          const [width, height] = (item.previewRatio || item.ratio).split(/[:/]/).map(Number);
+          return [item.id, width > 0 && height > 0 ? height / width : 1];
+        }),
+      ),
+    [visible],
+  );
   return (
     <div className="cw-templates-pane">
       <div className="cw-genres" role="group" aria-label="Жанры">
@@ -66,50 +77,54 @@ export const StudioTemplateGallery = memo(function StudioTemplateGallery({
         ))}
       </div>
       <div className="cw-scroll" id="cw-gallery">
-        {visible.map((item) => (
-          <article
-            className="cw-card ds-template-card"
-            data-kind={item.kind === 'presentation' ? 'slides' : item.kind}
-            key={item.id}
-          >
-            <div
-              className="cw-card-media ds-template-media"
-              style={{ aspectRatio: item.previewRatio || item.ratio.replace(':', ' / ') }}
-            >
-              <TemplateMedia item={item} />
-              <span className="studio-template-badge">
-                {item.references?.min ? 'Нужно фото' : item.kind === 'video' ? 'Видео' : 'Изображение'}
-              </span>
-              <button
-                type="button"
-                className="cw-template-open"
-                aria-label={`Открыть шаблон: ${item.title}`}
-                title={`Открыть шаблон: ${item.title}`}
-                disabled={busy}
-                onClick={(event) => {
-                  event.currentTarget.focus({ preventScroll: true });
-                  void pick(item);
-                }}
-              />
-              <button
-                type="button"
-                className={`cw-fav ${favorites.includes(item.id) ? 'is-on' : ''}`}
-                aria-label={`В избранное: ${item.title}`}
-                title={`В избранное: ${item.title}`}
-                aria-pressed={favorites.includes(item.id)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFavorite(item.id);
-                }}
+        {!!visible.length && (
+          <Masonry ordered estimateHeight={(key, width) => width * (ratios.get(key) ?? 1) + 30}>
+            {visible.map((item) => (
+              <article
+                className="cw-card ds-template-card"
+                data-kind={item.kind === 'presentation' ? 'slides' : item.kind}
+                key={item.id}
               >
-                <Heart size={18} fill={favorites.includes(item.id) ? 'currentColor' : 'none'} />
-              </button>
-            </div>
-            <button disabled={busy} className="studio-template-caption" onClick={() => void pick(item)}>
-              {item.title}
-            </button>
-          </article>
-        ))}
+                <div
+                  className="cw-card-media ds-template-media"
+                  style={{ aspectRatio: item.previewRatio || item.ratio.replace(':', ' / ') }}
+                >
+                  <TemplateMedia item={item} />
+                  <span className="studio-template-badge">
+                    {item.references?.min ? 'Нужно фото' : item.kind === 'video' ? 'Видео' : 'Изображение'}
+                  </span>
+                  <button
+                    type="button"
+                    className="cw-template-open"
+                    aria-label={`Открыть шаблон: ${item.title}`}
+                    title={`Открыть шаблон: ${item.title}`}
+                    disabled={busy}
+                    onClick={(event) => {
+                      event.currentTarget.focus({ preventScroll: true });
+                      void pick(item);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={`cw-fav ${favorites.includes(item.id) ? 'is-on' : ''}`}
+                    aria-label={`В избранное: ${item.title}`}
+                    title={`В избранное: ${item.title}`}
+                    aria-pressed={favorites.includes(item.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(item.id);
+                    }}
+                  >
+                    <Heart size={18} fill={favorites.includes(item.id) ? 'currentColor' : 'none'} />
+                  </button>
+                </div>
+                <button disabled={busy} className="studio-template-caption" onClick={() => void pick(item)}>
+                  {item.title}
+                </button>
+              </article>
+            ))}
+          </Masonry>
+        )}
         {!visible.length && (
           <p className="cw-gallery-empty">
             {favoritesOnly ? 'В избранном пока ничего нет.' : 'Таких шаблонов нет.'}
