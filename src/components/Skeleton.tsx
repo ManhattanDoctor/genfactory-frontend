@@ -32,3 +32,14 @@ export function SkeletonCards({
     </div>
   );
 }
+
+export function LoadingRows({ label }: { label: string }) {
+  return (
+    <div role="status" className="loading-rows">
+      <span className="sr-only">{label}</span>
+      <Skeleton />
+      <Skeleton />
+      <Skeleton />
+    </div>
+  );
+}

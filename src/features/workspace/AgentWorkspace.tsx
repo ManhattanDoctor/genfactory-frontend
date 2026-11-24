@@ -1,3 +1,4 @@
+import { LazyImage } from '../../components/LazyImage';
 import type { ReactElement } from 'react';
 import { ComposerAttachment } from '../../components/ComposerAttachment';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
@@ -107,7 +108,7 @@ export function AgentWorkspace({
     <div className="image-workspace agent-workspace" aria-label="AI agent">
       {!rows.length && !busy && (
         <div className="banana-brand agent-brand" aria-hidden="true">
-          <img src="/media/prototype/agent.webp" alt="" />
+          <LazyImage src="/media/prototype/agent.webp" alt="" />
           <span>AI agent</span>
         </div>
       )}
@@ -184,7 +185,6 @@ export function AgentWorkspace({
             className="cw-plus"
             type="button"
             aria-label="Добавить изображение"
-            title="Добавить изображение"
             disabled={busy || files.length >= 4 || (!!user && !model?.capabilities?.includes('IMAGE_INPUT'))}
             onClick={onLibrary}
           >
@@ -209,7 +209,6 @@ export function AgentWorkspace({
             className="cw-send"
             type="submit"
             aria-label="Отправить"
-            title="Отправить"
             disabled={busy || disabled || (!prompt.trim() && !files.length)}
           >
             <ArrowUp size={22} />

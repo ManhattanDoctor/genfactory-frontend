@@ -1,3 +1,5 @@
+import { ComposerTextarea } from '../../components/ComposerTextarea';
+import { LazyImage } from '../../components/LazyImage';
 import { MessageAction } from '../../components/MessageAction';
 import { VideoDuration } from '../../components/VideoDuration';
 import { ImageAspectGrid, ImageAspectPicker } from './ImageAspectGrid';
@@ -21,7 +23,7 @@ import type { IUploadProgress } from '../../lib/api';
 import { Skeleton } from '../../components/Skeleton';
 import { supportsVideoReferences } from '../catalog/videoInputs';
 import { templateVariables, templateTimingError, updateFeedDuration } from '../content-studio/templateRecipe';
-import { ComposerAttachment } from '../../components/ComposerAttachment';
+import { ComposerAttachment, ComposerAttachmentRow } from '../../components/ComposerAttachment';
 import { GenerationElapsed } from '../../components/GenerationElapsed';
 import { ModelPickerList } from '../catalog/ModelPickerList';
 import { useComposerMenu } from '../../components/useComposerMenu';
@@ -522,7 +524,6 @@ export function MediaWorkspace({
             type="button"
             className="image-result-open"
             aria-label={`Открыть ${file.name}`}
-            title={`Открыть ${file.name}`}
             onClick={(e) => {
               e.currentTarget.focus({ preventScroll: true });
               setPreview(file);
@@ -569,7 +570,6 @@ export function MediaWorkspace({
               type="button"
               className="media-answer-open"
               aria-label="Открыть ответ по запросу"
-              title="Открыть ответ по запросу"
               onClick={() => setAnswerView(displayMessageText(text))}
             >
               <span className="media-answer-heading">
@@ -585,7 +585,7 @@ export function MediaWorkspace({
     ...(video && !text && !generating && conversation?.status === 'ERROR'
       ? [
           <article key="failed" className="img-tile video-result-failed" role="alert">
-            <img src="/media/prototype/content/video/fail-cry.jpg" alt="Ролик не собрался" />
+            <LazyImage src="/media/prototype/content/video/fail-cry.jpg" alt="Ролик не собрался" />
             <p className="video-failure-note">{conversationError || 'Ролик не собрался.'}</p>
           </article>,
         ]
@@ -659,7 +659,6 @@ export function MediaWorkspace({
           className="cw-chip"
           type="button"
           aria-label="Звук"
-          title="Звук"
           aria-pressed={!!options.generateAudio}
           disabled={busy || soundOptions.length < 2}
           onClick={() => onOptions({ ...options, generateAudio: !options.generateAudio })}
@@ -749,7 +748,6 @@ export function MediaWorkspace({
               type="button"
               className="img-file-edit"
               aria-label="Редактировать шаблон"
-              title="Редактировать шаблон"
               disabled={busy}
               onClick={() => {
                 void applyTemplate(selected, templateText);
@@ -783,7 +781,10 @@ export function MediaWorkspace({
       >
         {(banana || seedance) && !files.length && !generating && (
           <div className={seedance ? 'banana-brand seedance-brand' : 'banana-brand'} aria-hidden="true">
-            <img src={seedance ? '/media/prototype/seedance.webp' : '/media/prototype/banana.webp'} alt="" />
+            <LazyImage
+              src={seedance ? '/media/prototype/seedance.webp' : '/media/prototype/banana.webp'}
+              alt=""
+            />
             <span>{seedance ? 'Seedance Studio' : 'Nano Banana'}</span>
           </div>
         )}
@@ -798,18 +799,12 @@ export function MediaWorkspace({
             )}
             {!busy && (messages.data?.pages || 0) > 1 && (
               <nav aria-label="Страницы результатов">
-                <button
-                  aria-label="Предыдущая страница"
-                  title="Предыдущая страница"
-                  disabled={!page}
-                  onClick={() => setPage(page - 1)}
-                >
+                <button aria-label="Предыдущая страница" disabled={!page} onClick={() => setPage(page - 1)}>
                   <ChevronLeft size={18} aria-hidden="true" />
                 </button>
                 <span>{page + 1}</span>
                 <button
                   aria-label="Следующая страница"
-                  title="Следующая страница"
                   disabled={page + 1 >= messages.data!.pages}
                   onClick={() => setPage(page + 1)}
                 >
@@ -911,7 +906,7 @@ export function MediaWorkspace({
             </AppliedTemplate>
           ) : (
             (templateAttachments || missingPhotos > 0) && (
-              <div className="img-files">
+              <ComposerAttachmentRow>
                 {templateAttachments}
                 <RequiredPhotoSlots
                   count={photoCount + missingPhotos}
@@ -919,15 +914,14 @@ export function MediaWorkspace({
                   disabled={busy || !!unavailable}
                   onAdd={() => onLibrary(true)}
                 />
-              </div>
+              </ComposerAttachmentRow>
             )
           )}
-          <textarea
-            ref={promptInput}
+          <ComposerTextarea
+            inputRef={promptInput}
             id={seedance ? 'sd-draft' : banana ? 'nb-draft' : video ? 'vd-draft' : 'img-draft'}
             aria-label={video ? 'Идея ролика' : 'Идея'}
             rows={mediaComposer ? 2 : 3}
-            style={mediaComposer ? undefined : { height: 72 }}
             value={prompt}
             disabled={busy}
             onChange={(e) => {
@@ -952,13 +946,6 @@ export function MediaWorkspace({
             {(!video || !model || referenceLimit(model) > 0) && (
               <button
                 className={`cw-plus ${needsTemplateImages ? `needs-template-images${templateGlowActive ? ' template-glow-active' : ''}` : ''}`}
-                title={
-                  needsTemplateImages
-                    ? `Добавьте свои ${video && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${photoCount + missingPhotos}`
-                    : video
-                      ? undefined
-                      : 'Добавить фото: JPG, PNG, WebP, HEIC/HEIF'
-                }
                 type="button"
                 aria-label={
                   video && supportsVideoReferences(model)
@@ -1084,7 +1071,6 @@ export function MediaWorkspace({
             className="cw-send"
             type="submit"
             aria-label={video ? 'Собрать видео' : 'Собрать изображение'}
-            title={video ? 'Собрать видео' : 'Собрать изображение'}
             disabled={
               busy ||
               unavailable ||
@@ -1310,7 +1296,6 @@ export function ImageMenu({
         type="button"
         className="cw-chip"
         aria-label={name}
-        title={name}
         aria-expanded={open}
         aria-haspopup="listbox"
         disabled={disabled}
@@ -1318,13 +1303,7 @@ export function ImageMenu({
           setOpen(!open);
         }}
       >
-        {models ? (
-          <span className="gf-model-trigger-name" title={label}>
-            {label}
-          </span>
-        ) : (
-          label
-        )}
+        {models ? <span className="gf-model-trigger-name">{label}</span> : label}
         {models && <ChevronDown size={12} />}
       </button>
       {open && (
@@ -1361,7 +1340,6 @@ export function ImageMenu({
                 role="option"
                 aria-selected={value === selection}
                 aria-label={value}
-                title={value}
                 disabled={allowedValues && !allowedValues.includes(value)}
                 key={value}
                 onClick={() => {

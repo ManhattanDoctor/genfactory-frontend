@@ -3,7 +3,7 @@ import { Masonry } from './Masonry';
 import { HistoryCardBody } from './HistoryCardBody';
 import { previewCardStyle } from './previewCardStyle';
 import { scheduleRefresh } from '../features/realtime/queryRefresh';
-import { SkeletonCards } from './Skeleton';
+import { AssetCardSkeleton, SkeletonCards } from './Skeleton';
 import type { CSSProperties, ReactElement } from 'react';
 import './file-browser.css';
 import { FileCard } from './FileCard';
@@ -358,7 +358,6 @@ export function FileBrowser({
         type="button"
         className="library-card"
         aria-label="На уровень выше"
-        title="На уровень выше"
         disabled={busy}
         onClick={() => navigate(trail.slice(0, -1))}
       >
@@ -373,9 +372,7 @@ export function FileBrowser({
           <div>
             <b>Наверх</b>
             <span>Папка</span>
-            <span className="file-generation-summary" title={trail.at(-2)?.name || 'Библиотека'}>
-              {trail.at(-2)?.name || 'Библиотека'}
-            </span>
+            <span className="file-generation-summary">{trail.at(-2)?.name || 'Библиотека'}</span>
           </div>
         )}
       </button>
@@ -404,12 +401,7 @@ export function FileBrowser({
             selectionMode={selectionMode}
           />
           {incompatible && (
-            <button
-              type="button"
-              className="file-incompatible"
-              aria-label="Почему файл не подходит"
-              title="Не подходит для этой задачи"
-            >
+            <button type="button" className="file-incompatible" aria-label="Почему файл не подходит">
               <CircleAlert size={18} aria-hidden="true" />
             </button>
           )}
@@ -423,7 +415,6 @@ export function FileBrowser({
                   disabled={!FILE_TAG_FILTER_ENABLED}
                   onClick={() => setTagFilter([tag.trim().toLocaleLowerCase('ru')])}
                   aria-label={`Файлы с тегом ${tag}`}
-                  title={tag}
                 >
                   {tag}
                 </button>
@@ -448,7 +439,6 @@ export function FileBrowser({
             type="button"
             className="icon-button file-back"
             aria-label="Назад в родительскую папку"
-            title="Назад в родительскую папку"
             disabled={busy}
             onClick={() => navigate(trail.slice(0, -1))}
           >
@@ -460,7 +450,6 @@ export function FileBrowser({
             type="button"
             className="icon-button file-back"
             aria-label="Корень библиотеки"
-            title="Корень библиотеки"
             disabled={busy}
             onClick={() => navigate([])}
           >
@@ -547,7 +536,6 @@ export function FileBrowser({
               className="button"
               disabled={busy || !!query || !!selectedTags.length}
               aria-label="Новая папка"
-              title="Новая папка"
               onClick={() => {
                 setName('');
                 setAction({ kind: 'create' });
@@ -562,11 +550,6 @@ export function FileBrowser({
               className="button"
               disabled={busy || !!query || !!selectedTags.length}
               aria-label="Загрузить файл"
-              title={
-                acceptedTypes?.length === 1 && acceptedTypes[0] === 'IMAGE'
-                  ? 'Загрузить фото: JPG, PNG, WebP, HEIC/HEIF'
-                  : 'Загрузить файл'
-              }
               aria-busy={!!uploadBatch}
               onClick={() => upload.current?.click()}
             >
@@ -608,7 +591,6 @@ export function FileBrowser({
                   className={`chip ${type === value ? 'active' : ''}`}
                   aria-pressed={type === value}
                   aria-label={label}
-                  title={label}
                   onClick={() => {
                     setType(value);
                     setPage(0);
@@ -681,7 +663,7 @@ export function FileBrowser({
           )}
         </header>
       )}
-      {user && !onDestination && files.isPending && (
+      {user && !onDestination && files.isPending && !layout && (
         <SkeletonCards
           label="Загружаем файлы…"
           className={layout ? 'library-grid asset-feed' : 'library-grid'}
@@ -689,6 +671,8 @@ export function FileBrowser({
         />
       )}
       <div
+        role={layout && user && files.isPending ? 'status' : undefined}
+        aria-label={layout && user && files.isPending ? 'Загружаем файлы…' : undefined}
         className={
           foldersOnly
             ? 'file-folder-list'
@@ -697,9 +681,11 @@ export function FileBrowser({
               : 'library-grid'
         }
       >
-        {layout && !foldersOnly && cards.length ? (
+        {layout && !foldersOnly && (cards.length > 0 || (user && files.isPending)) ? (
           <Masonry gap={libraryGap} ordered>
-            {cards}
+            {files.isPending
+              ? Array.from({ length: 8 }, (_, index) => <AssetCardSkeleton key={index} />)
+              : cards}
           </Masonry>
         ) : (
           cards
@@ -777,7 +763,6 @@ export function FileBrowser({
             type="button"
             className="button"
             aria-label="Предыдущая страница"
-            title="Предыдущая страница"
             disabled={!page || busy}
             onClick={() => setPage((p) => p - 1)}
           >
@@ -790,7 +775,6 @@ export function FileBrowser({
             type="button"
             className="button"
             aria-label="Следующая страница"
-            title="Следующая страница"
             disabled={page + 1 >= files.data.pages || busy}
             onClick={() => setPage((p) => p + 1)}
           >

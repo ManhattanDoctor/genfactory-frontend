@@ -108,7 +108,6 @@ export function VariantsPanel({
                           key={f.id}
                           onClick={() => onPreview(f)}
                           aria-label={`Вложение: ${f.name}`}
-                          title={`Вложение: ${f.name}`}
                         >
                           <Media file={f} />
                           <span>{f.name}</span>
@@ -127,7 +126,6 @@ export function VariantsPanel({
                           key={f.id}
                           onClick={() => onPreview(f)}
                           aria-label={`Результат варианта: ${f.name}`}
-                          title={`Результат варианта: ${f.name}`}
                         >
                           <Media file={f} />
                           <span>{f.name}</span>

@@ -16,14 +16,11 @@ export function StudioQueuePanel({ queue }: { queue: ConversationQueue }) {
                 <span className="cw-queue-position" aria-hidden="true">
                   {index + 1}
                 </span>
-                <span className="cw-queue-title" title={item.title}>
-                  {item.title}
-                </span>
+                <span className="cw-queue-title">{item.title}</span>
                 <button
                   type="button"
                   className="icon-button"
                   aria-label={`Убрать из очереди: ${item.title}`}
-                  title={`Убрать из очереди: ${item.title}`}
                   onClick={() => queue.remove(item.id)}
                 >
                   <X size={16} />

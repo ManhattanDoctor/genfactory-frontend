@@ -1,3 +1,5 @@
+import { useMediaVisibility } from '../components/useMediaVisibility';
+import { LazyImage } from '../components/LazyImage';
 import { Masonry } from '../components/Masonry';
 import { ModelDigest } from '../components/ModelDigest';
 import { useEffect, useRef, useState } from 'react';
@@ -12,40 +14,40 @@ import './home/home.css';
 
 const media = '/media/home/';
 function ModeCard({ mode, index }: { mode: (typeof modes)[number]; index: number }) {
+  const [playing, setPlaying] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const poster = media + ['studio-poster.jpg', 'images.png', 'video-poster.jpg'][index];
+  const { visible, seen } = useMediaVisibility(video);
   useEffect(() => {
     const el = video.current;
     if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) void el.play().catch(() => {});
-        else el.pause();
-      },
-      { threshold: index === 2 ? 0.2 : 0.35 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [index]);
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => {
+      if (visible && !motion.matches) void el.play().catch(() => {});
+      else el.pause();
+    };
+    update();
+    motion.addEventListener('change', update);
+    return () => motion.removeEventListener('change', update);
+  }, [visible]);
   return (
     <Link
       to={mode.to}
       aria-label={mode.action}
-      title={mode.action}
-      onMouseEnter={() => void video.current?.play().catch(() => {})}
       className={'gf-mode-card' + (index === 2 ? ' gf-mode-card-video' : '')}
     >
-      {index === 2 && <img className="gf-mode-media gf-mode-media-still" src={poster} alt="" />}
+      <LazyImage className="gf-mode-media" src={poster} alt="" />
       <video
         ref={video}
         className={'gf-mode-media' + (index === 2 ? ' gf-mode-media-video' : '')}
-        poster={poster}
+        style={{ visibility: playing ? 'visible' : 'hidden' }}
+        onPlaying={() => setPlaying(true)}
+        onError={() => setPlaying(false)}
         muted
         playsInline
         loop
-        autoPlay={index === 2}
-        preload={index === 2 ? 'auto' : 'metadata'}
-        src={media + ['studio.mp4', 'images.mp4', 'video.mp4'][index]}
+        preload="none"
+        src={seen ? media + ['studio.mp4', 'images.mp4', 'video.mp4'][index] : undefined}
       />
       <div className="gf-mode-shade" />
       <div className="gf-mode-badge">{icons[mode.icon]}</div>
@@ -112,17 +114,17 @@ export function Home() {
       >
         <div className="gf-wall" aria-label="Стена генераций">
           <Masonry ordered>
-            {content.wall.map((w, i) => {
+            {content.wall.map((w) => {
               const digest = content.digests[w.model],
                 to = imageRoute(digest.model);
               const card = (
                 <>
-                  <img
+                  <LazyImage
                     src={w.src}
                     width={w.width}
                     height={w.height}
                     alt=""
-                    loading={i < 16 ? 'eager' : 'lazy'}
+                    loading="lazy"
                     decoding="async"
                   />
                   <div className="gf-wall-overlay">
@@ -136,7 +138,6 @@ export function Home() {
                   key={w.src}
                   className="gf-wall-item"
                   aria-label={'Создать в модели ' + digest.title}
-                  title={'Создать в модели ' + digest.title}
                   to={to}
                 >
                   {card}
@@ -168,11 +169,10 @@ export function Home() {
                   setDetail(m);
                 }}
                 aria-label={'Открыть дайджест ' + m.title}
-                title={'Открыть дайджест ' + m.title}
               >
                 <div className="gf-digest-mosaic">
                   {m.covers.map((src) => (
-                    <img key={src} src={src} alt="" loading="lazy" />
+                    <LazyImage key={src} src={src} alt="" loading="lazy" />
                   ))}
                   <div className="gf-digest-hover">
                     <span>Открыть дайджест</span>

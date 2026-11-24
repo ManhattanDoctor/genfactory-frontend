@@ -1,8 +1,11 @@
-.skeleton {
-  display: block;
+.skeleton,
+img[data-image-loading] {
   background: linear-gradient(100deg, #202322 20%, #303533 45%, #202322 70%);
   background-size: 250% 100%;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+.skeleton {
+  display: block;
   border-radius: inherit;
 }
 @keyframes skeleton-shimmer {
@@ -62,7 +65,8 @@
   border-radius: 16px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
+  .skeleton,
+  img[data-image-loading] {
     animation: none;
   }
 }
@@ -133,4 +137,25 @@
 }
 .template-card-media > video.is-ready {
   opacity: 1;
+}
+
+.loading-rows {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 0.6em;
+  padding-block: 0.75em;
+}
+.loading-rows .skeleton {
+  height: 1em;
+  width: min(75%, 32em);
+  border-radius: 0.35em;
+}
+.loading-rows .skeleton:last-child {
+  width: min(50%, 20em);
+}
+
+.history-card-loading .history-cover {
+  width: 100%;
+  aspect-ratio: 4 / 3;
 }

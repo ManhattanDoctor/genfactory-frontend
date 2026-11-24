@@ -1,5 +1,7 @@
+import { StudioUserBubble } from './StudioUserBubble';
+import { LoadingRows } from '../../components/Skeleton';
 import { MessageAction } from '../../components/MessageAction';
-import { Check, Copy, Download, RotateCw, Settings } from 'lucide-react';
+import { Check, Copy, RotateCw, Settings } from 'lucide-react';
 import type { ContentConversation } from './useContentConversation';
 import { openActiveJobs } from '../../components/ActiveJobs';
 import { CollapsibleMessage } from './CollapsibleMessage';
@@ -9,7 +11,7 @@ import { parseStudioQuestion, studioReplyText, type StudioQuestion } from './stu
 import { StudioQuestionCard } from './StudioQuestionCard';
 import { isReadyScript } from './script';
 import { useEffect, useRef, useState } from 'react';
-import { safeMediaUrl } from '../../lib/api';
+import { FileDownloadButton } from '../../components/FileDownloadButton';
 import type { IConversation, IConversationMessage, IGnosisFile, MediaKind } from '../../lib/types';
 import { MessageContent } from '../../components/MessageContent';
 import { Media, MediaPreview } from '../../components/MediaPreview';
@@ -118,7 +120,7 @@ export function ContentThread({
   }, [messages.data, conversation.status]);
   return (
     <>
-      {messages.isPending && <p role="status">Загружаем сообщения…</p>}
+      {messages.isPending && <LoadingRows label="Загружаем сообщения…" />}
       {messages.error && (
         <p role="alert">
           Не удалось загрузить сообщения.{' '}
@@ -144,68 +146,60 @@ export function ContentThread({
         return (
           <article className="as-turn cw-turn" key={key}>
             {ask && (
-              <div className="as-user">
-                <div className="as-bubble">
-                  {!!ask.files?.length && (
-                    <div className="as-thumbs">
-                      {ask.files
-                        .filter((file) => file.type === 'IMAGE')
-                        .map((file) => (
-                          <button
-                            key={file.id}
-                            className="content-thumb"
-                            aria-label={`Открыть ${file.name}`}
-                            title={`Открыть ${file.name}`}
-                            onClick={() => setPreview(file)}
-                          >
-                            <Media file={file} isPlaybackDisabled />
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                  {ask.files
-                    ?.filter((file) => file.type !== 'IMAGE')
-                    .map((file) => (
-                      <p className="as-file" key={file.id}>
-                        {file.name}
-                      </p>
-                    ))}
-                  {ask.references
-                    ?.filter(
-                      (reference) => reference.type === 'URL' && /^https?:\/\//.test(reference.url || ''),
-                    )
-                    .map((reference) => (
-                      <p className="as-file" key={reference.url}>
-                        <a
-                          className="content-external-reference"
-                          href={reference.url}
-                          target="_blank"
-                          rel="noreferrer"
+              <StudioUserBubble text={prompt}>
+                {!!ask.files?.length && (
+                  <div className="as-thumbs">
+                    {ask.files
+                      .filter((file) => file.type === 'IMAGE')
+                      .map((file) => (
+                        <button
+                          key={file.id}
+                          className="content-thumb"
+                          aria-label={`Открыть ${file.name}`}
+                          onClick={() => setPreview(file)}
                         >
-                          <span className="content-thumb">
-                            <FilePlaceholder
-                              file={{
-                                name: 'Внешний референс',
-                                mime: reference.mime || '',
-                                type: reference.mime?.startsWith('image/')
-                                  ? 'IMAGE'
-                                  : reference.mime?.startsWith('video/')
-                                    ? 'VIDEO'
-                                    : 'DOCUMENT',
-                              }}
-                            />
-                          </span>
-                          Внешний референс
-                        </a>
-                      </p>
-                    ))}
-                  {prompt && (
-                    <CollapsibleMessage>
-                      <p className="as-ask">{prompt}</p>
-                    </CollapsibleMessage>
-                  )}
-                </div>
-              </div>
+                          <Media file={file} isPlaybackDisabled />
+                        </button>
+                      ))}
+                  </div>
+                )}
+                {ask.files
+                  ?.filter((file) => file.type !== 'IMAGE')
+                  .map((file) => (
+                    <p className="as-file" key={file.id}>
+                      {file.name}
+                    </p>
+                  ))}
+                {ask.references
+                  ?.filter(
+                    (reference) => reference.type === 'URL' && /^https?:\/\//.test(reference.url || ''),
+                  )
+                  .map((reference) => (
+                    <p className="as-file" key={reference.url}>
+                      <a
+                        className="content-external-reference"
+                        href={reference.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span className="content-thumb">
+                          <FilePlaceholder
+                            file={{
+                              name: 'Внешний референс',
+                              mime: reference.mime || '',
+                              type: reference.mime?.startsWith('image/')
+                                ? 'IMAGE'
+                                : reference.mime?.startsWith('video/')
+                                  ? 'VIDEO'
+                                  : 'DOCUMENT',
+                            }}
+                          />
+                        </span>
+                        Внешний референс
+                      </a>
+                    </p>
+                  ))}
+              </StudioUserBubble>
             )}
             <div className="as-bot">
               <div className="as-bot-main">
@@ -235,7 +229,6 @@ export function ContentThread({
                       className="content-result-preview"
                       key={file.id}
                       aria-label={`Открыть ${file.name}`}
-                      title={`Открыть ${file.name}`}
                       onClick={() => setPreview(file)}
                     >
                       <Media
@@ -291,7 +284,7 @@ export function ContentThread({
                     typeof options?.seed === 'number' ? `Seed: ${options.seed}` : undefined,
                   ];
                   return (
-                    <p key={file.id} className="content-result-meta" title={file.name}>
+                    <p key={file.id} className="content-result-meta">
                       {[
                         ...new Set(
                           values
@@ -307,18 +300,11 @@ export function ContentThread({
                 {!question && !waiting && (
                   <div className={files.length ? 'as-actions content-result-actions' : 'as-actions'}>
                     {files.map((file) => (
-                      <a
-                        className="button"
+                      <FileDownloadButton
                         key={file.id}
-                        href={safeMediaUrl(file.path)}
-                        title={files.length > 1 ? `Скачать ${file.name}` : 'Скачать'}
-                        aria-label={files.length > 1 ? `Скачать ${file.name}` : 'Скачать'}
-                        download={file.name}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <Download size={16} aria-hidden="true" />
-                      </a>
+                        file={file}
+                        label={files.length > 1 ? `Скачать ${file.name}` : 'Скачать'}
+                      />
                     ))}
                     {(ask?.settings?.isToolsDisabled === true ||
                       ask?.text?.startsWith('[Genfactory:script]\n')) &&
@@ -337,7 +323,6 @@ export function ContentThread({
                     <button
                       className="button"
                       disabled={!prompt || conversation.status === 'LOADING'}
-                      title="Повторить запрос"
                       aria-label="Повторить запрос"
                       onClick={() => onRepeat(prompt)}
                     >
@@ -350,11 +335,6 @@ export function ContentThread({
                           className="button"
                           key={file.id}
                           disabled={busy}
-                          title={
-                            files.length > 1
-                              ? `Использовать параметры: ${file.name}`
-                              : 'Использовать параметры'
-                          }
                           aria-label={
                             files.length > 1
                               ? `Использовать параметры: ${file.name}`
@@ -367,7 +347,6 @@ export function ContentThread({
                       ))}
                     <button
                       className="button"
-                      title={copied === key ? 'Текст скопирован' : 'Скопировать текст'}
                       aria-label={copied === key ? 'Текст скопирован' : 'Скопировать текст'}
                       disabled={!copyText}
                       onClick={async () => {

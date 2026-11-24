@@ -1,3 +1,4 @@
+import { LazyImage } from '../components/LazyImage';
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -57,12 +58,11 @@ export function ModelReviews() {
                       key={image.src}
                       type="button"
                       aria-label={'Открыть: ' + image.alt}
-                      title={'Открыть: ' + image.alt}
                       onClick={({ currentTarget }) =>
                         setSelected({ image, from: currentTarget.getBoundingClientRect() })
                       }
                     >
-                      <img src={image.src} alt={image.alt} loading="lazy" width={160} height={120} />
+                      <LazyImage src={image.src} alt={image.alt} loading="lazy" width={160} height={120} />
                     </button>
                   ))}
                 </div>
@@ -89,7 +89,6 @@ export function ModelReviews() {
             type="button"
             key={item.model}
             aria-label={item.title}
-            title={item.title}
             aria-current={start + i === active ? 'true' : undefined}
             onClick={() => {
               const card = track.current?.children[start + i] as HTMLElement | undefined;

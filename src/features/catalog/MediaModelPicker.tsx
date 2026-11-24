@@ -205,7 +205,6 @@ export function MediaModelPicker({
         className={studio ? 'cw-model' : 'cw-chip'}
         type="button"
         aria-label={name}
-        title={label}
         aria-haspopup={mobile ? 'dialog' : 'listbox'}
         aria-expanded={open}
         disabled={disabled}

@@ -1,3 +1,4 @@
+import { useMediaVisibility } from './useMediaVisibility';
 import { FilePreviewRetry } from './FilePreviewRetry';
 import { FileActions } from './FileActions';
 import './media-loading.css';
@@ -46,8 +47,6 @@ export function Media(props: MediaProps): ReactElement {
   const [readyFor, setReadyFor] = useState('');
   const [failedFor, setFailedFor] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const [visible, setVisible] = useState(false);
-  const [seen, setSeen] = useState(false);
   const frame = useRef<HTMLSpanElement>(null);
   const loading = readyFor !== identity;
   const externalPlaceholder =
@@ -70,6 +69,7 @@ export function Media(props: MediaProps): ReactElement {
     (props.file.type === 'IMAGE' ||
       props.file.type === 'VIDEO' ||
       props.file.preview?.image?.status === 'READY');
+  const { visible, seen } = useMediaVisibility(frame, tracked, identity);
   const { file } = props;
   const preview =
     file.preview?.image?.width && file.preview.image.height ? file.preview.image : file.preview?.video;
@@ -83,23 +83,11 @@ export function Media(props: MediaProps): ReactElement {
     !(isVideo && file.preview?.video?.status === 'READY' && file.preview.video.url);
   const detail = useQuery({
     queryKey: ['file-preview', file.userId, file.id],
-    enabled: !!tracked && seen && needsOriginal,
+    enabled: !!tracked && visible && seen && needsOriginal,
     queryFn: () => api.file(file.id!),
     retry: false,
   });
   const fetchingOriginal = needsOriginal && detail.isPending;
-  useEffect(() => {
-    if (!tracked || !frame.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setVisible(entry.isIntersecting);
-        if (entry.isIntersecting) setSeen(true);
-      },
-      { rootMargin: '200px' },
-    );
-    observer.observe(frame.current);
-    return () => observer.disconnect();
-  }, [tracked]);
   useEffect(() => {
     if (!tracked || !visible || !loading) return;
     const timer = setTimeout(() => setFailedFor(identity), 30000);

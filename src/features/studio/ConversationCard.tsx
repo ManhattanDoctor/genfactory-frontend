@@ -69,8 +69,8 @@ export function ConversationCard({
       <button
         type="button"
         className="history-card-link"
+        aria-description={title}
         aria-label={`Открыть результат ${c.name}`}
-        title={title ? `${c.name}\n${title}` : c.name}
         aria-busy={opening}
         onClick={onOpen}
       />
@@ -94,7 +94,7 @@ export function ConversationCard({
             <Heart className="history-favorite-mark" size={18} fill="currentColor" aria-label="В избранном" />
           )}
         </div>
-        {!sourceBelowTitle && (heading ?? <h2 title={c.name}>{c.name}</h2>)}
+        {!sourceBelowTitle && (heading ?? <h2>{c.name}</h2>)}
       </header>
       {sourceBelowTitle ? (
         <HistoryCardBody
@@ -115,10 +115,7 @@ export function ConversationCard({
             <span className="history-message-count">
               {c.messageCount !== undefined ? `${c.messageCount} ${messageWord(c.messageCount)}` : 'Беседа'}
             </span>
-            <time
-              dateTime={new Date(c.lastMessageDate || c.createdDate).toISOString()}
-              title={new Date(c.lastMessageDate || c.createdDate).toLocaleString('ru-RU')}
-            >
+            <time dateTime={new Date(c.lastMessageDate || c.createdDate).toISOString()}>
               {historyDate(c.lastMessageDate || c.createdDate)}
             </time>
           </p>

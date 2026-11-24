@@ -22,6 +22,8 @@ import '../../components/file-browser.css';
 import '../studio/history.css';
 import './artifacts.css';
 
+const loadingCards = Array.from({ length: 8 }, (_, index) => <AssetCardSkeleton history key={index} />);
+
 export function Artifacts(): ReactElement {
   const { user, session } = useAuth();
   const navigate = useNavigate();
@@ -168,7 +170,6 @@ export function Artifacts(): ReactElement {
                   key={item.name}
                   className={`chip ${view === item.value ? 'active' : ''}`}
                   aria-label={item.name}
-                  title={item.name}
                   aria-pressed={view === item.value}
                   onClick={() => {
                     setView(item.value);
@@ -220,9 +221,13 @@ export function Artifacts(): ReactElement {
                 >
                   <Skeleton />
                 </div>
-                {Array.from({ length: 8 }, (_, index) => (
-                  <AssetCardSkeleton history key={index} />
-                ))}
+                {view === 'list' ? (
+                  loadingCards
+                ) : (
+                  <Masonry gap={10} ordered>
+                    {loadingCards}
+                  </Masonry>
+                )}
               </>
             )}
             {Object.entries(groupBy(list.data?.items ?? [], (item) => historyDay(item.activityDate))).map(
@@ -304,7 +309,6 @@ export function Artifacts(): ReactElement {
               <button
                 className="button"
                 aria-label="Предыдущая страница"
-                title="Предыдущая страница"
                 disabled={!page}
                 onClick={() => setPage(page - 1)}
               >
@@ -316,7 +320,6 @@ export function Artifacts(): ReactElement {
               <button
                 className="button"
                 aria-label="Следующая страница"
-                title="Следующая страница"
                 disabled={page + 1 >= list.data.pages}
                 onClick={() => setPage(page + 1)}
               >

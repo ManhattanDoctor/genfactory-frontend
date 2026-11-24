@@ -77,7 +77,6 @@ export function Account(): ReactElement {
                   setTopup(true);
                 }}
                 aria-label="Пополнить баланс"
-                title="Пополнить баланс"
               >
                 <Plus aria-hidden="true" />
               </button>
@@ -162,7 +161,7 @@ export function Account(): ReactElement {
             <button className="button" onClick={() => setTopup(false)}>
               Отмена
             </button>
-            <button className="button primary" title="Онлайн-пополнение пока недоступно" disabled>
+            <button className="button primary" aria-description="Онлайн-пополнение пока недоступно" disabled>
               Оплатить через ЮKassa
             </button>
           </ModalFooter>

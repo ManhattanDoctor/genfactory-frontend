@@ -269,7 +269,7 @@
   .library-page .file-toolbar .button {
     flex-shrink: 0;
   }
-  .library-page .file-toolbar .button[title] {
+  .library-page .file-toolbar .button:has(.file-action-label) {
     width: 40px;
     padding: 0;
   }

@@ -508,6 +508,7 @@
 
   .gf-wall-item {
     position: relative;
+    isolation: isolate;
     display: block;
     margin: 0;
     border-radius: 12px;
@@ -531,6 +532,7 @@
 
   .gf-wall-overlay {
     position: absolute;
+    border-radius: inherit;
     inset: 0;
     z-index: 1;
     display: flex;
@@ -791,6 +793,7 @@
   .gf-detail-gallery img {
     display: block;
     width: 100%;
+    height: auto;
     aspect-ratio: auto 4 / 3;
     margin: 0;
     border-radius: 10px;

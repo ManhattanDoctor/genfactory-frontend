@@ -1,3 +1,4 @@
+import { LazyImage } from '../../components/LazyImage';
 import { MessageAction } from '../../components/MessageAction';
 import type { VideoComposerTemplate } from './variants';
 import { FileReferenceType } from '../../lib/types';
@@ -1876,7 +1877,7 @@ export function Studio({ kind }: { kind: MediaKind }): ReactElement {
               </div>
               <div className="empty-thumbnails">
                 {[1, 4, 7].map((i) => (
-                  <img key={i} src={`/media/gallery-${i}.jpg`} alt="Визуальное вдохновение" />
+                  <LazyImage key={i} src={`/media/gallery-${i}.jpg`} alt="Визуальное вдохновение" />
                 ))}
               </div>
             </div>

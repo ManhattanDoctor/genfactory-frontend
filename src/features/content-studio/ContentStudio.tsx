@@ -1,3 +1,6 @@
+import { StudioUserBubble } from './StudioUserBubble';
+import { ComposerTextarea } from '../../components/ComposerTextarea';
+import { LazyImage } from '../../components/LazyImage';
 import { VideoDuration } from '../../components/VideoDuration';
 import { Dialog, Modal } from '../../components/Modal';
 import { ImageAspectGrid, ImageAspectPicker } from '../studio/ImageAspectGrid';
@@ -48,8 +51,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEventCallback } from '../../lib/useEventCallback';
 import { useLocation } from 'react-router-dom';
 import { api, getSession, type IUploadProgress } from '../../lib/api';
-import type { IGnosisFile, IFileGeneration, IConversationMessage, IPagination } from '../../lib/types';
-import { useContentConversation } from './useContentConversation';
+import type { IGnosisFile, IFileGeneration } from '../../lib/types';
+import { studioMessagesQuery, useContentConversation } from './useContentConversation';
 import { ContentThread } from './ContentThread';
 import { choices, sizeRatio, suggestedRatios } from './controls';
 import { referenceLimit, supportsReferences, isSchemaValue } from '../catalog/schema';
@@ -76,6 +79,11 @@ const designTemplateIds = new Set(studioTemplates.map((item) => item.id));
 import './prototype.css';
 import './content-studio.css';
 
+function scrollToOutgoing(node: HTMLElement | null): void {
+  const thread = node?.closest('.cw-thread');
+  if (thread) thread.scrollTop = thread.scrollHeight;
+}
+
 interface ISubmittedDraft {
   conversationId?: number;
   session: string;
@@ -90,6 +98,25 @@ export function ContentStudio(): ReactElement {
   const queryClient = useQueryClient();
   const submittedDraft = useRef<ISubmittedDraft | undefined>(undefined);
 
+  const [outgoing, setOutgoing] = useState<{
+    scope: object;
+    text: string;
+    attachments: IAttachment[];
+    afterMessageId?: number;
+    serverText?: string;
+    status: 'sending' | 'accepted' | 'failed';
+  }>();
+  const localMessage = outgoing?.scope === work.scope ? outgoing : undefined;
+  const afterMessageId = localMessage?.afterMessageId;
+  const visibleOnServer =
+    afterMessageId !== undefined &&
+    work.thread.messages.data?.items.some(
+      (item) => item.role === 'USER' && item.id > afterMessageId && item.text === localMessage?.serverText,
+    );
+  useEffect(() => {
+    if (visibleOnServer) setOutgoing(undefined);
+  }, [visibleOnServer]);
+  const showOutgoing = !!localMessage && !visibleOnServer && work.thread.page === 0;
   const [awaitingAcceptance, setAwaitingAcceptance] = useState<object>();
   const [preparingFrame, setPreparingFrame] = useState(false);
   const frameEpoch = useRef(0);
@@ -1084,6 +1111,29 @@ export function ContentStudio(): ReactElement {
         throw new Error(
           'Для конечного кадра добавьте начальный: текущий видеоинструмент не поддерживает только конечный кадр.',
         );
+      if (!model) throw new Error('Выберите доступную модель.');
+      if (!work.conversation && !agent) throw new Error('Не удалось загрузить модель ассистента.');
+      if (!(work.queue && (work.busy || work.queue.occupied))) {
+        work.thread.setPage(0);
+        setOutgoing({
+          scope: submissionScope,
+          text: sourceDraft.trim(),
+          attachments: [
+            ...sourceAttachments,
+            ...(publicReference
+              ? [
+                  {
+                    id: publicReference.path,
+                    name: publicReference.name,
+                    url: publicReference.path,
+                    type: publicReference.mime,
+                  },
+                ]
+              : []),
+          ],
+          status: 'sending',
+        });
+      }
       const preparedTemplates = (await Promise.all(picked.map(loadTemplate))).map((item) =>
         fitTemplateDuration(item, duration, model),
       );
@@ -1092,8 +1142,6 @@ export function ContentStudio(): ReactElement {
         throw new Error(
           'У выбранного шаблона нет описания для генерации. Уберите его и опишите задачу текстом.',
         );
-      if (!model) throw new Error('Выберите доступную модель.');
-      if (!work.conversation && !agent) throw new Error('Не удалось загрузить модель ассистента.');
       setUploading(sourceAttachments.length > 0);
       const savedFiles = await uploadStudioAttachments({
         attachments: sourceAttachments,
@@ -1133,17 +1181,15 @@ export function ContentStudio(): ReactElement {
       });
       if (!request) return;
       const { body, tools } = request;
-      const cached = queryClient.getQueriesData<IPagination<IConversationMessage>>({
-        queryKey: ['messages', user.id, work.id],
-      });
+      const latestMessages = work.id
+        ? await queryClient.ensureQueryData(studioMessagesQuery(user.id, work.id, 0))
+        : undefined;
+      if (!current()) return;
       const pending: ISubmittedDraft = {
         conversationId: work.id,
         session: sid,
         text: body.text,
-        afterMessageId: Math.max(
-          0,
-          ...cached.flatMap(([, page]) => page?.items.map((message) => message.id) || []),
-        ),
+        afterMessageId: Math.max(0, ...(latestMessages?.items.map((message) => message.id) ?? [])),
         clear: () => {
           submitting.current = undefined;
           setAwaitingAcceptance(undefined);
@@ -1166,10 +1212,16 @@ export function ContentStudio(): ReactElement {
       };
       const queue = work.queue;
       if (queue && (work.busy || queue.occupied)) {
+        setOutgoing(undefined);
         queue.add(sourceDraft || picked[0]?.title || 'Запрос студии', body, tools);
         pending.clear();
         return;
       }
+      setOutgoing((item) =>
+        item && item.scope === submissionScope
+          ? { ...item, serverText: body.text, afterMessageId: pending.afterMessageId }
+          : item,
+      );
       submittedDraft.current = pending;
       const success = await work.submit(
         body,
@@ -1181,12 +1233,17 @@ export function ContentStudio(): ReactElement {
           pending.conversationId = id;
         },
       );
+      if (current() && submittedDraft.current === pending)
+        setOutgoing((item) => item && { ...item, status: success ? 'accepted' : 'failed' });
       if (success && current() && submittedDraft.current === pending) {
         submittedDraft.current = undefined;
         pending.clear();
       }
     } catch (e) {
-      if (current()) work.setError(e instanceof Error ? e.message : 'Не удалось отправить задачу.');
+      if (current()) {
+        setOutgoing((item) => item && { ...item, status: 'failed' });
+        work.setError(e instanceof Error ? e.message : 'Не удалось отправить задачу.');
+      }
     } finally {
       if (submitting.current === submission) {
         submitting.current = undefined;
@@ -1270,7 +1327,6 @@ export function ContentStudio(): ReactElement {
           type="button"
           className="mobile-gallery-close icon-button"
           aria-label={mobile ? 'Закрыть шаблоны и настройки' : 'Свернуть панель'}
-          title={mobile ? 'Закрыть шаблоны и настройки' : 'Свернуть панель'}
           onClick={() => setMobileGallery(false)}
         >
           <X size={20} aria-hidden="true" />
@@ -1283,7 +1339,6 @@ export function ContentStudio(): ReactElement {
               role="tab"
               aria-selected={panel === key}
               aria-label={index ? (settingsChanged ? 'Настройки, есть изменения' : 'Настройки') : 'Шаблоны'}
-              title={key === 'settings' && settingsChanged ? 'Есть изменения' : undefined}
               onClick={() => setPanel(key)}
             >
               {index ? <Sun size={18} aria-hidden /> : <LayoutGrid size={18} aria-hidden />}
@@ -1305,7 +1360,6 @@ export function ContentStudio(): ReactElement {
                   key={direction}
                   disabled={!next}
                   aria-label={direction > 0 ? 'Сделать панель шире' : 'Сделать панель уже'}
-                  title={direction > 0 ? 'Сделать панель шире' : 'Сделать панель уже'}
                   onClick={() => {
                     setWidth(next);
                     localStorage.setItem('genfactory.content-gallery-width', next);
@@ -1367,7 +1421,7 @@ export function ContentStudio(): ReactElement {
                         <button
                           className="settings-row-head"
                           aria-expanded={frameMenu === slot}
-                          title={
+                          aria-description={
                             attachments.some((file) => !file.slot)
                               ? 'Уберите обычные референсы перед выбором опорных кадров.'
                               : undefined
@@ -1387,7 +1441,9 @@ export function ContentStudio(): ReactElement {
                             {slot === 'start' ? 'Начальный кадр' : 'Конечный кадр'}
                           </span>
                           <span className="settings-row-value">
-                            {frame?.url && <img className="settings-row-thumb" src={frame.url} alt="" />}
+                            {frame?.url && (
+                              <LazyImage className="settings-row-thumb" src={frame.url} alt="" />
+                            )}
                             <span>{frame?.name || 'Не задан'}</span>
                           </span>
                         </button>
@@ -1405,17 +1461,15 @@ export function ContentStudio(): ReactElement {
                                 aria-label={
                                   slot === 'start' ? 'Выбрать начальный кадр' : 'Выбрать конечный кадр'
                                 }
-                                title={slot === 'start' ? 'Выбрать начальный кадр' : 'Выбрать конечный кадр'}
                                 popoverTarget={'frame-sources-' + slot}
                               >
-                                {frame?.url ? <img src={frame.url} alt="" /> : <Plus size={18} />}
+                                {frame?.url ? <LazyImage src={frame.url} alt="" /> : <Plus size={18} />}
                               </button>
                               {frame && (
                                 <button
                                   type="button"
                                   className="studio-frame-remove"
                                   aria-label="Убрать кадр"
-                                  title="Убрать кадр"
                                   disabled={busy}
                                   onClick={() => {
                                     setAttachments((previous) =>
@@ -1485,7 +1539,7 @@ export function ContentStudio(): ReactElement {
                       >
                         <span className="settings-row-title">{f.label}</span>
                         <span className="settings-row-value">
-                          {preview && <img className="settings-row-thumb" alt="" src={preview} />}
+                          {preview && <LazyImage className="settings-row-thumb" alt="" src={preview} />}
                           <span>{value}</span>
                         </span>
                       </button>
@@ -1514,7 +1568,7 @@ export function ContentStudio(): ReactElement {
                                   }}
                                 >
                                   <span className="settings-card-preview">
-                                    {src && <img src={src} loading="lazy" alt="" />}
+                                    {src && <LazyImage src={src} loading="lazy" alt="" />}
                                   </span>
                                   <span className="settings-card-label">{label}</span>
                                 </button>
@@ -1579,7 +1633,7 @@ export function ContentStudio(): ReactElement {
           <section className="cw-chat" aria-label="Чат проекта">
             <div className="cw-stage">
               <div className="cw-thread">
-                {!work.id && !work.conversation && (
+                {!work.id && !work.conversation && !showOutgoing && (
                   <div className="studio-intro">
                     <h2>Генерация в диалоге</h2>
                     <p>Опишите кадр или правку - следующее сообщение продолжит работу с результатом.</p>
@@ -1656,6 +1710,46 @@ export function ContentStudio(): ReactElement {
                     }}
                   />
                 )}
+                {showOutgoing && (
+                  <article className="as-turn cw-turn" ref={scrollToOutgoing}>
+                    <StudioUserBubble
+                      text={localMessage.text}
+                      status={
+                        localMessage.status === 'accepted' ? undefined : (
+                          <small
+                            className={localMessage.status === 'sending' ? 'small muted' : undefined}
+                            role="status"
+                          >
+                            <UploadButtonContent
+                              busy={uploading && !!uploadProgress}
+                              progress={uploadProgress}
+                            >
+                              {localMessage.status === 'failed'
+                                ? 'Отправка не подтверждена'
+                                : 'Отправляется…'}
+                            </UploadButtonContent>
+                          </small>
+                        )
+                      }
+                    >
+                      {localMessage.attachments.length > 0 && (
+                        <div className="as-thumbs">
+                          {localMessage.attachments.map((item) =>
+                            item.type.startsWith('image/') ? (
+                              <span key={item.id} className="content-thumb">
+                                <img src={item.url} alt={item.name} />
+                              </span>
+                            ) : (
+                              <span key={item.id} className="as-file">
+                                {item.name}
+                              </span>
+                            ),
+                          )}
+                        </div>
+                      )}
+                    </StudioUserBubble>
+                  </article>
+                )}
               </div>
             </div>
             <div className="cw-composer-stack">
@@ -1678,7 +1772,6 @@ export function ContentStudio(): ReactElement {
                       key={key}
                       type="button"
                       aria-label={label}
-                      title={label}
                       aria-pressed={mode === key}
                       disabled={busy}
                       onClick={() => {
@@ -1742,8 +1835,8 @@ export function ContentStudio(): ReactElement {
                     <label className="sr-only" htmlFor="cw-draft">
                       Запрос
                     </label>
-                    <textarea
-                      ref={textarea}
+                    <ComposerTextarea
+                      inputRef={textarea}
                       disabled={
                         awaitingAcceptance === work.scope ||
                         preparingFrame ||
@@ -1782,13 +1875,6 @@ export function ContentStudio(): ReactElement {
                     type="button"
                     aria-label="Добавить файл"
                     disabled={busy || attachments.some((file) => file.slot)}
-                    title={
-                      attachments.some((file) => file.slot)
-                        ? 'Меняйте опорные кадры в настройках или уберите их перед добавлением обычных референсов.'
-                        : needsTemplateImages
-                          ? `Добавьте свои ${mode === 'video' && supportsVideoReferences(model) ? 'фото или видео' : 'изображения'}: минимум ${requiredPhotos}`
-                          : 'Добавить файл'
-                    }
                     onClick={() => {
                       setFrameSlot(undefined);
                       if (user) setLibrary({ scope: draftScope });
@@ -1831,7 +1917,6 @@ export function ContentStudio(): ReactElement {
                     className="cw-send"
                     type="submit"
                     aria-label="Отправить запрос"
-                    title="Отправить запрос"
                     aria-busy={busy || (work.busy && !draft.trim() && !picked.length && !attachments.length)}
                     disabled={
                       busy ||
@@ -1865,7 +1950,6 @@ export function ContentStudio(): ReactElement {
             <div className={overlayGallery || galleryHidden ? 'studio-strip' : 'studio-fold'}>
               <button
                 aria-label={galleryHidden ? 'Развернуть панель' : 'Свернуть панель'}
-                title={galleryHidden ? 'Развернуть панель' : 'Свернуть панель'}
                 aria-expanded={!galleryHidden}
                 onClick={() => toggleGallery(galleryHidden)}
               >
@@ -1887,7 +1971,6 @@ export function ContentStudio(): ReactElement {
                   <button
                     key={key}
                     aria-label={key === 'templates' ? 'Шаблоны' : 'Настройки'}
-                    title={key === 'templates' ? 'Шаблоны' : 'Настройки'}
                     onClick={() => {
                       setPanel(key);
                       toggleGallery(true);
@@ -1904,7 +1987,6 @@ export function ContentStudio(): ReactElement {
               <button
                 className="gf-sidebar-toggle"
                 aria-label="Шаблоны и настройки"
-                title="Шаблоны и настройки"
                 aria-expanded={mobileGallery}
                 onClick={() => setMobileGallery(true)}
               >

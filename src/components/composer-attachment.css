@@ -167,3 +167,21 @@
   gap: 4px;
   min-width: 0;
 }
+
+.gf-section-main :is(#cw-compose, .img-dock) .composer-attachment-row {
+  display: flex;
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.gf-section-main :is(#cw-compose, .img-dock) .composer-attachment-row > * {
+  flex-shrink: 0;
+}
+.gf-section-main :is(#cw-compose, .img-dock) .composer-template-photos {
+  display: contents;
+}
+.gf-section-main :is(#cw-compose, .img-dock) .composer-template-photos > * {
+  flex-shrink: 0;
+}

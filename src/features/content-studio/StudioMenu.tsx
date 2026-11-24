@@ -1,3 +1,4 @@
+import { LazyImage } from '../../components/LazyImage';
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useComposerMenu } from '../../components/useComposerMenu';
@@ -17,7 +18,7 @@ function FieldPreview({
     ? (settingPreviews as Record<string, Record<string, string>>)[fieldId]?.[value]
     : undefined;
   return src ? (
-    <img className="cw-ref cw-setting-preview" src={src} alt="" loading="lazy" decoding="async" />
+    <LazyImage className="cw-ref cw-setting-preview" src={src} alt="" loading="lazy" decoding="async" />
   ) : (
     <i
       className="cw-ref"
@@ -78,7 +79,6 @@ export function StudioMenu({
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
-        title={value || label}
         onClick={() => {
           setOpen(!open);
         }}

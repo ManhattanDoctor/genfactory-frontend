@@ -7,6 +7,7 @@ import { prepareStudioConversation } from './prepareStudioConversation';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import {
+  queryOptions,
   useMutation,
   useIsMutating,
   useQuery,
@@ -49,6 +50,14 @@ export interface ContentConversation {
   ) => Promise<boolean>;
   agents: Array<IModelDescription>;
   latestRequest: number;
+}
+
+export function studioMessagesQuery(userId: number | undefined, id: number | undefined, page: number) {
+  return queryOptions({
+    queryKey: ['messages', userId, id, page],
+    enabled: !!userId && !!id,
+    queryFn: ({ signal }) => api.messages(id!, page, signal),
+  });
 }
 
 export function useContentConversation(): ContentConversation {
@@ -105,11 +114,7 @@ export function useContentConversation(): ContentConversation {
   });
   const [pagination, setPagination] = useState({ scope: active, page: 0 });
   const page = pagination.scope === active ? pagination.page : 0;
-  const messages = useQuery({
-    queryKey: ['messages', auth.user?.id, id, page],
-    enabled: !!auth.user && !!id,
-    queryFn: ({ signal }) => api.messages(id!, page, signal),
-  });
+  const messages = useQuery(studioMessagesQuery(auth.user?.id, id, page));
   const agents = useQuery({
     queryKey: ['conversation-models', auth.user?.id],
     enabled: !!auth.user,

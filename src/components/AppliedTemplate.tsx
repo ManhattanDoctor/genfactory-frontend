@@ -1,3 +1,4 @@
+import { ComposerAttachmentRow } from './ComposerAttachment';
 import { ComposerTemplateFields } from '../features/content-studio/ComposerTemplateFields';
 import type { ComponentProps, ReactNode } from 'react';
 import { RequiredPhotoSlots } from './RequiredPhotoSlots';
@@ -42,7 +43,7 @@ export function AppliedTemplate({
         <ComposerTemplateFields {...fields} disabled={disabled} />
       )}
       {(children || missingPhotos > 0) && (
-        <div className="img-files">
+        <ComposerAttachmentRow>
           {children}
           <RequiredPhotoSlots
             tiles
@@ -51,7 +52,7 @@ export function AppliedTemplate({
             disabled={photoDisabled}
             onAdd={onAdd}
           />
-        </div>
+        </ComposerAttachmentRow>
       )}
       {video && missingPhotos > 0 && <p className="video-template-hint">Не хватает фото: {missingPhotos}.</p>}
     </>

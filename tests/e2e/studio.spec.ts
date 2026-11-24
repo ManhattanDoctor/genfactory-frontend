@@ -9,7 +9,14 @@ import {
   type IConversationMessage,
   type IModelDescription,
 } from '../../src/lib/types';
-const templates: { id: string; kind: string; title: string }[] = JSON.parse(
+const templates: {
+  id: string;
+  kind: string;
+  title: string;
+  src: string;
+  previewSrc?: string;
+  poster?: string;
+}[] = JSON.parse(
   readFileSync(new URL('../../src/features/content-studio/templates.json', import.meta.url), 'utf8'),
 );
 const catalog: IModelDescription[] = JSON.parse(
@@ -3792,6 +3799,54 @@ for (const width of [390, 1440]) {
   );
 }
 
+for (const path of ['/chat', '/chat?conversation=101']) {
+  test(`studio shows one outgoing bubble before and after confirmation on ${path}`, async ({ page }) => {
+    test.slow();
+    const state = await mockApi(page);
+    const text = 'Покажи сообщение сразу';
+    const existing = path.includes('?');
+    let loadHistory!: () => void;
+    const historyGate = new Promise<void>((resolve) => {
+      loadHistory = resolve;
+    });
+    if (existing) {
+      state.conversations.push(savedConversation());
+      state.messages.set(101, [{ id: 1, role: 'USER', text, createdDate: file.createdDate }]);
+      await page.route('**/api/conversation/101/message?*', async (route) => {
+        await historyGate;
+        await route.fallback();
+      });
+    }
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/conversation/*/message', async (route) => {
+      if (route.request().method() === 'POST') await gate;
+      await route.fallback();
+    });
+    await page.goto(path);
+    const bubble = page.locator('.cw-thread .as-ask').filter({ hasText: text });
+    await page.locator('#cw-draft').fill(text);
+    await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
+    try {
+      await expect(bubble).toBeVisible();
+      await expect(page.locator('.cw-thread')).toContainText('Отправляется…');
+      loadHistory();
+      await expect(bubble).toHaveCount(existing ? 2 : 1);
+      await expect(page.locator('.cw-thread')).toContainText('Отправляется…');
+      expect(state.sends).toHaveLength(0);
+    } finally {
+      loadHistory();
+      release();
+    }
+    await expect(page.locator('.cw-thread .as-bot').last()).toContainText('Готово', { timeout: 30000 });
+    await expect(bubble).toHaveCount(existing ? 2 : 1);
+    await expect(page.locator('.cw-thread')).not.toContainText('Отправляется…');
+    expect(state.sends).toHaveLength(1);
+  });
+}
+
 test('Studio keeps the draft if the server has not confirmed acceptance', async ({ page }) => {
   const state = await mockApi(page);
   state.conversations.push(savedConversation());
@@ -4126,6 +4181,27 @@ test('content studio does not leak a delayed draft reference into another conver
   await page.reload();
   await expect(page.locator('.cw-files')).toHaveCount(0);
   expect(state.sends).toHaveLength(0);
+});
+
+test('content studio downloads the original without leaving the conversation', async ({ page, context }) => {
+  const state = await mockApi(page);
+  state.conversations.push(savedConversation());
+  const original = { ...file, name: 'result.png' };
+  state.messages.set(101, [
+    { id: 2, role: 'ASSISTANT', text: 'Готово', createdDate: file.createdDate, files: [original] },
+  ]);
+  const bytes = Buffer.from('original file bytes');
+  await page.route(`**/api/file/${file.id}/content`, (route) =>
+    route.fulfill({ contentType: 'image/png', body: bytes }),
+  );
+  await page.goto('/chat?conversation=101');
+  const saving = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Скачать', exact: true }).click();
+  const result = await saving;
+  expect(result.suggestedFilename()).toBe(original.name);
+  expect(readFileSync((await result.path())!)).toEqual(bytes);
+  await expect(page).toHaveURL(/chat\?conversation=101$/);
+  expect(context.pages()).toHaveLength(1);
 });
 
 test('content studio sends the visible structure after restoring video parameters and reloading', async ({
@@ -6400,6 +6476,7 @@ test('studio blocks attachment removal during a pending request and clears accep
   await page.locator('#cw-draft').fill('Измени фон');
   await page.getByRole('button', { name: 'Отправить запрос', exact: true }).click();
   await expect.poll(() => sent).toBe(true);
+  await expect(page.locator('.cw-thread .as-bubble img[alt="Test result"]')).toBeVisible();
   const tile = page.locator('.cw-files .composer-attachment');
   const remove = tile.getByRole('button', { name: 'Убрать Test result', exact: true });
   await expect(remove).toBeDisabled();
@@ -7055,7 +7132,7 @@ for (const width of [1440, 390]) {
     const card = page.locator('.history-card').filter({ hasText: 'Проект студии' });
     await expect(card.locator('.history-source')).toHaveText('Студия контента');
     await expect(card.locator('.history-status')).toContainText('В работе');
-    await expect(card.locator('.history-card-link')).toHaveAttribute('title', /Модель генерации:/);
+    await expect(card.locator('.history-card-link')).toHaveAccessibleDescription(/Модель генерации:/);
     await expect(
       page.locator('.history-card').filter({ hasText: 'Обычная беседа' }).locator('.history-source'),
     ).toHaveCount(0);
@@ -8924,6 +9001,8 @@ test('media skeleton loads, reports failure and retries without opening the file
 
 test('video previews load on visibility and pause when scrolled away', async ({ page }) => {
   await mockApi(page);
+  const requested = new Set<string>();
+  page.on('request', (request) => requested.add(new URL(request.url()).pathname));
   await page.goto('/chat', { waitUntil: 'domcontentloaded' });
   await page.locator('#cw-mode').getByRole('button', { name: 'Видео', exact: true }).click();
   await page.getByRole('button', { name: 'Развернуть панель', exact: true }).click();
@@ -8939,10 +9018,46 @@ test('video previews load on visibility and pause when scrolled away', async ({ 
   expect(initial.active).toBeLessThan(initial.total);
   const firstSrc = await videos.first().getAttribute('src');
   expect(firstSrc).toContain('/previews/');
+  const lastCard = page.locator('#cw-gallery .cw-card').last();
+  const lastId = await lastCard.locator('..').getAttribute('data-masonry-key');
+  const last = templates.find((card) => card.id === lastId)!;
+  const sources = [last.previewSrc || last.src, last.poster || last.src.replace(/\.mp4$/, '.jpg')];
+  expect(sources.some((source) => requested.has(source))).toBe(false);
   await videos.last().scrollIntoViewIfNeeded();
+  await expect.poll(() => sources.every((source) => requested.has(source))).toBe(true);
   await expect.poll(() => videos.first().evaluate((node) => (node as HTMLVideoElement).paused)).toBe(true);
   await expect(videos.first()).toHaveAttribute('src', firstSrc!);
 });
+
+test(
+  'finished Studio video reveals its player when only metadata is delivered',
+  { tag: '@mobile-layout' },
+  async ({ page }) => {
+    const state = await mockApi(page);
+    state.conversations.push(savedConversation());
+    state.messages.set(101, [
+      { id: 1, role: 'USER', text: 'Создай ролик', files: [], createdDate: file.createdDate },
+      {
+        id: 2,
+        role: 'ASSISTANT',
+        text: 'Готово',
+        createdDate: file.createdDate,
+        files: [{ ...file, type: 'VIDEO', mime: 'video/mp4', path: '/tests/fixtures/preview.mp4' }],
+      },
+    ]);
+    await page.addInitScript(() => {
+      document.addEventListener('loadeddata', (event) => event.stopImmediatePropagation(), true);
+    });
+    await page.goto('/chat?conversation=101', { waitUntil: 'domcontentloaded' });
+    const frame = page.locator('.cw-thread .cw-shot-frame');
+    const video = frame.locator('video[controls]');
+    await frame.scrollIntoViewIfNeeded();
+    await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.videoWidth)).toBeGreaterThan(0);
+    await expect(frame).toHaveAttribute('aria-busy', 'false');
+    await expect(video).toBeVisible();
+    await expect(frame.locator('.skeleton')).toHaveCount(0);
+  },
+);
 
 test('conversation skeletons stay inside image and video frames', async ({ page }, testInfo) => {
   const state = await mockApi(page);
@@ -9711,7 +9826,7 @@ for (const width of [390, 768, 1440]) {
     });
     await page.goto('/artifacts');
     const grid = page.locator('.artifacts-page .history-list');
-    const placeholders = grid.locator(':scope > .history-card-loading');
+    const placeholders = grid.locator('.history-card-loading');
     await expect(placeholders).toHaveCount(8);
     const bounds = (selector: string) =>
       grid.locator(selector).evaluateAll((elements) =>
@@ -9720,11 +9835,11 @@ for (const width of [390, 768, 1440]) {
           return { x, y, width, height };
         }),
       );
-    const before = await bounds(':scope > .history-card-loading');
+    const before = await bounds('.history-card-loading');
     release();
     await expect(placeholders).toHaveCount(0);
-    await expect(grid.locator(':scope > .file-entry, :scope > .history-card')).toHaveCount(8);
-    const after = await bounds(':scope > .file-entry, :scope > .history-card');
+    await expect(grid.locator('.file-entry, .history-card')).toHaveCount(8);
+    const after = await bounds('.file-entry, .history-card');
 
     for (let index = 0; index < before.length; index++) {
       for (const key of ['x', 'y', 'width', 'height'] as const) {
@@ -9816,7 +9931,7 @@ test('template previews keep a skeleton until media loads on image, video and St
     };
     await page.route(pattern, stall);
     try {
-      await page.goto(route);
+      await page.goto(route, { waitUntil: 'domcontentloaded' });
       if (route === '/chat')
         await page.getByRole('button', { name: 'Шаблоны и настройки', exact: true }).click();
       const preview = page.locator('.template-card-media').first();
@@ -10850,3 +10965,55 @@ test('video and studio galleries show one card per archive clip', async ({ page 
     page.getByRole('button', { name: 'Открыть шаблон: Модельный лист персонажа', exact: true }),
   ).toHaveCount(0);
 });
+
+for (const path of ['/image', '/video', '/chat']) {
+  test(`composer grows to eight lines and scrolls attachments in one row on ${path}`, async ({ page }) => {
+    if (path === '/video') await templateVideoSetup(page);
+    else await mockApi(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const files = Array.from({ length: 4 }, (_, i) => ({
+      ...file,
+      id: 200 + i,
+      uid: 'layout-' + i,
+      name: 'Материал ' + i,
+    }));
+    await page.route('**/api/file?*', (route) => route.fulfill({ json: pagination(files) }));
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    if (path === '/video') await chooseModel(page, 'OPEN_ROUTER_VIDEO:alibaba/wan-3.0');
+    const input = page.locator('#cw-draft, #img-draft, #vd-draft');
+    const size = () => input.evaluate((el: HTMLTextAreaElement) => [el.clientHeight, el.scrollHeight]);
+    await input.fill('Строка');
+    const [short] = await size();
+    await input.fill(Array(8).fill('Строка').join('\n'));
+    const [eight, scroll] = await size();
+    expect(eight).toBeGreaterThan(short);
+    expect(Math.abs(eight - scroll)).toBeLessThanOrEqual(1);
+    await input.fill('Большой промпт '.repeat(200));
+    const [long, overflow] = await size();
+    expect(Math.abs(eight - long)).toBeLessThanOrEqual(1);
+    expect(overflow).toBeGreaterThan(long);
+    await input.fill('');
+    expect((await size())[0]).toBe(short);
+    await page.locator('form .cw-plus').first().click();
+    const picker = page.getByRole('dialog', { name: 'Библиотека' });
+    for (const item of files) await picker.getByText(item.name, { exact: true }).click();
+    await picker.getByRole('button', { name: 'Добавить (4)', exact: true }).click();
+    const strip = page
+      .locator('form .img-files, form .cw-files')
+      .filter({ has: page.locator('.composer-attachment') });
+    await expect(strip.locator('.composer-attachment')).toHaveCount(4);
+    const geometry = await strip.evaluate((el) => {
+      el.scrollLeft = el.scrollWidth;
+      return [
+        new Set(
+          Array.from(el.querySelectorAll('.composer-attachment'), (n) =>
+            Math.round(n.getBoundingClientRect().top),
+          ),
+        ).size,
+        el.scrollLeft,
+      ];
+    });
+    expect(geometry[0]).toBe(1);
+    expect(geometry[1]).toBeGreaterThan(0);
+  });
+}

@@ -1,6 +1,9 @@
+import { LazyImage } from './LazyImage';
 import { Masonry } from './Masonry';
 import { useId, type ReactNode } from 'react';
 import { Dialog } from './Modal';
+import sizes from './digestImageSizes.json';
+const gallerySizes: Record<string, number[]> = sizes;
 interface Digest {
   title: string;
   verdict: string;
@@ -45,7 +48,14 @@ export function ModelDigest({
             <div className="gf-detail-gallery-columns">
               <Masonry ordered>
                 {detail.gallery.map((src) => (
-                  <img key={src} src={src} alt="" loading="lazy" />
+                  <LazyImage
+                    key={src}
+                    src={src}
+                    width={gallerySizes[src]?.[0]}
+                    height={gallerySizes[src]?.[1]}
+                    alt=""
+                    loading="lazy"
+                  />
                 ))}
               </Masonry>
             </div>

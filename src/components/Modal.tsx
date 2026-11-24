@@ -100,7 +100,6 @@ export function Modal({
       className={hideHeader ? 'icon-button modal-close' : 'icon-button'}
       onClick={onClose}
       aria-label="Закрыть"
-      title="Закрыть"
     >
       <X size={20} />
     </button>
@@ -118,9 +117,7 @@ export function Modal({
         closeButton
       ) : (
         <div className="modal-head">
-          <h2 id={titleId} title={title}>
-            {title}
-          </h2>
+          <h2 id={titleId}>{title}</h2>
           <div className="modal-head-actions">
             {headerActions}
             {closeButton}

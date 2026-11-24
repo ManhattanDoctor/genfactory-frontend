@@ -30,7 +30,7 @@ export function ComposerTemplateFields({
         return (
           <div key={key}>
             <label>
-              <span title={label}>{label}</span>
+              <span>{label}</span>
               {options ? (
                 <SelectControl
                   data-template-variable={key}
@@ -66,7 +66,7 @@ export function ComposerTemplateFields({
             </label>
             {other && (
               <label>
-                <span title="Свой фон">Свой фон</span>
+                <span>Свой фон</span>
                 <input
                   data-template-variable={key}
                   disabled={disabled}

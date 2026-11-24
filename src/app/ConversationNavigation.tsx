@@ -57,7 +57,6 @@ export function ConversationNavigation({
             type="button"
             className="agent-nav-fold"
             aria-label={`${expanded ? 'Свернуть' : 'Развернуть'} диалоги ${label}`}
-            title={`${expanded ? 'Свернуть' : 'Развернуть'} диалоги ${label}`}
             aria-expanded={expanded}
             onClick={() => setExpanded((value) => !value)}
           />
@@ -77,7 +76,7 @@ export function ConversationNavigation({
               }
               to={`${path}?conversation=${c.id}`}
               onClick={onNavigate}
-              title={c.name}
+              aria-label={c.name}
             >
               <span>{c.name || 'Диалог'}</span>
             </Link>

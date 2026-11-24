@@ -1,3 +1,4 @@
+import { LoadingRows } from '../../components/Skeleton';
 import type { ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
@@ -51,7 +52,7 @@ export function ToolPicker({
           Ассистент сможет использовать выбранные инструменты при отправке запроса. Их работа может
           оплачиваться отдельно.
         </p>
-        {catalog.isPending && <p>Загружаем инструменты…</p>}
+        {catalog.isPending && <LoadingRows label="Загружаем инструменты…" />}
         {catalog.error && (
           <p role="alert">
             Не удалось загрузить инструменты.

@@ -35,9 +35,6 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
       aria-label={
         mobile ? (open ? 'Закрыть меню' : 'Открыть меню') : collapsed ? 'Развернуть меню' : 'Свернуть меню'
       }
-      title={
-        mobile ? (open ? 'Закрыть меню' : 'Открыть меню') : collapsed ? 'Развернуть меню' : 'Свернуть меню'
-      }
       onClick={() => {
         if (mobile) setOpen(!open);
         else {
@@ -54,7 +51,6 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
       key={to}
       to={to}
       onClick={() => setOpen(false)}
-      title={label}
       aria-label={label}
       aria-current={to === pathname ? 'page' : undefined}
       className={'gf-nav-item' + (to === pathname ? ' gf-is-active' : '')}
@@ -118,7 +114,7 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
             {auth.user ? (
               <ActiveJobs
                 renderTrigger={(status, label, show) => (
-                  <button className="gf-nav-item" aria-label={label} title={label} onClick={show}>
+                  <button className="gf-nav-item" aria-label={label} onClick={show}>
                     <span className="gf-nav-icon">{icons.jobs}</span>
                     <span className="gf-nav-label">Работы</span>
                     <span className="gf-nav-badge">{status}</span>
@@ -129,7 +125,6 @@ export function HomeShell({ children, title = 'Главная' }: { children: Re
               <button
                 className="gf-nav-item"
                 aria-label="Войти, чтобы посмотреть работы"
-                title="Войти, чтобы посмотреть работы"
                 disabled={auth.signingIn}
                 onClick={() => void auth.signIn()}
               >

@@ -118,7 +118,6 @@ export function DesignFeed({
             className="feed-preview"
             style={{ aspectRatio }}
             aria-label={(template ? 'Использовать шаблон ' : 'Повторить ') + card.title}
-            title={(template ? 'Использовать шаблон ' : 'Повторить ') + card.title}
             disabled={busy}
             onClick={apply}
           >
@@ -138,22 +137,15 @@ export function DesignFeed({
           </button>
           {!template && (
             <div className="card-actions">
-              <a className="icon-btn" href={card.src} download aria-label="Скачать" title="Скачать">
+              <a className="icon-btn" href={card.src} download aria-label="Скачать">
                 <Download />
               </a>
-              <button
-                className="icon-btn"
-                aria-label="Повторить"
-                title="Повторить"
-                disabled={busy}
-                onClick={apply}
-              >
+              <button className="icon-btn" aria-label="Повторить" disabled={busy} onClick={apply}>
                 <RotateCcw />
               </button>
               <button
                 className="icon-btn"
                 aria-label="Удалить из ленты"
-                title="Удалить из ленты"
                 onClick={() => setHidden((ids) => [...ids, card.id])}
               >
                 <Trash2 />
@@ -174,7 +166,7 @@ export function DesignFeed({
               role="tab"
               className={'feed-tab' + (key === tab ? ' is-active' : '')}
               aria-label={name}
-              title={hints[key]}
+              aria-description={hints[key]}
               aria-selected={tab === key}
               onClick={() => {
                 onTab(key);

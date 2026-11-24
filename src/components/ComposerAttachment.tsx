@@ -1,9 +1,19 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { Media, MediaPreview, type PreviewFile } from './MediaPreview';
 import { FilePlaceholder } from './FilePlaceholder';
 import './composer-attachment.css';
+
+export function ComposerAttachmentRow({
+  children,
+  className = 'img-files',
+}: {
+  children: ReactNode;
+  className?: string;
+}): ReactElement {
+  return <div className={`composer-attachment-row ${className}`}>{children}</div>;
+}
 
 export function ComposerAttachment({
   file,
@@ -29,7 +39,6 @@ export function ComposerAttachment({
           type="button"
           className="composer-attachment-open"
           aria-label={`Открыть ${file.name}`}
-          title={`Открыть ${file.name}`}
           disabled={unavailable}
           onClick={(event) => {
             event.currentTarget.focus({ preventScroll: true });
@@ -39,17 +48,12 @@ export function ComposerAttachment({
           <span className="composer-attachment-preview">
             {unavailable ? <FilePlaceholder file={file} /> : <Media file={file} isPlaybackDisabled />}
           </span>
-          {label && (
-            <span className="composer-attachment-caption" title={label}>
-              {label}
-            </span>
-          )}
+          {label && <span className="composer-attachment-caption">{label}</span>}
         </button>
         <button
           type="button"
           className="composer-attachment-remove"
           aria-label={`Убрать ${file.name}`}
-          title={`Убрать ${file.name}`}
           disabled={disabled}
           onClick={onRemove}
         >

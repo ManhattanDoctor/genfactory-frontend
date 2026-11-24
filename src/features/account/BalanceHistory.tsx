@@ -1,3 +1,4 @@
+import { LoadingRows } from '../../components/Skeleton';
 import type { ReactElement } from 'react';
 import { TransactionPreview } from './TransactionPreview';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -79,7 +80,7 @@ function History({ userId }: { userId: number }): ReactElement {
         </div>
       </div>
       {query.isPending ? (
-        <p role="status">Загружаем операции…</p>
+        <LoadingRows label="Загружаем операции…" />
       ) : query.error ? (
         <div role="alert" className="inline-error">
           <p>Не удалось загрузить историю. {query.error.message}</p>
@@ -241,7 +242,6 @@ function History({ userId }: { userId: number }): ReactElement {
                 type="button"
                 className="button"
                 aria-label="Предыдущая страница"
-                title="Предыдущая страница"
                 disabled={page === 0}
                 onClick={() => setPage((p) => p - 1)}
               >
@@ -254,7 +254,6 @@ function History({ userId }: { userId: number }): ReactElement {
                 type="button"
                 className="button"
                 aria-label="Следующая страница"
-                title="Следующая страница"
                 disabled={page + 1 >= query.data.pages}
                 onClick={() => setPage((p) => p + 1)}
               >

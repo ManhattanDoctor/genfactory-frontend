@@ -14,13 +14,9 @@ export function HistoryCardBody({
 }) {
   return (
     <div className="artifact-body">
-      <h3 className="artifact-title" title={title}>
-        {title}
-      </h3>
+      <h3 className="artifact-title">{title}</h3>
       {source ? (
-        <span className="artifact-source" title={source}>
-          {source}
-        </span>
+        <span className="artifact-source">{source}</span>
       ) : (
         <div className="artifact-meta">{metadata}</div>
       )}

@@ -1,6 +1,6 @@
 import type { TemplatePublicReference } from './templatePublicReference';
 import { Fragment, type ReactElement } from 'react';
-import { ComposerAttachment } from '../../components/ComposerAttachment';
+import { ComposerAttachment, ComposerAttachmentRow } from '../../components/ComposerAttachment';
 import type { ITemplateCard } from './materials';
 import type { IAttachment } from './studioTypes';
 
@@ -24,7 +24,7 @@ export function StudioAttachments({
   onRemoveTemplate,
   onRemoveAttachment,
 }: Props): ReactElement | false {
-  const Container = inline ? Fragment : 'div';
+  const Container = inline ? Fragment : ComposerAttachmentRow;
   return (
     (picked.length > 0 || attachments.length > 0 || !!publicReference) && (
       <Container {...(inline ? {} : { className: 'cw-files' })}>

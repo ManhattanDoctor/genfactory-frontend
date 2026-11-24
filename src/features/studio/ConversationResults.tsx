@@ -1,3 +1,4 @@
+import { LoadingRows } from '../../components/Skeleton';
 import { VariantsPanel } from './VariantsPanel';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -63,7 +64,7 @@ export function ConversationResults({
             'Выполнение завершилось с ошибкой. Проверьте сообщения и библиотеку перед новым запуском.'}
         </p>
       )}
-      {messages.isPending && <p className="muted">Загружаем сообщения…</p>}
+      {messages.isPending && <LoadingRows label="Загружаем сообщения…" />}
       {messages.error && (
         <p className="error" role="alert">
           Не удалось обновить сообщения.{' '}
@@ -160,7 +161,6 @@ export function ConversationResults({
                     className="result-image"
                     onClick={() => setPreview(file)}
                     aria-label={`Открыть ${file.name}`}
-                    title={`Открыть ${file.name}`}
                   >
                     <Media file={file} />
                   </button>

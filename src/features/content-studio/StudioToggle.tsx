@@ -23,7 +23,6 @@ export function Toggle({
         type="button"
         role="switch"
         aria-label={label}
-        title={label}
         aria-checked={value}
         aria-pressed={value}
         disabled={disabled}

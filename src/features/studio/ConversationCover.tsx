@@ -1,3 +1,4 @@
+import { LazyImage } from '../../components/LazyImage';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { MessageCircle } from 'lucide-react';
@@ -28,7 +29,12 @@ export function ConversationCover({
   const content = (
     <CardPreview className={isStatic ? 'history-cover' : undefined} isVideo={!!video}>
       {src && failed !== src ? (
-        <img src={src} alt={`Превью: ${conversation.name}`} loading="lazy" onError={() => setFailed(src)} />
+        <LazyImage
+          src={src}
+          alt={`Превью: ${conversation.name}`}
+          loading="lazy"
+          onError={() => setFailed(src)}
+        />
       ) : (
         <>
           <div
@@ -57,7 +63,6 @@ export function ConversationCover({
       className="history-cover"
       onClick={onOpen}
       aria-label={`Открыть файл ${conversation.name}`}
-      title="Открыть файл"
     >
       {content}
     </button>
@@ -66,7 +71,6 @@ export function ConversationCover({
       className="history-cover"
       to={`/${kind}?conversation=${conversation.id}`}
       aria-label={`Открыть работу ${conversation.name}`}
-      title={`Открыть работу ${conversation.name}`}
     >
       {content}
     </Link>

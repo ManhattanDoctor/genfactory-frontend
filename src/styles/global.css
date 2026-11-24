@@ -1406,13 +1406,6 @@ a svg {
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
 }
-.skeleton {
-  height: 250px;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #18191b 25%, #202226 45%, #18191b 65%);
-  background-size: 200%;
-  animation: shimmer 2s infinite;
-}
 .pagination {
   display: flex;
   justify-content: center;

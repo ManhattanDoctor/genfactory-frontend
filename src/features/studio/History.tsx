@@ -1,3 +1,4 @@
+import { AssetCardSkeleton } from '../../components/Skeleton';
 import { Masonry } from '../../components/Masonry';
 import { groupBy } from 'lodash';
 import { downloadFile } from '../../lib/files';
@@ -211,7 +212,6 @@ export function History(): ReactElement {
                   key={id}
                   className={`chip ${filter === id ? 'active' : ''}`}
                   aria-label={label}
-                  title={label}
                   aria-pressed={filter === id}
                   onClick={() => {
                     setFilter(id);
@@ -313,6 +313,13 @@ export function History(): ReactElement {
             </div>
           )}
           <div className="history-list">
+            {list.isPending && !visible.length && (
+              <Masonry ordered>
+                {Array.from({ length: 8 }, (_, index) => (
+                  <AssetCardSkeleton key={index} history />
+                ))}
+              </Masonry>
+            )}
             {Object.entries(groupBy(visible, (c) => historyDay(c.lastMessageDate || c.createdDate))).map(
               ([day, items]) => (
                 <Fragment key={day}>
@@ -354,7 +361,7 @@ export function History(): ReactElement {
                               </button>
                             </form>
                           ) : (
-                            <h2 title={c.name}>{c.name}</h2>
+                            <h2>{c.name}</h2>
                           )
                         }
                       >
@@ -381,7 +388,6 @@ export function History(): ReactElement {
               <button
                 className="button"
                 aria-label="Предыдущая страница"
-                title="Предыдущая страница"
                 disabled={!page}
                 onClick={() => setPagination({ userId: auth.user?.id, page: page - 1, query })}
               >
@@ -393,7 +399,6 @@ export function History(): ReactElement {
               <button
                 className="button"
                 aria-label="Следующая страница"
-                title="Следующая страница"
                 disabled={page + 1 >= list.data.pages}
                 onClick={() => setPagination({ userId: auth.user?.id, page: page + 1, query })}
               >

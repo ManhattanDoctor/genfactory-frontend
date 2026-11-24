@@ -1,3 +1,4 @@
+import { LazyImage } from '../../components/LazyImage';
 import { MODEL_SEARCH_MIN_COUNT } from './presentation';
 import { Fragment, useState } from 'react';
 import { Box, Check, Heart, Info } from 'lucide-react';
@@ -87,12 +88,11 @@ export function ModelPickerList({
                 role="option"
                 aria-selected={selected === id}
                 aria-label={title}
-                title={title}
                 className="gf-model-choice"
                 onClick={() => onSelect(id)}
               >
                 {mark ? (
-                  <img src={'/media/model-logos/' + mark + '.svg'} width="26" height="26" alt="" />
+                  <LazyImage src={'/media/model-logos/' + mark + '.svg'} width="26" height="26" alt="" />
                 ) : (
                   <span aria-hidden="true" className="gf-model-placeholder">
                     <Box size={18} />
@@ -100,15 +100,9 @@ export function ModelPickerList({
                 )}
                 <span className="gf-model-copy">
                   <span className="gf-model-heading">
-                    <span className="gf-model-name" title={title}>
-                      {title}
-                    </span>
+                    <span className="gf-model-name">{title}</span>
                   </span>
-                  {summary && (
-                    <small className="gf-model-summary" title={summary}>
-                      {summary}
-                    </small>
-                  )}
+                  {summary && <small className="gf-model-summary">{summary}</small>}
                   <span className="gf-model-tags">
                     {' '}
                     {(tags ?? (/\b(fast|turbo|highspeed)\b/i.test(model) ? ['Быстро'] : [])).map((tag) => (
@@ -130,7 +124,6 @@ export function ModelPickerList({
                     type="button"
                     aria-pressed={favorite}
                     aria-label={(favorite ? 'Убрать из избранных: ' : 'В избранные: ') + title}
-                    title={(favorite ? 'Убрать из избранных: ' : 'В избранные: ') + title}
                     onClick={() => onFavorite(id)}
                   >
                     <Heart size={onClose ? 18 : 16} fill={favorite ? 'currentColor' : 'none'} />
@@ -145,7 +138,6 @@ export function ModelPickerList({
                   <button
                     type="button"
                     aria-label={'О модели ' + title}
-                    title={'О модели ' + title}
                     onClick={(event) => {
                       event.currentTarget.focus({ preventScroll: true });
                       onInfo(id);

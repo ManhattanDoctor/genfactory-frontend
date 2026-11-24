@@ -1,3 +1,4 @@
+import { useMediaVisibility } from '../../components/useMediaVisibility';
 import { Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ITemplateCard } from '../content-studio/materials';
@@ -7,29 +8,16 @@ export function VideoTemplateMedia({ item }: { item: ITemplateCard }) {
   const clip = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState(false);
+  const { visible, seen } = useMediaVisibility(clip, true, item.src);
   useEffect(() => {
-    const video = clip.current;
-    if (!video) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) video.pause();
-    });
-    const pauseWhenHidden = () => {
-      if (document.hidden) video.pause();
-    };
-    observer.observe(video);
-    document.addEventListener('visibilitychange', pauseWhenHidden);
-    return () => {
-      observer.disconnect();
-      document.removeEventListener('visibilitychange', pauseWhenHidden);
-    };
-  }, []);
+    if (!visible) clip.current?.pause();
+  }, [visible]);
   return (
     <button
       className="img-card video-template-player"
       type="button"
       style={{ aspectRatio: item.ratio.replace(':', ' / ') }}
       aria-label={`${playing ? 'Приостановить' : 'Посмотреть'}: ${item.title}`}
-      title={`${playing ? 'Приостановить' : 'Посмотреть'}: ${item.title}`}
       onClick={() => {
         const video = clip.current;
         if (!video) return;
@@ -38,17 +26,18 @@ export function VideoTemplateMedia({ item }: { item: ITemplateCard }) {
           return;
         }
         setError(false);
-        if (video.error) video.load();
+        if (!video.hasAttribute('src')) video.src = item.src;
+        else if (video.error) video.load();
         void video.play().catch((reason) => {
           if (reason?.name !== 'AbortError') setError(true);
         });
       }}
     >
       <video
+        key={item.src}
         ref={clip}
         className="img-face"
-        src={item.src}
-        poster={item.src.replace(/\.mp4$/, '.jpg')}
+        poster={seen ? item.src.replace(/\.mp4$/, '.jpg') : undefined}
         preload="none"
         playsInline
         muted
