@@ -17,7 +17,7 @@ const media = '/media/home/';
 function ModeCard({ mode, index }: { mode: (typeof modes)[number]; index: number }) {
   const [playing, setPlaying] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
-  const poster = media + ['studio-poster.jpg', 'images.png', 'video-poster.jpg'][index];
+  const clip = media + ['studio', 'images', 'video'][index];
   const { visible, seen } = useMediaVisibility(video);
   useEffect(() => {
     const el = video.current;
@@ -37,7 +37,7 @@ function ModeCard({ mode, index }: { mode: (typeof modes)[number]; index: number
       aria-label={mode.action}
       className={'gf-mode-card' + (index === 2 ? ' gf-mode-card-video' : '')}
     >
-      <LazyImage className="gf-mode-media" src={poster} alt="" />
+      <LazyImage className="gf-mode-media" src={clip + '-poster.jpg'} alt="" />
       <video
         ref={video}
         className={'gf-mode-media' + (index === 2 ? ' gf-mode-media-video' : '')}
@@ -48,7 +48,7 @@ function ModeCard({ mode, index }: { mode: (typeof modes)[number]; index: number
         playsInline
         loop
         preload="none"
-        src={seen ? media + ['studio.mp4', 'images.mp4', 'video.mp4'][index] : undefined}
+        src={seen ? clip + '.mp4' : undefined}
       />
       <div className="gf-mode-shade" />
       <div className="gf-mode-badge">{icons[mode.icon]}</div>

@@ -1,3 +1,4 @@
+import { storefrontImage } from '../lib/storefrontImage';
 import type { ReactElement } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -18,7 +19,7 @@ export function Company(): ReactElement {
           <span>ДЛЯ КОМАНД</span>
         </h1>
         <img
-          src="/media/company/hero-robot.webp"
+          src={storefrontImage('/media/company/hero-robot.webp', 1920)}
           alt="Кибернетический портрет - визуальный образ NTIAI"
           width={864}
           height={1132}

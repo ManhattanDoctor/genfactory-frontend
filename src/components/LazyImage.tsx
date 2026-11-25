@@ -1,3 +1,4 @@
+import { storefrontImage } from '../lib/storefrontImage';
 import './media-loading.css';
 import { useRef, useState, type ImgHTMLAttributes } from 'react';
 import { useMediaVisibility } from './useMediaVisibility';
@@ -11,7 +12,7 @@ export function LazyImage({ src, srcSet, onLoad, onError, ...props }: ImgHTMLAtt
     <img
       {...props}
       ref={ref}
-      src={seen ? src : undefined}
+      src={seen ? storefrontImage(src, 640) : undefined}
       srcSet={seen ? srcSet : undefined}
       data-image-loading={source && settled !== source ? true : undefined}
       style={{

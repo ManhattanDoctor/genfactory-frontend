@@ -1,3 +1,4 @@
+import { storefrontImage } from '../../lib/storefrontImage';
 import { ComposerTemplateFields } from './ComposerTemplateFields';
 import { PromptTemplate } from './PromptTemplate';
 import { PromptPreview, PromptSource, promptParts } from './PromptText';
@@ -91,7 +92,7 @@ export function TemplateEditor({
             {item.kind === 'video' ? (
               <video src={item.referenceVideoSrc || item.src} controls playsInline preload="metadata" />
             ) : (
-              <img src={item.src} alt={item.title} />
+              <img src={storefrontImage(item.src, 1920)} alt={item.title} />
             )}
             <p className="template-caption">
               {item.referenceVideoSrc

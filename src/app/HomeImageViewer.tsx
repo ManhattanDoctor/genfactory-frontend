@@ -1,3 +1,4 @@
+import { storefrontImage } from '../lib/storefrontImage';
 import type { ReactPortal } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../components/Modal';
@@ -110,7 +111,7 @@ export function HomeImageViewer({
         <img
           ref={thumbnail}
           className="home-image-view-shot"
-          src={image.preview}
+          src={storefrontImage(image.preview, 640)}
           alt=""
           aria-hidden="true"
           onLoad={showPreview}
@@ -122,7 +123,7 @@ export function HomeImageViewer({
       <img
         ref={shot}
         className="home-image-view-shot"
-        src={image.src}
+        src={storefrontImage(image.src, 1920)}
         alt={image.alt}
         onLoad={grow}
         onError={fail}

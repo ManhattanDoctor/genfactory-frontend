@@ -1,3 +1,4 @@
+import { storefrontImage } from '../lib/storefrontImage';
 import { useMediaVisibility } from './useMediaVisibility';
 import { FilePreviewRetry } from './FilePreviewRetry';
 import { FileActions } from './FileActions';
@@ -194,7 +195,7 @@ function MediaContent({
   }, [isPlaybackDisabled]);
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const original = useMediaUrl(
-    controls || !file.isExternal ? safeMediaUrl(file.path) : undefined,
+    controls || !file.isExternal ? safeMediaUrl(storefrontImage(file.path, controls ? 1920 : 640)) : undefined,
     failedSources,
   );
   const failSource = (source: string): void => {
