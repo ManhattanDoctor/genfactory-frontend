@@ -158,6 +158,27 @@ test('a failed direct task keeps the draft and does not retry or fall back to a 
   expect(state.conversationWrites).toEqual([]);
 });
 
+test('maintenance rejects a generation once and preserves the draft for later', async ({ page }) => {
+  await setup(page);
+  let attempts = 0;
+  await page.route('**/api/task', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    attempts++;
+    return route.fulfill({ status: 503, json: { code: 'GENERATION_DRAINING' } });
+  });
+  await page.goto('/image');
+  const draft = page.locator('#img-draft');
+  await draft.fill('Чашка');
+  await page.getByRole('button', { name: 'Собрать изображение', exact: true }).click();
+  await expect(
+    page
+      .getByText('Идёт обновление. Попробуйте запустить генерацию после его завершения.', { exact: true })
+      .first(),
+  ).toBeVisible();
+  await expect(draft).toHaveValue('Чашка');
+  expect(attempts).toBe(1);
+});
+
 test('image task failure stays visible while editing the next draft', async ({ page }) => {
   const state = await setup(page, true, true);
   await page.goto('/image');

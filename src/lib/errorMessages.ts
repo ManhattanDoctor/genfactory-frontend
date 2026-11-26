@@ -127,6 +127,8 @@ export function apiErrorMessage(data: unknown, status: number): string {
     ['VIDEO_REFERENCE_INVALID', 'FILE_REFERENCE_INVALID'].includes(String(value.code)) ? [value.details] : []
   ).find((item) => typeof item === 'string' && referenceErrors[item]);
   if (typeof referenceCode === 'string') return referenceErrors[referenceCode];
+  if (value.code === 'GENERATION_DRAINING')
+    return 'Идёт обновление. Попробуйте запустить генерацию после его завершения.';
   if (value.code === 'AI_MODEL_DISABLED') return 'Модель отключена администратором. Выберите другую модель.';
   if (value.code === 'AI_MODEL_HIDDEN') return 'Модель недоступна для нового выбора. Выберите другую модель.';
   if (value.code === 'INSUFFICIENT_FUNDS') return userBalanceError;
